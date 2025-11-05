@@ -11,10 +11,10 @@ function RootNavigator() {
   const inAuthGroup = segments[0] === "(auth)";
 
   if (!session && !inAuthGroup) {
-    return <Redirect href="/login" />;
+    return <Redirect href="/Login" />;
   }
   if (session && inAuthGroup) {
-    return <Redirect href="/" />;
+    return <Redirect href="/Homepage" />;
   }
 
   return <Slot />;

@@ -2,7 +2,7 @@ import React from "react";
 import { View, Text, TouchableOpacity } from "react-native";
 import { useSession } from "@/context/AuthContext";
 
-export default function Index() {
+export default function Homepage() {
   const { user, signOut } = useSession();
 
   return (

@@ -135,7 +135,7 @@ export default function RegisterScreen() {
 
       const resp = await axiosInstance.post("/api/register", payload);
       // assume successful registration
-      router.replace("/(auth)/login");
+      router.replace("/(auth)/Login");
     } catch (e: any) {
       console.error(e);
       // try to extract message
