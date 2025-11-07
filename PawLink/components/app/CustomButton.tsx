@@ -22,7 +22,7 @@ const CustomButton = ({
   return (
     <TouchableOpacity
       className={cn(
-        "bg-[#E85234] rounded-full p-3 w-full flex flex-row justify-center",
+        "bg-[#E85234] rounded-full p-3 flex flex-row justify-center mt-6",
         btnstyle
       )}
       onPress={onPress}
@@ -33,7 +33,7 @@ const CustomButton = ({
         {isLoading ? (
           <ActivityIndicator size="small" color="#0000ff" />
         ) : (
-          <Text className={cn("text-white text-base", textStyle)}>{title}</Text>
+          <Text className={cn("text-white text-base font-mulish-bold", textStyle)}>{title}</Text>
         )}
       </View>
     </TouchableOpacity>

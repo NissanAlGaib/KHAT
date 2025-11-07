@@ -70,18 +70,20 @@ const Login = () => {
   };
 
   return (
-    <View className="gap-10 rounded-t-[45px] bg-[#FEFEFE] p-5 mt-5">
-      <View className="w-full px-4 mt-2 mb-6">
-        <Text className="font-extrabold text-3xl text-center mb-2">
+    <View className="gap-6 rounded-t-[45px] bg-[#FEFEFE] p-5 mt-5">
+      <Image className="absolute -top-64 -right-4" source={require("../../assets/images/login_dog.png")} />
+      <View className="w-full px-4 mt-6 mb-4">
+        <Text className="font-baloo text-3xl text-center uppercase">
           Login To Your Account
         </Text>
-        <Text className="text-[#6D6A6A] text-center">
+        <Text className="text-[#6D6A6A] text-center font-roboto-condensed-extralight text-sm">
           Enter your email and password below
         </Text>
       </View>
       <CustomInput
         placeholder="Enter Your Email"
         value={data.email}
+        error={errors.email}
         onChangeText={(text) => handleChange("email", text)}
         label="Email"
         keyboardType="email-address"
@@ -89,19 +91,16 @@ const Login = () => {
       <CustomInput
         placeholder="Enter Your Password"
         value={data.password}
+        error={errors.password}
         onChangeText={(text) => handleChange("password", text)}
         label="Password"
         secureTextEntry
       />
-      <CustomButton
-        title="Login"
-        onPress={handleLogin}
-        isLoading={loading}
-      />
-      <Text className="text-sm text-[#6B7280] text-center mb-6">
+      <CustomButton title="Login" onPress={handleLogin} isLoading={loading} />
+      <Text className="text-sm text-[#6B7280] text-center mb-6 font-roboto">
         Not registered yet?{" "}
-        <Link href="/register">
-          <Text className="text-[#E4492E]">Create Account</Text>
+        <Link href="/Register">
+          <Text className="text-[#E4492E] font-roboto">Create Account</Text>
         </Link>
       </Text>
     </View>

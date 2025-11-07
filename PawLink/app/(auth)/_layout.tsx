@@ -10,34 +10,29 @@ import {
 
 export default function AuthLayout() {
   return (
-    <KeyboardAvoidingView
-      style={{ flex: 1 }}
-      behavior={Platform.OS === "android" ? "height" : "padding"}
-      keyboardVerticalOffset={0}
-    >
-
+    <View style={{ flex: 1 }}>
+      {/* Animated Background */}
       <View style={[StyleSheet.absoluteFillObject, { zIndex: 0 }]}>
         <BubbleBackgroundRe />
       </View>
 
-      <ScrollView
-        keyboardShouldPersistTaps="handled"
-        contentContainerStyle={{
-          flexGrow: 1,
-          justifyContent: "flex-end",
-          paddingBottom: 0,
-          marginBottom: 0,
-        }}
-        style={{
-          flex: 1,
-          zIndex: 1,
-          paddingBottom: 0,
-          marginBottom: 0,
-        }}
-        showsVerticalScrollIndicator={false}
+      {/* Keyboard Handler */}
+      <KeyboardAvoidingView
+        style={{ flex: 1 }}
+        behavior={Platform.OS === "ios" ? "padding" : "height"}
+        keyboardVerticalOffset={Platform.OS === "android" ? -100 : 0}
       >
-        <Slot />
-      </ScrollView>
-    </KeyboardAvoidingView>
+        <ScrollView
+          keyboardShouldPersistTaps="handled"
+          contentContainerStyle={{
+            flexGrow: 1,
+            justifyContent: "flex-end",
+          }}
+          showsVerticalScrollIndicator={false}
+        >
+          <Slot />
+        </ScrollView>
+      </KeyboardAvoidingView>
+    </View>
   );
 }

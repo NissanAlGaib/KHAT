@@ -5,6 +5,7 @@ import cn from "clsx";
 interface CustomInputProps {
   placeholder?: string;
   value: string;
+  error?: string;
   onChangeText: (text: string) => void;
   label?: string;
   secureTextEntry?: boolean;
@@ -14,6 +15,7 @@ interface CustomInputProps {
 const CustomInput = ({
   placeholder = "Enter Text",
   value,
+  error,
   onChangeText,
   label,
   secureTextEntry,
@@ -23,7 +25,7 @@ const CustomInput = ({
 
   return (
     <View className="w-full">
-      <Text className="label">{label}</Text>
+      <Text className="label font-mulish">{label}</Text>
       <TextInput
         autoCapitalize="none"
         autoCorrect={false}
@@ -37,6 +39,7 @@ const CustomInput = ({
         placeholderTextColor="#888"
         className={cn('rounded-lg p-3 w-full text-base text-dark-100 border-b leading-5;', isFocused ? 'border-black' : 'border-gray-300')}
       />
+      <Text className={cn('text-red-500 font-roboto-condensed-extralight', { hidden: !error })}>{error}</Text>
     </View>
   );
 };

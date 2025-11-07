@@ -2,146 +2,111 @@ import React, { useState } from "react";
 import {
   View,
   Text,
-  TextInput,
-  Image,
-  TouchableOpacity,
-  Platform,
-  KeyboardAvoidingView,
-  SafeAreaView,
+  Alert,
   ScrollView,
-  ActivityIndicator,
+  KeyboardAvoidingView,
+  Platform,
+  Image,
 } from "react-native";
-import { useRouter } from "expo-router";
+import { Link, router } from "expo-router";
 import axiosInstance from "@/config/axiosConfig";
+import { isAxiosError } from "axios";
+import CustomInput from "@/components/app/CustomInput";
+import CustomButton from "@/components/app/CustomButton";
 
-type FormState = {
-  email: string;
-  username: string;
-  password: string;
-  password_confirmation: string;
-
-  firstName: string;
-  middleName: string;
-  lastName: string;
-  phone: string;
-
-  birthday: string;
-  sex: string;
-  province: string;
-  city: string;
-  postal: string;
-  barangay: string;
-  street: string;
-
-  status_shooter: boolean;
-  status_owner: boolean;
-};
-
-const initialState: FormState = {
-  email: "",
-  username: "",
-  password: "",
-  password_confirmation: "",
-
-  firstName: "",
-  middleName: "",
-  lastName: "",
-  phone: "",
-
-  birthday: "",
-  sex: "",
-  province: "",
-  city: "",
-  postal: "",
-  barangay: "",
-  street: "",
-
-  status_shooter: false,
-  status_owner: false,
-};
-
-export default function RegisterScreen() {
-  const [step, setStep] = useState(0);
-  const [form, setForm] = useState<FormState>(initialState);
+const Register = () => {
+  const [step, setStep] = useState(1);
   const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const router = useRouter();
 
-  const next = () => setStep((s) => Math.min(3, s + 1));
-  const prev = () => setStep((s) => Math.max(0, s - 1));
+  const [data, setData] = useState({
+    email: "",
+    name: "",
+    password: "",
+    password_confirmation: "",
+    first_name: "",
+    last_name: "",
+    contact_number: "",
+    birthdate: "",
+    sex: "",
+    address: {
+      street: "",
+      barangay: "",
+      city: "",
+      province: "",
+      postal_code: "",
+    },
+    status: "", // "Shooter" or "Pet Owner"
+  });
 
-  const update = (k: keyof FormState, v: any) => {
-    setForm((f) => ({ ...f, [k]: v }));
+  const [errors, setErrors] = useState<any>({});
+
+  const handleChange = (key: string, value: string) => {
+    if (key.includes("address.")) {
+      const addressKey = key.split(".")[1];
+      setData({
+        ...data,
+        address: { ...data.address, [addressKey]: value },
+      });
+    } else {
+      setData({ ...data, [key]: value });
+    }
+    setErrors({ ...errors, [key]: "" });
   };
 
+  // ✅ Step validation before moving forward
   const validateStep = () => {
-    setError(null);
-    if (step === 0) {
-      if (!form.email) return "Email is required";
-      if (!form.username) return "Username is required";
-      if (!form.password) return "Password is required";
-      if (form.password !== form.password_confirmation)
-        return "Passwords do not match";
-    }
+    let stepErrors: any = {};
+
     if (step === 1) {
-      if (!form.firstName) return "First name required";
-      if (!form.lastName) return "Last name required";
+      if (!data.email) stepErrors.email = "Email is required";
+      if (!data.name) stepErrors.name = "Username is required";
+      if (!data.password) stepErrors.password = "Password is required";
+      if (data.password !== data.password_confirmation)
+        stepErrors.password_confirmation = "Passwords do not match";
+    } else if (step === 2) {
+      if (!data.first_name) stepErrors.first_name = "First name required";
+      if (!data.last_name) stepErrors.last_name = "Last name required";
+      if (!data.birthdate) stepErrors.birthdate = "Birthdate required";
+      if (!data.sex) stepErrors.sex = "Sex required";
+    } else if (step === 3) {
+      const a = data.address;
+      if (!a.street) stepErrors["address.street"] = "Street required";
+      if (!a.barangay) stepErrors["address.barangay"] = "Barangay required";
+      if (!a.city) stepErrors["address.city"] = "City required";
+      if (!a.province) stepErrors["address.province"] = "Province required";
+      if (!a.postal_code)
+        stepErrors["address.postal_code"] = "Postal Code required";
+    } else if (step === 4) {
+      if (!data.status) stepErrors.status = "Select your status";
     }
-    if (step === 2) {
-      if (!form.birthday) return "Birthday required";
-    }
-    return null;
+
+    setErrors(stepErrors);
+    return Object.keys(stepErrors).length === 0;
   };
 
-  const handleNext = () => {
-    const v = validateStep();
-    if (v) {
-      setError(v);
-      return;
-    }
-    next();
+  const nextStep = () => {
+    if (validateStep()) setStep((prev) => prev + 1);
   };
 
-  const handleCreate = async () => {
-    const v = validateStep();
-    if (v) {
-      setError(v);
-      return;
-    }
+  const prevStep = () => setStep((prev) => prev - 1);
+
+  const handleSubmit = async () => {
+    if (!validateStep()) return;
+
     setLoading(true);
-    setError(null);
     try {
-      const payload = {
-        email: form.email,
-        username: form.username,
-        password: form.password,
-        password_confirmation: form.password_confirmation,
-
-        first_name: form.firstName,
-        middle_name: form.middleName,
-        last_name: form.lastName,
-        phone: form.phone,
-
-        birthday: form.birthday,
-        sex: form.sex,
-        province: form.province,
-        city: form.city,
-        postal: form.postal,
-        barangay: form.barangay,
-        street: form.street,
-        status_shooter: form.status_shooter,
-        status_owner: form.status_owner,
-      };
-
-      const resp = await axiosInstance.post("/api/register", payload);
-      // assume successful registration
-      router.replace("/(auth)/Login");
-    } catch (e: any) {
-      console.error(e);
-      // try to extract message
-      const msg =
-        e?.response?.data?.message || e?.message || "Registration failed";
-      setError(String(msg));
+      const response = await axiosInstance.post("/api/register", data);
+      Alert.alert("Success", "Account created successfully!");
+      router.replace("/Login");
+    } catch (error) {
+      if (isAxiosError(error)) {
+        const responseData = error.response?.data;
+        if (responseData?.errors) setErrors(responseData.errors);
+        else
+          Alert.alert("Error", responseData?.message || "Registration failed");
+      } else {
+        Alert.alert("Error", "Network error occurred");
+      }
     } finally {
       setLoading(false);
     }
@@ -149,232 +114,121 @@ export default function RegisterScreen() {
 
   const renderStep = () => {
     switch (step) {
-      case 0:
-        return (
-          <View>
-            <View className="mb-3">
-              <Text className="text-gray-700 text-sm mb-2">Email</Text>
-              <TextInput
-                value={form.email}
-                onChangeText={(t) => update("email", t)}
-                placeholder="example@gmail.com"
-                className="border border-gray-200 px-3 py-2 rounded-md bg-white"
-                autoCapitalize="none"
-                keyboardType="email-address"
-              />
-            </View>
-
-            <View className="mb-3">
-              <Text className="text-gray-700 text-sm mb-2">
-                Create Username
-              </Text>
-              <TextInput
-                value={form.username}
-                onChangeText={(t) => update("username", t)}
-                placeholder="it must be unique"
-                className="border border-gray-200 px-3 py-2 rounded-md bg-white"
-                autoCapitalize="none"
-              />
-            </View>
-
-            <View className="mb-3">
-              <Text className="text-gray-700 text-sm mb-2">
-                Create Password
-              </Text>
-              <TextInput
-                value={form.password}
-                onChangeText={(t) => update("password", t)}
-                placeholder="Create Password"
-                secureTextEntry
-                className="border border-gray-200 px-3 py-2 rounded-md bg-white"
-              />
-            </View>
-
-            <View className="mb-3">
-              <Text className="text-gray-700 text-sm mb-2">
-                Confirm Password
-              </Text>
-              <TextInput
-                value={form.password_confirmation}
-                onChangeText={(t) => update("password_confirmation", t)}
-                placeholder="repeat password"
-                secureTextEntry
-                className="border border-gray-200 px-3 py-2 rounded-md bg-white"
-              />
-            </View>
-          </View>
-        );
-
       case 1:
         return (
-          <View>
-            <View className="mb-3">
-              <Text className="text-gray-700 text-sm mb-2">First Name</Text>
-              <TextInput
-                value={form.firstName}
-                onChangeText={(t) => update("firstName", t)}
-                placeholder="Enter first name"
-                className="border border-gray-200 px-3 py-2 rounded-md bg-white"
-              />
-            </View>
-
-            <View className="mb-3">
-              <Text className="text-gray-700 text-sm mb-2">Middle Name</Text>
-              <TextInput
-                value={form.middleName}
-                onChangeText={(t) => update("middleName", t)}
-                placeholder="Enter Middle name"
-                className="border border-gray-200 px-3 py-2 rounded-md bg-white"
-              />
-            </View>
-
-            <View className="mb-3">
-              <Text className="text-gray-700 text-sm mb-2">Last Name</Text>
-              <TextInput
-                value={form.lastName}
-                onChangeText={(t) => update("lastName", t)}
-                placeholder="Enter Last name"
-                className="border border-gray-200 px-3 py-2 rounded-md bg-white"
-              />
-            </View>
-
-            <View className="mb-3">
-              <Text className="text-gray-700 text-sm mb-2">Phone Number</Text>
-              <TextInput
-                value={form.phone}
-                onChangeText={(t) => update("phone", t)}
-                placeholder="63+ 000 000 0000"
-                keyboardType="phone-pad"
-                className="border border-gray-200 px-3 py-2 rounded-md bg-white"
-              />
-            </View>
+          <View className="gap-4">
+            <CustomInput
+              label="Email"
+              placeholder="example@gmail.com"
+              value={data.email}
+              onChangeText={(t) => handleChange("email", t)}
+              error={errors.email}
+            />
+            <CustomInput
+              label="Create Username"
+              placeholder="must be unique"
+              value={data.name}
+              onChangeText={(t) => handleChange("name", t)}
+              error={errors.name}
+            />
+            <CustomInput
+              label="Create Password"
+              placeholder="Create password"
+              secureTextEntry
+              value={data.password}
+              onChangeText={(t) => handleChange("password", t)}
+              error={errors.password}
+            />
+            <CustomInput
+              label="Confirm Password"
+              placeholder="Repeat password"
+              secureTextEntry
+              value={data.password_confirmation}
+              onChangeText={(t) => handleChange("password_confirmation", t)}
+              error={errors.password_confirmation}
+            />
           </View>
         );
 
       case 2:
         return (
-          <View>
-            <View className="mb-3">
-              <Text className="text-gray-700 text-sm mb-2">Birthday</Text>
-              <TextInput
-                value={form.birthday}
-                onChangeText={(t) => update("birthday", t)}
-                placeholder="dd/mm/yy"
-                className="border border-gray-200 px-3 py-2 rounded-md bg-white"
-              />
-            </View>
-
-            <View className="mb-3">
-              <Text className="text-gray-700 text-sm mb-2">Sex</Text>
-              <TextInput
-                value={form.sex}
-                onChangeText={(t) => update("sex", t)}
-                placeholder="Enter sex"
-                className="border border-gray-200 px-3 py-2 rounded-md bg-white"
-              />
-            </View>
-
-            <View className="mb-3">
-              <Text className="text-gray-700 text-sm mb-2">Province</Text>
-              <TextInput
-                value={form.province}
-                onChangeText={(t) => update("province", t)}
-                placeholder="Province"
-                className="border border-gray-200 px-3 py-2 rounded-md bg-white"
-              />
-            </View>
-
-            <View className="flex-row space-x-2">
-              <View className="flex-1 mb-3">
-                <Text className="text-gray-700 text-sm mb-2">
-                  City/Municipality
-                </Text>
-                <TextInput
-                  value={form.city}
-                  onChangeText={(t) => update("city", t)}
-                  placeholder="City/Municipality"
-                  className="border border-gray-200 px-3 py-2 rounded-md bg-white"
-                />
-              </View>
-
-              <View className="w-28 mb-3">
-                <Text className="text-gray-700 text-sm mb-2">Postal Code</Text>
-                <TextInput
-                  value={form.postal}
-                  onChangeText={(t) => update("postal", t)}
-                  placeholder="Postal Code"
-                  keyboardType="numeric"
-                  className="border border-gray-200 px-3 py-2 rounded-md bg-white"
-                />
-              </View>
-            </View>
-
-            <View className="mb-3">
-              <Text className="text-gray-700 text-sm mb-2">
-                Barangay/District
-              </Text>
-              <TextInput
-                value={form.barangay}
-                onChangeText={(t) => update("barangay", t)}
-                placeholder="Barangay/District"
-                className="border border-gray-200 px-3 py-2 rounded-md bg-white"
-              />
-            </View>
-
-            <View className="mb-3">
-              <Text className="text-gray-700 text-sm mb-2">
-                House/Street Name
-              </Text>
-              <TextInput
-                value={form.street}
-                onChangeText={(t) => update("street", t)}
-                placeholder="House/Street Name"
-                className="border border-gray-200 px-3 py-2 rounded-md bg-white"
-              />
-            </View>
+          <View className="gap-4">
+            <CustomInput
+              label="First Name"
+              value={data.first_name}
+              onChangeText={(t) => handleChange("first_name", t)}
+              error={errors.first_name}
+            />
+            <CustomInput
+              label="Last Name"
+              value={data.last_name}
+              onChangeText={(t) => handleChange("last_name", t)}
+              error={errors.last_name}
+            />
+            <CustomInput
+              label="Birthdate"
+              placeholder="YYYY-MM-DD"
+              value={data.birthdate}
+              onChangeText={(t) => handleChange("birthdate", t)}
+              error={errors.birthdate}
+            />
+            <CustomInput
+              label="Sex"
+              value={data.sex}
+              onChangeText={(t) => handleChange("sex", t)}
+              error={errors.sex}
+            />
           </View>
         );
 
       case 3:
         return (
-          <View>
-            <Text className="text-gray-800 font-medium mb-3">
+          <View className="gap-3">
+            <CustomInput
+              label="Street"
+              value={data.address.street}
+              onChangeText={(t) => handleChange("address.street", t)}
+              error={errors["address.street"]}
+            />
+            <CustomInput
+              label="Barangay/District"
+              value={data.address.barangay}
+              onChangeText={(t) => handleChange("address.barangay", t)}
+              error={errors["address.barangay"]}
+            />
+            <CustomInput
+              label="City/Municipality"
+              value={data.address.city}
+              onChangeText={(t) => handleChange("address.city", t)}
+              error={errors["address.city"]}
+            />
+            <CustomInput
+              label="Province"
+              value={data.address.province}
+              onChangeText={(t) => handleChange("address.province", t)}
+              error={errors["address.province"]}
+            />
+            <CustomInput
+              label="Postal Code"
+              value={data.address.postal_code}
+              onChangeText={(t) => handleChange("address.postal_code", t)}
+              error={errors["address.postal_code"]}
+            />
+          </View>
+        );
+
+      case 4:
+        return (
+          <View className="gap-5">
+            <Text className="font-roboto-condensed-bold text-xl text-[#E4492E]">
               Select Your Status:
             </Text>
-
-            <TouchableOpacity
-              className="flex-row items-start mb-3"
-              onPress={() => update("status_shooter", !form.status_shooter)}
-            >
-              <View className="w-5 h-5 mr-3 rounded-sm border border-gray-300 items-center justify-center">
-                {form.status_shooter && (
-                  <View className="w-3 h-3 bg-[#ea5b3a]" />
-                )}
-              </View>
-              <View className="flex-1">
-                <Text className="font-semibold">Shooter</Text>
-                <Text className="text-gray-500 text-sm">
-                  Assists in breeding pets, helping to ensure healthy offspring
-                  and responsible pet care.
-                </Text>
-              </View>
-            </TouchableOpacity>
-
-            <TouchableOpacity
-              className="flex-row items-start mb-3"
-              onPress={() => update("status_owner", !form.status_owner)}
-            >
-              <View className="w-5 h-5 mr-3 rounded-sm border border-gray-300 items-center justify-center">
-                {form.status_owner && <View className="w-3 h-3 bg-[#ea5b3a]" />}
-              </View>
-              <View className="flex-1">
-                <Text className="font-semibold">Pet Owner</Text>
-                <Text className="text-gray-500 text-sm">
-                  Owning and caring for pets, providing a loving home and
-                  fulfilling their daily needs.
-                </Text>
-              </View>
-            </TouchableOpacity>
+            <View className="gap-2">
+              {/* Shooter & Pet Owner */}
+              {errors.status ? (
+                <Text className="text-red-500 text-xs">{errors.status}</Text>
+              ) : null}
+            </View>
           </View>
         );
 
@@ -384,82 +238,60 @@ export default function RegisterScreen() {
   };
 
   return (
-    <SafeAreaView className="flex-1 bg-[#f6f6f6]">
-      <KeyboardAvoidingView
-        className="flex-1"
-        behavior={Platform.OS === "ios" ? "padding" : undefined}
-      >
-        <ScrollView contentContainerStyle={{ flexGrow: 1 }}>
-          <View className="h-60 bg-[#ea5b3a] items-center justify-end pb-3">
-            <Image
-              source={require("@/assets/images/partial-react-logo.png")}
-              className="w-8/12 h-36"
-              style={{ tintColor: "rgba(255,255,255,0.95)" }}
-              resizeMode="contain"
-            />
-          </View>
+<View className="relative bg-[#FEFEFE] rounded-t-[45px] p-5 mt-5">
+  {/* Cat image wrapper */}
+  <View className="absolute -top-48 w-64 h-64">
+    <Image
+      source={require("../../assets/images/register_cat.png")}
+      resizeMode="contain"
+    />
+  </View>
 
-          <View className="flex-1 bg-white -mt-8 rounded-t-2xl p-6">
-            <Text className="text-gray-800 font-semibold text-sm text-center mb-3">
-              SIGN UP
-            </Text>
+  {/* Header text */}
+  <View className="w-full px-4 mt-16 mb-4">
+    <Text className="font-baloo text-3xl text-center uppercase">
+      Create an Account
+    </Text>
+    <Text className="text-[#6D6A6A] text-center font-roboto-condensed-extralight text-sm">
+      Create an account to get started!
+    </Text>
+  </View>
 
-            <View className="mb-4">
-              <View className="flex-row items-center justify-center space-x-2">
-                {[0, 1, 2, 3].map((i) => (
-                  <View
-                    key={i}
-                    className={`w-10 h-2 rounded ${
-                      i <= step ? "bg-[#ea5b3a]" : "bg-gray-200"
-                    }`}
-                  />
-                ))}
-              </View>
-            </View>
+      {renderStep()}
 
-            {error && (
-              <Text className="text-red-500 text-sm mb-3">{error}</Text>
-            )}
+      <View className="flex-row justify-between gap-3">
+        {step > 1 && (
+          <CustomButton
+            title="Prev"
+            onPress={prevStep}
+            isLoading={false}
+            btnstyle="flex-1"
+          />
+        )}
+        {step < 4 ? (
+          <CustomButton
+            title="Next"
+            onPress={nextStep}
+            isLoading={false}
+            btnstyle="flex-1"
+          />
+        ) : (
+          <CustomButton
+            title="Create"
+            onPress={handleSubmit}
+            isLoading={loading}
+          />
+        )}
+      </View>
 
-            {renderStep()}
-
-            <View className="flex-row justify-between mt-6">
-              {step > 0 ? (
-                <TouchableOpacity
-                  className="px-6 py-3 rounded-lg border border-gray-200"
-                  onPress={prev}
-                >
-                  <Text className="text-gray-700">Prev</Text>
-                </TouchableOpacity>
-              ) : (
-                <View />
-              )}
-
-              {step < 3 ? (
-                <TouchableOpacity
-                  className="bg-[#ea5b3a] px-6 py-3 rounded-lg"
-                  onPress={handleNext}
-                >
-                  <Text className="text-white font-bold">Next</Text>
-                </TouchableOpacity>
-              ) : (
-                <TouchableOpacity
-                  className="bg-[#ea5b3a] px-6 py-3 rounded-lg flex-row items-center"
-                  onPress={handleCreate}
-                  disabled={loading}
-                >
-                  {loading ? (
-                    <ActivityIndicator color="#fff" className="mr-2" />
-                  ) : null}
-                  <Text className="text-white font-bold">
-                    {loading ? "Creating..." : "Create"}
-                  </Text>
-                </TouchableOpacity>
-              )}
-            </View>
-          </View>
-        </ScrollView>
-      </KeyboardAvoidingView>
-    </SafeAreaView>
+      <Text className="text-center text-sm text-[#6B7280] mt-4 mb-6 font-roboto">
+        Already have an account?{" "}
+        <Link href="/Login">
+          <Text className="text-[#E4492E] font-roboto">Login</Text>
+        </Link>
+      </Text>
+    </View>
   );
-}
+};
+
+export default Register;
