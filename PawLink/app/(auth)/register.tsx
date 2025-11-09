@@ -7,12 +7,17 @@ import {
   KeyboardAvoidingView,
   Platform,
   Image,
+  TouchableOpacity,
 } from "react-native";
 import { Link, router } from "expo-router";
 import axiosInstance from "@/config/axiosConfig";
 import { isAxiosError } from "axios";
 import CustomInput from "@/components/app/CustomInput";
 import CustomButton from "@/components/app/CustomButton";
+import DateTimePickerModal from "react-native-modal-datetime-picker";
+import dayjs from "dayjs";
+import { Picker } from "@react-native-picker/picker";
+import { MaterialCommunityIcons } from "@expo/vector-icons";
 
 interface RegisterData {
   email: string;
@@ -38,6 +43,10 @@ const Register = () => {
   const [step, setStep] = useState(1);
   const [loading, setLoading] = useState(false);
 
+  const [birthdate, setBirthdate] = useState("");
+  const [isDatePickerVisible, setDatePickerVisibility] = useState(false);
+  const [sex, setSex] = useState("");
+
   const [data, setData] = useState<RegisterData>({
     email: "",
     name: "",
@@ -57,6 +66,16 @@ const Register = () => {
     },
     roles: [],
   });
+
+  const showDatePicker = () => setDatePickerVisibility(true);
+  const hideDatePicker = () => setDatePickerVisibility(false);
+
+  const handleConfirm = (date: Date) => {
+    const formatted = dayjs(date).format("YYYY-MM-DD");
+    setBirthdate(formatted);
+    setData((prev) => ({ ...prev, birthdate: formatted }));
+    hideDatePicker();
+  };
 
   const [errors, setErrors] = useState<any>({});
 
@@ -109,14 +128,32 @@ const Register = () => {
       if (!data.firstName) stepErrors.firstName = "First name is required.";
       if (!data.lastName) stepErrors.lastName = "Last name is required.";
       if (!data.birthdate) {
-        stepErrors.birthdate = "Please enter your birthdate.";
+        stepErrors.birthdate = "Please select your birthdate.";
       } else {
         const birth = new Date(data.birthdate);
-        if (birth > new Date()) {
+        const today = new Date();
+        const age =
+          today.getFullYear() -
+          birth.getFullYear() -
+          (today <
+          new Date(today.getFullYear(), birth.getMonth(), birth.getDate())
+            ? 1
+            : 0);
+
+        if (birth > today) {
           stepErrors.birthdate = "Birthdate cannot be in the future.";
+        } else if (age < 13) {
+          stepErrors.birthdate =
+            "You must be at least 13 years old to register.";
+        } else if (age > 100) {
+          stepErrors.birthdate = "Please enter a valid birthdate.";
         }
       }
-      if (!data.sex) stepErrors.sex = "Please select your gender.";
+      if (!data.sex) {
+        stepErrors.sex = "Please select your gender from the dropdown.";
+      } else if (!["Male", "Female", "Other"].includes(data.sex)) {
+        stepErrors.sex = "Invalid gender selection.";
+      }
     } else if (step === 3) {
       // Step 3: Address Details
       const a = data.address || {};
@@ -157,6 +194,7 @@ const Register = () => {
 
     setLoading(true);
     try {
+      console.log("📦 Registration payload:", JSON.stringify(data, null, 2));
       const response = await axiosInstance.post("/api/register", data);
       Alert.alert("Success", "Account created successfully!");
       router.replace("/Login");
@@ -227,19 +265,48 @@ const Register = () => {
               onChangeText={(t) => handleChange("lastName", t)}
               error={errors.lastName}
             />
-            <CustomInput
-              label="Birthdate"
-              placeholder="YYYY-MM-DD"
-              value={data.birthdate}
-              onChangeText={(t) => handleChange("birthdate", t)}
-              error={errors.birthdate}
-            />
-            <CustomInput
-              label="Sex"
-              value={data.sex}
-              onChangeText={(t) => handleChange("sex", t)}
-              error={errors.sex}
-            />
+            <View className="">
+              <Text className="font-mulish mb-2">Birthdate</Text>
+
+              <TouchableOpacity
+                className="border border-gray-300 rounded-lg p-3"
+                onPress={showDatePicker}
+              >
+                <Text>{data.birthdate || "Select your birthdate"}</Text>
+              </TouchableOpacity>
+
+              <DateTimePickerModal
+                isVisible={isDatePickerVisible}
+                mode="date"
+                maximumDate={new Date()}
+                onConfirm={handleConfirm}
+                onCancel={hideDatePicker}
+              />
+              <Text className="text-red-500 font-roboto-condensed-extralight">
+                {errors.birthdate}
+              </Text>
+            </View>
+            <View className="">
+              <Text className="font-mulish mb-2 -mt-5">Sex</Text>
+
+              <View className="border border-gray-300 rounded-lg">
+                <Picker
+                  selectedValue={data.sex}
+                  onValueChange={(value) => {
+                    setSex(value);
+                    setData((prev) => ({ ...prev, sex: value }));
+                  }}
+                >
+                  <Picker.Item label="Select your sex" value="" />
+                  <Picker.Item label="Male" value="Male" />
+                  <Picker.Item label="Female" value="Female" />
+                  <Picker.Item label="Other" value="Other" />
+                </Picker>
+              </View>
+              <Text className="text-red-500 font-roboto-condensed-extralight">
+                {errors.sex}
+              </Text>
+            </View>
           </View>
         );
 
@@ -281,59 +348,89 @@ const Register = () => {
 
       case 4:
         return (
-          <View className="gap-5">
-            <Text className="font-roboto-condensed-bold text-xl text-[#E4492E]">
-              Select Your Status:
+          <View className="gap-2">
+            <Text className="font-baloo text-3xl mt-4 text-[#E4492E]">
+              Select Your Role:
             </Text>
 
-            <View className="gap-3 mt-2">
-              {/* Shooter Option */}
-              <CustomButton
-                title="Shooter"
+            <View className="mt-2 gap-4">
+              <TouchableOpacity
                 onPress={() =>
-                  setData((prev) => ({
-                    ...prev,
-                    roles: prev.roles.includes("Shooter")
-                      ? prev.roles.filter((r) => r !== "Shooter")
-                      : [...prev.roles, "Shooter"],
-                  }))
+                  setData((prev) => {
+                    const roles = [...prev.roles];
+                    const index = roles.indexOf("Shooter");
+                    if (index > -1) roles.splice(index, 1);
+                    else roles.push("Shooter");
+                    return { ...prev, roles };
+                  })
                 }
-                isLoading={false}
-                btnstyle={`flex-row items-center justify-center px-4 py-3 rounded-xl border ${
-                  data.roles.includes("Shooter")
-                    ? "bg-[#E4492E] border-[#E4492E]"
-                    : "border-gray-300 bg-white"
-                }`}
-                textstyle={`${
-                  data.roles.includes("Shooter")
-                    ? "text-white"
-                    : "text-gray-700"
-                } font-roboto text-base`}
-              />
+                className="flex-row items-start gap-3 p-3 border border-gray-300 rounded-xl bg-white active:bg-gray-50"
+              >
+                <MaterialCommunityIcons
+                  name={
+                    data.roles.includes("Shooter")
+                      ? "checkbox-marked"
+                      : "checkbox-blank-outline"
+                  }
+                  size={28}
+                  color={data.roles.includes("Shooter") ? "#E4492E" : "#9CA3AF"}
+                />
 
-              {/* Breeder Option */}
-              <CustomButton
-                title="Breeder"
+                <View className="flex-1">
+                  <Text
+                    className={`font-mulish-bold text-lg ${
+                      data.roles.includes("Shooter")
+                        ? "text-[#E4492E]"
+                        : "text-gray-800"
+                    }`}
+                  >
+                    Shooter
+                  </Text>
+                  <Text className="text-gray-500 text-sm font-roboto-condensed">
+                    Assists in breeding pets, helping to ensure healthy
+                    offspring and responsible pet care.
+                  </Text>
+                </View>
+              </TouchableOpacity>
+
+              <TouchableOpacity
                 onPress={() =>
-                  setData((prev) => ({
-                    ...prev,
-                    roles: prev.roles.includes("Breeder")
-                      ? prev.roles.filter((r) => r !== "Breeder")
-                      : [...prev.roles, "Breeder"],
-                  }))
+                  setData((prev) => {
+                    const roles = [...prev.roles];
+                    const index = roles.indexOf("Breeder");
+                    if (index > -1) roles.splice(index, 1);
+                    else roles.push("Breeder");
+                    return { ...prev, roles };
+                  })
                 }
-                isLoading={false}
-                btnstyle={`flex-row items-center justify-center px-4 py-3 rounded-xl border ${
-                  data.roles.includes("Breeder")
-                    ? "bg-[#E4492E] border-[#E4492E]"
-                    : "border-gray-300 bg-white"
-                }`}
-                textstyle={`${
-                  data.roles.includes("Breeder")
-                    ? "text-white"
-                    : "text-gray-700"
-                } font-roboto text-base`}
-              />
+                className="flex-row items-start gap-3 p-3 border border-gray-300 rounded-xl bg-white active:bg-gray-50"
+              >
+                <MaterialCommunityIcons
+                  name={
+                    data.roles.includes("Breeder")
+                      ? "checkbox-marked"
+                      : "checkbox-blank-outline"
+                  }
+                  size={28}
+                  color={data.roles.includes("Breeder") ? "#E4492E" : "#9CA3AF"}
+                />
+
+                <View className="flex-1">
+                  <Text
+                    className={`font-mulish-bold text-lg ${
+                      data.roles.includes("Breeder")
+                        ? "text-[#E4492E]"
+                        : "text-gray-800"
+                    }`}
+                  >
+                    Breeder
+                  </Text>
+                  <Text className="text-gray-500 text-sm font-roboto-condensed">
+                    Assists in breeding pets, helping to ensure healthy
+                    offspring and responsible pet care.
+                  </Text>
+                </View>
+              </TouchableOpacity>
 
               {errors.status ? (
                 <Text className="text-red-500 text-xs mt-1">
