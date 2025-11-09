@@ -14,17 +14,37 @@ import { isAxiosError } from "axios";
 import CustomInput from "@/components/app/CustomInput";
 import CustomButton from "@/components/app/CustomButton";
 
+interface RegisterData {
+  email: string;
+  name: string;
+  password: string;
+  password_confirmation: string;
+  firstName: string;
+  lastName: string;
+  contact_number: string;
+  birthdate: string;
+  sex: string;
+  address: {
+    street: string;
+    barangay: string;
+    city: string;
+    province: string;
+    postal_code: string;
+  };
+  roles: string[];
+}
+
 const Register = () => {
   const [step, setStep] = useState(1);
   const [loading, setLoading] = useState(false);
 
-  const [data, setData] = useState({
+  const [data, setData] = useState<RegisterData>({
     email: "",
     name: "",
     password: "",
     password_confirmation: "",
-    first_name: "",
-    last_name: "",
+    firstName: "",
+    lastName: "",
     contact_number: "",
     birthdate: "",
     sex: "",
@@ -35,7 +55,7 @@ const Register = () => {
       province: "",
       postal_code: "",
     },
-    status: "", // "Shooter" or "Pet Owner"
+    roles: [],
   });
 
   const [errors, setErrors] = useState<any>({});
@@ -58,26 +78,68 @@ const Register = () => {
     let stepErrors: any = {};
 
     if (step === 1) {
-      if (!data.email) stepErrors.email = "Email is required";
-      if (!data.name) stepErrors.name = "Username is required";
-      if (!data.password) stepErrors.password = "Password is required";
-      if (data.password !== data.password_confirmation)
-        stepErrors.password_confirmation = "Passwords do not match";
+      // Step 1: Account Setup
+      if (!data.email) {
+        stepErrors.email = "Please enter your email address.";
+      } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(data.email)) {
+        stepErrors.email =
+          "Please provide a valid email format (e.g., name@email.com).";
+      }
+
+      if (!data.name) {
+        stepErrors.name = "Please choose a username.";
+      } else if (data.name.length < 3) {
+        stepErrors.name = "Username must be at least 3 characters long.";
+      }
+
+      if (!data.password) {
+        stepErrors.password = "Please create a password.";
+      } else if (data.password.length < 8) {
+        stepErrors.password = "Password must be at least 8 characters long.";
+      }
+
+      if (!data.password_confirmation) {
+        stepErrors.password_confirmation = "Please confirm your password.";
+      } else if (data.password !== data.password_confirmation) {
+        stepErrors.password_confirmation =
+          "Passwords do not match. Please re-enter.";
+      }
     } else if (step === 2) {
-      if (!data.first_name) stepErrors.first_name = "First name required";
-      if (!data.last_name) stepErrors.last_name = "Last name required";
-      if (!data.birthdate) stepErrors.birthdate = "Birthdate required";
-      if (!data.sex) stepErrors.sex = "Sex required";
+      // Step 2: Personal Information
+      if (!data.firstName) stepErrors.firstName = "First name is required.";
+      if (!data.lastName) stepErrors.lastName = "Last name is required.";
+      if (!data.birthdate) {
+        stepErrors.birthdate = "Please enter your birthdate.";
+      } else {
+        const birth = new Date(data.birthdate);
+        if (birth > new Date()) {
+          stepErrors.birthdate = "Birthdate cannot be in the future.";
+        }
+      }
+      if (!data.sex) stepErrors.sex = "Please select your gender.";
     } else if (step === 3) {
-      const a = data.address;
-      if (!a.street) stepErrors["address.street"] = "Street required";
-      if (!a.barangay) stepErrors["address.barangay"] = "Barangay required";
-      if (!a.city) stepErrors["address.city"] = "City required";
-      if (!a.province) stepErrors["address.province"] = "Province required";
-      if (!a.postal_code)
-        stepErrors["address.postal_code"] = "Postal Code required";
+      // Step 3: Address Details
+      const a = data.address || {};
+      if (!a.street)
+        stepErrors["address.street"] =
+          "Please provide your street or house number.";
+      if (!a.barangay)
+        stepErrors["address.barangay"] = "Barangay field cannot be empty.";
+      if (!a.city)
+        stepErrors["address.city"] =
+          "Please specify your city or municipality.";
+      if (!a.province) stepErrors["address.province"] = "Province is required.";
+      if (!a.postal_code) {
+        stepErrors["address.postal_code"] = "Postal code is required.";
+      } else if (!/^\d{4}$/.test(a.postal_code)) {
+        stepErrors["address.postal_code"] =
+          "Please enter a valid 4-digit postal code.";
+      }
     } else if (step === 4) {
-      if (!data.status) stepErrors.status = "Select your status";
+      if (!data.roles || data.roles.length === 0) {
+        stepErrors.status =
+          "Please select at least one role (Shooter or Breeder).";
+      }
     }
 
     setErrors(stepErrors);
@@ -155,15 +217,15 @@ const Register = () => {
           <View className="gap-4">
             <CustomInput
               label="First Name"
-              value={data.first_name}
-              onChangeText={(t) => handleChange("first_name", t)}
-              error={errors.first_name}
+              value={data.firstName}
+              onChangeText={(t) => handleChange("firstName", t)}
+              error={errors.firstName}
             />
             <CustomInput
               label="Last Name"
-              value={data.last_name}
-              onChangeText={(t) => handleChange("last_name", t)}
-              error={errors.last_name}
+              value={data.lastName}
+              onChangeText={(t) => handleChange("lastName", t)}
+              error={errors.lastName}
             />
             <CustomInput
               label="Birthdate"
@@ -223,10 +285,60 @@ const Register = () => {
             <Text className="font-roboto-condensed-bold text-xl text-[#E4492E]">
               Select Your Status:
             </Text>
-            <View className="gap-2">
-              {/* Shooter & Pet Owner */}
+
+            <View className="gap-3 mt-2">
+              {/* Shooter Option */}
+              <CustomButton
+                title="Shooter"
+                onPress={() =>
+                  setData((prev) => ({
+                    ...prev,
+                    roles: prev.roles.includes("Shooter")
+                      ? prev.roles.filter((r) => r !== "Shooter")
+                      : [...prev.roles, "Shooter"],
+                  }))
+                }
+                isLoading={false}
+                btnstyle={`flex-row items-center justify-center px-4 py-3 rounded-xl border ${
+                  data.roles.includes("Shooter")
+                    ? "bg-[#E4492E] border-[#E4492E]"
+                    : "border-gray-300 bg-white"
+                }`}
+                textstyle={`${
+                  data.roles.includes("Shooter")
+                    ? "text-white"
+                    : "text-gray-700"
+                } font-roboto text-base`}
+              />
+
+              {/* Breeder Option */}
+              <CustomButton
+                title="Breeder"
+                onPress={() =>
+                  setData((prev) => ({
+                    ...prev,
+                    roles: prev.roles.includes("Breeder")
+                      ? prev.roles.filter((r) => r !== "Breeder")
+                      : [...prev.roles, "Breeder"],
+                  }))
+                }
+                isLoading={false}
+                btnstyle={`flex-row items-center justify-center px-4 py-3 rounded-xl border ${
+                  data.roles.includes("Breeder")
+                    ? "bg-[#E4492E] border-[#E4492E]"
+                    : "border-gray-300 bg-white"
+                }`}
+                textstyle={`${
+                  data.roles.includes("Breeder")
+                    ? "text-white"
+                    : "text-gray-700"
+                } font-roboto text-base`}
+              />
+
               {errors.status ? (
-                <Text className="text-red-500 text-xs">{errors.status}</Text>
+                <Text className="text-red-500 text-xs mt-1">
+                  {errors.status}
+                </Text>
               ) : null}
             </View>
           </View>
@@ -238,24 +350,24 @@ const Register = () => {
   };
 
   return (
-<View className="relative bg-[#FEFEFE] rounded-t-[45px] p-5 mt-5">
-  {/* Cat image wrapper */}
-  <View className="absolute -top-48 w-64 h-64">
-    <Image
-      source={require("../../assets/images/register_cat.png")}
-      resizeMode="contain"
-    />
-  </View>
+    <View className="relative bg-[#FEFEFE] rounded-t-[45px] p-5 mt-5">
+      {/* Cat image wrapper */}
+      <View className="absolute -top-48 w-64 h-64">
+        <Image
+          source={require("../../assets/images/register_cat.png")}
+          resizeMode="contain"
+        />
+      </View>
 
-  {/* Header text */}
-  <View className="w-full px-4 mt-16 mb-4">
-    <Text className="font-baloo text-3xl text-center uppercase">
-      Create an Account
-    </Text>
-    <Text className="text-[#6D6A6A] text-center font-roboto-condensed-extralight text-sm">
-      Create an account to get started!
-    </Text>
-  </View>
+      {/* Header text */}
+      <View className="w-full px-4 mt-16 mb-4">
+        <Text className="font-baloo text-3xl text-center uppercase">
+          Create an Account
+        </Text>
+        <Text className="text-[#6D6A6A] text-center font-roboto-condensed-extralight text-sm">
+          Create an account to get started!
+        </Text>
+      </View>
 
       {renderStep()}
 
@@ -280,6 +392,7 @@ const Register = () => {
             title="Create"
             onPress={handleSubmit}
             isLoading={loading}
+            btnstyle="flex-1"
           />
         )}
       </View>

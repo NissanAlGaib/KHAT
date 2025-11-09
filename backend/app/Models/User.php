@@ -23,8 +23,8 @@ class User extends Authenticatable
         'name',
         'email',
         'password',
-        'first_name',
-        'last_name',
+        'firstName',
+        'lastName',
         'contact_number',
         'birthdate',
         'sex',
@@ -54,5 +54,10 @@ class User extends Authenticatable
             'birthday' => 'date',
             'address' => 'array',
         ];
+    }
+
+    public function roles()
+    {
+        return $this->belongsToMany(Role::class, 'user_roles', 'user_id', 'role_id', 'id', 'role_id');
     }
 }
