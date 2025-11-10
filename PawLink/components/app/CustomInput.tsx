@@ -27,9 +27,10 @@ const CustomInput = ({
     <View className="w-full">
       <Text className="label font-mulish">{label}</Text>
       <TextInput
+        key={label}
         autoCapitalize="none"
         autoCorrect={false}
-        value={value}
+        value={typeof value === "string" ? value : String(value ?? "")}
         onChangeText={onChangeText}
         secureTextEntry={secureTextEntry}
         keyboardType={keyboardType}
@@ -37,11 +38,21 @@ const CustomInput = ({
         onBlur={() => setIsFocused(false)}
         placeholder={placeholder}
         placeholderTextColor="#888"
-        className={cn('rounded-lg p-3 w-full text-base text-dark-100 border-b leading-5;', isFocused ? 'border-black' : 'border-gray-300')}
+        className={cn(
+          "rounded-lg p-3 w-full text-base text-dark-100 border-b leading-5",
+          isFocused ? "border-black" : "border-gray-300"
+        )}
+        textBreakStrategy="highQuality"
       />
-      <Text className={cn('text-red-500 font-roboto-condensed-extralight', { hidden: !error })}>{error}</Text>
+      <Text
+        className={cn("text-red-500 font-roboto-condensed-extralight", {
+          hidden: !error,
+        })}
+      >
+        {error}
+      </Text>
     </View>
   );
 };
 
-export default CustomInput;
+export default React.memo(CustomInput);

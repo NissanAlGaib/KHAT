@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import {
   View,
   Text,
@@ -39,13 +39,23 @@ interface RegisterData {
   roles: string[];
 }
 
+interface Errors {
+  [key: string]: string;
+}
+
 const Register = () => {
   const [step, setStep] = useState(1);
   const [loading, setLoading] = useState(false);
 
-  const [birthdate, setBirthdate] = useState("");
   const [isDatePickerVisible, setDatePickerVisibility] = useState(false);
-  const [sex, setSex] = useState("");
+
+  const [address, setAddress] = useState({
+    street: "",
+    barangay: "",
+    city: "",
+    province: "",
+    postal_code: "",
+  });
 
   const [data, setData] = useState<RegisterData>({
     email: "",
@@ -72,24 +82,15 @@ const Register = () => {
 
   const handleConfirm = (date: Date) => {
     const formatted = dayjs(date).format("YYYY-MM-DD");
-    setBirthdate(formatted);
     setData((prev) => ({ ...prev, birthdate: formatted }));
     hideDatePicker();
   };
 
-  const [errors, setErrors] = useState<any>({});
+  const [errors, setErrors] = useState<Errors>({});
 
   const handleChange = (key: string, value: string) => {
-    if (key.includes("address.")) {
-      const addressKey = key.split(".")[1];
-      setData({
-        ...data,
-        address: { ...data.address, [addressKey]: value },
-      });
-    } else {
-      setData({ ...data, [key]: value });
-    }
-    setErrors({ ...errors, [key]: "" });
+    setData((prev) => ({ ...prev, [key]: value }));
+    setErrors((prev) => ({ ...prev, [key]: "" }));
   };
 
   // ✅ Step validation before moving forward
@@ -156,7 +157,7 @@ const Register = () => {
       }
     } else if (step === 3) {
       // Step 3: Address Details
-      const a = data.address || {};
+      const a = step === 3 ? address : data.address || {};
       if (!a.street)
         stepErrors["address.street"] =
           "Please provide your street or house number.";
@@ -183,19 +184,25 @@ const Register = () => {
     return Object.keys(stepErrors).length === 0;
   };
 
+  useEffect(() => {
+    setData((prev) => ({ ...prev, address }));
+  }, [address]);
+
   const nextStep = () => {
-    if (validateStep()) setStep((prev) => prev + 1);
+    if (validateStep()) {
+      setStep((prev) => prev + 1);
+    }
   };
 
   const prevStep = () => setStep((prev) => prev - 1);
 
   const handleSubmit = async () => {
     if (!validateStep()) return;
-
+    const payload = { ...data, address };
     setLoading(true);
     try {
       console.log("📦 Registration payload:", JSON.stringify(data, null, 2));
-      const response = await axiosInstance.post("/api/register", data);
+      const response = await axiosInstance.post("/api/register", payload);
       Alert.alert("Success", "Account created successfully!");
       router.replace("/Login");
     } catch (error) {
@@ -220,14 +227,14 @@ const Register = () => {
             <CustomInput
               label="Email"
               placeholder="example@gmail.com"
-              value={data.email}
+              value={data.email ?? ""}
               onChangeText={(t) => handleChange("email", t)}
               error={errors.email}
             />
             <CustomInput
               label="Create Username"
               placeholder="must be unique"
-              value={data.name}
+              value={data.name ?? ""}
               onChangeText={(t) => handleChange("name", t)}
               error={errors.name}
             />
@@ -235,7 +242,7 @@ const Register = () => {
               label="Create Password"
               placeholder="Create password"
               secureTextEntry
-              value={data.password}
+              value={data.password ?? ""}
               onChangeText={(t) => handleChange("password", t)}
               error={errors.password}
             />
@@ -243,7 +250,7 @@ const Register = () => {
               label="Confirm Password"
               placeholder="Repeat password"
               secureTextEntry
-              value={data.password_confirmation}
+              value={data.password_confirmation ?? ""}
               onChangeText={(t) => handleChange("password_confirmation", t)}
               error={errors.password_confirmation}
             />
@@ -255,13 +262,13 @@ const Register = () => {
           <View className="gap-4">
             <CustomInput
               label="First Name"
-              value={data.firstName}
+              value={data.firstName ?? ""}
               onChangeText={(t) => handleChange("firstName", t)}
               error={errors.firstName}
             />
             <CustomInput
               label="Last Name"
-              value={data.lastName}
+              value={data.lastName ?? ""}
               onChangeText={(t) => handleChange("lastName", t)}
               error={errors.lastName}
             />
@@ -292,10 +299,7 @@ const Register = () => {
               <View className="border border-gray-300 rounded-lg">
                 <Picker
                   selectedValue={data.sex}
-                  onValueChange={(value) => {
-                    setSex(value);
-                    setData((prev) => ({ ...prev, sex: value }));
-                  }}
+                  onValueChange={(value) => handleChange("sex", value)}
                 >
                   <Picker.Item label="Select your sex" value="" />
                   <Picker.Item label="Male" value="Male" />
@@ -315,38 +319,50 @@ const Register = () => {
           <View className="gap-3">
             <CustomInput
               label="Street"
-              value={data.address.street}
-              onChangeText={(t) => handleChange("address.street", t)}
+              value={address.street}
+              onChangeText={(t) => setAddress((a) => ({ ...a, street: t }))}
               error={errors["address.street"]}
             />
             <CustomInput
               label="Barangay/District"
-              value={data.address.barangay}
-              onChangeText={(t) => handleChange("address.barangay", t)}
+              value={address.barangay}
+              onChangeText={(t) => setAddress((a) => ({ ...a, barangay: t }))}
               error={errors["address.barangay"]}
             />
             <CustomInput
               label="City/Municipality"
-              value={data.address.city}
-              onChangeText={(t) => handleChange("address.city", t)}
+              value={address.city}
+              onChangeText={(t) => setAddress((a) => ({ ...a, city: t }))}
               error={errors["address.city"]}
             />
             <CustomInput
               label="Province"
-              value={data.address.province}
-              onChangeText={(t) => handleChange("address.province", t)}
+              value={address.province}
+              onChangeText={(t) => setAddress((a) => ({ ...a, province: t }))}
               error={errors["address.province"]}
             />
             <CustomInput
               label="Postal Code"
-              value={data.address.postal_code}
-              onChangeText={(t) => handleChange("address.postal_code", t)}
+              value={address.postal_code}
+              onChangeText={(t) =>
+                setAddress((a) => ({ ...a, postal_code: t }))
+              }
               error={errors["address.postal_code"]}
             />
           </View>
         );
 
       case 4:
+        const toggleRole = (role: string) => {
+          setData((prev) => {
+            const roles = [...prev.roles];
+            const index = roles.indexOf(role);
+            if (index > -1) roles.splice(index, 1);
+            else roles.push(role);
+            return { ...prev, roles };
+          });
+        };
+
         return (
           <View className="gap-2">
             <Text className="font-baloo text-3xl mt-4 text-[#E4492E]">
@@ -355,15 +371,7 @@ const Register = () => {
 
             <View className="mt-2 gap-4">
               <TouchableOpacity
-                onPress={() =>
-                  setData((prev) => {
-                    const roles = [...prev.roles];
-                    const index = roles.indexOf("Shooter");
-                    if (index > -1) roles.splice(index, 1);
-                    else roles.push("Shooter");
-                    return { ...prev, roles };
-                  })
-                }
+                onPress={() => toggleRole("Shooter")}
                 className="flex-row items-start gap-3 p-3 border border-gray-300 rounded-xl bg-white active:bg-gray-50"
               >
                 <MaterialCommunityIcons
@@ -394,15 +402,7 @@ const Register = () => {
               </TouchableOpacity>
 
               <TouchableOpacity
-                onPress={() =>
-                  setData((prev) => {
-                    const roles = [...prev.roles];
-                    const index = roles.indexOf("Breeder");
-                    if (index > -1) roles.splice(index, 1);
-                    else roles.push("Breeder");
-                    return { ...prev, roles };
-                  })
-                }
+                onPress={() => toggleRole("Breeder")}
                 className="flex-row items-start gap-3 p-3 border border-gray-300 rounded-xl bg-white active:bg-gray-50"
               >
                 <MaterialCommunityIcons
@@ -445,6 +445,11 @@ const Register = () => {
         return null;
     }
   };
+
+  useEffect(() => {
+    console.log("📄 Current step:", step);
+    console.log("🏠 Address state:", data.address);
+  }, [step, data.address]);
 
   return (
     <View className="relative bg-[#FEFEFE] rounded-t-[45px] p-5 mt-5">
