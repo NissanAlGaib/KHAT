@@ -3,9 +3,6 @@ import {
   View,
   Text,
   Alert,
-  ScrollView,
-  KeyboardAvoidingView,
-  Platform,
   Image,
   TouchableOpacity,
 } from "react-native";
@@ -16,8 +13,8 @@ import CustomInput from "@/components/app/CustomInput";
 import CustomButton from "@/components/app/CustomButton";
 import DateTimePickerModal from "react-native-modal-datetime-picker";
 import dayjs from "dayjs";
-import { Picker } from "@react-native-picker/picker";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
+import DropDownPicker from "react-native-dropdown-picker";
 
 interface RegisterData {
   email: string;
@@ -79,6 +76,8 @@ const Register = () => {
 
   const showDatePicker = () => setDatePickerVisibility(true);
   const hideDatePicker = () => setDatePickerVisibility(false);
+  const [open, setOpen] = useState(false);
+  const [value, setValue] = useState(data.sex);
 
   const handleConfirm = (date: Date) => {
     const formatted = dayjs(date).format("YYYY-MM-DD");
@@ -93,7 +92,6 @@ const Register = () => {
     setErrors((prev) => ({ ...prev, [key]: "" }));
   };
 
-  // ✅ Step validation before moving forward
   const validateStep = () => {
     let stepErrors: any = {};
 
@@ -297,15 +295,25 @@ const Register = () => {
               <Text className="font-mulish mb-2 -mt-5">Sex</Text>
 
               <View className="border border-gray-300 rounded-lg">
-                <Picker
-                  selectedValue={data.sex}
-                  onValueChange={(value) => handleChange("sex", value)}
-                >
-                  <Picker.Item label="Select your sex" value="" />
-                  <Picker.Item label="Male" value="Male" />
-                  <Picker.Item label="Female" value="Female" />
-                  <Picker.Item label="Other" value="Other" />
-                </Picker>
+                <DropDownPicker
+                  open={open}
+                  value={value}
+                  items={[
+                    { label: "Male", value: "Male" },
+                    { label: "Female", value: "Female" },
+                    { label: "Other", value: "Other" },
+                  ]}
+                  setOpen={setOpen}
+                  setValue={(cb) => {
+                    const v = cb(value);
+                    setValue(v);
+                    handleChange("sex", v);
+                  }}
+                  listMode="SCROLLVIEW"
+                  placeholder="Select your sex"
+                  style={{ borderColor: "#d1d5db" }}
+                  dropDownContainerStyle={{ borderColor: "#d1d5db" }}
+                />
               </View>
               <Text className="text-red-500 font-roboto-condensed-extralight">
                 {errors.sex}
@@ -445,11 +453,6 @@ const Register = () => {
         return null;
     }
   };
-
-  useEffect(() => {
-    console.log("📄 Current step:", step);
-    console.log("🏠 Address state:", data.address);
-  }, [step, data.address]);
 
   return (
     <View className="relative bg-[#FEFEFE] rounded-t-[45px] p-5 mt-5">

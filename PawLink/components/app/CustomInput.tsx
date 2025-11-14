@@ -28,21 +28,18 @@ const CustomInput = ({
       <Text className="label font-mulish">{label}</Text>
       <TextInput
         key={label}
-        autoCapitalize="none"
-        autoCorrect={false}
-        value={typeof value === "string" ? value : String(value ?? "")}
-        onChangeText={onChangeText}
+        defaultValue={value}
+        onChangeText={(text) => onChangeText(text)}
+        placeholder={placeholder}
         secureTextEntry={secureTextEntry}
         keyboardType={keyboardType}
         onFocus={() => setIsFocused(true)}
         onBlur={() => setIsFocused(false)}
-        placeholder={placeholder}
         placeholderTextColor="#888"
         className={cn(
           "rounded-lg p-3 w-full text-base text-dark-100 border-b leading-5",
           isFocused ? "border-black" : "border-gray-300"
         )}
-        textBreakStrategy="highQuality"
       />
       <Text
         className={cn("text-red-500 font-roboto-condensed-extralight", {
