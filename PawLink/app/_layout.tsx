@@ -5,14 +5,15 @@ import { useLoadFonts } from "@/hooks/useLoadFonts";
 import { useEffect } from "react";
 import "./globals.css";
 
-
 SplashScreen.preventAutoHideAsync();
 
 function RootNavigator() {
   const { session, isLoading } = useSession();
   const segments = useSegments();
 
-  if (isLoading) return null;
+  if (isLoading || session === undefined) {
+    return null;
+  }
 
   const inAuthGroup = segments[0] === "(auth)";
 
@@ -20,7 +21,7 @@ function RootNavigator() {
     return <Redirect href="/Login" />;
   }
   if (session && inAuthGroup) {
-    return <Redirect href="/Homepage" />;
+    return <Redirect href="/" />;
   }
 
   return <Slot />;
@@ -36,7 +37,7 @@ export default function RootLayout() {
   }, [fontsLoaded]);
 
   if (!fontsLoaded) return null;
-  
+
   return (
     <SessionProvider>
       <RootNavigator />
