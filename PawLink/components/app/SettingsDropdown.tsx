@@ -130,7 +130,7 @@ export default function SettingsDropdown() {
                 }}
               >
                 <TouchableOpacity
-                  onPress={() => handleNavigate("/Settings")}
+                  onPress={() => handleNavigate("/settings")}
                   activeOpacity={0.6}
                   style={{
                     padding: 12,

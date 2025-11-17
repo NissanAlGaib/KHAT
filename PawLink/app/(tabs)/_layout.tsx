@@ -1,5 +1,5 @@
 import { Tabs } from "expo-router";
-import CurvedTabBar from "@/components/CurvedTabBar";
+import CurvedTabBar from "@/components/core/CurvedTabBar";
 
 export default function TabLayout() {
   return (

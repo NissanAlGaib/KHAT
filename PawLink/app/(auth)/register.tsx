@@ -1,11 +1,5 @@
 import React, { useEffect, useState } from "react";
-import {
-  View,
-  Text,
-  Alert,
-  Image,
-  TouchableOpacity,
-} from "react-native";
+import { View, Text, Alert, Image, TouchableOpacity } from "react-native";
 import { Link, router } from "expo-router";
 import axiosInstance from "@/config/axiosConfig";
 import { isAxiosError } from "axios";

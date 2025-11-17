@@ -1,456 +1,239 @@
-import React, { useState, useRef } from "react";
-import {
-  View,
-  Text,
-  Image,
-  TouchableOpacity,
-  ScrollView,
-  Dimensions,
-} from "react-native";
-import { useRouter } from "expo-router";
+import React, { useState } from "react";
+import { View, Text, Image, TouchableOpacity, ScrollView } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
+import { Feather } from "@expo/vector-icons";
+import { useRole } from "@/context/RoleContext";
+import { useRouter } from "expo-router";
 
-const { width } = Dimensions.get("window");
-const DEFAULT_HEADER_HEIGHT = 140;
-
-export default function Profile() {
+export default function ProfileScreen() {
+  const { role, setRole } = useRole();
+  const [menuOpen, setMenuOpen] = useState(false);
   const router = useRouter();
-  const [headerHeight, setHeaderHeight] = useState<number>(
-    DEFAULT_HEADER_HEIGHT
-  );
-  const headerRef = useRef<View | null>(null);
-
-  const handleEditProfile = () => {
-    // router.push("/profile/edit");
-  };
-
-  const handleAddPet = () => {
-    // router.push("/pets/add");
-  };
-
-  const handlePetPress = (idx: number) => {
-    // router.push(`/pets/${idx}`);
-  };
-
-  // sample data (replace with real data)
-  const user = {
-    name: "Precious Marie...",
-    avatar: require("@/assets/images/icon.png"),
-    verified: true,
-    roleLabel: "Pet Owner",
-  };
-
-  const pets = [
-    {
-      name: "Luna",
-      img: require("@/assets/images/icon.png"),
-      status: "Available",
-    },
-  ];
-
-  const stats = [
-    { title: "Current breeding", value: "1", subtitle: "Active pairs" },
-    { title: "Total Matches", value: "1", subtitle: "All time" },
-    { title: "Success Rate", value: "0", subtitle: "Average" },
-    { title: "Income", value: "₱0.00", subtitle: "Total" },
-  ];
-
-  const CARD_GAP = 12;
-  const H_PADDING = 24;
-  const cardWidth = Math.floor((width - H_PADDING * 2 - CARD_GAP) / 2);
 
   return (
-    <SafeAreaView style={{ flex: 1, backgroundColor: "#FFEFF0" }}>
-      {/* measured header attached to absolute top */}
-      <View
-        ref={headerRef}
-        onLayout={(e) => {
-          const h = e.nativeEvent.layout.height;
-          if (h && h !== headerHeight) setHeaderHeight(h);
-        }}
-        style={{
-          position: "absolute",
-          top: 0,
-          left: 0,
-          right: 0,
-          zIndex: 20,
-          paddingHorizontal: 0,
-          paddingTop: 0,
-        }}
-      >
-        <View
-          style={{
-            backgroundColor: "white",
-            borderRadius: 16,
-            paddingVertical: 36,
-            paddingHorizontal: 24,
-            flexDirection: "row",
-            alignItems: "center",
-            elevation: 10,
-          }}
-        >
-          <Image
-            source={user.avatar}
-            style={{
-              width: 80,
-              height: 80,
-              borderRadius: 40,
-              borderWidth: 2,
-              borderColor: "#fff",
-            }}
-          />
-          <View style={{ flex: 1, paddingLeft: 12 }}>
-            <View
-              style={{
-                flexDirection: "row",
-                alignItems: "center",
-                justifyContent: "space-between",
-              }}
-            >
-              <Text
-                style={{
-                  fontSize: 22,
-                  fontWeight: "700",
-                  color: "#111",
-                  fontFamily: "Baloo",
-                }}
-              >
-                {user.name}
-              </Text>
+    <SafeAreaView className="flex-1 bg-[#FFF5F5]" edges={["top"]}>
+      {/* Fixed Header with Shadow and Rounded Bottom */}
+      <View className="bg-white rounded-b-[35] shadow-lg pb-6">
+        <View className="px-6 pt-4">
+          {/* Profile Section */}
+          <View className="flex-row items-start justify-between">
+            <View className="flex-row items-start gap-4">
+              {/* Profile Image */}
+              <Image
+                source={require("@/assets/images/icon.png")}
+                className="w-20 h-20 rounded-full"
+              />
 
-              <TouchableOpacity
-                onPress={handleEditProfile}
-                style={{
-                  backgroundColor: "#ea5b3a",
-                  paddingHorizontal: 12,
-                  paddingVertical: 6,
-                  borderRadius: 8,
-                }}
-              >
-                <Text
-                  style={{
-                    color: "#fff",
-                    fontWeight: "600",
-                    fontFamily: "Mulish",
-                  }}
-                >
-                  {user.roleLabel}
+              {/* Name and Verification */}
+              <View className="">
+                <Text className="text-2xl font-bold text-black">
+                  Precious Marie
                 </Text>
-              </TouchableOpacity>
+                <Text className="text-sm text-gray-600 mt-1">NOT VERIFIED</Text>
+                <TouchableOpacity
+                  className="mt-2 border border-black rounded-full px-6 py-2 self-start"
+                  onPress={() => router.push("/(verification)/verify")}
+                >
+                  <Text className="text-black font-medium">Verify Now</Text>
+                </TouchableOpacity>
+              </View>
             </View>
 
-            {user.verified && (
-              <View style={{ marginTop: 8 }}>
-                <View
-                  style={{
-                    alignSelf: "flex-start",
-                    backgroundColor: "#fff",
-                    borderColor: "#F4C9C7",
-                    borderWidth: 1,
-                    paddingHorizontal: 10,
-                    paddingVertical: 6,
-                    borderRadius: 20,
-                    elevation: 1,
-                  }}
-                >
-                  <Text style={{ color: "#ea5b3a", fontSize: 12 }}>
-                    Verified
-                  </Text>
+            {/* Role dropdown (Shooter / Pet Owner) */}
+            <View className="relative">
+              <TouchableOpacity
+                className="bg-[#FF6B4A] rounded-lg px-4 py-2"
+                onPress={() => setMenuOpen((v) => !v)}
+              >
+                <Text className="text-white font-semibold">{role} ▼</Text>
+              </TouchableOpacity>
+
+              {menuOpen && (
+                <View className="absolute right-0 mt-9 bg-white rounded-lg shadow-md p-2 px-5 z-50">
+                  {/* Show the opposite role as selectable item */}
+                  <TouchableOpacity
+                    className="px-2 py-2"
+                    onPress={() => {
+                      const next =
+                        role === "Pet Owner" ? "Shooter" : "Pet Owner";
+                      setRole(next);
+                      setMenuOpen(false);
+                    }}
+                  >
+                    <Text className="text-xs text-[#FF6B4A] font-semibold">
+                      {role === "Pet Owner" ? "Shooter" : "Pet Owner"}
+                    </Text>
+                  </TouchableOpacity>
                 </View>
-              </View>
-            )}
+              )}
+            </View>
           </View>
         </View>
       </View>
 
-      {/* content: use measured headerHeight to avoid overlap */}
-      <ScrollView
-        contentContainerStyle={{
-          paddingBottom: 40,
-          paddingTop: Math.max(0, headerHeight - 12),
-        }}
-        showsVerticalScrollIndicator={false}
-      >
+      {/* Scrollable Content */}
+      <ScrollView className="flex-1 px-6 pt-6">
         {/* Pets Section */}
-        <View style={{ paddingHorizontal: 24, marginTop: 2 }}>
-          <Text className="font-baloo text-3xl text-[#ea5b3a] mb-4">PETS</Text>
+        <Text className="text-3xl font-bold text-black mb-4">PETS</Text>
 
-          <View style={{ flexDirection: "row", alignItems: "center" }}>
-            {pets.map((p, i) => (
-              <TouchableOpacity
-                key={i}
-                onPress={() => handlePetPress(i)}
-                activeOpacity={0.9}
-                style={{ marginRight: 16, alignItems: "center" }}
-              >
-                <Image
-                  source={p.img}
-                  style={{
-                    width: 80,
-                    height: 80,
-                    borderRadius: 40,
-                    borderWidth: 4,
-                    borderColor: "#fff",
-                  }}
-                />
-                <Text style={{ marginTop: 8 }}>{p.name}</Text>
-                <View
-                  style={{
-                    marginTop: 6,
-                    backgroundColor: "#DFF3E8",
-                    paddingHorizontal: 8,
-                    paddingVertical: 4,
-                    borderRadius: 12,
-                  }}
-                >
-                  <Text style={{ color: "#2B8A5A", fontSize: 12 }}>
-                    {p.status}
-                  </Text>
-                </View>
-              </TouchableOpacity>
-            ))}
-
-            {/* Add pet button */}
-            <TouchableOpacity
-              onPress={handleAddPet}
-              activeOpacity={0.8}
-              style={{ alignItems: "center", justifyContent: "center" }}
-            >
-              <View
-                style={{
-                  width: 80,
-                  height: 80,
-                  borderRadius: 40,
-                  backgroundColor: "#E5E5E5",
-                  alignItems: "center",
-                  justifyContent: "center",
-                }}
-              >
-                <Text style={{ fontSize: 28, color: "#9A9A9A" }}>+</Text>
-              </View>
-              <Text style={{ marginTop: 8 }}>Add</Text>
-            </TouchableOpacity>
-          </View>
-        </View>
-
-        {/* Breeding Overview */}
-
-        <View style={{ paddingHorizontal: 24, marginTop: 20 }}>
-          <Text
-            style={{
-              fontSize: 22,
-              fontFamily: "Baloo",
-              color: "#111",
-              marginBottom: 12,
-            }}
-          >
-            Breeding Overview
-          </Text>
-
-          <View
-            style={{
-              flexDirection: "row",
-              flexWrap: "wrap",
-              justifyContent: "space-between",
-            }}
-          >
-            {stats.map((s, i) => (
-              <View
-                key={i}
-                style={{
-                  width: cardWidth,
-                  marginBottom: 12,
-                  backgroundColor: "#FFE4E2",
-                  borderWidth: 3,
-                  borderColor: "#EA5B3A",
-                  borderRadius: 16,
-                  paddingVertical: 10,
-                  paddingHorizontal: 12,
-                  elevation: 6,
-                  shadowColor: "#EA5B3A",
-                  shadowOpacity: 0.08,
-                  shadowOffset: { width: 0, height: 6 },
-                  shadowRadius: 8,
-                }}
-              >
-                <Text
-                  style={{ fontSize: 28, fontWeight: "700", color: "#ea5b3a" }}
-                >
-                  {s.value}
-                </Text>
-                <View style={{ marginTop: 10 }}>
-                  <Text
-                    style={{ fontSize: 13, fontWeight: "600", color: "#111" }}
-                  >
-                    {s.title}
-                  </Text>
-                  <Text
-                    style={{ fontSize: 12, color: "#8A8A8A", marginTop: 6 }}
-                  >
-                    {s.subtitle}
-                  </Text>
-                </View>
-              </View>
-            ))}
-          </View>
-        </View>
-
-        {/* Settings-like action card */}
-        <View
-          style={{
-            marginHorizontal: 16,
-            marginTop: 12,
-            marginBottom: 28,
-            backgroundColor: "#fff",
-            borderRadius: 16,
-            padding: 16,
-            elevation: 4,
-          }}
-        >
-          <Text
-            style={{
-              fontSize: 18,
-              fontFamily: "Baloo",
-              color: "#111",
-              marginBottom: 12,
-            }}
-          >
-            Account Settings
-          </Text>
-
+        {/* Pets List */}
+        <View className="flex-row items-center mb-6">
+          {/* Registered Pet - Luna */}
           <TouchableOpacity
-            style={{
-              flexDirection: "row",
-              alignItems: "center",
-              justifyContent: "space-between",
-              paddingVertical: 12,
-              borderBottomWidth: 1,
-              borderBottomColor: "#F3F3F3",
-            }}
+            className="items-center mr-4"
+            onPress={() => router.push("/(pet)/pet-profile?id=1")}
           >
-            <View style={{ flexDirection: "row", alignItems: "center" }}>
-              <View
-                style={{
-                  width: 40,
-                  height: 40,
-                  backgroundColor: "#FFF6F6",
-                  borderRadius: 20,
-                  alignItems: "center",
-                  justifyContent: "center",
-                  marginRight: 12,
-                }}
-              >
-                <Text style={{ color: "#ea5b3a" }}>⚙️</Text>
-              </View>
-              <View>
-                <Text style={{ fontWeight: "700" }}>Account</Text>
-                <Text style={{ color: "#8A8A8A", fontSize: 12 }}>
+            <View className="w-24 h-24 rounded-full bg-gray-300 mb-2 items-center justify-center overflow-hidden">
+              <Image
+                source={require("@/assets/images/icon.png")}
+                className="w-full h-full"
+              />
+            </View>
+            <Text className="text-base font-semibold text-black mb-1">
+              Luna
+            </Text>
+            <View className="bg-[#C8E6C9] px-4 py-1 rounded-full">
+              <Text className="text-xs font-medium text-green-800">
+                Available
+              </Text>
+            </View>
+          </TouchableOpacity>
+
+          {/* Add Pet Button */}
+          <TouchableOpacity
+            className="w-24 h-24 bg-gray-400 rounded-full items-center justify-center"
+            onPress={() => router.push("/(verification)/add-pet")}
+          >
+            <Feather name="plus" size={32} color="white" />
+          </TouchableOpacity>
+        </View>
+
+        {/* Breeding Overview Section */}
+        <Text className="text-3xl font-bold text-black mb-4">
+          Breeding Overview
+        </Text>
+
+        {/* Stats Grid */}
+        <View className="flex-row flex-wrap px-5 gap-10 mb-6">
+          {/* Current Breeding */}
+          <View className="bg-[#FFB5A7] rounded-3xl p-6 flex-1 min-w-[30%] border-4 border-[#FF6B4A] shadow-md">
+            <Text className="text-4xl font-bold text-black text-center">0</Text>
+            <Text className="text-sm font-semibold text-black text-center mt-1">
+              Current breeding
+            </Text>
+            <Text className="text-xs text-black text-center">Active pairs</Text>
+            <View className="items-center mt-2">
+              <Feather name="heart" size={32} color="#FF6B4A" />
+            </View>
+          </View>
+
+          {/* Total Matches */}
+          <View className="bg-[#FFB5A7] rounded-3xl p-6 flex-1 min-w-[30%] border-4 border-[#FF6B4A] shadow-md">
+            <Text className="text-4xl font-bold text-black text-center">0</Text>
+            <Text className="text-sm font-semibold text-black text-center mt-1">
+              Total Matches
+            </Text>
+            <Text className="text-xs text-black text-center">All time</Text>
+            <View className="items-center mt-2">
+              <Feather name="users" size={32} color="#FF6B4A" />
+            </View>
+          </View>
+
+          {/* Success Rate */}
+          <View className="bg-[#FFB5A7] rounded-3xl p-6 flex-1 min-w-[30%] border-4 border-[#FF6B4A] shadow-md">
+            <Text className="text-4xl font-bold text-black text-center">0</Text>
+            <Text className="text-sm font-semibold text-black text-center mt-1">
+              Success Rate
+            </Text>
+            <Text className="text-xs text-black text-center">Average</Text>
+            <View className="items-center mt-2">
+              <Feather name="trending-up" size={32} color="#FF6B4A" />
+            </View>
+          </View>
+
+          {/* Income */}
+          <View className="bg-[#FFB5A7] rounded-3xl p-6 flex-1 min-w-[30%] border-4 border-[#FF6B4A] shadow-md">
+            <Text className="text-4xl font-bold text-black text-center">
+              ₱0.00
+            </Text>
+            <Text className="text-sm font-semibold text-black text-center mt-1">
+              Income
+            </Text>
+            <Text className="text-xs text-black text-center">Total</Text>
+            <View className="items-center mt-2">
+              <Feather name="dollar-sign" size={32} color="#FF6B4A" />
+            </View>
+          </View>
+        </View>
+
+        {/* Account Settings Section */}
+        <View className="bg-white rounded-3xl p-6 mb-20 shadow-md">
+          <View className="flex-row items-center mb-6">
+            <Feather name="settings" size={28} color="#FF6B4A" />
+            <Text className="text-2xl font-bold text-black ml-3">
+              Account Settings
+            </Text>
+          </View>
+
+          {/* Settings Options */}
+          <TouchableOpacity className="flex-row items-center justify-between py-4 border-b border-gray-200">
+            <View className="flex-row items-center">
+              <Feather name="user" size={24} color="#4A90E2" />
+              <View className="ml-4">
+                <Text className="text-base font-semibold text-black">
+                  Account
+                </Text>
+                <Text className="text-sm text-gray-600">
                   Update your personal information
                 </Text>
               </View>
             </View>
-            <Text style={{ color: "#E0E0E0" }}>›</Text>
+            <Feather name="chevron-right" size={24} color="gray" />
           </TouchableOpacity>
 
-          <TouchableOpacity
-            style={{
-              flexDirection: "row",
-              alignItems: "center",
-              justifyContent: "space-between",
-              paddingVertical: 12,
-              borderBottomWidth: 1,
-              borderBottomColor: "#F3F3F3",
-            }}
-          >
-            <View style={{ flexDirection: "row", alignItems: "center" }}>
-              <View
-                style={{
-                  width: 40,
-                  height: 40,
-                  backgroundColor: "#FFFDF2",
-                  borderRadius: 20,
-                  alignItems: "center",
-                  justifyContent: "center",
-                  marginRight: 12,
-                }}
-              >
-                <Text style={{ color: "#F0C04A" }}>🔔</Text>
-              </View>
-              <View>
-                <Text style={{ fontWeight: "700" }}>Notification</Text>
-                <Text style={{ color: "#8A8A8A", fontSize: 12 }}>
+          <TouchableOpacity className="flex-row items-center justify-between py-4 border-b border-gray-200">
+            <View className="flex-row items-center">
+              <Feather name="bell" size={24} color="#FFD700" />
+              <View className="ml-4">
+                <Text className="text-base font-semibold text-black">
+                  Notification
+                </Text>
+                <Text className="text-sm text-gray-600">
                   Notification settings
                 </Text>
               </View>
             </View>
-            <Text style={{ color: "#E0E0E0" }}>›</Text>
+            <Feather name="chevron-right" size={24} color="gray" />
           </TouchableOpacity>
 
-          <TouchableOpacity
-            style={{
-              flexDirection: "row",
-              alignItems: "center",
-              justifyContent: "space-between",
-              paddingVertical: 12,
-              borderBottomWidth: 1,
-              borderBottomColor: "#F3F3F3",
-            }}
-          >
-            <View style={{ flexDirection: "row", alignItems: "center" }}>
-              <View
-                style={{
-                  width: 40,
-                  height: 40,
-                  backgroundColor: "#FFF6F6",
-                  borderRadius: 20,
-                  alignItems: "center",
-                  justifyContent: "center",
-                  marginRight: 12,
-                }}
-              >
-                <Text style={{ color: "#EA5B3A" }}>🔒</Text>
-              </View>
-              <View>
-                <Text style={{ fontWeight: "700" }}>Privacy & Security</Text>
-                <Text style={{ color: "#8A8A8A", fontSize: 12 }}>
+          <TouchableOpacity className="flex-row items-center justify-between py-4 border-b border-gray-200">
+            <View className="flex-row items-center">
+              <Feather name="shield" size={24} color="#FF6B4A" />
+              <View className="ml-4">
+                <Text className="text-base font-semibold text-black">
+                  Privacy & Security
+                </Text>
+                <Text className="text-sm text-gray-600">
                   Control your privacy setting
                 </Text>
               </View>
             </View>
-            <Text style={{ color: "#E0E0E0" }}>›</Text>
+            <Feather name="chevron-right" size={24} color="gray" />
           </TouchableOpacity>
 
-          <TouchableOpacity
-            onPress={() => console.log("Sign out")}
-            style={{
-              flexDirection: "row",
-              alignItems: "center",
-              justifyContent: "flex-start",
-              paddingVertical: 12,
-              marginTop: 8,
-            }}
-          >
-            <View
-              style={{
-                width: 40,
-                height: 40,
-                backgroundColor: "#FFF6F6",
-                borderRadius: 20,
-                alignItems: "center",
-                justifyContent: "center",
-                marginRight: 12,
-              }}
-            >
-              <Text style={{ color: "#EA5B3A" }}>⎋</Text>
+          <TouchableOpacity className="flex-row items-center justify-between py-4">
+            <View className="flex-row items-center">
+              <Feather name="log-out" size={24} color="#FF4444" />
+              <View className="ml-4">
+                <Text className="text-base font-semibold text-[#FF4444]">
+                  Sign out
+                </Text>
+                <Text className="text-sm text-gray-600">
+                  Log out your account
+                </Text>
+              </View>
             </View>
-            <View>
-              <Text style={{ fontWeight: "700", color: "#D9534F" }}>
-                Sign out
-              </Text>
-              <Text style={{ color: "#8A8A8A", fontSize: 12 }}>
-                Log out your account
-              </Text>
-            </View>
+            <Feather name="chevron-right" size={24} color="gray" />
           </TouchableOpacity>
         </View>
       </ScrollView>
