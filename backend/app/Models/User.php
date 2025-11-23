@@ -29,6 +29,7 @@ class User extends Authenticatable
         'birthdate',
         'sex',
         'address',
+        'profile_image',
     ];
 
     /**
@@ -59,5 +60,29 @@ class User extends Authenticatable
     public function roles()
     {
         return $this->belongsToMany(Role::class, 'user_roles', 'user_id', 'role_id', 'id', 'role_id');
+    }
+
+    /**
+     * Get the pets owned by the user
+     */
+    public function pets()
+    {
+        return $this->hasMany(Pet::class, 'user_id');
+    }
+
+    /**
+     * Get the pets recommended by the user
+     */
+    public function recommendedPets()
+    {
+        return $this->hasMany(Pet::class, 'rec_id');
+    }
+
+    /**
+     * Get the authentication records for the user
+     */
+    public function userAuth()
+    {
+        return $this->hasMany(UserAuth::class, 'user_id', 'id');
     }
 }

@@ -1,4 +1,4 @@
-import React, { useRef, useState } from "react";
+import React, { useRef, useState, useEffect } from "react";
 import {
   View,
   Text,
@@ -7,12 +7,39 @@ import {
   TextInput,
   ScrollView,
   Dimensions,
+  ActivityIndicator,
 } from "react-native";
 import { useSession } from "@/context/AuthContext";
 import { AnimatedSearchBar } from "@/components/app/AnimatedSearchBar";
 import SettingsDropdown from "@/components/app/SettingsDropdown";
+import {
+  getPotentialMatches,
+  getTopMatches,
+  getShooters,
+  getAllAvailablePets,
+  type PetMatch,
+  type TopMatch,
+  type ShooterProfile,
+} from "@/services/matchService";
+import { API_BASE_URL } from "@/config/env";
+import { useRouter } from "expo-router";
+import dayjs from "dayjs";
 
 const { width: SCREEN_W } = Dimensions.get("window");
+
+const calculateAge = (birthdate: string) => {
+  if (!birthdate) return "";
+  const birth = dayjs(birthdate);
+  const now = dayjs();
+  const years = now.diff(birth, "year");
+  const months = now.diff(birth, "month") % 12;
+
+  if (years > 0) {
+    return `${years} Year${years > 1 ? "s" : ""} old`;
+  } else {
+    return `${months} Month${months > 1 ? "s" : ""} old`;
+  }
+};
 
 function BannerCarousel({ images }: { images: any[] }) {
   const scrollRef = useRef<ScrollView | null>(null);
@@ -34,7 +61,6 @@ function BannerCarousel({ images }: { images: any[] }) {
         if (w && w !== containerWidth) setContainerWidth(w);
       }}
     >
-      
       <ScrollView
         ref={scrollRef}
         horizontal
@@ -74,11 +100,44 @@ function BannerCarousel({ images }: { images: any[] }) {
   );
 }
 
-function TopMatches({
-  matches,
-}: {
-  matches: { name: string; percent: number; img: any }[];
-}) {
+function TopMatches({ matches }: { matches: TopMatch[] }) {
+  const router = useRouter();
+
+  // Show placeholder if no matches
+  if (!matches || matches.length === 0) {
+    return (
+      <View className="w-[90%] mt-6 self-center bg-[#F9DCDC] rounded-2xl p-4 border-[2px] border-white">
+        <View className="flex-row items-center">
+          <View className="w-12 h-12 rounded-full items-center justify-center mr-3">
+            <Image
+              source={require("@/assets/images/Heart_Icon.png")}
+              className="w-15 h-15"
+            />
+          </View>
+          <View className="flex-1">
+            <Text className="text-lg font-baloo text-[#ea5b3a]">
+              No Matches Yet
+            </Text>
+            <Text className="text-gray-500 text-sm">
+              Register a pet first to find perfect matches
+            </Text>
+          </View>
+        </View>
+
+        <TouchableOpacity
+          className="mt-4 bg-[#ea5b3a] rounded-full py-3 px-6"
+          onPress={() => router.push("/(verification)/add-pet")}
+        >
+          <Text className="text-white text-center font-semibold">
+            Add Your First Pet
+          </Text>
+        </TouchableOpacity>
+      </View>
+    );
+  }
+
+  const topMatch = matches[0];
+
   return (
     <View className="w-[90%] mt-6 self-center bg-[#F9DCDC] rounded-2xl p-4 border-[2px] border-white">
       <View className="flex-row items-center">
@@ -100,20 +159,31 @@ function TopMatches({
 
       <View className="flex-row items-center mt-4">
         <View className="flex-row -space-x-3">
-          {matches.slice(0, 2).map((m, i) => (
+          {topMatch.pet1.photo_url && (
             <Image
-              key={i}
-              source={m.img}
+              source={{
+                uri: `${API_BASE_URL}/storage/${topMatch.pet1.photo_url}`,
+              }}
               className="w-12 h-12 rounded-full border-4 border-white"
-              style={{ marginLeft: i === 0 ? 0 : -12 }}
             />
-          ))}
+          )}
+          {topMatch.pet2.photo_url && (
+            <Image
+              source={{
+                uri: `${API_BASE_URL}/storage/${topMatch.pet2.photo_url}`,
+              }}
+              className="w-12 h-12 rounded-full border-4 border-white"
+              style={{ marginLeft: -12 }}
+            />
+          )}
         </View>
 
         <View className="flex-1 pl-4">
-          <Text className="font-baloo text-base">Luna & Copper</Text>
+          <Text className="font-baloo text-base">
+            {topMatch.pet1.name} & {topMatch.pet2.name}
+          </Text>
           <Text className="text-sm text-gray-400">
-            {matches[0]?.percent ?? 0}% compatibility
+            {topMatch.compatibility_score}% compatibility
           </Text>
         </View>
 
@@ -132,91 +202,194 @@ function TopMatches({
 
 export default function Homepage() {
   const [selectedTab, setSelectedTab] = useState<"pets" | "shooters">("pets");
+  const [loading, setLoading] = useState(true);
+  const [allPets, setAllPets] = useState<PetMatch[]>([]);
+  const [topMatches, setTopMatches] = useState<TopMatch[]>([]);
+  const [shooters, setShooters] = useState<ShooterProfile[]>([]);
+  const router = useRouter();
+
   const bannerImages = [
     require("../../assets/images/Homepage_Banner.png"),
     require("../../assets/images/Homepage_Banner.png"),
     require("../../assets/images/Homepage_Banner.png"),
   ];
-  const topMatches = [
-    { name: "Copper", percent: 95, img: require("@/assets/images/icon.png") },
-    { name: "Ruckus", percent: 90, img: require("@/assets/images/icon.png") },
-    { name: "Milo", percent: 88, img: require("@/assets/images/icon.png") },
-  ];
+
+  useEffect(() => {
+    fetchData();
+  }, []);
+
+  const fetchData = async () => {
+    try {
+      setLoading(true);
+      const [pets, tops, shootersList] = await Promise.all([
+        getAllAvailablePets(),
+        getTopMatches(),
+        getShooters(),
+      ]);
+      setAllPets(pets);
+      setTopMatches(tops);
+      setShooters(shootersList);
+    } catch (error) {
+      console.error("Error fetching homepage data:", error);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const PetsGrid = () => (
     <View className="px-4">
       <Text className="text-2xl font-baloo text-[#ea5b3a] mb-4">
-        Potential Match
+        All Available Pets
       </Text>
-      <View className="flex-row flex-wrap justify-between">
-        {new Array(4).fill(0).map((_, i) => (
-          <View
-            key={i}
-            className="w-[48%] mb-4 bg-white rounded-2xl overflow-hidden shadow"
-            style={{ elevation: 4 }}
-          >
-            <Image
-              source={require("@/assets/images/icon.png")}
-              className="w-full h-36"
-              resizeMode="cover"
-            />
-            <View className="p-3">
-              <Text className="font-baloo text-lg text-[#111]">Copper</Text>
-              <Text className="text-gray-400 text-sm">Oriental Shorthair</Text>
-              <View className="flex-row gap-2 mt-3">
-                <View className="bg-yellow-100 px-2 py-1 rounded-full">
-                  <Text className="text-xs text-yellow-800">2 year old</Text>
+      {loading ? (
+        <View className="flex-row justify-center py-10">
+          <ActivityIndicator size="large" color="#ea5b3a" />
+        </View>
+      ) : allPets.length === 0 ? (
+        <View className="py-10">
+          <Text className="text-center text-gray-500">
+            No pets available at the moment
+          </Text>
+        </View>
+      ) : (
+        <View className="flex-row flex-wrap justify-between">
+          {allPets.map((pet) => {
+            const primaryPhoto =
+              pet.photos?.find((p) => p.is_primary) || pet.photos?.[0];
+            return (
+              <TouchableOpacity
+                key={pet.pet_id}
+                className="w-[48%] mb-4 bg-white rounded-2xl overflow-hidden shadow"
+                style={{ elevation: 4 }}
+                onPress={() =>
+                  router.push(`/(pet)/view-profile?id=${pet.pet_id}`)
+                }
+              >
+                <View className="relative">
+                  {primaryPhoto?.photo_url ? (
+                    <Image
+                      source={{
+                        uri: `${API_BASE_URL}/storage/${primaryPhoto.photo_url}`,
+                      }}
+                      className="w-full h-36"
+                      resizeMode="cover"
+                    />
+                  ) : (
+                    <Image
+                      source={require("@/assets/images/icon.png")}
+                      className="w-full h-36"
+                      resizeMode="cover"
+                    />
+                  )}
                 </View>
-                <View className="bg-pink-100 px-2 py-1 rounded-full">
-                  <Text className="text-xs text-pink-700">Female</Text>
+                <View className="p-3">
+                  <Text
+                    className="font-baloo text-lg text-[#111]"
+                    numberOfLines={1}
+                  >
+                    {pet.name}
+                  </Text>
+                  <Text className="text-gray-400 text-sm" numberOfLines={1}>
+                    {pet.breed}
+                  </Text>
+                  <View className="flex-row flex-wrap gap-2 mt-3">
+                    <View className="bg-yellow-100 px-2 py-1 rounded-full">
+                      <Text
+                        className="text-xs text-yellow-800"
+                        numberOfLines={1}
+                      >
+                        {calculateAge(pet.birthdate)}
+                      </Text>
+                    </View>
+                    <View
+                      className={`px-2 py-1 rounded-full ${
+                        pet.sex?.toLowerCase() === "female"
+                          ? "bg-pink-100"
+                          : "bg-blue-100"
+                      }`}
+                    >
+                      <Text
+                        className={`text-xs ${
+                          pet.sex?.toLowerCase() === "female"
+                            ? "text-pink-700"
+                            : "text-blue-700"
+                        }`}
+                        numberOfLines={1}
+                      >
+                        {pet.sex}
+                      </Text>
+                    </View>
+                  </View>
                 </View>
-              </View>
-            </View>
-          </View>
-        ))}
-      </View>
+              </TouchableOpacity>
+            );
+          })}
+        </View>
+      )}
     </View>
   );
 
   const ShootersList = () => {
-    const IMAGE_HEIGHT = 160; // tailwind h-40 ~ 160
+    const IMAGE_HEIGHT = 160;
     return (
       <View className="px-4">
         <Text className="text-2xl font-baloo text-[#ea5b3a] mb-4">
           Shooters
         </Text>
 
-        <View className="flex-row flex-wrap justify-between">
-          {new Array(6).fill(0).map((_, i) => {
-            const isPetOwner = i % 2 === 0; // sample flag — replace with real data field
-            return (
+        {loading ? (
+          <View className="flex-row justify-center py-10">
+            <ActivityIndicator size="large" color="#ea5b3a" />
+          </View>
+        ) : shooters.length === 0 ? (
+          <View className="py-10">
+            <Text className="text-center text-gray-500">
+              No verified shooters available at the moment
+            </Text>
+          </View>
+        ) : (
+          <View className="flex-row flex-wrap justify-between">
+            {shooters.map((shooter) => (
               <TouchableOpacity
-                key={i}
-                onPress={() => console.log("Card pressed", i)}
+                key={shooter.id}
+                onPress={() => console.log("Shooter profile", shooter.id)}
                 activeOpacity={0.85}
                 className="w-[48%] mb-4 bg-white rounded-2xl overflow-hidden"
                 style={{ elevation: 4 }}
               >
-                {/* image container (position: relative) */}
                 <View style={{ position: "relative", height: IMAGE_HEIGHT }}>
-                  <Image
-                    source={require("@/assets/images/icon.png")}
-                    style={{
-                      width: "100%",
-                      height: IMAGE_HEIGHT,
-                      borderTopLeftRadius: 16,
-                      borderTopRightRadius: 16,
-                    }}
-                    resizeMode="cover"
-                  />
+                  {shooter.profile_image ? (
+                    <Image
+                      source={{
+                        uri: `${API_BASE_URL}/storage/${shooter.profile_image}`,
+                      }}
+                      style={{
+                        width: "100%",
+                        height: IMAGE_HEIGHT,
+                        borderTopLeftRadius: 16,
+                        borderTopRightRadius: 16,
+                      }}
+                      resizeMode="cover"
+                    />
+                  ) : (
+                    <Image
+                      source={require("@/assets/images/icon.png")}
+                      style={{
+                        width: "100%",
+                        height: IMAGE_HEIGHT,
+                        borderTopLeftRadius: 16,
+                        borderTopRightRadius: 16,
+                      }}
+                      resizeMode="cover"
+                    />
+                  )}
 
-                  {/* Pet Owner label: non-pressable pill overlapping image bottom edge */}
-                  {isPetOwner && (
+                  {shooter.is_pet_owner && (
                     <View
                       style={{
                         position: "absolute",
                         right: 12,
-                        top: IMAGE_HEIGHT - 16, // places the pill overlapping image bottom edge
+                        top: IMAGE_HEIGHT - 16,
                         backgroundColor: "#ea5b3a",
                         paddingHorizontal: 10,
                         paddingVertical: 6,
@@ -237,36 +410,53 @@ export default function Homepage() {
                   )}
                 </View>
 
-                {/* card body */}
                 <View className="p-3 mt-0">
                   <Text className="font-baloo text-lg text-[#111]">
-                    Shooter {i + 1}
+                    {shooter.name}
                   </Text>
                   <Text className="text-gray-400 text-sm">
-                    Golden Retriever
+                    {shooter.specialization || "Pet Photographer"}
                   </Text>
 
                   <View className="flex-row gap-2 mt-3">
                     <View className="bg-yellow-100 px-2 py-1 rounded-full">
                       <Text className="text-xs text-yellow-800">
-                        28 year old
+                        {shooter.age || "N/A"} year
+                        {shooter.age !== 1 ? "s" : ""} old
                       </Text>
                     </View>
-                    <View className="bg-emerald-100 px-2 py-1 rounded-full">
-                      <Text className="text-xs text-emerald-800">Male</Text>
-                    </View>
+                    {shooter.sex && (
+                      <View
+                        className={`px-2 py-1 rounded-full ${
+                          shooter.sex?.toLowerCase() === "female"
+                            ? "bg-pink-100"
+                            : "bg-emerald-100"
+                        }`}
+                      >
+                        <Text
+                          className={`text-xs ${
+                            shooter.sex?.toLowerCase() === "female"
+                              ? "text-pink-800"
+                              : "text-emerald-800"
+                          }`}
+                        >
+                          {shooter.sex}
+                        </Text>
+                      </View>
+                    )}
                   </View>
 
                   <View className="mt-3">
                     <Text className="text-sm text-gray-400">
-                      3 years experience
+                      {shooter.experience_years || 0} year
+                      {shooter.experience_years !== 1 ? "s" : ""} experience
                     </Text>
                   </View>
                 </View>
               </TouchableOpacity>
-            );
-          })}
-        </View>
+            ))}
+          </View>
+        )}
       </View>
     );
   };

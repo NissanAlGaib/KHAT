@@ -1,15 +1,26 @@
 import React, { useState } from "react";
-import { View, Text, TouchableOpacity, ScrollView } from "react-native";
+import {
+  View,
+  Text,
+  TouchableOpacity,
+  ScrollView,
+  Alert,
+  ActivityIndicator,
+} from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useRouter } from "expo-router";
 import { Feather } from "@expo/vector-icons";
 import IdVerificationStep from "@/components/verification/IdVerificationStep";
 import LicensedBreederStep from "@/components/verification/LicensedBreederStep";
 import ShooterCertificateStep from "@/components/verification/ShooterCertificateStep";
+import { submitVerification } from "@/services/verificationService";
+import { useSession } from "@/context/AuthContext";
 
 export default function VerifyScreen() {
   const router = useRouter();
+  const { user } = useSession();
   const [currentStep, setCurrentStep] = useState(1);
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const [formData, setFormData] = useState({
     // Step 1 - ID
     idType: "",
@@ -52,10 +63,67 @@ export default function VerifyScreen() {
     }
   };
 
-  const handleSubmit = () => {
-    // TODO: Submit verification data to backend
-    console.log("Verification data:", formData);
-    router.back();
+  const handleSubmit = async () => {
+    if (!user?.id) {
+      Alert.alert("Error", "User not authenticated. Please log in again.");
+      return;
+    }
+
+    if (!formData.idPhoto) {
+      Alert.alert("Error", "ID document is required.");
+      return;
+    }
+
+    setIsSubmitting(true);
+
+    try {
+      const hasBreeder = !formData.breederSkipped && formData.breederPhoto;
+      const hasShooter = !formData.shooterSkipped && formData.shooterPhoto;
+
+      // Prepare verification data
+      const verificationData = {
+        user_id: parseInt(user.id),
+        id_document: formData.idPhoto,
+        breeder_document: hasBreeder ? formData.breederPhoto : undefined,
+        shooter_document: hasShooter ? formData.shooterPhoto : undefined,
+      };
+
+      console.log("Submitting verification data:", {
+        user_id: parseInt(user.id),
+        id_document: "file",
+        breeder_document: hasBreeder ? "file" : undefined,
+        shooter_document: hasShooter ? "file" : undefined,
+      });
+
+      const response = await submitVerification(verificationData);
+
+      if (response.success) {
+        Alert.alert(
+          "Success",
+          "Your verification has been submitted successfully. We'll review it and notify you once it's approved.",
+          [
+            {
+              text: "OK",
+              onPress: () => router.back(),
+            },
+          ]
+        );
+      } else {
+        Alert.alert(
+          "Error",
+          response.message || "Failed to submit verification."
+        );
+      }
+    } catch (error: any) {
+      console.error("Error submitting verification:", error);
+      const errorMessage =
+        error.response?.data?.message ||
+        error.message ||
+        "An error occurred while submitting your verification. Please try again.";
+      Alert.alert("Error", errorMessage);
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   const renderProgressBar = () => {
@@ -89,6 +157,18 @@ export default function VerifyScreen() {
 
       {/* Progress Bar */}
       <View className="mt-6">{renderProgressBar()}</View>
+
+      {/* Loading Overlay */}
+      {isSubmitting && (
+        <View className="absolute inset-0 bg-black/50 z-50 items-center justify-center">
+          <View className="bg-white p-6 rounded-2xl items-center">
+            <ActivityIndicator size="large" color="#FF6B4A" />
+            <Text className="mt-4 text-lg font-semibold">
+              Submitting verification...
+            </Text>
+          </View>
+        </View>
+      )}
 
       {/* Form Steps */}
       <ScrollView

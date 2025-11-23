@@ -4,11 +4,6 @@ import {
   Text,
   Image,
   Alert,
-  ActivityIndicator,
-  KeyboardAvoidingView,
-  ScrollView,
-  Dimensions,
-  Button,
 } from "react-native";
 import React, { useState } from "react";
 import { useSession } from "@/context/AuthContext";

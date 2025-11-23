@@ -1,14 +1,162 @@
-import React, { useState } from "react";
-import { View, Text, Image, TouchableOpacity, ScrollView } from "react-native";
+import React, { useState, useEffect } from "react";
+import {
+  View,
+  Text,
+  Image,
+  TouchableOpacity,
+  ScrollView,
+  ActivityIndicator,
+  Alert,
+} from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Feather } from "@expo/vector-icons";
 import { useRole } from "@/context/RoleContext";
 import { useRouter } from "expo-router";
+import { useSession } from "@/context/AuthContext";
+import { getPets } from "@/services/petService";
+import {
+  getUserProfile,
+  getUserStatistics,
+  type UserProfile,
+  type UserStatistics,
+} from "@/services/userService";
+import {
+  getVerificationStatus,
+  type VerificationStatus,
+} from "@/services/verificationService";
+import { API_BASE_URL } from "@/config/env";
 
 export default function ProfileScreen() {
   const { role, setRole } = useRole();
   const [menuOpen, setMenuOpen] = useState(false);
+  const [pets, setPets] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
+  const [verificationStatus, setVerificationStatus] = useState<
+    VerificationStatus[]
+  >([]);
+  const [statistics, setStatistics] = useState<UserStatistics>({
+    current_breeding: 0,
+    total_matches: 0,
+    success_rate: 0,
+    income: 0,
+  });
   const router = useRouter();
+  const { signOut, user } = useSession();
+
+  useEffect(() => {
+    fetchAllData();
+  }, []);
+
+  const fetchAllData = async () => {
+    try {
+      setLoading(true);
+      await Promise.all([
+        fetchUserProfile(),
+        fetchPets(),
+        fetchVerificationStatus(),
+        fetchStatistics(),
+      ]);
+    } catch (error) {
+      console.error("Error fetching profile data:", error);
+      Alert.alert("Error", "Failed to load profile data");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const fetchUserProfile = async () => {
+    try {
+      const profile = await getUserProfile();
+      setUserProfile(profile);
+    } catch (error) {
+      console.error("Error fetching user profile:", error);
+    }
+  };
+
+  const fetchPets = async () => {
+    try {
+      const data = await getPets();
+      setPets(data);
+    } catch (error) {
+      console.error("Error fetching pets:", error);
+    }
+  };
+
+  const fetchVerificationStatus = async () => {
+    try {
+      if (user?.id) {
+        const status = await getVerificationStatus(Number(user.id));
+        setVerificationStatus(status);
+      }
+    } catch (error) {
+      console.error("Error fetching verification status:", error);
+    }
+  };
+
+  const fetchStatistics = async () => {
+    try {
+      const stats = await getUserStatistics();
+      setStatistics(stats);
+    } catch (error) {
+      console.error("Error fetching statistics:", error);
+    }
+  };
+
+  const getVerificationDisplay = () => {
+    if (!verificationStatus || verificationStatus.length === 0) {
+      return {
+        text: "NOT VERIFIED",
+        color: "text-gray-600",
+        showButton: true,
+      };
+    }
+
+    const idVerification = verificationStatus.find((v) => v.auth_type === "id");
+
+    if (!idVerification) {
+      return {
+        text: "NOT VERIFIED",
+        color: "text-gray-600",
+        showButton: true,
+      };
+    }
+
+    switch (idVerification.status) {
+      case "approved":
+        return {
+          text: "VERIFIED ✓",
+          color: "text-green-600",
+          showButton: false,
+        };
+      case "pending":
+        return {
+          text: "PENDING VERIFICATION",
+          color: "text-orange-500",
+          showButton: false,
+        };
+      case "rejected":
+        return {
+          text: "VERIFICATION REJECTED",
+          color: "text-red-600",
+          showButton: true,
+        };
+      default:
+        return {
+          text: "NOT VERIFIED",
+          color: "text-gray-600",
+          showButton: true,
+        };
+    }
+  };
+
+  const handleLogout = async () => {
+    try {
+      await signOut?.();
+    } catch (e) {
+      console.error("Logout failed", e);
+    }
+  };
 
   return (
     <SafeAreaView className="flex-1 bg-[#FFF5F5]" edges={["top"]}>
@@ -19,23 +167,45 @@ export default function ProfileScreen() {
           <View className="flex-row items-start justify-between">
             <View className="flex-row items-start gap-4">
               {/* Profile Image */}
-              <Image
-                source={require("@/assets/images/icon.png")}
-                className="w-20 h-20 rounded-full"
-              />
+              <View className="w-20 h-20 rounded-full bg-gray-300 overflow-hidden">
+                {userProfile?.profile_image ? (
+                  <Image
+                    source={{
+                      uri: `${API_BASE_URL}/storage/${userProfile.profile_image}`,
+                    }}
+                    className="w-full h-full"
+                    resizeMode="cover"
+                  />
+                ) : (
+                  <Image
+                    source={require("@/assets/images/icon.png")}
+                    className="w-20 h-20 rounded-full"
+                  />
+                )}
+              </View>
 
               {/* Name and Verification */}
               <View className="">
                 <Text className="text-2xl font-bold text-black">
-                  Precious Marie
+                  {userProfile?.name || user?.name || "User"}
                 </Text>
-                <Text className="text-sm text-gray-600 mt-1">NOT VERIFIED</Text>
-                <TouchableOpacity
-                  className="mt-2 border border-black rounded-full px-6 py-2 self-start"
-                  onPress={() => router.push("/(verification)/verify")}
+                <Text
+                  className={`text-sm mt-1 font-semibold ${getVerificationDisplay().color}`}
                 >
-                  <Text className="text-black font-medium">Verify Now</Text>
-                </TouchableOpacity>
+                  {getVerificationDisplay().text}
+                </Text>
+                {getVerificationDisplay().showButton && (
+                  <TouchableOpacity
+                    className="mt-2 border border-black rounded-full px-6 py-2 self-start"
+                    onPress={() => router.push("/(verification)/verify")}
+                  >
+                    <Text className="text-black font-medium">
+                      {getVerificationDisplay().text === "VERIFICATION REJECTED"
+                        ? "Verify Again"
+                        : "Verify Now"}
+                    </Text>
+                  </TouchableOpacity>
+                )}
               </View>
             </View>
 
@@ -77,36 +247,89 @@ export default function ProfileScreen() {
         <Text className="text-3xl font-bold text-black mb-4">PETS</Text>
 
         {/* Pets List */}
-        <View className="flex-row items-center mb-6">
-          {/* Registered Pet - Luna */}
-          <TouchableOpacity
-            className="items-center mr-4"
-            onPress={() => router.push("/(pet)/pet-profile?id=1")}
+        {loading ? (
+          <View className="flex-row items-center justify-center mb-6 py-10">
+            <ActivityIndicator size="large" color="#FF6B4A" />
+          </View>
+        ) : (
+          <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            className="mb-6"
           >
-            <View className="w-24 h-24 rounded-full bg-gray-300 mb-2 items-center justify-center overflow-hidden">
-              <Image
-                source={require("@/assets/images/icon.png")}
-                className="w-full h-full"
-              />
-            </View>
-            <Text className="text-base font-semibold text-black mb-1">
-              Luna
-            </Text>
-            <View className="bg-[#C8E6C9] px-4 py-1 rounded-full">
-              <Text className="text-xs font-medium text-green-800">
-                Available
-              </Text>
-            </View>
-          </TouchableOpacity>
+            <View className="flex-row items-center">
+              {pets.map((pet) => {
+                const statusColors: Record<string, string> = {
+                  active: "bg-[#C8E6C9] text-green-800",
+                  pending_verification: "bg-[#FFF9C4] text-orange-800",
+                  disabled: "bg-gray-300 text-gray-600",
+                  archived: "bg-red-100 text-red-800",
+                };
+                const statusLabels: Record<string, string> = {
+                  active: "Available",
+                  pending_verification: "Pending",
+                  disabled: "Disabled",
+                  archived: "Archived",
+                };
+                const colorClass =
+                  statusColors[pet.status] || "bg-gray-200 text-gray-600";
+                const bgColor = colorClass.split(" ")[0].replace("bg-", "");
+                const textColor = colorClass.split(" ")[1].replace("text-", "");
 
-          {/* Add Pet Button */}
-          <TouchableOpacity
-            className="w-24 h-24 bg-gray-400 rounded-full items-center justify-center"
-            onPress={() => router.push("/(verification)/add-pet")}
-          >
-            <Feather name="plus" size={32} color="white" />
-          </TouchableOpacity>
-        </View>
+                return (
+                  <TouchableOpacity
+                    key={pet.pet_id}
+                    className="items-center mr-4"
+                    onPress={() =>
+                      router.push(`/(pet)/pet-profile?id=${pet.pet_id}`)
+                    }
+                  >
+                    <View className="w-24 h-24 rounded-full bg-gray-300 mb-2 items-center justify-center overflow-hidden">
+                      {pet.photos && pet.photos.length > 0 ? (
+                        <Image
+                          source={{
+                            uri: `${API_BASE_URL}/storage/${pet.photos.find((p: any) => p.is_primary)?.photo_url || pet.photos[0].photo_url}`,
+                          }}
+                          className="w-full h-full"
+                          resizeMode="cover"
+                        />
+                      ) : (
+                        <Image
+                          source={require("@/assets/images/icon.png")}
+                          className="w-full h-full"
+                        />
+                      )}
+                    </View>
+                    <Text className="text-base font-semibold text-black mb-1">
+                      {pet.name}
+                    </Text>
+                    <View
+                      className={
+                        colorClass.split(" ")[0] + " px-4 py-1 rounded-full"
+                      }
+                    >
+                      <Text
+                        className={
+                          "text-xs font-medium " + colorClass.split(" ")[1]
+                        }
+                      >
+                        {statusLabels[pet.status] || pet.status}
+                      </Text>
+                    </View>
+                  </TouchableOpacity>
+                );
+              })}
+
+              {/* Add Pet Button */}
+              <TouchableOpacity
+                className="w-24 h-24 bg-gray-400 rounded-full items-center justify-center"
+                onPress={() => router.push("/(verification)/add-pet")}
+              >
+                <Feather name="plus" size={32} color="white" />
+              </TouchableOpacity>
+            </View>
+          </ScrollView>
+        )}
 
         {/* Breeding Overview Section */}
         <Text className="text-3xl font-bold text-black mb-4">
@@ -117,7 +340,9 @@ export default function ProfileScreen() {
         <View className="flex-row flex-wrap px-5 gap-10 mb-6">
           {/* Current Breeding */}
           <View className="bg-[#FFB5A7] rounded-3xl p-6 flex-1 min-w-[30%] border-4 border-[#FF6B4A] shadow-md">
-            <Text className="text-4xl font-bold text-black text-center">0</Text>
+            <Text className="text-4xl font-bold text-black text-center">
+              {statistics.current_breeding}
+            </Text>
             <Text className="text-sm font-semibold text-black text-center mt-1">
               Current breeding
             </Text>
@@ -129,7 +354,9 @@ export default function ProfileScreen() {
 
           {/* Total Matches */}
           <View className="bg-[#FFB5A7] rounded-3xl p-6 flex-1 min-w-[30%] border-4 border-[#FF6B4A] shadow-md">
-            <Text className="text-4xl font-bold text-black text-center">0</Text>
+            <Text className="text-4xl font-bold text-black text-center">
+              {statistics.total_matches}
+            </Text>
             <Text className="text-sm font-semibold text-black text-center mt-1">
               Total Matches
             </Text>
@@ -141,7 +368,9 @@ export default function ProfileScreen() {
 
           {/* Success Rate */}
           <View className="bg-[#FFB5A7] rounded-3xl p-6 flex-1 min-w-[30%] border-4 border-[#FF6B4A] shadow-md">
-            <Text className="text-4xl font-bold text-black text-center">0</Text>
+            <Text className="text-4xl font-bold text-black text-center">
+              {statistics.success_rate}
+            </Text>
             <Text className="text-sm font-semibold text-black text-center mt-1">
               Success Rate
             </Text>
@@ -154,7 +383,7 @@ export default function ProfileScreen() {
           {/* Income */}
           <View className="bg-[#FFB5A7] rounded-3xl p-6 flex-1 min-w-[30%] border-4 border-[#FF6B4A] shadow-md">
             <Text className="text-4xl font-bold text-black text-center">
-              ₱0.00
+              ₱{statistics.income.toFixed(2)}
             </Text>
             <Text className="text-sm font-semibold text-black text-center mt-1">
               Income
@@ -167,7 +396,7 @@ export default function ProfileScreen() {
         </View>
 
         {/* Account Settings Section */}
-        <View className="bg-white rounded-3xl p-6 mb-20 shadow-md">
+        <View className="bg-white rounded-3xl p-6 mb-40 shadow-md">
           <View className="flex-row items-center mb-6">
             <Feather name="settings" size={28} color="#FF6B4A" />
             <Text className="text-2xl font-bold text-black ml-3">
@@ -221,7 +450,10 @@ export default function ProfileScreen() {
             <Feather name="chevron-right" size={24} color="gray" />
           </TouchableOpacity>
 
-          <TouchableOpacity className="flex-row items-center justify-between py-4">
+          <TouchableOpacity
+            className="flex-row items-center justify-between py-4"
+            onPress={handleLogout}
+          >
             <View className="flex-row items-center">
               <Feather name="log-out" size={24} color="#FF4444" />
               <View className="ml-4">
