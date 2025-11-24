@@ -63,7 +63,7 @@ export default function VerifyScreen() {
     }
   };
 
-  const handleSubmit = async () => {
+  const handleSubmit = async (shooterData?: any) => {
     if (!user?.id) {
       Alert.alert("Error", "User not authenticated. Please log in again.");
       return;
@@ -77,22 +77,60 @@ export default function VerifyScreen() {
     setIsSubmitting(true);
 
     try {
-      const hasBreeder = !formData.breederSkipped && formData.breederPhoto;
-      const hasShooter = !formData.shooterSkipped && formData.shooterPhoto;
+      // Merge shooter data if provided
+      const finalFormData = shooterData
+        ? { ...formData, ...shooterData }
+        : formData;
+
+      const hasBreeder =
+        !finalFormData.breederSkipped && finalFormData.breederPhoto;
+      const hasShooter =
+        !finalFormData.shooterSkipped && finalFormData.shooterPhoto;
 
       // Prepare verification data
       const verificationData = {
         user_id: parseInt(user.id),
-        id_document: formData.idPhoto,
-        breeder_document: hasBreeder ? formData.breederPhoto : undefined,
-        shooter_document: hasShooter ? formData.shooterPhoto : undefined,
+        id_document: finalFormData.idPhoto,
+        id_number: finalFormData.idNumber,
+        id_name: finalFormData.idName,
+        id_issue_date: finalFormData.idGivenDate,
+        id_expiration_date: finalFormData.idExpirationDate,
+        breeder_document: hasBreeder ? finalFormData.breederPhoto : undefined,
+        breeder_number: hasBreeder ? finalFormData.breederIdNumber : undefined,
+        breeder_name: hasBreeder ? finalFormData.breederName : undefined,
+        breeder_issuing_authority: hasBreeder
+          ? finalFormData.breederIssuingAuthority
+          : undefined,
+        breeder_issue_date: hasBreeder
+          ? finalFormData.breederGivenDate
+          : undefined,
+        breeder_expiration_date: hasBreeder
+          ? finalFormData.breederExpirationDate
+          : undefined,
+        shooter_document: hasShooter ? finalFormData.shooterPhoto : undefined,
+        shooter_number: hasShooter ? finalFormData.shooterIdNumber : undefined,
+        shooter_name: hasShooter ? finalFormData.shooterName : undefined,
+        shooter_issuing_authority: hasShooter
+          ? finalFormData.shooterIssuingAuthority
+          : undefined,
+        shooter_issue_date: hasShooter
+          ? finalFormData.shooterGivenDate
+          : undefined,
+        shooter_expiration_date: hasShooter
+          ? finalFormData.shooterExpirationDate
+          : undefined,
       };
 
       console.log("Submitting verification data:", {
         user_id: parseInt(user.id),
         id_document: "file",
+        id_number: finalFormData.idNumber,
+        id_name: finalFormData.idName,
         breeder_document: hasBreeder ? "file" : undefined,
+        breeder_number: hasBreeder ? finalFormData.breederIdNumber : undefined,
         shooter_document: hasShooter ? "file" : undefined,
+        shooter_number: hasShooter ? finalFormData.shooterIdNumber : undefined,
+        shooter_name: hasShooter ? finalFormData.shooterName : undefined,
       });
 
       const response = await submitVerification(verificationData);
@@ -189,7 +227,7 @@ export default function VerifyScreen() {
         )}
         {currentStep === 3 && (
           <ShooterCertificateStep
-            onDone={handleSubmit}
+            onDone={(stepData) => handleSubmit(stepData)}
             onSkip={handleSkip}
             initialData={formData}
           />

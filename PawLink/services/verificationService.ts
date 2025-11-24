@@ -3,8 +3,22 @@ import axios from "@/config/axiosConfig";
 export interface VerificationData {
   user_id: number;
   id_document: any; // File/URI
+  id_number?: string;
+  id_name?: string;
+  id_issue_date?: string;
+  id_expiration_date?: string;
   breeder_document?: any; // File/URI (optional)
+  breeder_number?: string;
+  breeder_name?: string;
+  breeder_issuing_authority?: string;
+  breeder_issue_date?: string;
+  breeder_expiration_date?: string;
   shooter_document?: any; // File/URI (optional)
+  shooter_number?: string;
+  shooter_name?: string;
+  shooter_issuing_authority?: string;
+  shooter_issue_date?: string;
+  shooter_expiration_date?: string;
 }
 
 export interface VerificationStatus {
@@ -28,6 +42,12 @@ export const submitVerification = async (data: VerificationData) => {
     if (data.id_document) {
       const idFile = await uriToFile(data.id_document, "id_document");
       formData.append("id_document", idFile as any);
+      if (data.id_number) formData.append("id_number", data.id_number);
+      if (data.id_name) formData.append("id_name", data.id_name);
+      if (data.id_issue_date)
+        formData.append("id_issue_date", data.id_issue_date);
+      if (data.id_expiration_date)
+        formData.append("id_expiration_date", data.id_expiration_date);
     }
 
     // Handle breeder document if provided
@@ -37,6 +57,21 @@ export const submitVerification = async (data: VerificationData) => {
         "breeder_document"
       );
       formData.append("breeder_document", breederFile as any);
+      if (data.breeder_number)
+        formData.append("breeder_number", data.breeder_number);
+      if (data.breeder_name) formData.append("breeder_name", data.breeder_name);
+      if (data.breeder_issuing_authority)
+        formData.append(
+          "breeder_issuing_authority",
+          data.breeder_issuing_authority
+        );
+      if (data.breeder_issue_date)
+        formData.append("breeder_issue_date", data.breeder_issue_date);
+      if (data.breeder_expiration_date)
+        formData.append(
+          "breeder_expiration_date",
+          data.breeder_expiration_date
+        );
     }
 
     // Handle shooter document if provided
@@ -46,6 +81,21 @@ export const submitVerification = async (data: VerificationData) => {
         "shooter_document"
       );
       formData.append("shooter_document", shooterFile as any);
+      if (data.shooter_number)
+        formData.append("shooter_number", data.shooter_number);
+      if (data.shooter_name) formData.append("shooter_name", data.shooter_name);
+      if (data.shooter_issuing_authority)
+        formData.append(
+          "shooter_issuing_authority",
+          data.shooter_issuing_authority
+        );
+      if (data.shooter_issue_date)
+        formData.append("shooter_issue_date", data.shooter_issue_date);
+      if (data.shooter_expiration_date)
+        formData.append(
+          "shooter_expiration_date",
+          data.shooter_expiration_date
+        );
     }
 
     const response = await axios.post("api/verification/submit", formData, {

@@ -16,12 +16,19 @@ class UserAuth extends Model
         'user_id',
         'auth_type',
         'document_path',
+        'document_number',
+        'document_name',
+        'issue_date',
+        'issuing_authority',
+        'expiry_date',
         'status',
         'date_created',
     ];
 
     protected $casts = [
         'date_created' => 'datetime',
+        'expiry_date' => 'date',
+        'issue_date' => 'date',
     ];
 
     /**

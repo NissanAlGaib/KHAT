@@ -12,7 +12,7 @@ import * as ImagePicker from "expo-image-picker";
 import DateTimePicker from "@react-native-community/datetimepicker";
 
 interface ShooterCertificateStepProps {
-  onDone: () => void;
+  onDone: (data: any) => void;
   onSkip: () => void;
   initialData: any;
 }
@@ -79,9 +79,15 @@ export default function ShooterCertificateStep({
       return;
     }
 
-    // Update the parent component with the data before calling onDone
-    // This should be handled by the parent, but we'll pass the data through a callback
-    onDone();
+    onDone({
+      shooterPhoto: photo,
+      shooterName: name,
+      shooterIdNumber: idNumber,
+      shooterIssuingAuthority: issuingAuthority,
+      shooterGivenDate: givenDate.toISOString(),
+      shooterExpirationDate: expirationDate.toISOString(),
+      shooterSkipped: false,
+    });
   };
 
   return (

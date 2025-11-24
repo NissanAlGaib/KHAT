@@ -8,6 +8,10 @@ use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 use Laravel\Sanctum\HasApiTokens;
 
+/**
+ * @property-read \Illuminate\Database\Eloquent\Collection<int, \App\Models\Role> $roles
+ * @method \Illuminate\Database\Eloquent\Relations\BelongsToMany roles()
+ */
 class User extends Authenticatable
 {
     /** @use HasFactory<\Database\Factories\UserFactory> */
@@ -23,6 +27,7 @@ class User extends Authenticatable
         'name',
         'email',
         'password',
+        'subscription_tier',
         'firstName',
         'lastName',
         'contact_number',

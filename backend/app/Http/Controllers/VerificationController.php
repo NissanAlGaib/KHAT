@@ -16,11 +16,34 @@ class VerificationController extends Controller
     public function submitVerification(Request $request)
     {
         try {
+            // Log what we're receiving
+            Log::info('Verification submission received', [
+                'has_id_document' => $request->hasFile('id_document'),
+                'has_breeder_document' => $request->hasFile('breeder_document'),
+                'has_shooter_document' => $request->hasFile('shooter_document'),
+                'all_keys' => array_keys($request->all()),
+                'file_keys' => array_keys($request->allFiles()),
+            ]);
+
             $validator = Validator::make($request->all(), [
                 'user_id' => 'required|exists:users,id',
                 'id_document' => 'required|file|mimes:jpg,jpeg,png,pdf|max:10240',
+                'id_number' => 'nullable|string|max:255',
+                'id_name' => 'nullable|string|max:255',
+                'id_issue_date' => 'nullable|date',
+                'id_expiration_date' => 'nullable|date',
                 'breeder_document' => 'nullable|file|mimes:jpg,jpeg,png,pdf|max:10240',
+                'breeder_number' => 'nullable|string|max:255',
+                'breeder_name' => 'nullable|string|max:255',
+                'breeder_issuing_authority' => 'nullable|string|max:255',
+                'breeder_issue_date' => 'nullable|date',
+                'breeder_expiration_date' => 'nullable|date',
                 'shooter_document' => 'nullable|file|mimes:jpg,jpeg,png,pdf|max:10240',
+                'shooter_number' => 'nullable|string|max:255',
+                'shooter_name' => 'nullable|string|max:255',
+                'shooter_issuing_authority' => 'nullable|string|max:255',
+                'shooter_issue_date' => 'nullable|date',
+                'shooter_expiration_date' => 'nullable|date',
             ]);
 
             if ($validator->fails()) {
@@ -41,6 +64,10 @@ class VerificationController extends Controller
                     'user_id' => $userId,
                     'auth_type' => 'id',
                     'document_path' => $idPath,
+                    'document_number' => $request->input('id_number'),
+                    'document_name' => $request->input('id_name'),
+                    'issue_date' => $request->input('id_issue_date'),
+                    'expiry_date' => $request->input('id_expiration_date'),
                     'status' => 'pending',
                 ]);
             }
@@ -52,20 +79,38 @@ class VerificationController extends Controller
                     'user_id' => $userId,
                     'auth_type' => 'breeder_certificate',
                     'document_path' => $breederPath,
+                    'document_number' => $request->input('breeder_number'),
+                    'document_name' => $request->input('breeder_name'),
+                    'issue_date' => $request->input('breeder_issue_date'),
+                    'issuing_authority' => $request->input('breeder_issuing_authority'),
+                    'expiry_date' => $request->input('breeder_expiration_date'),
                     'status' => 'pending',
                 ]);
             }
 
             // Store and create record for shooter document if provided
             if ($request->hasFile('shooter_document')) {
+                Log::info('Processing shooter document', [
+                    'shooter_number' => $request->input('shooter_number'),
+                    'shooter_name' => $request->input('shooter_name'),
+                    'shooter_issuing_authority' => $request->input('shooter_issuing_authority'),
+                ]);
                 $shooterPath = $request->file('shooter_document')->store('verification/shooter/' . $userId, 'public');
                 $createdRecords[] = UserAuth::create([
                     'user_id' => $userId,
                     'auth_type' => 'shooter_certificate',
                     'document_path' => $shooterPath,
+                    'document_number' => $request->input('shooter_number'),
+                    'document_name' => $request->input('shooter_name'),
+                    'issue_date' => $request->input('shooter_issue_date'),
+                    'issuing_authority' => $request->input('shooter_issuing_authority'),
+                    'expiry_date' => $request->input('shooter_expiration_date'),
                     'status' => 'pending',
                 ]);
+                Log::info('Shooter document saved successfully', ['path' => $shooterPath]);
             }
+
+            Log::info('Total records created: ' . count($createdRecords));
 
             return response()->json([
                 'success' => true,
