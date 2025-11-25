@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import {
   View,
   Text,
@@ -7,7 +7,6 @@ import {
   ScrollView,
   ActivityIndicator,
 } from "react-native";
-import { useRouter } from "expo-router";
 import { AnimatedSearchBar } from "@/components/app/AnimatedSearchBar";
 import SettingsDropdown from "@/components/app/SettingsDropdown";
 import { API_BASE_URL } from "@/config/env";
@@ -33,91 +32,77 @@ interface BreedingPair {
   booking_id?: number;
 }
 
+// Mock data for now - replace with actual API call
+const MOCK_BREEDING_PAIRS: BreedingPair[] = [
+  {
+    id: 1,
+    pet1: { pet_id: 1, name: "May23", photo_url: "" },
+    pet2: { pet_id: 2, name: "Marie 23", photo_url: "" },
+    owner1_name: "Copper",
+    owner2_name: "Luna",
+    location: "Zamboanga City",
+    fee: 2000,
+    status: "active",
+  },
+  {
+    id: 2,
+    pet1: { pet_id: 3, name: "hns33", photo_url: "" },
+    pet2: { pet_id: 4, name: "jokee3", photo_url: "" },
+    owner1_name: "Puppy",
+    owner2_name: "Cloud",
+    location: "Zamboanga City",
+    fee: 3000,
+    status: "active",
+  },
+  {
+    id: 3,
+    pet1: { pet_id: 5, name: "May23", photo_url: "" },
+    pet2: { pet_id: 6, name: "Marie 23", photo_url: "" },
+    owner1_name: "Copper",
+    owner2_name: "Ling",
+    location: "Zamboanga City",
+    fee: 2000,
+    status: "active",
+  },
+  {
+    id: 4,
+    pet1: { pet_id: 7, name: "May23", photo_url: "" },
+    pet2: { pet_id: 8, name: "Marie 23", photo_url: "" },
+    owner1_name: "Copper",
+    owner2_name: "Ling",
+    location: "Zamboanga City",
+    fee: 2000,
+    status: "active",
+  },
+];
+
 export default function ShooterHomepage() {
   const [loading, setLoading] = useState(true);
   const [breedingPairs, setBreedingPairs] = useState<BreedingPair[]>([]);
   const [currentHandling, setCurrentHandling] = useState<number>(0);
-  const router = useRouter();
-
-  // Mock data for now - replace with actual API call
-  const mockBreedingPairs: BreedingPair[] = [
-    {
-      id: 1,
-      pet1: { pet_id: 1, name: "May23", photo_url: "" },
-      pet2: { pet_id: 2, name: "Marie 23", photo_url: "" },
-      owner1_name: "Copper",
-      owner2_name: "Luna",
-      location: "Zamboanga City",
-      fee: 2000,
-      status: "active",
-    },
-    {
-      id: 2,
-      pet1: { pet_id: 3, name: "hns33", photo_url: "" },
-      pet2: { pet_id: 4, name: "jokee3", photo_url: "" },
-      owner1_name: "Puppy",
-      owner2_name: "Cloud",
-      location: "Zamboanga City",
-      fee: 3000,
-      status: "active",
-    },
-    {
-      id: 3,
-      pet1: { pet_id: 5, name: "May23", photo_url: "" },
-      pet2: { pet_id: 6, name: "Marie 23", photo_url: "" },
-      owner1_name: "Copper",
-      owner2_name: "Ling",
-      location: "Zamboanga City",
-      fee: 2000,
-      status: "active",
-    },
-    {
-      id: 4,
-      pet1: { pet_id: 7, name: "May23", photo_url: "" },
-      pet2: { pet_id: 8, name: "Marie 23", photo_url: "" },
-      owner1_name: "Copper",
-      owner2_name: "Ling",
-      location: "Zamboanga City",
-      fee: 2000,
-      status: "active",
-    },
-  ];
-
-  useEffect(() => {
-    fetchBreedingPairs();
-  }, []);
 
   // TODO: Replace with actual API call
-  const fetchBreedingPairs = async () => {
+  const fetchBreedingPairs = useCallback(async () => {
     try {
       setLoading(true);
       // Simulate API call
       await new Promise((resolve) => setTimeout(resolve, 1000));
 
-      // TODO: Replace with actual API endpoint
-      // const response = await fetch(`${API_BASE_URL}/api/shooter/breeding-pairs`, {
-      //   headers: {
-      //     'Authorization': `Bearer ${token}`,
-      //     'Content-Type': 'application/json',
-      //   },
-      // });
-      // const data = await response.json();
-      // setBreedingPairs(data.breeding_pairs);
-      // setCurrentHandling(data.current_handling);
-
-      setBreedingPairs(mockBreedingPairs);
-      setCurrentHandling(mockBreedingPairs.length);
+      setBreedingPairs(MOCK_BREEDING_PAIRS);
+      setCurrentHandling(MOCK_BREEDING_PAIRS.length);
     } catch (error) {
       console.error("Error fetching breeding pairs:", error);
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
 
-  const handleBreedingPairPress = (pair: BreedingPair) => {
-    // TODO: Navigate to breeding pair details
-    console.log("Selected breeding pair:", pair);
-    // router.push(`/(shooter)/breeding-detail?id=${pair.id}`);
+  useEffect(() => {
+    fetchBreedingPairs();
+  }, [fetchBreedingPairs]);
+
+  const handleBreedingPairPress = (_pair: BreedingPair) => {
+    // TODO: Navigate to breeding pair details when implemented
   };
 
   const BreedingCard = ({ pair }: { pair: BreedingPair }) => {

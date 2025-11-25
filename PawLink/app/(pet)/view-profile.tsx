@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import {
   View,
   Text,
@@ -6,7 +6,6 @@ import {
   TouchableOpacity,
   Image,
   ActivityIndicator,
-  Dimensions,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Feather } from "@expo/vector-icons";
@@ -22,8 +21,6 @@ import {
 import { API_BASE_URL } from "@/config/env";
 import dayjs from "dayjs";
 
-const { width: SCREEN_WIDTH } = Dimensions.get("window");
-
 export default function ViewPetProfileScreen() {
   const router = useRouter();
   const params = useLocalSearchParams();
@@ -33,15 +30,9 @@ export default function ViewPetProfileScreen() {
   const [petData, setPetData] = useState<PetPublicProfile | null>(null);
   const [litters, setLitters] = useState<Litter[]>([]);
   const [loading, setLoading] = useState(true);
-  const [currentPhotoIndex, setCurrentPhotoIndex] = useState(0);
+  const [currentPhotoIndex] = useState(0);
 
-  useEffect(() => {
-    if (petId) {
-      fetchPetData();
-    }
-  }, [petId]);
-
-  const fetchPetData = async () => {
+  const fetchPetData = useCallback(async () => {
     try {
       setLoading(true);
       const [profile, litterData] = await Promise.all([
@@ -60,7 +51,13 @@ export default function ViewPetProfileScreen() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [petId, showAlert]);
+
+  useEffect(() => {
+    if (petId) {
+      fetchPetData();
+    }
+  }, [petId, fetchPetData]);
 
   const getImageUrl = (path: string | null | undefined) => {
     if (!path) return null;
@@ -244,7 +241,7 @@ export default function ViewPetProfileScreen() {
             )}
             <View className="flex-1 ml-4">
               <Text className="text-xl font-bold">{petData.owner.name}</Text>
-              <Text className="text-gray-500">{petData.name}'s Owner</Text>
+              <Text className="text-gray-500">{petData.name}&apos;s Owner</Text>
             </View>
           </View>
 
@@ -473,7 +470,7 @@ export default function ViewPetProfileScreen() {
                     <View className="flex-1">
                       <Text className="font-bold">{litter.title}</Text>
                       <Text className="text-gray-500 text-sm">
-                        {litter.parents.sire.owner.name}'s Owner:{" "}
+                        {litter.parents.sire.owner.name}&apos;s Owner:{" "}
                         {litter.parents.sire.owner.name}
                       </Text>
                       <Text className="text-gray-500 text-sm">

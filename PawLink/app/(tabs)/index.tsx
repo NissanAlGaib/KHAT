@@ -1,10 +1,9 @@
-import React, { useRef, useState, useEffect } from "react";
+import React, { useRef, useState, useEffect, useCallback } from "react";
 import {
   View,
   Text,
   Image,
   TouchableOpacity,
-  TextInput,
   ScrollView,
   Dimensions,
   ActivityIndicator,
@@ -15,7 +14,6 @@ import { useRole } from "@/context/RoleContext";
 import { AnimatedSearchBar } from "@/components/app/AnimatedSearchBar";
 import SettingsDropdown from "@/components/app/SettingsDropdown";
 import {
-  getPotentialMatches,
   getTopMatches,
   getShooters,
   getAllAvailablePets,
@@ -257,11 +255,7 @@ export default function Homepage() {
     require("../../assets/images/Homepage_Banner.png"),
   ];
 
-  useEffect(() => {
-    fetchData();
-  }, [selectedPet]); // Refetch when selected pet changes
-
-  const fetchData = async () => {
+  const fetchData = useCallback(async () => {
     try {
       setLoading(true);
       const [pets, tops, shootersList] = await Promise.all([
@@ -272,28 +266,21 @@ export default function Homepage() {
       setAllPets(pets);
       setTopMatches(tops);
 
-      // Filter out the current user from shooters list
-      console.log("Current user ID:", user?.id);
-      console.log(
-        "Shooters before filter:",
-        shootersList.map((s) => ({ id: s.id, name: s.name }))
-      );
-
       const filteredShooters = shootersList.filter(
         (shooter) => shooter.id !== Number(user?.id)
       );
 
-      console.log(
-        "Shooters after filter:",
-        filteredShooters.map((s) => ({ id: s.id, name: s.name }))
-      );
       setShooters(filteredShooters);
     } catch (error) {
       console.error("Error fetching homepage data:", error);
     } finally {
       setLoading(false);
     }
-  };
+  }, [user?.id]);
+
+  useEffect(() => {
+    fetchData();
+  }, [selectedPet, fetchData]); // Refetch when selected pet changes
 
   // If role is Shooter, show ShooterHomepage
   if (role === "Shooter") {

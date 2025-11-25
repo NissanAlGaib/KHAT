@@ -678,7 +678,7 @@ export default function AddPetScreen() {
         Breeding History
       </Text>
       <Text className="text-sm text-gray-600 mb-4">
-        Help us understand your pet's breeding background
+        Help us understand your pet&apos;s breeding background
       </Text>
 
       {/* Has Been Bred Checkbox */}
@@ -1155,10 +1155,10 @@ export default function AddPetScreen() {
           )}
         </View>
 
-        {/* Veterinarian's Name */}
+        {/* Veterinarian&apos;s Name */}
         <View className="mb-4">
           <Text className="text-base font-semibold text-black mb-2">
-            Veterinarian's Name
+            Veterinarian&apos;s Name
           </Text>
           <TextInput
             className={`border ${validationErrors.rabiesVeterinarianName ? "border-red-500" : "border-gray-300"} rounded-lg px-4 py-3 bg-white`}
@@ -1295,10 +1295,10 @@ export default function AddPetScreen() {
           )}
         </View>
 
-        {/* Veterinarian's Name */}
+        {/* Veterinarian&apos;s Name */}
         <View className="mb-4">
           <Text className="text-base font-semibold text-black mb-2">
-            Veterinarian's Name
+            Veterinarian&apos;s Name
           </Text>
           <TextInput
             className={`border ${validationErrors.dhppVeterinarianName ? "border-red-500" : "border-gray-300"} rounded-lg px-4 py-3 bg-white`}
@@ -1437,10 +1437,10 @@ export default function AddPetScreen() {
             />
           </View>
 
-          {/* Veterinarian's Name */}
+          {/* Veterinarian&apos;s Name */}
           <View className="mb-4">
             <Text className="text-base font-semibold text-black mb-2">
-              Veterinarian's Name
+              Veterinarian&apos;s Name
             </Text>
             <TextInput
               className="border border-gray-300 rounded-lg px-4 py-3 bg-white"
@@ -1574,10 +1574,10 @@ export default function AddPetScreen() {
           )}
         </View>
 
-        {/* Veterinarian's Name */}
+        {/* Veterinarian&apos;s Name */}
         <View className="mb-4">
           <Text className="text-base font-semibold text-black mb-2">
-            Veterinarian's Name
+            Veterinarian&apos;s Name
           </Text>
           <TextInput
             className={`border ${validationErrors.healthVeterinarianName ? "border-red-500" : "border-gray-300"} rounded-lg px-4 py-3 bg-white`}
@@ -1717,7 +1717,7 @@ export default function AddPetScreen() {
         Partner Preferences
       </Text>
       <Text className="text-sm text-gray-600 mb-4">
-        Tell us what you're looking for in a breeding partner
+        Tell us what you&apos;re looking for in a breeding partner
       </Text>
 
       {/* Preferred Breed */}

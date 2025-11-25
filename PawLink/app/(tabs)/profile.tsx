@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import {
   View,
   Text,
@@ -46,11 +46,45 @@ export default function ProfileScreen() {
   const router = useRouter();
   const { signOut, user } = useSession();
 
-  useEffect(() => {
-    fetchAllData();
+  const fetchUserProfile = useCallback(async () => {
+    try {
+      const profile = await getUserProfile();
+      setUserProfile(profile);
+    } catch (error) {
+      console.error("Error fetching user profile:", error);
+    }
   }, []);
 
-  const fetchAllData = async () => {
+  const fetchPets = useCallback(async () => {
+    try {
+      const data = await getPets();
+      setPets(data);
+    } catch (error) {
+      console.error("Error fetching pets:", error);
+    }
+  }, []);
+
+  const fetchVerificationStatus = useCallback(async () => {
+    try {
+      if (user?.id) {
+        const status = await getVerificationStatus(Number(user.id));
+        setVerificationStatus(status);
+      }
+    } catch (error) {
+      console.error("Error fetching verification status:", error);
+    }
+  }, [user?.id]);
+
+  const fetchStatistics = useCallback(async () => {
+    try {
+      const stats = await getUserStatistics();
+      setStatistics(stats);
+    } catch (error) {
+      console.error("Error fetching statistics:", error);
+    }
+  }, []);
+
+  const fetchAllData = useCallback(async () => {
     try {
       setLoading(true);
       await Promise.all([
@@ -69,45 +103,11 @@ export default function ProfileScreen() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [fetchUserProfile, fetchPets, fetchVerificationStatus, fetchStatistics, showAlert]);
 
-  const fetchUserProfile = async () => {
-    try {
-      const profile = await getUserProfile();
-      setUserProfile(profile);
-    } catch (error) {
-      console.error("Error fetching user profile:", error);
-    }
-  };
-
-  const fetchPets = async () => {
-    try {
-      const data = await getPets();
-      setPets(data);
-    } catch (error) {
-      console.error("Error fetching pets:", error);
-    }
-  };
-
-  const fetchVerificationStatus = async () => {
-    try {
-      if (user?.id) {
-        const status = await getVerificationStatus(Number(user.id));
-        setVerificationStatus(status);
-      }
-    } catch (error) {
-      console.error("Error fetching verification status:", error);
-    }
-  };
-
-  const fetchStatistics = async () => {
-    try {
-      const stats = await getUserStatistics();
-      setStatistics(stats);
-    } catch (error) {
-      console.error("Error fetching statistics:", error);
-    }
-  };
+  useEffect(() => {
+    fetchAllData();
+  }, [fetchAllData]);
 
   const getVerificationDisplay = () => {
     if (!verificationStatus || verificationStatus.length === 0) {
@@ -279,8 +279,7 @@ export default function ProfileScreen() {
                 };
                 const colorClass =
                   statusColors[pet.status] || "bg-gray-200 text-gray-600";
-                const bgColor = colorClass.split(" ")[0].replace("bg-", "");
-                const textColor = colorClass.split(" ")[1].replace("text-", "");
+                const [bgColorClass, textColorClass] = colorClass.split(" ");
 
                 return (
                   <TouchableOpacity
@@ -310,14 +309,10 @@ export default function ProfileScreen() {
                       {pet.name}
                     </Text>
                     <View
-                      className={
-                        colorClass.split(" ")[0] + " px-4 py-1 rounded-full"
-                      }
+                      className={bgColorClass + " px-4 py-1 rounded-full"}
                     >
                       <Text
-                        className={
-                          "text-xs font-medium " + colorClass.split(" ")[1]
-                        }
+                        className={"text-xs font-medium " + textColorClass}
                       >
                         {statusLabels[pet.status] || pet.status}
                       </Text>
