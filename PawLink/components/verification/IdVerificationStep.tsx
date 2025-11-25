@@ -10,6 +10,8 @@ import {
 import { Feather } from "@expo/vector-icons";
 import * as ImagePicker from "expo-image-picker";
 import DateTimePicker from "@react-native-community/datetimepicker";
+import { useAlert } from "@/hooks/useAlert";
+import AlertModal from "@/components/core/AlertModal";
 
 interface IdVerificationStepProps {
   onNext: (data: any) => void;
@@ -31,6 +33,7 @@ export default function IdVerificationStep({
   onNext,
   initialData,
 }: IdVerificationStepProps) {
+  const { visible, alertOptions, showAlert, hideAlert } = useAlert();
   const [idType, setIdType] = useState(initialData.idType || "");
   const [showIdTypePicker, setShowIdTypePicker] = useState(false);
   const [idPhoto, setIdPhoto] = useState<string | null>(
@@ -60,7 +63,11 @@ export default function IdVerificationStep({
       await ImagePicker.requestMediaLibraryPermissionsAsync();
 
     if (permissionResult.granted === false) {
-      alert("Permission to access camera roll is required!");
+      showAlert({
+        title: "Permission Required",
+        message: "Permission to access camera roll is required!",
+        type: "warning",
+      });
       return;
     }
 
@@ -85,7 +92,11 @@ export default function IdVerificationStep({
 
   const handleNext = () => {
     if (!idType || !name || !idNumber) {
-      alert("Please fill in all required fields");
+      showAlert({
+        title: "Missing Information",
+        message: "Please fill in all required fields",
+        type: "warning",
+      });
       return;
     }
 
@@ -265,6 +276,15 @@ export default function IdVerificationStep({
       >
         <Text className="text-white font-bold text-lg">Next</Text>
       </TouchableOpacity>
+
+      <AlertModal
+        visible={visible}
+        title={alertOptions.title}
+        message={alertOptions.message}
+        type={alertOptions.type}
+        buttons={alertOptions.buttons}
+        onClose={hideAlert}
+      />
     </View>
   );
 }

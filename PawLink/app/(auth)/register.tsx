@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from "react";
-import { View, Text, Alert, Image, TouchableOpacity } from "react-native";
+import { View, Text, Image, TouchableOpacity } from "react-native";
 import { Link, router } from "expo-router";
 import axiosInstance from "@/config/axiosConfig";
 import { isAxiosError } from "axios";
@@ -9,6 +9,8 @@ import DateTimePickerModal from "react-native-modal-datetime-picker";
 import dayjs from "dayjs";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import DropDownPicker from "react-native-dropdown-picker";
+import { useAlert } from "@/hooks/useAlert";
+import AlertModal from "@/components/core/AlertModal";
 
 interface RegisterData {
   email: string;
@@ -35,6 +37,7 @@ interface Errors {
 }
 
 const Register = () => {
+  const { visible, alertOptions, showAlert, hideAlert } = useAlert();
   const [step, setStep] = useState(1);
   const [loading, setLoading] = useState(false);
 
@@ -195,16 +198,34 @@ const Register = () => {
     try {
       console.log("📦 Registration payload:", JSON.stringify(data, null, 2));
       const response = await axiosInstance.post("/api/register", payload);
-      Alert.alert("Success", "Account created successfully!");
-      router.replace("/Login");
+      showAlert({
+        title: "Success",
+        message: "Account created successfully!",
+        type: "success",
+        buttons: [
+          {
+            text: "OK",
+            onPress: () => router.replace("/Login"),
+            style: "default",
+          },
+        ],
+      });
     } catch (error) {
       if (isAxiosError(error)) {
         const responseData = error.response?.data;
         if (responseData?.errors) setErrors(responseData.errors);
         else
-          Alert.alert("Error", responseData?.message || "Registration failed");
+          showAlert({
+            title: "Error",
+            message: responseData?.message || "Registration failed",
+            type: "error",
+          });
       } else {
-        Alert.alert("Error", "Network error occurred");
+        showAlert({
+          title: "Error",
+          message: "Network error occurred",
+          type: "error",
+        });
       }
     } finally {
       setLoading(false);
@@ -502,6 +523,15 @@ const Register = () => {
           <Text className="text-[#E4492E] font-roboto">Login</Text>
         </Link>
       </Text>
+
+      <AlertModal
+        visible={visible}
+        title={alertOptions.title}
+        message={alertOptions.message}
+        type={alertOptions.type}
+        buttons={alertOptions.buttons}
+        onClose={hideAlert}
+      />
     </View>
   );
 };

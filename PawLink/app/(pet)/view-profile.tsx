@@ -6,11 +6,12 @@ import {
   TouchableOpacity,
   Image,
   ActivityIndicator,
-  Alert,
   Dimensions,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Feather } from "@expo/vector-icons";
+import { useAlert } from "@/hooks/useAlert";
+import AlertModal from "@/components/core/AlertModal";
 import { useRouter, useLocalSearchParams } from "expo-router";
 import {
   getPetPublicProfile,
@@ -27,6 +28,7 @@ export default function ViewPetProfileScreen() {
   const router = useRouter();
   const params = useLocalSearchParams();
   const petId = params.id as string;
+  const { visible, alertOptions, showAlert, hideAlert } = useAlert();
 
   const [petData, setPetData] = useState<PetPublicProfile | null>(null);
   const [litters, setLitters] = useState<Litter[]>([]);
@@ -50,7 +52,11 @@ export default function ViewPetProfileScreen() {
       setLitters(litterData);
     } catch (error) {
       console.error("Error fetching pet data:", error);
-      Alert.alert("Error", "Failed to load pet profile");
+      showAlert({
+        title: "Error",
+        message: "Failed to load pet profile",
+        type: "error",
+      });
     } finally {
       setLoading(false);
     }
@@ -554,6 +560,15 @@ export default function ViewPetProfileScreen() {
           </View>
         )}
       </ScrollView>
+
+      <AlertModal
+        visible={visible}
+        title={alertOptions.title}
+        message={alertOptions.message}
+        type={alertOptions.type}
+        buttons={alertOptions.buttons}
+        onClose={hideAlert}
+      />
     </SafeAreaView>
   );
 }

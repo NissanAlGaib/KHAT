@@ -5,11 +5,12 @@ import {
   ScrollView,
   TouchableOpacity,
   ActivityIndicator,
-  Alert,
   Linking,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Feather } from "@expo/vector-icons";
+import { useAlert } from "@/hooks/useAlert";
+import AlertModal from "@/components/core/AlertModal";
 import { useRouter, useLocalSearchParams } from "expo-router";
 import { getPet } from "@/services/petService";
 import { API_BASE_URL } from "@/config/env";
@@ -20,6 +21,7 @@ export default function VaccinationHistoryScreen() {
   const params = useLocalSearchParams();
   const petId = params.petId as string;
   const vaccineName = (params.vaccine as string) || "All";
+  const { visible, alertOptions, showAlert, hideAlert } = useAlert();
 
   const [selectedVaccine, setSelectedVaccine] = useState(vaccineName);
   const [vaccinations, setVaccinations] = useState<any[]>([]);
@@ -38,7 +40,11 @@ export default function VaccinationHistoryScreen() {
       setVaccinations(petData.vaccinations || []);
     } catch (error) {
       console.error("Error fetching vaccinations:", error);
-      Alert.alert("Error", "Failed to load vaccination records");
+      showAlert({
+        title: "Error",
+        message: "Failed to load vaccination records",
+        type: "error",
+      });
     } finally {
       setLoading(false);
     }
@@ -53,10 +59,18 @@ export default function VaccinationHistoryScreen() {
     if (certificateUrl) {
       const fullUrl = `${API_BASE_URL}/storage/${certificateUrl}`;
       Linking.openURL(fullUrl).catch(() => {
-        Alert.alert("Error", "Unable to open certificate");
+        showAlert({
+          title: "Error",
+          message: "Unable to open certificate",
+          type: "error",
+        });
       });
     } else {
-      Alert.alert("No Certificate", "No certificate available for this record");
+      showAlert({
+        title: "No Certificate",
+        message: "No certificate available for this record",
+        type: "warning",
+      });
     }
   };
 
@@ -226,6 +240,15 @@ export default function VaccinationHistoryScreen() {
           </>
         )}
       </ScrollView>
+
+      <AlertModal
+        visible={visible}
+        title={alertOptions.title}
+        message={alertOptions.message}
+        type={alertOptions.type}
+        buttons={alertOptions.buttons}
+        onClose={hideAlert}
+      />
     </SafeAreaView>
   );
 }

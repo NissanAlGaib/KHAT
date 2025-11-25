@@ -7,11 +7,12 @@ import {
   TextInput,
   Image,
   Modal,
-  Alert,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useRouter } from "expo-router";
 import { Feather } from "@expo/vector-icons";
+import { useAlert } from "@/hooks/useAlert";
+import AlertModal from "@/components/core/AlertModal";
 import * as DocumentPicker from "expo-document-picker";
 import * as ImagePicker from "expo-image-picker";
 import { createPet } from "@/services/petService";
@@ -23,6 +24,7 @@ interface ValidationErrors {
 
 export default function AddPetScreen() {
   const router = useRouter();
+  const { visible, alertOptions, showAlert, hideAlert } = useAlert();
   const [currentStep, setCurrentStep] = useState(1);
   const [showConfirmModal, setShowConfirmModal] = useState(false);
   const [showSuccessModal, setShowSuccessModal] = useState(false);
@@ -423,11 +425,13 @@ export default function AddPetScreen() {
         setValidationErrors(backendErrors);
       }
 
-      Alert.alert(
-        "Error",
-        error.response?.data?.message ||
-          "Failed to register pet. Please try again."
-      );
+      showAlert({
+        title: "Error",
+        message:
+          error.response?.data?.message ||
+          "Failed to register pet. Please try again.",
+        type: "error",
+      });
     } finally {
       setIsSubmitting(false);
     }
@@ -2167,6 +2171,15 @@ export default function AddPetScreen() {
           </View>
         </View>
       </Modal>
+
+      <AlertModal
+        visible={visible}
+        title={alertOptions.title}
+        message={alertOptions.message}
+        type={alertOptions.type}
+        buttons={alertOptions.buttons}
+        onClose={hideAlert}
+      />
     </SafeAreaView>
   );
 }

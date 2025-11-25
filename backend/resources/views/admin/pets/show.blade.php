@@ -889,48 +889,91 @@
     }
 
     function requestUpdate(documentType) {
-        if (confirm(`Send a request to the user to update their ${documentType} document?`)) {
-            // TODO: Implement request update functionality
-            alert('Request sent successfully!');
-        }
+        Swal.fire({
+            title: 'Send Update Request?',
+            text: `Send a request to the user to update their ${documentType} document?`,
+            icon: 'question',
+            showCancelButton: true,
+            confirmButtonColor: '#E75234',
+            cancelButtonColor: '#6B7280',
+            confirmButtonText: 'Yes, send request',
+            cancelButtonText: 'Cancel'
+        }).then((result) => {
+            if (result.isConfirmed) {
+                // TODO: Implement request update functionality
+                Swal.fire({
+                    title: 'Success!',
+                    text: 'Request sent successfully!',
+                    icon: 'success',
+                    confirmButtonColor: '#E75234'
+                });
+            }
+        });
     }
 
     function approveDocument(type, id, name) {
-        if (confirm(`Are you sure you want to approve the ${name}?`)) {
-            const form = document.getElementById('approveDocumentForm');
-            if (type === 'vaccination') {
-                form.action = `/admin/pets/vaccinations/${id}/status`;
-            } else if (type === 'health') {
-                form.action = `/admin/pets/health-records/${id}/status`;
+        Swal.fire({
+            title: 'Approve Document?',
+            text: `Are you sure you want to approve the ${name}?`,
+            icon: 'question',
+            showCancelButton: true,
+            confirmButtonColor: '#10B981',
+            cancelButtonColor: '#6B7280',
+            confirmButtonText: 'Yes, approve',
+            cancelButtonText: 'Cancel'
+        }).then((result) => {
+            if (result.isConfirmed) {
+                const form = document.getElementById('approveDocumentForm');
+                if (type === 'vaccination') {
+                    form.action = `/admin/pets/vaccinations/${id}/status`;
+                } else if (type === 'health') {
+                    form.action = `/admin/pets/health-records/${id}/status`;
+                }
+                form.submit();
             }
-            form.submit();
-        }
+        });
     }
 
     function rejectDocument(type, id, name) {
-        const reason = prompt(`Please provide a reason for rejecting the ${name}:`);
-        if (reason && reason.trim()) {
-            const form = document.getElementById('rejectDocumentForm');
-            if (type === 'vaccination') {
-                form.action = `/admin/pets/vaccinations/${id}/status`;
-            } else if (type === 'health') {
-                form.action = `/admin/pets/health-records/${id}/status`;
+        Swal.fire({
+            title: 'Reject Document',
+            text: `Please provide a reason for rejecting the ${name}:`,
+            input: 'textarea',
+            inputPlaceholder: 'Enter rejection reason...',
+            icon: 'warning',
+            showCancelButton: true,
+            confirmButtonColor: '#EF4444',
+            cancelButtonColor: '#6B7280',
+            confirmButtonText: 'Reject',
+            cancelButtonText: 'Cancel',
+            inputValidator: (value) => {
+                if (!value || !value.trim()) {
+                    return 'Rejection reason is required!';
+                }
             }
+        }).then((result) => {
+            if (result.isConfirmed) {
+                const reason = result.value;
+                const form = document.getElementById('rejectDocumentForm');
+                if (type === 'vaccination') {
+                    form.action = `/admin/pets/vaccinations/${id}/status`;
+                } else if (type === 'health') {
+                    form.action = `/admin/pets/health-records/${id}/status`;
+                }
 
-            // Add rejection reason
-            let reasonInput = form.querySelector('input[name="rejection_reason"]');
-            if (!reasonInput) {
-                reasonInput = document.createElement('input');
-                reasonInput.type = 'hidden';
-                reasonInput.name = 'rejection_reason';
-                form.appendChild(reasonInput);
+                // Add rejection reason
+                let reasonInput = form.querySelector('input[name="rejection_reason"]');
+                if (!reasonInput) {
+                    reasonInput = document.createElement('input');
+                    reasonInput.type = 'hidden';
+                    reasonInput.name = 'rejection_reason';
+                    form.appendChild(reasonInput);
+                }
+                reasonInput.value = reason;
+
+                form.submit();
             }
-            reasonInput.value = reason;
-
-            form.submit();
-        } else if (reason !== null) {
-            alert('Rejection reason is required.');
-        }
+        });
     }
 
     function openStatusModal() {
@@ -942,9 +985,20 @@
     }
 
     function confirmDeletePet() {
-        if (confirm('Are you sure you want to delete {{ $pet->name }}? This action cannot be undone and will permanently remove all associated data.')) {
-            document.getElementById('deletePetForm').submit();
-        }
+        Swal.fire({
+            title: 'Delete Pet?',
+            html: `Are you sure you want to delete <strong>{{ $pet->name }}</strong>?<br><small class="text-gray-600">This action cannot be undone and will permanently remove all associated data.</small>`,
+            icon: 'warning',
+            showCancelButton: true,
+            confirmButtonColor: '#EF4444',
+            cancelButtonColor: '#6B7280',
+            confirmButtonText: 'Yes, delete',
+            cancelButtonText: 'Cancel'
+        }).then((result) => {
+            if (result.isConfirmed) {
+                document.getElementById('deletePetForm').submit();
+            }
+        });
     }
 
     // Close modals when clicking outside

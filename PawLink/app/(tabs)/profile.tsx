@@ -6,7 +6,6 @@ import {
   TouchableOpacity,
   ScrollView,
   ActivityIndicator,
-  Alert,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Feather } from "@expo/vector-icons";
@@ -25,9 +24,12 @@ import {
   type VerificationStatus,
 } from "@/services/verificationService";
 import { API_BASE_URL } from "@/config/env";
+import { useAlert } from "@/hooks/useAlert";
+import AlertModal from "@/components/core/AlertModal";
 
 export default function ProfileScreen() {
   const { role, setRole } = useRole();
+  const { visible, alertOptions, showAlert, hideAlert } = useAlert();
   const [menuOpen, setMenuOpen] = useState(false);
   const [pets, setPets] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
@@ -59,7 +61,11 @@ export default function ProfileScreen() {
       ]);
     } catch (error) {
       console.error("Error fetching profile data:", error);
-      Alert.alert("Error", "Failed to load profile data");
+      showAlert({
+        title: "Error",
+        message: "Failed to load profile data",
+        type: "error",
+      });
     } finally {
       setLoading(false);
     }
@@ -469,6 +475,15 @@ export default function ProfileScreen() {
           </TouchableOpacity>
         </View>
       </ScrollView>
+
+      <AlertModal
+        visible={visible}
+        title={alertOptions.title}
+        message={alertOptions.message}
+        type={alertOptions.type}
+        buttons={alertOptions.buttons}
+        onClose={hideAlert}
+      />
     </SafeAreaView>
   );
 }

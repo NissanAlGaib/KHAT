@@ -10,6 +10,8 @@ import {
 import { Feather } from "@expo/vector-icons";
 import * as ImagePicker from "expo-image-picker";
 import DateTimePicker from "@react-native-community/datetimepicker";
+import { useAlert } from "@/hooks/useAlert";
+import AlertModal from "@/components/core/AlertModal";
 
 interface ShooterCertificateStepProps {
   onDone: (data: any) => void;
@@ -22,6 +24,7 @@ export default function ShooterCertificateStep({
   onSkip,
   initialData,
 }: ShooterCertificateStepProps) {
+  const { visible, alertOptions, showAlert, hideAlert } = useAlert();
   const [photo, setPhoto] = useState<string | null>(
     initialData.shooterPhoto || null
   );
@@ -50,7 +53,11 @@ export default function ShooterCertificateStep({
       await ImagePicker.requestMediaLibraryPermissionsAsync();
 
     if (permissionResult.granted === false) {
-      alert("Permission to access camera roll is required!");
+      showAlert({
+        title: "Permission Required",
+        message: "Permission to access camera roll is required!",
+        type: "warning",
+      });
       return;
     }
 
@@ -75,7 +82,11 @@ export default function ShooterCertificateStep({
 
   const handleDone = () => {
     if (!name || !idNumber || !issuingAuthority) {
-      alert("Please fill in all required fields or skip this step");
+      showAlert({
+        title: "Missing Information",
+        message: "Please fill in all required fields or skip this step",
+        type: "warning",
+      });
       return;
     }
 
@@ -227,6 +238,15 @@ export default function ShooterCertificateStep({
       <TouchableOpacity className="items-center mb-8" onPress={onSkip}>
         <Text className="text-[#FF6B4A] font-bold text-lg">Skip</Text>
       </TouchableOpacity>
+
+      <AlertModal
+        visible={visible}
+        title={alertOptions.title}
+        message={alertOptions.message}
+        type={alertOptions.type}
+        buttons={alertOptions.buttons}
+        onClose={hideAlert}
+      />
     </View>
   );
 }

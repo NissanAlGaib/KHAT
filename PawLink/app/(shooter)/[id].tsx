@@ -6,11 +6,12 @@ import {
   TouchableOpacity,
   Image,
   ActivityIndicator,
-  Alert,
   Dimensions,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Feather } from "@expo/vector-icons";
+import { useAlert } from "@/hooks/useAlert";
+import AlertModal from "@/components/core/AlertModal";
 import { useRouter, useLocalSearchParams } from "expo-router";
 import {
   getShooterProfile,
@@ -26,6 +27,7 @@ export default function ShooterProfileScreen() {
   const router = useRouter();
   const params = useLocalSearchParams();
   const shooterId = params.id as string;
+  const { visible, alertOptions, showAlert, hideAlert } = useAlert();
 
   const [shooterData, setShooterData] = useState<ShooterProfile | null>(null);
   const [loading, setLoading] = useState(true);
@@ -53,9 +55,12 @@ export default function ShooterProfileScreen() {
         error.response?.data?.message ||
         error.message ||
         "Failed to load shooter profile";
-      Alert.alert("Error", errorMessage, [
-        { text: "Go Back", onPress: () => router.back() },
-      ]);
+      showAlert({
+        title: "Error",
+        message: errorMessage,
+        type: "error",
+        buttons: [{ text: "Go Back", onPress: () => router.back() }],
+      });
     } finally {
       setLoading(false);
     }
@@ -413,6 +418,15 @@ export default function ShooterProfileScreen() {
           </View>
         </View>
       </ScrollView>
+
+      <AlertModal
+        visible={visible}
+        title={alertOptions.title}
+        message={alertOptions.message}
+        type={alertOptions.type}
+        buttons={alertOptions.buttons}
+        onClose={hideAlert}
+      />
     </SafeAreaView>
   );
 }

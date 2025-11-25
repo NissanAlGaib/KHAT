@@ -5,11 +5,12 @@ import {
   ScrollView,
   TouchableOpacity,
   ActivityIndicator,
-  Alert,
   Linking,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Feather } from "@expo/vector-icons";
+import { useAlert } from "@/hooks/useAlert";
+import AlertModal from "@/components/core/AlertModal";
 import { useRouter, useLocalSearchParams } from "expo-router";
 import { getPet } from "@/services/petService";
 import { API_BASE_URL } from "@/config/env";
@@ -20,6 +21,7 @@ export default function HealthHistoryScreen() {
   const params = useLocalSearchParams();
   const petId = params.petId as string;
   const recordType = (params.type as string) || "Health Certificate";
+  const { visible, alertOptions, showAlert, hideAlert } = useAlert();
 
   const [healthRecords, setHealthRecords] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
@@ -37,7 +39,11 @@ export default function HealthHistoryScreen() {
       setHealthRecords(petData.health_records || []);
     } catch (error) {
       console.error("Error fetching health records:", error);
-      Alert.alert("Error", "Failed to load health records");
+      showAlert({
+        title: "Error",
+        message: "Failed to load health records",
+        type: "error",
+      });
     } finally {
       setLoading(false);
     }
@@ -47,10 +53,18 @@ export default function HealthHistoryScreen() {
     if (certificateUrl) {
       const fullUrl = `${API_BASE_URL}/storage/${certificateUrl}`;
       Linking.openURL(fullUrl).catch(() => {
-        Alert.alert("Error", "Unable to open certificate");
+        showAlert({
+          title: "Error",
+          message: "Unable to open certificate",
+          type: "error",
+        });
       });
     } else {
-      Alert.alert("No Certificate", "No certificate available for this record");
+      showAlert({
+        title: "No Certificate",
+        message: "No certificate available for this record",
+        type: "warning",
+      });
     }
   };
 
@@ -180,6 +194,15 @@ export default function HealthHistoryScreen() {
           </>
         )}
       </ScrollView>
+
+      <AlertModal
+        visible={visible}
+        title={alertOptions.title}
+        message={alertOptions.message}
+        type={alertOptions.type}
+        buttons={alertOptions.buttons}
+        onClose={hideAlert}
+      />
     </SafeAreaView>
   );
 }

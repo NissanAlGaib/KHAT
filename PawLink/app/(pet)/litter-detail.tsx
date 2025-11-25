@@ -6,10 +6,11 @@ import {
   TouchableOpacity,
   Image,
   ActivityIndicator,
-  Alert,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Feather } from "@expo/vector-icons";
+import { useAlert } from "@/hooks/useAlert";
+import AlertModal from "@/components/core/AlertModal";
 import { useRouter, useLocalSearchParams } from "expo-router";
 import { getLitterDetail, type LitterDetail } from "@/services/petService";
 import { API_BASE_URL } from "@/config/env";
@@ -18,6 +19,7 @@ export default function LitterDetailScreen() {
   const router = useRouter();
   const params = useLocalSearchParams();
   const litterId = params.id as string;
+  const { visible, alertOptions, showAlert, hideAlert } = useAlert();
 
   const [litter, setLitter] = useState<LitterDetail | null>(null);
   const [loading, setLoading] = useState(true);
@@ -35,7 +37,11 @@ export default function LitterDetailScreen() {
       setLitter(data);
     } catch (error) {
       console.error("Error fetching litter detail:", error);
-      Alert.alert("Error", "Failed to load litter details");
+      showAlert({
+        title: "Error",
+        message: "Failed to load litter details",
+        type: "error",
+      });
     } finally {
       setLoading(false);
     }

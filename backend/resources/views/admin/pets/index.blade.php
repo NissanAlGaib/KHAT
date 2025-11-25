@@ -258,19 +258,41 @@
     }
 
     function confirmSuspend(petName, petId) {
-        if (confirm(`Are you sure you want to suspend ${petName}?`)) {
-            // TODO: Implement suspend functionality
-            console.log('Suspending pet:', petId);
-            // You can add AJAX call here to suspend the pet
-        }
+        Swal.fire({
+            title: 'Suspend Pet?',
+            html: `Are you sure you want to suspend <strong>${petName}</strong>?`,
+            icon: 'warning',
+            showCancelButton: true,
+            confirmButtonColor: '#F59E0B',
+            cancelButtonColor: '#6B7280',
+            confirmButtonText: 'Yes, suspend',
+            cancelButtonText: 'Cancel'
+        }).then((result) => {
+            if (result.isConfirmed) {
+                // TODO: Implement suspend functionality
+                console.log('Suspending pet:', petId);
+                // You can add AJAX call here to suspend the pet
+            }
+        });
     }
 
     function confirmDelete(petName, petId) {
-        if (confirm(`Are you sure you want to delete ${petName}? This action cannot be undone.`)) {
-            // TODO: Implement delete functionality
-            console.log('Deleting pet:', petId);
-            // You can add AJAX call here to delete the pet
-        }
+        Swal.fire({
+            title: 'Delete Pet?',
+            html: `Are you sure you want to delete <strong>${petName}</strong>?<br><small class="text-gray-600">This action cannot be undone.</small>`,
+            icon: 'warning',
+            showCancelButton: true,
+            confirmButtonColor: '#EF4444',
+            cancelButtonColor: '#6B7280',
+            confirmButtonText: 'Yes, delete',
+            cancelButtonText: 'Cancel'
+        }).then((result) => {
+            if (result.isConfirmed) {
+                // TODO: Implement delete functionality
+                console.log('Deleting pet:', petId);
+                // You can add AJAX call here to delete the pet
+            }
+        });
     }
 
     document.addEventListener('click', function() {

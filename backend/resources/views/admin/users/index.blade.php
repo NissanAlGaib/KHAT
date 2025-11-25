@@ -352,7 +352,12 @@
             }
         } catch (error) {
             console.error('Error loading user details:', error);
-            alert('Failed to load user details');
+            Swal.fire({
+                title: 'Error',
+                text: 'Failed to load user details',
+                icon: 'error',
+                confirmButtonColor: '#E75234'
+            });
         }
     }
 
@@ -513,7 +518,11 @@
                             } else if (daysRemaining < 0) {
                                 statusBadge = 'bg-red-100 text-red-700';
                                 statusText = 'Expired';
-                                daysText = `${Math.abs(daysRemaining)} days ago`;
+                                daysText = `
+        $ {
+            Math.abs(daysRemaining)
+        }
+        days ago`;
                             } else if (daysRemaining === 0) {
                                 statusBadge = 'bg-red-100 text-red-700';
                                 statusText = 'Expires Today';
@@ -521,31 +530,52 @@
                             } else if (daysRemaining <= 30) {
                                 statusBadge = 'bg-orange-100 text-orange-700';
                                 statusText = 'Expiring Soon';
-                                daysText = `${daysRemaining} days`;
+                                daysText = `
+        $ {
+            daysRemaining
+        }
+        days`;
                             } else {
                                 statusBadge = 'bg-green-100 text-green-700';
                                 statusText = 'Active';
-                                daysText = `${daysRemaining} days`;
+                                daysText = `
+        $ {
+            daysRemaining
+        }
+        days`;
                             }
                             
-                            return `
-                                <tr class="text-sm">
-                                    <td class="px-4 py-3 capitalize">${doc.auth_type.replace(/_/g, ' ')}</td>
-                                    <td class="px-4 py-3">${doc.date_submitted}</td>
-                                    <td class="px-4 py-3">${expiryDate}</td>
-                                    <td class="px-4 py-3">${daysText}</td>
-                                    <td class="px-4 py-3">
-                                        <span class="px-2 py-1 rounded-md text-xs font-semibold ${statusBadge}">
-                                            ${statusText}
-                                        </span>
-                                    </td>
-                                    <td class="px-4 py-3">
-                                        <button class="text-orange-600 hover:text-orange-700 text-xs font-medium">
-                                            Request Update
-                                        </button>
-                                    </td>
-                                </tr>
-                            `;
+                            return ` <
+        tr class = "text-sm" >
+        <
+        td class = "px-4 py-3 capitalize" > $ {
+            doc.auth_type.replace(/_/g, ' ')
+        } < /td> <
+        td class = "px-4 py-3" > $ {
+            doc.date_submitted
+        } < /td> <
+        td class = "px-4 py-3" > $ {
+            expiryDate
+        } < /td> <
+        td class = "px-4 py-3" > $ {
+            daysText
+        } < /td> <
+        td class = "px-4 py-3" >
+        <
+        span class = "px-2 py-1 rounded-md text-xs font-semibold ${statusBadge}" >
+        $ {
+            statusText
+        } <
+        /span> < /
+        td > <
+            td class = "px-4 py-3" >
+            <
+            button class = "text-orange-600 hover:text-orange-700 text-xs font-medium" >
+            Request Update <
+            /button> < /
+            td > <
+            /tr>
+        `;
                         }).join('')}
                     </tbody>
                 </table>
@@ -558,7 +588,18 @@
     }
 
     async function updateVerification(authId, status) {
-        if (!confirm(`Are you sure you want to ${status} this document?`)) {
+        const result = await Swal.fire({
+            title: 'Update Verification?',
+            text: `Are you sure you want to set this document to ${status}?`,
+            icon: status === 'approve' ? 'question' : 'warning',
+            showCancelButton: true,
+            confirmButtonColor: status === 'approve' ? '#10B981' : '#EF4444',
+            cancelButtonColor: '#6B7280',
+            confirmButtonText: `Yes, ${status}`,
+            cancelButtonText: 'Cancel'
+        });
+
+        if (!result.isConfirmed) {
             return;
         }
 
@@ -577,15 +618,31 @@
             const data = await response.json();
 
             if (data.success) {
-                alert('Verification status updated successfully');
-                closeUserModal();
-                window.location.reload();
+                Swal.fire({
+                    title: 'Success!',
+                    text: 'Verification status updated successfully',
+                    icon: 'success',
+                    confirmButtonColor: '#E75234'
+                }).then(() => {
+                    closeUserModal();
+                    window.location.reload();
+                });
             } else {
-                alert('Failed to update verification status');
+                Swal.fire({
+                    title: 'Error',
+                    text: 'Failed to update verification status',
+                    icon: 'error',
+                    confirmButtonColor: '#E75234'
+                });
             }
         } catch (error) {
             console.error('Error updating verification:', error);
-            alert('An error occurred');
+            Swal.fire({
+                title: 'Error',
+                text: 'An error occurred',
+                icon: 'error',
+                confirmButtonColor: '#E75234'
+            });
         }
     }
 
@@ -627,15 +684,31 @@
             const data = await response.json();
 
             if (data.success) {
-                alert('User deleted successfully');
-                closeDeleteModal();
-                window.location.reload();
+                Swal.fire({
+                    title: 'Deleted!',
+                    text: 'User deleted successfully',
+                    icon: 'success',
+                    confirmButtonColor: '#E75234'
+                }).then(() => {
+                    closeDeleteModal();
+                    window.location.reload();
+                });
             } else {
-                alert('Failed to delete user');
+                Swal.fire({
+                    title: 'Error',
+                    text: 'Failed to delete user',
+                    icon: 'error',
+                    confirmButtonColor: '#E75234'
+                });
             }
         } catch (error) {
             console.error('Error deleting user:', error);
-            alert('An error occurred');
+            Swal.fire({
+                title: 'Error',
+                text: 'An error occurred',
+                icon: 'error',
+                confirmButtonColor: '#E75234'
+            });
         }
     }
 

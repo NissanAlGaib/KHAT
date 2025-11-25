@@ -4,7 +4,6 @@ import {
   Text,
   TouchableOpacity,
   ScrollView,
-  Alert,
   ActivityIndicator,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
@@ -15,10 +14,13 @@ import LicensedBreederStep from "@/components/verification/LicensedBreederStep";
 import ShooterCertificateStep from "@/components/verification/ShooterCertificateStep";
 import { submitVerification } from "@/services/verificationService";
 import { useSession } from "@/context/AuthContext";
+import { useAlert } from "@/hooks/useAlert";
+import AlertModal from "@/components/core/AlertModal";
 
 export default function VerifyScreen() {
   const router = useRouter();
   const { user } = useSession();
+  const { visible, alertOptions, showAlert, hideAlert } = useAlert();
   const [currentStep, setCurrentStep] = useState(1);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [formData, setFormData] = useState({
@@ -65,12 +67,20 @@ export default function VerifyScreen() {
 
   const handleSubmit = async (shooterData?: any) => {
     if (!user?.id) {
-      Alert.alert("Error", "User not authenticated. Please log in again.");
+      showAlert({
+        title: "Error",
+        message: "User not authenticated. Please log in again.",
+        type: "error",
+      });
       return;
     }
 
     if (!formData.idPhoto) {
-      Alert.alert("Error", "ID document is required.");
+      showAlert({
+        title: "Error",
+        message: "ID document is required.",
+        type: "error",
+      });
       return;
     }
 
@@ -136,21 +146,25 @@ export default function VerifyScreen() {
       const response = await submitVerification(verificationData);
 
       if (response.success) {
-        Alert.alert(
-          "Success",
-          "Your verification has been submitted successfully. We'll review it and notify you once it's approved.",
-          [
+        showAlert({
+          title: "Success",
+          message:
+            "Your verification has been submitted successfully. We'll review it and notify you once it's approved.",
+          type: "success",
+          buttons: [
             {
               text: "OK",
               onPress: () => router.back(),
+              style: "default",
             },
-          ]
-        );
+          ],
+        });
       } else {
-        Alert.alert(
-          "Error",
-          response.message || "Failed to submit verification."
-        );
+        showAlert({
+          title: "Error",
+          message: response.message || "Failed to submit verification.",
+          type: "error",
+        });
       }
     } catch (error: any) {
       console.error("Error submitting verification:", error);
@@ -158,7 +172,11 @@ export default function VerifyScreen() {
         error.response?.data?.message ||
         error.message ||
         "An error occurred while submitting your verification. Please try again.";
-      Alert.alert("Error", errorMessage);
+      showAlert({
+        title: "Error",
+        message: errorMessage,
+        type: "error",
+      });
     } finally {
       setIsSubmitting(false);
     }
@@ -233,6 +251,15 @@ export default function VerifyScreen() {
           />
         )}
       </ScrollView>
+
+      <AlertModal
+        visible={visible}
+        title={alertOptions.title}
+        message={alertOptions.message}
+        type={alertOptions.type}
+        buttons={alertOptions.buttons}
+        onClose={hideAlert}
+      />
     </SafeAreaView>
   );
 }

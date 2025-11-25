@@ -1,10 +1,5 @@
 /* eslint-disable react-hooks/rules-of-hooks */
-import {
-  View,
-  Text,
-  Image,
-  Alert,
-} from "react-native";
+import { View, Text, Image } from "react-native";
 import React, { useState } from "react";
 import { useSession } from "@/context/AuthContext";
 import { Link, router, Slot } from "expo-router";
@@ -12,9 +7,12 @@ import axios, { isAxiosError } from "axios";
 import axiosInstance from "@/config/axiosConfig";
 import CustomInput from "@/components/app/CustomInput";
 import CustomButton from "@/components/app/CustomButton";
+import { useAlert } from "@/hooks/useAlert";
+import AlertModal from "@/components/core/AlertModal";
 
 const Login = () => {
   const { signIn } = useSession();
+  const { visible, alertOptions, showAlert, hideAlert } = useAlert();
   const [loading, setLoading] = useState(false);
   const [data, setData] = useState({
     email: "",
@@ -51,13 +49,25 @@ const Login = () => {
         if (responseData?.errors) {
           setErrors(responseData.errors);
         } else if (responseData?.message) {
-          Alert.alert("Login Error", responseData.message);
+          showAlert({
+            title: "Login Error",
+            message: responseData.message,
+            type: "error",
+          });
         } else {
-          Alert.alert("Login Error", "An unexpected error occurred.");
+          showAlert({
+            title: "Login Error",
+            message: "An unexpected error occurred.",
+            type: "error",
+          });
         }
       } else {
         console.error("Login Error:", error);
-        Alert.alert("Login Error", "Unable to connect to the server.");
+        showAlert({
+          title: "Login Error",
+          message: "Unable to connect to the server.",
+          type: "error",
+        });
       }
     } finally {
       setLoading(false);
@@ -66,7 +76,10 @@ const Login = () => {
 
   return (
     <View className="gap-6 rounded-t-[45px] bg-[#FEFEFE] p-5 mt-5">
-      <Image className="absolute -top-64 -right-4" source={require("../../assets/images/login_dog.png")} />
+      <Image
+        className="absolute -top-64 -right-4"
+        source={require("../../assets/images/login_dog.png")}
+      />
       <View className="w-full px-4 mt-6 mb-4">
         <Text className="font-baloo text-3xl text-center uppercase">
           Login To Your Account
@@ -98,6 +111,15 @@ const Login = () => {
           <Text className="text-[#E4492E] font-roboto">Create Account</Text>
         </Link>
       </Text>
+
+      <AlertModal
+        visible={visible}
+        title={alertOptions.title}
+        message={alertOptions.message}
+        type={alertOptions.type}
+        buttons={alertOptions.buttons}
+        onClose={hideAlert}
+      />
     </View>
   );
 };
