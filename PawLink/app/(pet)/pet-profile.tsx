@@ -45,6 +45,28 @@ const getStatusColor = (status: DocumentStatus): string => {
   }
 };
 
+// Helper to count documents by status
+const countDocumentsByStatus = (
+  documents: any[] | undefined,
+  expirationDateField: string = "expiration_date"
+): { expired: number; expiringSoon: number } => {
+  let expired = 0;
+  let expiringSoon = 0;
+
+  if (documents) {
+    documents.forEach((doc: any) => {
+      const expirationDate = doc[expirationDateField];
+      if (expirationDate) {
+        const status = getDocumentStatus(expirationDate);
+        if (status === "expired") expired++;
+        else if (status === "expiring_soon") expiringSoon++;
+      }
+    });
+  }
+
+  return { expired, expiringSoon };
+};
+
 // Helper to get status badge styles
 const getStatusBadge = (status: DocumentStatus): { bg: string; text: string; label: string } => {
   switch (status) {
@@ -136,30 +158,13 @@ export default function PetProfileScreen() {
   const documentStats = useMemo(() => {
     if (!petData) return { expiredCount: 0, expiringSoonCount: 0 };
 
-    let expiredCount = 0;
-    let expiringSoonCount = 0;
+    const vaccinationStats = countDocumentsByStatus(petData.vaccinations);
+    const healthRecordStats = countDocumentsByStatus(petData.health_records);
 
-    // Check vaccinations
-    if (petData.vaccinations) {
-      petData.vaccinations.forEach((v: any) => {
-        const status = getDocumentStatus(v.expiration_date);
-        if (status === "expired") expiredCount++;
-        else if (status === "expiring_soon") expiringSoonCount++;
-      });
-    }
-
-    // Check health records
-    if (petData.health_records) {
-      petData.health_records.forEach((r: any) => {
-        if (r.expiration_date) {
-          const status = getDocumentStatus(r.expiration_date);
-          if (status === "expired") expiredCount++;
-          else if (status === "expiring_soon") expiringSoonCount++;
-        }
-      });
-    }
-
-    return { expiredCount, expiringSoonCount };
+    return {
+      expiredCount: vaccinationStats.expired + healthRecordStats.expired,
+      expiringSoonCount: vaccinationStats.expiringSoon + healthRecordStats.expiringSoon,
+    };
   }, [petData]);
 
   const calculateAge = (birthdate: string) => {
@@ -516,7 +521,7 @@ export default function PetProfileScreen() {
                       </Text>
                     </View>
                     <Text className="text-red-600 text-sm mt-2">
-                      You have {documentStats.expiredCount} expired document{documentStats.expiredCount > 1 ? "s" : ""} that need{documentStats.expiredCount === 1 ? "s" : ""} to be resubmitted.
+                      You have {documentStats.expiredCount} expired document{documentStats.expiredCount > 1 ? "s" : ""} that {documentStats.expiredCount === 1 ? "needs" : "need"} to be resubmitted.
                     </Text>
                   </View>
                 )}
