@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { View, TouchableOpacity, Dimensions, Platform } from "react-native";
+import { View, TouchableOpacity, Dimensions } from "react-native";
 import Animated, { FadeIn, FadeOut } from "react-native-reanimated";
 import Svg, { Path } from "react-native-svg";
 import { useRouter } from "expo-router";

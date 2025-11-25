@@ -196,8 +196,7 @@ const Register = () => {
     const payload = { ...data, address };
     setLoading(true);
     try {
-      console.log("📦 Registration payload:", JSON.stringify(data, null, 2));
-      const response = await axiosInstance.post("/api/register", payload);
+      await axiosInstance.post("/api/register", payload);
       showAlert({
         title: "Success",
         message: "Account created successfully!",

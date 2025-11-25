@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import {
   View,
   Text,
@@ -6,7 +6,6 @@ import {
   TouchableOpacity,
   Image,
   ActivityIndicator,
-  Dimensions,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Feather } from "@expo/vector-icons";
@@ -16,12 +15,8 @@ import { useRouter, useLocalSearchParams } from "expo-router";
 import {
   getShooterProfile,
   type ShooterProfile,
-  type ShooterPet,
 } from "@/services/matchService";
 import { API_BASE_URL } from "@/config/env";
-import dayjs from "dayjs";
-
-const { width: SCREEN_WIDTH } = Dimensions.get("window");
 
 export default function ShooterProfileScreen() {
   const router = useRouter();
@@ -32,22 +27,10 @@ export default function ShooterProfileScreen() {
   const [shooterData, setShooterData] = useState<ShooterProfile | null>(null);
   const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
-    if (shooterId) {
-      fetchShooterData();
-    }
-  }, [shooterId]);
-
-  const fetchShooterData = async () => {
+  const fetchShooterData = useCallback(async () => {
     try {
       setLoading(true);
       const profile = await getShooterProfile(parseInt(shooterId));
-      console.log("Shooter profile data:", profile);
-      console.log("Verification flags:", {
-        id_verified: profile.id_verified,
-        breeder_verified: profile.breeder_verified,
-        shooter_verified: profile.shooter_verified,
-      });
       setShooterData(profile);
     } catch (error: any) {
       console.error("Error fetching shooter data:", error);
@@ -64,7 +47,13 @@ export default function ShooterProfileScreen() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [shooterId, showAlert, router]);
+
+  useEffect(() => {
+    if (shooterId) {
+      fetchShooterData();
+    }
+  }, [shooterId, fetchShooterData]);
 
   const getImageUrl = (path: string | null | undefined) => {
     if (!path) return null;
@@ -79,20 +68,7 @@ export default function ShooterProfileScreen() {
       ? cleanPath
       : `storage/${cleanPath}`;
     const fullUrl = `${API_BASE_URL}/${finalPath}`;
-    console.log("Image URL:", fullUrl);
     return fullUrl;
-  };
-
-  const calculateAge = (birthdate: string | undefined) => {
-    if (!birthdate) return "";
-    const birth = dayjs(birthdate);
-    const now = dayjs();
-    const years = now.diff(birth, "year");
-
-    if (years > 0) {
-      return `${years} Year${years > 1 ? "s" : ""} old`;
-    }
-    return "";
   };
 
   if (loading) {
@@ -112,7 +88,6 @@ export default function ShooterProfileScreen() {
   }
 
   const experienceYears = Math.ceil(shooterData.experience_years || 0);
-  const age = Math.ceil(shooterData.age || 0);
   const stats = shooterData.statistics || {
     total_pets: 0,
     matched: 0,
@@ -246,7 +221,7 @@ export default function ShooterProfileScreen() {
           shooterData.pets.length > 0 && (
             <View className="px-5 mt-6">
               <Text className="text-lg font-extrabold text-[#111111] mb-3">
-                {shooterData.name}'s Pets
+                {shooterData.name}&apos;s Pets
               </Text>
               <View className="bg-white rounded-[26px] px-4 py-4 shadow-md border border-[#F0F0F0]">
                 <View className="flex-row justify-between">

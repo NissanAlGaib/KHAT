@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import {
   View,
   Text,
@@ -9,8 +9,6 @@ import {
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Feather } from "@expo/vector-icons";
-import { useAlert } from "@/hooks/useAlert";
-import AlertModal from "@/components/core/AlertModal";
 import { useRouter, useLocalSearchParams } from "expo-router";
 import { getLitterDetail, type LitterDetail } from "@/services/petService";
 import { API_BASE_URL } from "@/config/env";
@@ -19,33 +17,27 @@ export default function LitterDetailScreen() {
   const router = useRouter();
   const params = useLocalSearchParams();
   const litterId = params.id as string;
-  const { visible, alertOptions, showAlert, hideAlert } = useAlert();
 
   const [litter, setLitter] = useState<LitterDetail | null>(null);
   const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
-    if (litterId) {
-      fetchLitterDetail();
-    }
-  }, [litterId]);
-
-  const fetchLitterDetail = async () => {
+  const fetchLitterDetail = useCallback(async () => {
     try {
       setLoading(true);
       const data = await getLitterDetail(parseInt(litterId));
       setLitter(data);
     } catch (error) {
       console.error("Error fetching litter detail:", error);
-      showAlert({
-        title: "Error",
-        message: "Failed to load litter details",
-        type: "error",
-      });
     } finally {
       setLoading(false);
     }
-  };
+  }, [litterId]);
+
+  useEffect(() => {
+    if (litterId) {
+      fetchLitterDetail();
+    }
+  }, [litterId, fetchLitterDetail]);
 
   const getImageUrl = (path: string | null | undefined) => {
     if (!path) return null;

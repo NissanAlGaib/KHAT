@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React from "react";
 import { TextInput, View } from "react-native";
 import Animated, {
   useSharedValue,
@@ -8,7 +8,6 @@ import Animated, {
 import { SearchIconMorph } from "./SearchIconMorph";
 
 export function AnimatedSearchBar() {
-  const [focused, setFocused] = useState(false);
 
   const width = useSharedValue(50);
   const inputOpacity = useSharedValue(0);

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import {
   View,
   Text,
@@ -26,13 +26,7 @@ export default function PetProfileScreen() {
   const [petData, setPetData] = useState<any>(null);
   const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
-    if (petId) {
-      fetchPetData();
-    }
-  }, [petId]);
-
-  const fetchPetData = async () => {
+  const fetchPetData = useCallback(async () => {
     try {
       setLoading(true);
       const data = await getPet(parseInt(petId));
@@ -49,7 +43,13 @@ export default function PetProfileScreen() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [petId, showAlert]);
+
+  useEffect(() => {
+    if (petId) {
+      fetchPetData();
+    }
+  }, [petId, fetchPetData]);
 
   const handleToggle = () => {
     const newState = !isEnabled;

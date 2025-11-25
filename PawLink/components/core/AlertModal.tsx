@@ -5,7 +5,6 @@ import {
   CheckCircle,
   Info,
   XCircle,
-  X,
 } from "lucide-react-native";
 
 interface AlertButton {
@@ -71,7 +70,7 @@ export default function AlertModal({
     } else {
       scaleAnim.setValue(0);
     }
-  }, [visible]);
+  }, [visible, scaleAnim]);
 
   const style = ALERT_STYLES[type];
   const IconComponent = style.icon;

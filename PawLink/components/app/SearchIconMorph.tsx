@@ -1,7 +1,6 @@
 import React from "react";
 import { Pressable } from "react-native";
 import Animated, {
-  interpolate,
   useAnimatedProps,
   useSharedValue,
   withTiming,

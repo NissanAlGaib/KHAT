@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import {
   View,
   Text,
@@ -26,13 +26,7 @@ export default function HealthHistoryScreen() {
   const [healthRecords, setHealthRecords] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
-    if (petId) {
-      fetchHealthRecords();
-    }
-  }, [petId]);
-
-  const fetchHealthRecords = async () => {
+  const fetchHealthRecords = useCallback(async () => {
     try {
       setLoading(true);
       const petData = await getPet(parseInt(petId));
@@ -47,7 +41,13 @@ export default function HealthHistoryScreen() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [petId, showAlert]);
+
+  useEffect(() => {
+    if (petId) {
+      fetchHealthRecords();
+    }
+  }, [petId, fetchHealthRecords]);
 
   const handleViewCertificate = (certificateUrl: string | null) => {
     if (certificateUrl) {

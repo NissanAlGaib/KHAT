@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import {
   View,
   Text,
@@ -23,17 +23,11 @@ export default function VaccinationHistoryScreen() {
   const vaccineName = (params.vaccine as string) || "All";
   const { visible, alertOptions, showAlert, hideAlert } = useAlert();
 
-  const [selectedVaccine, setSelectedVaccine] = useState(vaccineName);
+  const [selectedVaccine] = useState(vaccineName);
   const [vaccinations, setVaccinations] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
-    if (petId) {
-      fetchVaccinations();
-    }
-  }, [petId]);
-
-  const fetchVaccinations = async () => {
+  const fetchVaccinations = useCallback(async () => {
     try {
       setLoading(true);
       const petData = await getPet(parseInt(petId));
@@ -48,7 +42,13 @@ export default function VaccinationHistoryScreen() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [petId, showAlert]);
+
+  useEffect(() => {
+    if (petId) {
+      fetchVaccinations();
+    }
+  }, [petId, fetchVaccinations]);
 
   const filteredVaccinations =
     selectedVaccine === "All"
@@ -92,11 +92,6 @@ export default function VaccinationHistoryScreen() {
       };
     }
   };
-
-  const uniqueVaccineNames = [
-    "All",
-    ...new Set(vaccinations.map((v) => v.vaccine_name)),
-  ];
 
   return (
     <SafeAreaView className="flex-1 bg-white" edges={["top"]}>

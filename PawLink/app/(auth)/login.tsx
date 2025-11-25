@@ -1,9 +1,8 @@
-/* eslint-disable react-hooks/rules-of-hooks */
 import { View, Text, Image } from "react-native";
 import React, { useState } from "react";
 import { useSession } from "@/context/AuthContext";
-import { Link, router, Slot } from "expo-router";
-import axios, { isAxiosError } from "axios";
+import { Link } from "expo-router";
+import { isAxiosError } from "axios";
 import axiosInstance from "@/config/axiosConfig";
 import CustomInput from "@/components/app/CustomInput";
 import CustomButton from "@/components/app/CustomButton";

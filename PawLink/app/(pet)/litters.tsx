@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import {
   View,
   Text,
@@ -24,13 +24,7 @@ export default function PetLittersScreen() {
   const [litters, setLitters] = useState<Litter[]>([]);
   const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
-    if (petId) {
-      fetchLitters();
-    }
-  }, [petId]);
-
-  const fetchLitters = async () => {
+  const fetchLitters = useCallback(async () => {
     try {
       setLoading(true);
       const data = await getPetLitters(parseInt(petId));
@@ -45,7 +39,13 @@ export default function PetLittersScreen() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [petId, showAlert]);
+
+  useEffect(() => {
+    if (petId) {
+      fetchLitters();
+    }
+  }, [petId, fetchLitters]);
 
   const getImageUrl = (path: string | null | undefined) => {
     if (!path) return null;
