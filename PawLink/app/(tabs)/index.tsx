@@ -241,7 +241,7 @@ function TopMatches({ matches }: { matches: TopMatch[] }) {
 
 export default function Homepage() {
   const { role } = useRole();
-  const { badgeCount, hasRejected, refreshBadgeCount } = useNotifications();
+  const { badgeCount, refreshBadgeCount } = useNotifications();
   const [selectedTab, setSelectedTab] = useState<"pets" | "shooters">("pets");
   const [loading, setLoading] = useState(true);
   const [allPets, setAllPets] = useState<PetMatch[]>([]);

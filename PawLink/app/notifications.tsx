@@ -189,7 +189,6 @@ export default function NotificationsScreen() {
     isLoading,
     error,
     refreshNotifications,
-    refreshBadgeCount,
   } = useNotifications();
   const [refreshing, setRefreshing] = React.useState(false);
 
