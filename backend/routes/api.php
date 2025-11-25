@@ -4,6 +4,7 @@ use App\Http\Controllers\Auth\AuthenticatedSessionController;
 use App\Http\Controllers\Auth\RegisteredUserController;
 use App\Http\Controllers\LitterController;
 use App\Http\Controllers\MatchController;
+use App\Http\Controllers\NotificationController;
 use App\Http\Controllers\PetController;
 use App\Http\Controllers\ShooterController;
 use App\Http\Controllers\UserController;
@@ -61,4 +62,11 @@ Route::middleware(['auth:sanctum'])
         Route::get('/verification/status/{userId}', [VerificationController::class, 'getVerificationStatus']);
         Route::get('/verification/pending', [VerificationController::class, 'getPendingVerifications']);
         Route::put('/verification/{authId}/status', [VerificationController::class, 'updateVerificationStatus']);
+
+        // Notification routes
+        Route::get('/notifications', [NotificationController::class, 'index']);
+        Route::get('/notifications/unread-count', [NotificationController::class, 'unreadCount']);
+        Route::put('/notifications/{id}/read', [NotificationController::class, 'markAsRead']);
+        Route::put('/notifications/read-all', [NotificationController::class, 'markAllAsRead']);
+        Route::delete('/notifications/{id}', [NotificationController::class, 'destroy']);
     });

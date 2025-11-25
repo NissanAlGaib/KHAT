@@ -200,6 +200,33 @@ class VerificationController extends Controller
             $userAuth->status = $request->input('status');
             $userAuth->save();
 
+            // Create notification for the user
+            $authTypeLabels = [
+                'id' => 'ID Document',
+                'breeder_certificate' => 'Breeder Certificate',
+                'shooter_certificate' => 'Shooter Certificate',
+            ];
+            $authTypeLabel = $authTypeLabels[$userAuth->auth_type] ?? $userAuth->auth_type;
+            $status = $request->input('status');
+            
+            $title = $status === 'approved' 
+                ? 'Verification Approved' 
+                : 'Verification Rejected';
+            
+            $message = $status === 'approved'
+                ? "Your {$authTypeLabel} verification has been approved."
+                : "Your {$authTypeLabel} verification has been rejected. Please resubmit your documents.";
+
+            NotificationController::createNotification(
+                $userAuth->user_id,
+                'user_verification',
+                $title,
+                $message,
+                $status,
+                $userAuth->auth_id,
+                'user_auth'
+            );
+
             return response()->json([
                 'success' => true,
                 'message' => 'Verification status updated successfully',

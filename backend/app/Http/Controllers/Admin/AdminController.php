@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
+use App\Http\Controllers\NotificationController;
 use App\Models\User;
 use App\Models\Pet;
 use Illuminate\Http\Request;
@@ -257,6 +258,29 @@ class AdminController extends Controller
 
         $vaccination->save();
 
+        // Get pet and owner information for notification
+        $pet = Pet::find($vaccination->pet_id);
+        if ($pet) {
+            $status = $request->status;
+            $title = $status === 'approved'
+                ? 'Vaccination Approved'
+                : 'Vaccination Rejected';
+
+            $notificationMessage = $status === 'approved'
+                ? "The {$vaccination->vaccine_name} vaccination record for {$pet->name} has been approved."
+                : "The {$vaccination->vaccine_name} vaccination record for {$pet->name} has been rejected. Reason: {$request->rejection_reason}";
+
+            NotificationController::createNotification(
+                $pet->user_id,
+                'pet_verification',
+                $title,
+                $notificationMessage,
+                $status,
+                $vaccination->vaccination_id,
+                'vaccination'
+            );
+        }
+
         $message = $request->status === 'approved'
             ? 'Vaccination approved successfully.'
             : 'Vaccination rejected successfully.';
@@ -282,6 +306,29 @@ class AdminController extends Controller
         }
 
         $healthRecord->save();
+
+        // Get pet and owner information for notification
+        $pet = Pet::find($healthRecord->pet_id);
+        if ($pet) {
+            $status = $request->status;
+            $title = $status === 'approved'
+                ? 'Health Record Approved'
+                : 'Health Record Rejected';
+
+            $notificationMessage = $status === 'approved'
+                ? "The health record for {$pet->name} has been approved."
+                : "The health record for {$pet->name} has been rejected. Reason: {$request->rejection_reason}";
+
+            NotificationController::createNotification(
+                $pet->user_id,
+                'pet_verification',
+                $title,
+                $notificationMessage,
+                $status,
+                $healthRecord->health_record_id,
+                'health_record'
+            );
+        }
 
         $message = $request->status === 'approved'
             ? 'Health certificate approved successfully.'
@@ -424,6 +471,33 @@ class AdminController extends Controller
         $userAuth = \App\Models\UserAuth::findOrFail($authId);
         $userAuth->status = $request->status;
         $userAuth->save();
+
+        // Create notification for the user
+        $authTypeLabels = [
+            'id' => 'ID Document',
+            'breeder_certificate' => 'Breeder Certificate',
+            'shooter_certificate' => 'Shooter Certificate',
+        ];
+        $authTypeLabel = $authTypeLabels[$userAuth->auth_type] ?? $userAuth->auth_type;
+        $status = $request->status;
+
+        $title = $status === 'approved'
+            ? 'Verification Approved'
+            : 'Verification Rejected';
+
+        $notificationMessage = $status === 'approved'
+            ? "Your {$authTypeLabel} verification has been approved."
+            : "Your {$authTypeLabel} verification has been rejected." . ($request->reason ? " Reason: {$request->reason}" : " Please resubmit your documents.");
+
+        NotificationController::createNotification(
+            $userAuth->user_id,
+            'user_verification',
+            $title,
+            $notificationMessage,
+            $status,
+            $userAuth->auth_id,
+            'user_auth'
+        );
 
         return response()->json([
             'success' => true,

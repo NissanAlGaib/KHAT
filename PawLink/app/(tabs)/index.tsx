@@ -12,6 +12,7 @@ import {
 import { useSession } from "@/context/AuthContext";
 import { usePet } from "@/context/PetContext";
 import { useRole } from "@/context/RoleContext";
+import { useNotifications } from "@/context/NotificationContext";
 import { AnimatedSearchBar } from "@/components/app/AnimatedSearchBar";
 import SettingsDropdown from "@/components/app/SettingsDropdown";
 import {
@@ -250,6 +251,7 @@ export default function Homepage() {
   const router = useRouter();
   const { user } = useSession();
   const { selectedPet } = usePet();
+  const { unreadCount } = useNotifications();
 
   const bannerImages = [
     require("../../assets/images/Homepage_Banner.png"),
@@ -556,11 +558,21 @@ export default function Homepage() {
                 source={require("../../assets/images/Subscription_Icon.png")}
               />
             </TouchableOpacity>
-            <TouchableOpacity>
+            <TouchableOpacity
+              onPress={() => router.push("/notifications")}
+              className="relative"
+            >
               <Image
                 className=""
                 source={require("../../assets/images/Notif_Icon.png")}
               />
+              {unreadCount > 0 && (
+                <View className="absolute -top-1 -right-1 bg-[#ea5b3a] rounded-full min-w-[18px] h-[18px] items-center justify-center px-1">
+                  <Text className="text-white text-xs font-bold">
+                    {unreadCount > 99 ? "99+" : unreadCount}
+                  </Text>
+                </View>
+              )}
             </TouchableOpacity>
           </View>
         </View>
