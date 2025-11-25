@@ -18,6 +18,8 @@ import {
   type PetPublicProfile,
   type Litter,
 } from "@/services/petService";
+import { sendMatchRequest } from "@/services/matchRequestService";
+import { usePet } from "@/context/PetContext";
 import { API_BASE_URL } from "@/config/env";
 import dayjs from "dayjs";
 
@@ -26,10 +28,12 @@ export default function ViewPetProfileScreen() {
   const params = useLocalSearchParams();
   const petId = params.id as string;
   const { visible, alertOptions, showAlert, hideAlert } = useAlert();
+  const { selectedPet } = usePet();
 
   const [petData, setPetData] = useState<PetPublicProfile | null>(null);
   const [litters, setLitters] = useState<Litter[]>([]);
   const [loading, setLoading] = useState(true);
+  const [sendingRequest, setSendingRequest] = useState(false);
   const [currentPhotoIndex] = useState(0);
 
   const fetchPetData = useCallback(async () => {
@@ -91,6 +95,45 @@ export default function ViewPetProfileScreen() {
     }
   };
 
+  const handleMatchRequest = async () => {
+    if (!selectedPet) {
+      showAlert({
+        title: "No Pet Selected",
+        message: "Please select one of your pets first to send a match request.",
+        type: "warning",
+      });
+      return;
+    }
+
+    if (sendingRequest) return;
+
+    setSendingRequest(true);
+    try {
+      const result = await sendMatchRequest(selectedPet.pet_id, parseInt(petId));
+      if (result.success) {
+        showAlert({
+          title: "Request Sent!",
+          message: `Match request sent from ${selectedPet.name} to ${petData?.name}!`,
+          type: "success",
+        });
+      } else {
+        showAlert({
+          title: "Request Failed",
+          message: result.message,
+          type: "error",
+        });
+      }
+    } catch (error) {
+      showAlert({
+        title: "Error",
+        message: "Failed to send match request. Please try again.",
+        type: "error",
+      });
+    } finally {
+      setSendingRequest(false);
+    }
+  };
+
   if (loading) {
     return (
       <SafeAreaView className="flex-1 bg-[#E8F4F8] items-center justify-center">
@@ -146,8 +189,16 @@ export default function ViewPetProfileScreen() {
               <TouchableOpacity className="w-14 h-14 bg-pink-200 rounded-full items-center justify-center">
                 <Feather name="star" size={24} color="#FF6B6B" />
               </TouchableOpacity>
-              <TouchableOpacity className="w-16 h-16 bg-[#FF6B6B] rounded-full items-center justify-center">
-                <Feather name="heart" size={28} color="white" />
+              <TouchableOpacity 
+                className="w-16 h-16 bg-[#FF6B6B] rounded-full items-center justify-center"
+                onPress={handleMatchRequest}
+                disabled={sendingRequest}
+              >
+                {sendingRequest ? (
+                  <ActivityIndicator size="small" color="white" />
+                ) : (
+                  <Feather name="heart" size={28} color="white" />
+                )}
               </TouchableOpacity>
               <TouchableOpacity className="w-14 h-14 bg-gray-600 rounded-full items-center justify-center">
                 <Feather name="message-circle" size={24} color="white" />
