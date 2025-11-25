@@ -11,6 +11,7 @@ import {
 } from "react-native";
 import { useSession } from "@/context/AuthContext";
 import { usePet } from "@/context/PetContext";
+import { useRole } from "@/context/RoleContext";
 import { AnimatedSearchBar } from "@/components/app/AnimatedSearchBar";
 import SettingsDropdown from "@/components/app/SettingsDropdown";
 import {
@@ -25,6 +26,7 @@ import {
 import { API_BASE_URL } from "@/config/env";
 import { useRouter } from "expo-router";
 import dayjs from "dayjs";
+import ShooterHomepage from "./shooter-index";
 
 const { width: SCREEN_W } = Dimensions.get("window");
 
@@ -239,6 +241,7 @@ function TopMatches({ matches }: { matches: TopMatch[] }) {
 }
 
 export default function Homepage() {
+  const { role } = useRole();
   const [selectedTab, setSelectedTab] = useState<"pets" | "shooters">("pets");
   const [loading, setLoading] = useState(true);
   const [allPets, setAllPets] = useState<PetMatch[]>([]);
@@ -291,6 +294,11 @@ export default function Homepage() {
       setLoading(false);
     }
   };
+
+  // If role is Shooter, show ShooterHomepage
+  if (role === "Shooter") {
+    return <ShooterHomepage />;
+  }
 
   const PetsGrid = () => (
     <View className="px-4">

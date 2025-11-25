@@ -12,6 +12,7 @@ import {
 } from "lucide-react-native";
 import { BottomTabBarProps } from "@react-navigation/bottom-tabs";
 import PetSelectionModal from "./PetSelectionModal";
+import { useRole } from "@/context/RoleContext";
 
 const { width } = Dimensions.get("window");
 const TAB_BAR_WIDTH = width * 0.9;
@@ -27,6 +28,10 @@ export default function CurvedTabBar({
   const router = useRouter();
   const current = state.index;
   const [showPetModal, setShowPetModal] = useState(false);
+  const { role } = useRole();
+
+  // Check if user is in Shooter mode
+  const isShooterMode = role === "Shooter";
 
   type TabRoute =
     | "/(tabs)"
@@ -43,12 +48,29 @@ export default function CurvedTabBar({
     { icon: User, route: "/(tabs)/profile" },
   ];
 
-  // SVG path for curved tab bar with center cutout
+  // SVG path for curved tab bar with or without center cutout
   const createCurvedPath = () => {
     const centerX = TAB_BAR_WIDTH / 2;
     const radius = 25; // corner radius
     const cutoutRadius = CENTER_CUTOUT_RADIUS;
 
+    // If in Shooter mode, use flat top bar without cutout
+    if (isShooterMode) {
+      return `
+        M ${radius} 0
+        L ${TAB_BAR_WIDTH - radius} 0
+        Q ${TAB_BAR_WIDTH} 0 ${TAB_BAR_WIDTH} ${radius}
+        L ${TAB_BAR_WIDTH} ${TAB_BAR_HEIGHT - radius}
+        Q ${TAB_BAR_WIDTH} ${TAB_BAR_HEIGHT} ${TAB_BAR_WIDTH - radius} ${TAB_BAR_HEIGHT}
+        L ${radius} ${TAB_BAR_HEIGHT}
+        Q 0 ${TAB_BAR_HEIGHT} 0 ${TAB_BAR_HEIGHT - radius}
+        L 0 ${radius}
+        Q 0 0 ${radius} 0
+        Z
+      `;
+    }
+
+    // Default path with center cutout for Pet Owner mode
     return `
       M ${radius} 0
       L ${centerX - cutoutRadius - 20} 0
@@ -80,41 +102,43 @@ export default function CurvedTabBar({
           <Path d={createCurvedPath()} fill="#EA5B3A" />
         </Svg>
 
-        {/* Center floating circle button */}
-        <Animated.View
-          entering={FadeIn}
-          exiting={FadeOut}
-          style={{
-            position: "absolute",
-            top: -2,
-            left: TAB_BAR_WIDTH / 2 - CENTER_CIRCLE_SIZE / 2,
-            width: CENTER_CIRCLE_SIZE,
-            height: CENTER_CIRCLE_SIZE,
-            borderRadius: CENTER_CIRCLE_SIZE / 2,
-            backgroundColor: "white",
-            alignItems: "center",
-            justifyContent: "center",
-            shadowColor: "#000",
-            shadowOffset: { width: 0, height: 4 },
-            shadowOpacity: 0.3,
-            shadowRadius: 8,
-            elevation: 8,
-            borderWidth: 6,
-            borderColor: "#EA5B3A",
-          }}
-        >
-          <TouchableOpacity
-            onPress={() => setShowPetModal(true)}
+        {/* Center floating circle button - only show in Pet Owner mode */}
+        {!isShooterMode && (
+          <Animated.View
+            entering={FadeIn}
+            exiting={FadeOut}
             style={{
-              width: "100%",
-              height: "100%",
+              position: "absolute",
+              top: -2,
+              left: TAB_BAR_WIDTH / 2 - CENTER_CIRCLE_SIZE / 2,
+              width: CENTER_CIRCLE_SIZE,
+              height: CENTER_CIRCLE_SIZE,
+              borderRadius: CENTER_CIRCLE_SIZE / 2,
+              backgroundColor: "white",
               alignItems: "center",
               justifyContent: "center",
+              shadowColor: "#000",
+              shadowOffset: { width: 0, height: 4 },
+              shadowOpacity: 0.3,
+              shadowRadius: 8,
+              elevation: 8,
+              borderWidth: 6,
+              borderColor: "#EA5B3A",
             }}
           >
-            <PawPrint size={40} color="#EA5B3A" strokeWidth={2.5} />
-          </TouchableOpacity>
-        </Animated.View>
+            <TouchableOpacity
+              onPress={() => setShowPetModal(true)}
+              style={{
+                width: "100%",
+                height: "100%",
+                alignItems: "center",
+                justifyContent: "center",
+              }}
+            >
+              <PawPrint size={40} color="#EA5B3A" strokeWidth={2.5} />
+            </TouchableOpacity>
+          </Animated.View>
+        )}
 
         {/* Icons Row */}
         <View
@@ -130,9 +154,14 @@ export default function CurvedTabBar({
           }}
         >
           {icons.map((item, index) => {
-            // Skip center position (reserved for floating button)
-            if (index === 2) {
+            // Skip center position (reserved for floating button) in Pet Owner mode
+            if (index === 2 && !isShooterMode) {
               return <View key={index} style={{ width: CENTER_CIRCLE_SIZE }} />;
+            }
+
+            // Hide the match tab entirely in Shooter mode
+            if (index === 2 && isShooterMode) {
+              return null;
             }
 
             const Icon = item.icon;

@@ -21,10 +21,10 @@ export function RoleProvider({ children }: { children: ReactNode }) {
 
 export function useRole() {
   const ctx = useContext(RoleContext);
-  if (ctx) return ctx;
-  // Fallback: if no provider is mounted, provide local state so components still work.
-  const [role, setRole] = useState<Role>("Pet Owner");
-  return { role, setRole };
+  if (!ctx) {
+    throw new Error("useRole must be used within a RoleProvider");
+  }
+  return ctx;
 }
 
 export default RoleContext;
