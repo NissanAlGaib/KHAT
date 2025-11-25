@@ -78,13 +78,36 @@ export default function ContractModal({
     include_goods_foods: existingContract?.include_goods_foods || false,
     goods_foods_value: existingContract?.goods_foods_value || undefined,
     collateral_total: existingContract?.collateral_total || 0,
-    // Terms & Policies
-    pet_care_responsibilities:
-      existingContract?.pet_care_responsibilities || "",
-    harm_liability_terms: existingContract?.harm_liability_terms || "",
-    cancellation_policy: existingContract?.cancellation_policy || "",
+    // Custom Terms
     custom_terms: existingContract?.custom_terms || "",
   });
+
+  // Update form data when existingContract changes
+  React.useEffect(() => {
+    if (existingContract) {
+      setFormData({
+        shooter_name: existingContract.shooter_name || "",
+        shooter_payment: existingContract.shooter_payment || undefined,
+        shooter_location: existingContract.shooter_location || "",
+        shooter_conditions: existingContract.shooter_conditions || "",
+        end_contract_date: existingContract.end_contract_date || "",
+        include_monetary_amount:
+          existingContract.include_monetary_amount || false,
+        monetary_amount: existingContract.monetary_amount || undefined,
+        share_offspring: existingContract.share_offspring || false,
+        offspring_split_type:
+          existingContract.offspring_split_type || undefined,
+        offspring_split_value:
+          existingContract.offspring_split_value || undefined,
+        offspring_selection_method:
+          existingContract.offspring_selection_method || undefined,
+        include_goods_foods: existingContract.include_goods_foods || false,
+        goods_foods_value: existingContract.goods_foods_value || undefined,
+        collateral_total: existingContract.collateral_total || 0,
+        custom_terms: existingContract.custom_terms || "",
+      });
+    }
+  }, [existingContract]);
 
   const updateFormField = (field: keyof ContractFormData, value: any) => {
     setFormData((prev) => ({ ...prev, [field]: value }));
@@ -148,9 +171,6 @@ export default function ContractModal({
       include_goods_foods: false,
       goods_foods_value: undefined,
       collateral_total: 0,
-      pet_care_responsibilities: "",
-      harm_liability_terms: "",
-      cancellation_policy: "",
       custom_terms: "",
     });
   };
@@ -160,7 +180,7 @@ export default function ContractModal({
     resetForm();
   };
 
-  const collateralPerOwner = (formData.collateral_total || 0) / 2;
+  const collateralPerOwner = (Number(formData.collateral_total) || 0) / 2;
 
   const renderStepIndicator = () => (
     <View className="flex-row justify-center items-center py-3 bg-gray-50">
@@ -192,7 +212,11 @@ export default function ContractModal({
   );
 
   const renderStep1 = () => (
-    <ScrollView className="flex-1" showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 16 }}>
+    <ScrollView
+      className="flex-1"
+      showsVerticalScrollIndicator={false}
+      contentContainerStyle={{ paddingBottom: 16 }}
+    >
       <Text className="text-base font-semibold text-gray-900 mb-1">
         Optional Shooter Agreement
       </Text>
@@ -269,7 +293,11 @@ export default function ContractModal({
   );
 
   const renderStep2 = () => (
-    <ScrollView className="flex-1" showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 16 }}>
+    <ScrollView
+      className="flex-1"
+      showsVerticalScrollIndicator={false}
+      contentContainerStyle={{ paddingBottom: 16 }}
+    >
       <Text className="text-base font-semibold text-gray-900 mb-1">
         Payment & Compensation
       </Text>
@@ -503,7 +531,7 @@ export default function ContractModal({
         <View className="mb-3 ml-7">
           <TextInput
             className="bg-gray-100 rounded-xl px-3 py-2.5 text-sm"
-            placeholder="Enter value ($)"
+            placeholder="Enter Item"
             placeholderTextColor="#9CA3AF"
             value={formData.goods_foods_value?.toString() || ""}
             onChangeText={(text) =>
@@ -527,12 +555,13 @@ export default function ContractModal({
           placeholder="Enter total collateral"
           placeholderTextColor="#9CA3AF"
           value={formData.collateral_total?.toString() || ""}
-          onChangeText={(text) =>
+          onChangeText={(text) => {
+            const value = text ? parseFloat(text) : 0;
             updateFormField(
               "collateral_total",
-              text ? parseFloat(text) : undefined
-            )
-          }
+              isNaN(value) ? 0 : value
+            );
+          }}
           keyboardType="numeric"
         />
       </View>
@@ -542,7 +571,7 @@ export default function ContractModal({
         <View className="flex-row justify-between mb-1">
           <Text className="text-xs text-gray-600">Total Collateral:</Text>
           <Text className="text-xs font-semibold text-gray-900">
-            ${formData.collateral_total?.toFixed(2) || "0.00"}
+            ${(Number(formData.collateral_total) || 0).toFixed(2)}
           </Text>
         </View>
         <View className="flex-row justify-between mb-1">
@@ -559,75 +588,79 @@ export default function ContractModal({
   );
 
   const renderStep3 = () => (
-    <ScrollView className="flex-1" showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 16 }}>
+    <ScrollView
+      className="flex-1"
+      showsVerticalScrollIndicator={false}
+      contentContainerStyle={{ paddingBottom: 16 }}
+    >
       <Text className="text-base font-semibold text-gray-900 mb-1">
         Terms & Policies
       </Text>
-      <Text className="text-xs text-gray-500 mb-3">
-        Define the terms and conditions of the agreement
+      <Text className="text-xs text-gray-500 mb-4">
+        Review the standard policies and add custom terms
       </Text>
-
-      {/* Pet Care Responsibilities */}
-      <View className="mb-3">
-        <Text className="text-xs font-medium text-gray-700 mb-1">
-          Pet Care Responsibilities
+      {/* Responsibility Policy */}
+      <View className="mb-3 bg-gray-50 rounded-xl p-4 border border-gray-200">
+        <Text className="text-sm font-semibold text-gray-900 mb-2">
+          Responsibility Policy
         </Text>
-        <TextInput
-          className="bg-gray-100 rounded-xl px-3 py-2.5 text-sm min-h-[60px]"
-          placeholder="Describe pet care responsibilities..."
-          placeholderTextColor="#9CA3AF"
-          value={formData.pet_care_responsibilities}
-          onChangeText={(text) =>
-            updateFormField("pet_care_responsibilities", text)
-          }
-          multiline
-          maxLength={1000}
-          textAlignVertical="top"
-        />
+        <View className="space-y-1">
+          <View className="flex-row mb-1.5">
+            <Text className="text-gray-600 mr-1.5">•</Text>
+            <Text className="text-xs text-gray-700 flex-1">
+              If a pet causes any incident due to its behavior or health, the
+              owner of that pet will be held responsible.
+            </Text>
+          </View>
+          <View className="flex-row mb-1.5">
+            <Text className="text-gray-600 mr-1.5">•</Text>
+            <Text className="text-xs text-gray-700 flex-1">
+              The responsible owner must cover all related medical expenses.
+            </Text>
+          </View>
+          <View className="flex-row">
+            <Text className="text-gray-600 mr-1.5">•</Text>
+            <Text className="text-xs text-gray-700 flex-1">
+              This includes costs for anti-rabies shots, vaccinations, or any
+              required treatments/injections.
+            </Text>
+          </View>
+        </View>
       </View>
-
-      {/* Harm Liability Terms */}
-      <View className="mb-3">
-        <Text className="text-xs font-medium text-gray-700 mb-1">
-          Harm Liability Terms
-        </Text>
-        <TextInput
-          className="bg-gray-100 rounded-xl px-3 py-2.5 text-sm min-h-[60px]"
-          placeholder="Describe liability terms..."
-          placeholderTextColor="#9CA3AF"
-          value={formData.harm_liability_terms}
-          onChangeText={(text) => updateFormField("harm_liability_terms", text)}
-          multiline
-          maxLength={1000}
-          textAlignVertical="top"
-        />
-      </View>
-
       {/* Cancellation Policy */}
-      <View className="mb-3">
-        <Text className="text-xs font-medium text-gray-700 mb-1">
+      <View className="mb-4 bg-gray-50 rounded-xl p-4 border border-gray-200">
+        <Text className="text-sm font-semibold text-gray-900 mb-2">
           Cancellation Policy
         </Text>
-        <TextInput
-          className="bg-gray-100 rounded-xl px-3 py-2.5 text-sm min-h-[60px]"
-          placeholder="Describe cancellation policy..."
-          placeholderTextColor="#9CA3AF"
-          value={formData.cancellation_policy}
-          onChangeText={(text) => updateFormField("cancellation_policy", text)}
-          multiline
-          maxLength={1000}
-          textAlignVertical="top"
-        />
+        <View className="space-y-1">
+          <View className="flex-row mb-1.5">
+            <Text className="text-gray-600 mr-1.5">•</Text>
+            <Text className="text-xs text-gray-700 flex-1">
+              Both parties must agree to cancel the contract
+            </Text>
+          </View>
+          <View className="flex-row mb-1.5">
+            <Text className="text-gray-600 mr-1.5">•</Text>
+            <Text className="text-xs text-gray-700 flex-1">
+              If one party doesn't respond within 3 days contract auto-cancels
+            </Text>
+          </View>
+          <View className="flex-row">
+            <Text className="text-gray-600 mr-1.5">•</Text>
+            <Text className="text-xs text-gray-700 flex-1">
+              Breach of contract may result in collateral forfeiture
+            </Text>
+          </View>
+        </View>
       </View>
-
       {/* Custom Terms */}
       <View className="mb-2">
         <Text className="text-xs font-medium text-gray-700 mb-1">
-          Custom Terms
+          Custom Terms (Optional)
         </Text>
         <TextInput
-          className="bg-gray-100 rounded-xl px-3 py-2.5 text-sm min-h-[60px]"
-          placeholder="Add any custom terms..."
+          className="bg-gray-100 rounded-xl px-3 py-2.5 text-sm min-h-[80px]"
+          placeholder="Add any additional custom terms or conditions..."
           placeholderTextColor="#9CA3AF"
           value={formData.custom_terms}
           onChangeText={(text) => updateFormField("custom_terms", text)}
@@ -635,6 +668,9 @@ export default function ContractModal({
           maxLength={1000}
           textAlignVertical="top"
         />
+        <Text className="text-xs text-gray-400 text-right mt-1">
+          {formData.custom_terms?.length || 0}/1000
+        </Text>
       </View>
     </ScrollView>
   );
@@ -666,9 +702,10 @@ export default function ContractModal({
         <Animated.View
           style={{
             transform: [{ scale: scaleAnim }],
-            maxHeight: SCREEN_HEIGHT * 0.85,
+            height: SCREEN_HEIGHT * 0.75,
+            width: "100%",
           }}
-          className="bg-white rounded-3xl w-full overflow-hidden"
+          className="bg-white rounded-3xl overflow-hidden"
         >
           {/* Header */}
           <View className="bg-[#FF6B6B] px-4 py-4 flex-row items-center justify-between">
@@ -688,9 +725,7 @@ export default function ContractModal({
           {renderStepIndicator()}
 
           {/* Step Content */}
-          <View style={{ maxHeight: SCREEN_HEIGHT * 0.45 }} className="px-5">
-            {renderCurrentStep()}
-          </View>
+          <View className="flex-1 px-5">{renderCurrentStep()}</View>
 
           {/* Navigation Buttons */}
           <View className="flex-row px-5 py-4 border-t border-gray-100">
