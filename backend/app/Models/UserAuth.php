@@ -22,6 +22,7 @@ class UserAuth extends Model
         'issuing_authority',
         'expiry_date',
         'status',
+        'rejection_reason',
         'date_created',
     ];
 

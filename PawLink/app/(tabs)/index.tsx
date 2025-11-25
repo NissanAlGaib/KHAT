@@ -11,6 +11,7 @@ import {
 import { useSession } from "@/context/AuthContext";
 import { usePet } from "@/context/PetContext";
 import { useRole } from "@/context/RoleContext";
+import { useNotifications } from "@/context/NotificationContext";
 import { AnimatedSearchBar } from "@/components/app/AnimatedSearchBar";
 import SettingsDropdown from "@/components/app/SettingsDropdown";
 import {
@@ -240,6 +241,7 @@ function TopMatches({ matches }: { matches: TopMatch[] }) {
 
 export default function Homepage() {
   const { role } = useRole();
+  const { badgeCount, refreshBadgeCount } = useNotifications();
   const [selectedTab, setSelectedTab] = useState<"pets" | "shooters">("pets");
   const [loading, setLoading] = useState(true);
   const [allPets, setAllPets] = useState<PetMatch[]>([]);
@@ -280,7 +282,9 @@ export default function Homepage() {
 
   useEffect(() => {
     fetchData();
-  }, [selectedPet, fetchData]); // Refetch when selected pet changes
+    // Refresh notification badge count when homepage loads
+    refreshBadgeCount();
+  }, [selectedPet, fetchData, refreshBadgeCount]); // Refetch when selected pet changes
 
   // If role is Shooter, show ShooterHomepage
   if (role === "Shooter") {
@@ -543,11 +547,21 @@ export default function Homepage() {
                 source={require("../../assets/images/Subscription_Icon.png")}
               />
             </TouchableOpacity>
-            <TouchableOpacity>
+            <TouchableOpacity
+              onPress={() => router.push("/notifications")}
+              className="relative"
+            >
               <Image
                 className=""
                 source={require("../../assets/images/Notif_Icon.png")}
               />
+              {badgeCount > 0 && (
+                <View className="absolute -top-1 -right-1 bg-red-500 rounded-full min-w-[18px] h-[18px] items-center justify-center">
+                  <Text className="text-white text-xs font-bold">
+                    {badgeCount > 9 ? "9+" : badgeCount}
+                  </Text>
+                </View>
+              )}
             </TouchableOpacity>
           </View>
         </View>

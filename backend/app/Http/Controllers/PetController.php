@@ -517,4 +517,104 @@ class PetController extends Controller
             'data' => $formattedPets
         ]);
     }
+
+    /**
+     * Resubmit a vaccination record
+     */
+    public function resubmitVaccination(Request $request, $petId, $vaccinationId)
+    {
+        try {
+            $pet = Pet::where('user_id', Auth::id())
+                ->where('pet_id', $petId)
+                ->firstOrFail();
+
+            $vaccination = Vaccination::where('pet_id', $petId)
+                ->where('vaccination_id', $vaccinationId)
+                ->firstOrFail();
+
+            $request->validate([
+                'document' => 'required|file|mimes:jpg,jpeg,png,pdf|max:20480',
+                'clinic_name' => 'required|string|max:255',
+                'veterinarian_name' => 'required|string|max:255',
+                'given_date' => 'required|date|before_or_equal:today',
+                'expiration_date' => 'required|date|after:given_date',
+            ]);
+
+            // Store the new document
+            $documentPath = $request->file('document')->store('vaccinations', 'public');
+
+            // Update the vaccination record
+            $vaccination->update([
+                'vaccination_record' => $documentPath,
+                'clinic_name' => $request->input('clinic_name'),
+                'veterinarian_name' => $request->input('veterinarian_name'),
+                'given_date' => $request->input('given_date'),
+                'expiration_date' => $request->input('expiration_date'),
+                'status' => 'pending',
+                'rejection_reason' => null,
+            ]);
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Vaccination record resubmitted successfully',
+                'data' => $vaccination,
+            ], 200);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to resubmit vaccination record',
+                'error' => $e->getMessage(),
+            ], 500);
+        }
+    }
+
+    /**
+     * Resubmit a health record
+     */
+    public function resubmitHealthRecord(Request $request, $petId, $healthRecordId)
+    {
+        try {
+            $pet = Pet::where('user_id', Auth::id())
+                ->where('pet_id', $petId)
+                ->firstOrFail();
+
+            $healthRecord = HealthRecord::where('pet_id', $petId)
+                ->where('health_record_id', $healthRecordId)
+                ->firstOrFail();
+
+            $request->validate([
+                'document' => 'required|file|mimes:jpg,jpeg,png,pdf|max:20480',
+                'clinic_name' => 'required|string|max:255',
+                'veterinarian_name' => 'required|string|max:255',
+                'given_date' => 'required|date|before_or_equal:today',
+                'expiration_date' => 'required|date|after:given_date',
+            ]);
+
+            // Store the new document
+            $documentPath = $request->file('document')->store('health_certificates', 'public');
+
+            // Update the health record
+            $healthRecord->update([
+                'health_certificate' => $documentPath,
+                'clinic_name' => $request->input('clinic_name'),
+                'veterinarian_name' => $request->input('veterinarian_name'),
+                'given_date' => $request->input('given_date'),
+                'expiration_date' => $request->input('expiration_date'),
+                'status' => 'pending',
+                'rejection_reason' => null,
+            ]);
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Health record resubmitted successfully',
+                'data' => $healthRecord,
+            ], 200);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to resubmit health record',
+                'error' => $e->getMessage(),
+            ], 500);
+        }
+    }
 }

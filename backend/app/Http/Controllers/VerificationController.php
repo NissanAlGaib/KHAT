@@ -186,6 +186,7 @@ class VerificationController extends Controller
         try {
             $validator = Validator::make($request->all(), [
                 'status' => 'required|in:approved,rejected',
+                'rejection_reason' => 'required_if:status,rejected|nullable|string|max:500',
             ]);
 
             if ($validator->fails()) {
@@ -198,6 +199,14 @@ class VerificationController extends Controller
 
             $userAuth = UserAuth::findOrFail($authId);
             $userAuth->status = $request->input('status');
+            
+            // Set rejection reason if status is rejected, clear it if approved
+            if ($request->input('status') === 'rejected') {
+                $userAuth->rejection_reason = $request->input('rejection_reason');
+            } else {
+                $userAuth->rejection_reason = null;
+            }
+            
             $userAuth->save();
 
             return response()->json([
@@ -210,6 +219,64 @@ class VerificationController extends Controller
             return response()->json([
                 'success' => false,
                 'message' => 'Failed to update verification status',
+                'error' => $e->getMessage()
+            ], 500);
+        }
+    }
+
+    /**
+     * Resubmit a user verification document
+     */
+    public function resubmitVerification(Request $request, $authId)
+    {
+        try {
+            $userAuth = UserAuth::where('auth_id', $authId)
+                ->where('user_id', $request->user()->id)
+                ->firstOrFail();
+
+            $validator = Validator::make($request->all(), [
+                'document' => 'required|file|mimes:jpg,jpeg,png,pdf|max:10240',
+                'document_number' => 'nullable|string|max:255',
+                'document_name' => 'nullable|string|max:255',
+                'issue_date' => 'nullable|date',
+                'expiration_date' => 'nullable|date',
+                'issuing_authority' => 'nullable|string|max:255',
+            ]);
+
+            if ($validator->fails()) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Validation failed',
+                    'errors' => $validator->errors()
+                ], 422);
+            }
+
+            // Store the new document
+            $folder = 'verification/' . $userAuth->auth_type . '/' . $userAuth->user_id;
+            $documentPath = $request->file('document')->store($folder, 'public');
+
+            // Update the verification record
+            $userAuth->update([
+                'document_path' => $documentPath,
+                'document_number' => $request->input('document_number'),
+                'document_name' => $request->input('document_name'),
+                'issue_date' => $request->input('issue_date'),
+                'expiry_date' => $request->input('expiration_date'),
+                'issuing_authority' => $request->input('issuing_authority'),
+                'status' => 'pending',
+                'rejection_reason' => null,
+            ]);
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Verification document resubmitted successfully',
+                'data' => $userAuth
+            ], 200);
+        } catch (\Exception $e) {
+            Log::error('Failed to resubmit verification: ' . $e->getMessage());
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to resubmit verification',
                 'error' => $e->getMessage()
             ], 500);
         }
