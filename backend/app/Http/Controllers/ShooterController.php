@@ -5,6 +5,8 @@ namespace App\Http\Controllers;
 use Illuminate\Http\Request;
 use App\Models\User;
 use App\Models\Role;
+use App\Models\BreedingContract;
+use App\Models\Pet;
 use Carbon\Carbon;
 
 class ShooterController extends Controller
@@ -77,6 +79,366 @@ class ShooterController extends Controller
                 'success' => false,
                 'message' => 'Failed to get shooters',
                 'error' => $e->getMessage()
+            ], 500);
+        }
+    }
+
+    /**
+     * Get available shooter offers (contracts with pending shooter status)
+     */
+    public function getOffers(Request $request)
+    {
+        try {
+            $user = $request->user();
+
+            // Verify user is a shooter
+            $shooterRole = Role::where('role_type', 'Shooter')->first();
+            if (!$shooterRole) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Shooter role not found'
+                ], 404);
+            }
+
+            $isShooter = $user->roles()->where('roles.role_id', $shooterRole->role_id)->exists();
+            if (!$isShooter) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'You are not a registered shooter'
+                ], 403);
+            }
+
+            // Get all accepted contracts with pending shooter status
+            $offers = BreedingContract::where('status', 'accepted')
+                ->where('shooter_status', 'pending')
+                ->whereNotNull('shooter_payment')
+                ->where('shooter_payment', '>', 0)
+                ->with([
+                    'conversation.matchRequest.requesterPet.user',
+                    'conversation.matchRequest.requesterPet.photos',
+                    'conversation.matchRequest.targetPet.user',
+                    'conversation.matchRequest.targetPet.photos',
+                ])
+                ->get();
+
+            $formattedOffers = $offers->map(function ($contract) {
+                $matchRequest = $contract->conversation->matchRequest;
+                $pet1 = $matchRequest->requesterPet;
+                $pet2 = $matchRequest->targetPet;
+                $owner1 = $pet1->user;
+                $owner2 = $pet2->user;
+
+                $pet1Photo = $pet1->photos->where('is_primary', true)->first();
+                $pet2Photo = $pet2->photos->where('is_primary', true)->first();
+
+                return [
+                    'id' => $contract->id,
+                    'conversation_id' => $contract->conversation_id,
+                    'pet1' => [
+                        'pet_id' => $pet1->pet_id,
+                        'name' => $pet1->name,
+                        'breed' => $pet1->breed,
+                        'species' => $pet1->species,
+                        'photo_url' => $pet1Photo?->photo_url,
+                    ],
+                    'pet2' => [
+                        'pet_id' => $pet2->pet_id,
+                        'name' => $pet2->name,
+                        'breed' => $pet2->breed,
+                        'species' => $pet2->species,
+                        'photo_url' => $pet2Photo?->photo_url,
+                    ],
+                    'owner1' => [
+                        'id' => $owner1->id,
+                        'name' => $owner1->name,
+                        'profile_image' => $owner1->profile_image,
+                    ],
+                    'owner2' => [
+                        'id' => $owner2->id,
+                        'name' => $owner2->name,
+                        'profile_image' => $owner2->profile_image,
+                    ],
+                    'payment' => $contract->shooter_payment,
+                    'location' => $contract->shooter_location,
+                    'conditions' => $contract->shooter_conditions,
+                    'shooter_name' => $contract->shooter_name,
+                    'created_at' => $contract->created_at->toISOString(),
+                ];
+            });
+
+            return response()->json([
+                'success' => true,
+                'data' => $formattedOffers
+            ]);
+        } catch (\Exception $e) {
+            \Log::error('Failed to get shooter offers: ' . $e->getMessage());
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to get shooter offers'
+            ], 500);
+        }
+    }
+
+    /**
+     * Get details of a specific shooter offer
+     */
+    public function getOfferDetails(Request $request, $contractId)
+    {
+        try {
+            $user = $request->user();
+
+            // Verify user is a shooter
+            $shooterRole = Role::where('role_type', 'Shooter')->first();
+            if (!$shooterRole) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Shooter role not found'
+                ], 404);
+            }
+
+            $isShooter = $user->roles()->where('roles.role_id', $shooterRole->role_id)->exists();
+            if (!$isShooter) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'You are not a registered shooter'
+                ], 403);
+            }
+
+            // Get the contract
+            $contract = BreedingContract::where('status', 'accepted')
+                ->where('shooter_status', 'pending')
+                ->whereNotNull('shooter_payment')
+                ->where('shooter_payment', '>', 0)
+                ->with([
+                    'conversation.matchRequest.requesterPet.user',
+                    'conversation.matchRequest.requesterPet.photos',
+                    'conversation.matchRequest.targetPet.user',
+                    'conversation.matchRequest.targetPet.photos',
+                ])
+                ->find($contractId);
+
+            if (!$contract) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Offer not found or no longer available'
+                ], 404);
+            }
+
+            $matchRequest = $contract->conversation->matchRequest;
+            $pet1 = $matchRequest->requesterPet;
+            $pet2 = $matchRequest->targetPet;
+            $owner1 = $pet1->user;
+            $owner2 = $pet2->user;
+
+            $pet1Photo = $pet1->photos->where('is_primary', true)->first();
+            $pet2Photo = $pet2->photos->where('is_primary', true)->first();
+
+            return response()->json([
+                'success' => true,
+                'data' => [
+                    'id' => $contract->id,
+                    'conversation_id' => $contract->conversation_id,
+                    'pet1' => [
+                        'pet_id' => $pet1->pet_id,
+                        'name' => $pet1->name,
+                        'breed' => $pet1->breed,
+                        'species' => $pet1->species,
+                        'sex' => $pet1->sex,
+                        'birthdate' => $pet1->birthdate,
+                        'photo_url' => $pet1Photo?->photo_url,
+                    ],
+                    'pet2' => [
+                        'pet_id' => $pet2->pet_id,
+                        'name' => $pet2->name,
+                        'breed' => $pet2->breed,
+                        'species' => $pet2->species,
+                        'sex' => $pet2->sex,
+                        'birthdate' => $pet2->birthdate,
+                        'photo_url' => $pet2Photo?->photo_url,
+                    ],
+                    'owner1' => [
+                        'id' => $owner1->id,
+                        'name' => $owner1->name,
+                        'profile_image' => $owner1->profile_image,
+                        'contact_number' => $owner1->contact_number,
+                    ],
+                    'owner2' => [
+                        'id' => $owner2->id,
+                        'name' => $owner2->name,
+                        'profile_image' => $owner2->profile_image,
+                        'contact_number' => $owner2->contact_number,
+                    ],
+                    'payment' => $contract->shooter_payment,
+                    'location' => $contract->shooter_location,
+                    'conditions' => $contract->shooter_conditions,
+                    'shooter_name' => $contract->shooter_name,
+                    'end_contract_date' => $contract->end_contract_date?->format('Y-m-d'),
+                    'created_at' => $contract->created_at->toISOString(),
+                ]
+            ]);
+        } catch (\Exception $e) {
+            \Log::error('Failed to get shooter offer details: ' . $e->getMessage());
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to get offer details'
+            ], 500);
+        }
+    }
+
+    /**
+     * Accept a shooter offer
+     */
+    public function acceptOffer(Request $request, $contractId)
+    {
+        try {
+            $user = $request->user();
+
+            // Verify user is a shooter
+            $shooterRole = Role::where('role_type', 'Shooter')->first();
+            if (!$shooterRole) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Shooter role not found'
+                ], 404);
+            }
+
+            $isShooter = $user->roles()->where('roles.role_id', $shooterRole->role_id)->exists();
+            if (!$isShooter) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'You are not a registered shooter'
+                ], 403);
+            }
+
+            // Get the contract
+            $contract = BreedingContract::where('status', 'accepted')
+                ->where('shooter_status', 'pending')
+                ->whereNotNull('shooter_payment')
+                ->where('shooter_payment', '>', 0)
+                ->find($contractId);
+
+            if (!$contract) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Offer not found or no longer available'
+                ], 404);
+            }
+
+            // Update contract with shooter's acceptance
+            $contract->update([
+                'shooter_user_id' => $user->id,
+                'shooter_status' => 'accepted_by_shooter',
+                'shooter_accepted_at' => now(),
+            ]);
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Offer accepted. Waiting for owners to confirm.',
+                'data' => [
+                    'id' => $contract->id,
+                    'shooter_status' => $contract->shooter_status,
+                ]
+            ]);
+        } catch (\Exception $e) {
+            \Log::error('Failed to accept shooter offer: ' . $e->getMessage());
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to accept offer'
+            ], 500);
+        }
+    }
+
+    /**
+     * Get shooter's accepted offers (pending owner confirmation)
+     */
+    public function getMyOffers(Request $request)
+    {
+        try {
+            $user = $request->user();
+
+            // Verify user is a shooter
+            $shooterRole = Role::where('role_type', 'Shooter')->first();
+            if (!$shooterRole) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Shooter role not found'
+                ], 404);
+            }
+
+            $isShooter = $user->roles()->where('roles.role_id', $shooterRole->role_id)->exists();
+            if (!$isShooter) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'You are not a registered shooter'
+                ], 403);
+            }
+
+            // Get all contracts where this shooter has accepted
+            $offers = BreedingContract::where('shooter_user_id', $user->id)
+                ->whereIn('shooter_status', ['accepted_by_shooter', 'accepted_by_owners'])
+                ->with([
+                    'conversation.matchRequest.requesterPet.user',
+                    'conversation.matchRequest.requesterPet.photos',
+                    'conversation.matchRequest.targetPet.user',
+                    'conversation.matchRequest.targetPet.photos',
+                ])
+                ->get();
+
+            $formattedOffers = $offers->map(function ($contract) {
+                $matchRequest = $contract->conversation->matchRequest;
+                $pet1 = $matchRequest->requesterPet;
+                $pet2 = $matchRequest->targetPet;
+                $owner1 = $pet1->user;
+                $owner2 = $pet2->user;
+
+                $pet1Photo = $pet1->photos->where('is_primary', true)->first();
+                $pet2Photo = $pet2->photos->where('is_primary', true)->first();
+
+                return [
+                    'id' => $contract->id,
+                    'conversation_id' => $contract->conversation_id,
+                    'pet1' => [
+                        'pet_id' => $pet1->pet_id,
+                        'name' => $pet1->name,
+                        'breed' => $pet1->breed,
+                        'species' => $pet1->species,
+                        'photo_url' => $pet1Photo?->photo_url,
+                    ],
+                    'pet2' => [
+                        'pet_id' => $pet2->pet_id,
+                        'name' => $pet2->name,
+                        'breed' => $pet2->breed,
+                        'species' => $pet2->species,
+                        'photo_url' => $pet2Photo?->photo_url,
+                    ],
+                    'owner1' => [
+                        'id' => $owner1->id,
+                        'name' => $owner1->name,
+                        'profile_image' => $owner1->profile_image,
+                    ],
+                    'owner2' => [
+                        'id' => $owner2->id,
+                        'name' => $owner2->name,
+                        'profile_image' => $owner2->profile_image,
+                    ],
+                    'payment' => $contract->shooter_payment,
+                    'location' => $contract->shooter_location,
+                    'shooter_status' => $contract->shooter_status,
+                    'owner1_accepted' => $contract->owner1_accepted_shooter,
+                    'owner2_accepted' => $contract->owner2_accepted_shooter,
+                    'created_at' => $contract->created_at->toISOString(),
+                ];
+            });
+
+            return response()->json([
+                'success' => true,
+                'data' => $formattedOffers
+            ]);
+        } catch (\Exception $e) {
+            \Log::error('Failed to get shooter my offers: ' . $e->getMessage());
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to get your offers'
             ], 500);
         }
     }

@@ -17,6 +17,12 @@ class BreedingContract extends Model
         'shooter_payment',
         'shooter_location',
         'shooter_conditions',
+        // Shooter Offer
+        'shooter_user_id',
+        'shooter_status',
+        'shooter_accepted_at',
+        'owner1_accepted_shooter',
+        'owner2_accepted_shooter',
         // Payment & Compensation
         'end_contract_date',
         'include_monetary_amount',
@@ -55,6 +61,9 @@ class BreedingContract extends Model
         'cancellation_fee_percentage' => 'decimal:2',
         'accepted_at' => 'datetime',
         'rejected_at' => 'datetime',
+        'shooter_accepted_at' => 'datetime',
+        'owner1_accepted_shooter' => 'boolean',
+        'owner2_accepted_shooter' => 'boolean',
     ];
 
     /**
@@ -82,11 +91,30 @@ class BreedingContract extends Model
     }
 
     /**
+     * Get the shooter user for this contract
+     */
+    public function shooter(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'shooter_user_id');
+    }
+
+    /**
      * Calculate each owner's collateral share
      */
     public function getCollateralShareAttribute(): float
     {
         return $this->collateral_total > 0 ? $this->collateral_total / 2 : 0;
+    }
+
+    /**
+     * Check if this contract has an available shooter offer
+     */
+    public function hasShooterOffer(): bool
+    {
+        return $this->status === 'accepted' 
+            && $this->shooter_payment !== null 
+            && $this->shooter_payment > 0
+            && $this->shooter_status === 'pending';
     }
 
     /**

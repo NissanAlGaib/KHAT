@@ -23,6 +23,50 @@ export interface BreedingPair {
   scheduled_date?: string;
 }
 
+export interface ShooterOffer {
+  id: number;
+  conversation_id: number;
+  pet1: {
+    pet_id: number;
+    name: string;
+    breed: string;
+    species: string;
+    sex?: string;
+    birthdate?: string;
+    photo_url?: string;
+  };
+  pet2: {
+    pet_id: number;
+    name: string;
+    breed: string;
+    species: string;
+    sex?: string;
+    birthdate?: string;
+    photo_url?: string;
+  };
+  owner1: {
+    id: number;
+    name: string;
+    profile_image?: string;
+    contact_number?: string;
+  };
+  owner2: {
+    id: number;
+    name: string;
+    profile_image?: string;
+    contact_number?: string;
+  };
+  payment: number;
+  location?: string;
+  conditions?: string;
+  shooter_name?: string;
+  shooter_status?: string;
+  owner1_accepted?: boolean;
+  owner2_accepted?: boolean;
+  end_contract_date?: string;
+  created_at: string;
+}
+
 export interface BreedingPairResponse {
   breeding_pairs: BreedingPair[];
   current_handling: number;
@@ -65,6 +109,61 @@ export interface BreedingDetail extends BreedingPair {
     update: string;
     created_at: string;
   }>;
+}
+
+/**
+ * Get available shooter offers (contracts with shooter payment)
+ */
+export async function getShooterOffers(): Promise<ShooterOffer[]> {
+  try {
+    const response = await axiosInstance.get("/shooter/offers");
+    return response.data.data || [];
+  } catch (error) {
+    console.error("Error fetching shooter offers:", error);
+    throw error;
+  }
+}
+
+/**
+ * Get details of a specific shooter offer
+ */
+export async function getShooterOfferDetails(offerId: number): Promise<ShooterOffer> {
+  try {
+    const response = await axiosInstance.get(`/shooter/offers/${offerId}`);
+    return response.data.data;
+  } catch (error) {
+    console.error("Error fetching shooter offer details:", error);
+    throw error;
+  }
+}
+
+/**
+ * Accept a shooter offer
+ */
+export async function acceptShooterOffer(offerId: number): Promise<{ success: boolean; message: string }> {
+  try {
+    const response = await axiosInstance.put(`/shooter/offers/${offerId}/accept`);
+    return {
+      success: response.data.success,
+      message: response.data.message,
+    };
+  } catch (error) {
+    console.error("Error accepting shooter offer:", error);
+    throw error;
+  }
+}
+
+/**
+ * Get shooter's accepted offers (pending owner confirmation)
+ */
+export async function getMyShooterOffers(): Promise<ShooterOffer[]> {
+  try {
+    const response = await axiosInstance.get("/shooter/my-offers");
+    return response.data.data || [];
+  } catch (error) {
+    console.error("Error fetching my shooter offers:", error);
+    throw error;
+  }
 }
 
 /**

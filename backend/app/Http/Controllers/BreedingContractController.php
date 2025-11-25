@@ -266,10 +266,17 @@ class BreedingContractController extends Controller
         }
 
         try {
-            $contract->update([
+            $updateData = [
                 'status' => 'accepted',
                 'accepted_at' => now(),
-            ]);
+            ];
+
+            // If contract has shooter payment, set shooter_status to pending
+            if ($contract->shooter_payment && $contract->shooter_payment > 0) {
+                $updateData['shooter_status'] = 'pending';
+            }
+
+            $contract->update($updateData);
 
             return response()->json([
                 'success' => true,
@@ -343,10 +350,198 @@ class BreedingContractController extends Controller
     }
 
     /**
+     * Accept a shooter request (by owner)
+     */
+    public function acceptShooterRequest(Request $request, $contractId)
+    {
+        $user = $request->user();
+        $userPetIds = Pet::where('user_id', $user->id)->pluck('pet_id');
+
+        // Get the contract and verify user has access
+        $contract = BreedingContract::whereHas('conversation.matchRequest', function ($query) use ($userPetIds) {
+            $query->where(function ($q) use ($userPetIds) {
+                $q->whereIn('requester_pet_id', $userPetIds)
+                    ->orWhereIn('target_pet_id', $userPetIds);
+            });
+        })
+        ->with(['conversation.matchRequest.requesterPet', 'conversation.matchRequest.targetPet'])
+        ->find($contractId);
+
+        if (!$contract) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Contract not found or you do not have access',
+            ], 404);
+        }
+
+        // Check if there's a pending shooter request
+        if ($contract->shooter_status !== 'accepted_by_shooter') {
+            return response()->json([
+                'success' => false,
+                'message' => 'No pending shooter request to accept',
+            ], 400);
+        }
+
+        // Determine if user is owner1 or owner2
+        $matchRequest = $contract->conversation->matchRequest;
+        $isOwner1 = $matchRequest->requesterPet->user_id === $user->id;
+        $isOwner2 = $matchRequest->targetPet->user_id === $user->id;
+
+        if (!$isOwner1 && !$isOwner2) {
+            return response()->json([
+                'success' => false,
+                'message' => 'You are not an owner of this contract',
+            ], 403);
+        }
+
+        try {
+            $updateData = [];
+            if ($isOwner1) {
+                $updateData['owner1_accepted_shooter'] = true;
+            }
+            if ($isOwner2) {
+                $updateData['owner2_accepted_shooter'] = true;
+            }
+
+            $contract->update($updateData);
+            $contract->refresh();
+
+            // Check if both owners have accepted
+            if ($contract->owner1_accepted_shooter && $contract->owner2_accepted_shooter) {
+                $contract->update(['shooter_status' => 'accepted_by_owners']);
+            }
+
+            return response()->json([
+                'success' => true,
+                'message' => $contract->shooter_status === 'accepted_by_owners' 
+                    ? 'Both owners have accepted the shooter. Shooter is now confirmed.'
+                    : 'You have accepted the shooter request. Waiting for the other owner.',
+                'data' => $this->formatContract($contract->fresh(), $user),
+            ]);
+        } catch (\Exception $e) {
+            \Log::error('Failed to accept shooter request: ' . $e->getMessage());
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to accept shooter request',
+            ], 500);
+        }
+    }
+
+    /**
+     * Decline a shooter request (by owner)
+     */
+    public function declineShooterRequest(Request $request, $contractId)
+    {
+        $user = $request->user();
+        $userPetIds = Pet::where('user_id', $user->id)->pluck('pet_id');
+
+        // Get the contract and verify user has access
+        $contract = BreedingContract::whereHas('conversation.matchRequest', function ($query) use ($userPetIds) {
+            $query->where(function ($q) use ($userPetIds) {
+                $q->whereIn('requester_pet_id', $userPetIds)
+                    ->orWhereIn('target_pet_id', $userPetIds);
+            });
+        })->find($contractId);
+
+        if (!$contract) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Contract not found or you do not have access',
+            ], 404);
+        }
+
+        // Check if there's a pending shooter request
+        if ($contract->shooter_status !== 'accepted_by_shooter') {
+            return response()->json([
+                'success' => false,
+                'message' => 'No pending shooter request to decline',
+            ], 400);
+        }
+
+        try {
+            // Reset shooter request - make offer available again
+            $contract->update([
+                'shooter_user_id' => null,
+                'shooter_status' => 'pending',
+                'shooter_accepted_at' => null,
+                'owner1_accepted_shooter' => false,
+                'owner2_accepted_shooter' => false,
+            ]);
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Shooter request declined. The offer is now available for other shooters.',
+                'data' => $this->formatContract($contract->fresh(), $user),
+            ]);
+        } catch (\Exception $e) {
+            \Log::error('Failed to decline shooter request: ' . $e->getMessage());
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to decline shooter request',
+            ], 500);
+        }
+    }
+
+    /**
+     * Get shooter request status for a contract
+     */
+    public function getShooterRequest(Request $request, $contractId)
+    {
+        $user = $request->user();
+        $userPetIds = Pet::where('user_id', $user->id)->pluck('pet_id');
+
+        // Get the contract and verify user has access
+        $contract = BreedingContract::whereHas('conversation.matchRequest', function ($query) use ($userPetIds) {
+            $query->where(function ($q) use ($userPetIds) {
+                $q->whereIn('requester_pet_id', $userPetIds)
+                    ->orWhereIn('target_pet_id', $userPetIds);
+            });
+        })
+        ->with(['shooter', 'conversation.matchRequest.requesterPet', 'conversation.matchRequest.targetPet'])
+        ->find($contractId);
+
+        if (!$contract) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Contract not found or you do not have access',
+            ], 404);
+        }
+
+        // Determine if user is owner1 or owner2
+        $matchRequest = $contract->conversation->matchRequest;
+        $isOwner1 = $matchRequest->requesterPet->user_id === $user->id;
+
+        $shooterData = null;
+        if ($contract->shooter) {
+            $shooterData = [
+                'id' => $contract->shooter->id,
+                'name' => $contract->shooter->name,
+                'profile_image' => $contract->shooter->profile_image,
+            ];
+        }
+
+        return response()->json([
+            'success' => true,
+            'data' => [
+                'shooter_status' => $contract->shooter_status,
+                'shooter' => $shooterData,
+                'owner1_accepted' => $contract->owner1_accepted_shooter,
+                'owner2_accepted' => $contract->owner2_accepted_shooter,
+                'is_owner1' => $isOwner1,
+                'current_user_accepted' => $isOwner1 
+                    ? $contract->owner1_accepted_shooter 
+                    : $contract->owner2_accepted_shooter,
+            ],
+        ]);
+    }
+
+    /**
      * Format contract for API response
      */
     private function formatContract(BreedingContract $contract, $user): array
     {
+        $contract->load('shooter');
+        
         return [
             'id' => $contract->id,
             'conversation_id' => $contract->conversation_id,
@@ -358,6 +553,17 @@ class BreedingContractController extends Controller
             'shooter_payment' => $contract->shooter_payment,
             'shooter_location' => $contract->shooter_location,
             'shooter_conditions' => $contract->shooter_conditions,
+            // Shooter Request Status
+            'shooter_user_id' => $contract->shooter_user_id,
+            'shooter_status' => $contract->shooter_status,
+            'shooter_accepted_at' => $contract->shooter_accepted_at?->toISOString(),
+            'owner1_accepted_shooter' => $contract->owner1_accepted_shooter,
+            'owner2_accepted_shooter' => $contract->owner2_accepted_shooter,
+            'shooter' => $contract->shooter ? [
+                'id' => $contract->shooter->id,
+                'name' => $contract->shooter->name,
+                'profile_image' => $contract->shooter->profile_image,
+            ] : null,
             // Payment & Compensation
             'end_contract_date' => $contract->end_contract_date?->format('Y-m-d'),
             'include_monetary_amount' => $contract->include_monetary_amount,

@@ -642,7 +642,7 @@ export default function ContractModal({
           <View className="flex-row mb-1.5">
             <Text className="text-gray-600 mr-1.5">•</Text>
             <Text className="text-xs text-gray-700 flex-1">
-              If one party doesn't respond within 3 days contract auto-cancels
+              {"If one party doesn't respond within 3 days contract auto-cancels"}
             </Text>
           </View>
           <View className="flex-row">
