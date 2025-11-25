@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from "react";
+import React, { useState, useEffect, useCallback, useMemo } from "react";
 import {
   View,
   Text,
@@ -15,6 +15,48 @@ import { useRouter, useLocalSearchParams } from "expo-router";
 import { getPet } from "@/services/petService";
 import { API_BASE_URL } from "@/config/env";
 import dayjs from "dayjs";
+
+type DocumentStatus = "valid" | "expiring_soon" | "expired";
+
+// Helper function to calculate document expiration status
+const getDocumentStatus = (expirationDate: string): DocumentStatus => {
+  const expDate = dayjs(expirationDate);
+  const now = dayjs();
+  const daysUntilExpiration = expDate.diff(now, "day");
+
+  if (daysUntilExpiration < 0) {
+    return "expired";
+  } else if (daysUntilExpiration <= 30) {
+    return "expiring_soon";
+  }
+  return "valid";
+};
+
+// Helper to get status indicator color
+const getStatusColor = (status: DocumentStatus): string => {
+  switch (status) {
+    case "expired":
+      return "bg-red-500";
+    case "expiring_soon":
+      return "bg-yellow-500";
+    case "valid":
+    default:
+      return "bg-green-500";
+  }
+};
+
+// Helper to get status badge styles
+const getStatusBadge = (status: DocumentStatus): { bg: string; text: string; label: string } => {
+  switch (status) {
+    case "expired":
+      return { bg: "bg-red-100", text: "text-red-600", label: "Expired" };
+    case "expiring_soon":
+      return { bg: "bg-yellow-100", text: "text-yellow-700", label: "Expiring Soon" };
+    case "valid":
+    default:
+      return { bg: "bg-green-100", text: "text-green-600", label: "Valid" };
+  }
+};
 
 export default function PetProfileScreen() {
   const router = useRouter();
@@ -77,6 +119,48 @@ export default function PetProfileScreen() {
       `/(pet)/(history)/health-history?type=${recordType}&petId=${petId}`
     );
   };
+
+  const handleResubmitVaccination = (vaccination: any) => {
+    router.push(
+      `/(verification)/resubmit-document?type=vaccination&petId=${petId}&petName=${petData.name}&vaccinationId=${vaccination.vaccination_id}&vaccineName=${vaccination.vaccine_name}`
+    );
+  };
+
+  const handleResubmitHealthRecord = (record: any) => {
+    router.push(
+      `/(verification)/resubmit-document?type=health_record&petId=${petId}&petName=${petData.name}&healthRecordId=${record.health_record_id}&recordType=${record.record_type}`
+    );
+  };
+
+  // Calculate document stats
+  const documentStats = useMemo(() => {
+    if (!petData) return { expiredCount: 0, expiringSoonCount: 0 };
+
+    let expiredCount = 0;
+    let expiringSoonCount = 0;
+
+    // Check vaccinations
+    if (petData.vaccinations) {
+      petData.vaccinations.forEach((v: any) => {
+        const status = getDocumentStatus(v.expiration_date);
+        if (status === "expired") expiredCount++;
+        else if (status === "expiring_soon") expiringSoonCount++;
+      });
+    }
+
+    // Check health records
+    if (petData.health_records) {
+      petData.health_records.forEach((r: any) => {
+        if (r.expiration_date) {
+          const status = getDocumentStatus(r.expiration_date);
+          if (status === "expired") expiredCount++;
+          else if (status === "expiring_soon") expiringSoonCount++;
+        }
+      });
+    }
+
+    return { expiredCount, expiringSoonCount };
+  }, [petData]);
 
   const calculateAge = (birthdate: string) => {
     const birth = dayjs(birthdate);
@@ -397,19 +481,67 @@ export default function PetProfileScreen() {
               <Text className="text-base font-bold text-black mb-3">
                 Health Status
               </Text>
-              <View className="bg-[#C8E6C9] rounded-full px-4 py-2 self-start">
-                <Text className="text-green-800 font-semibold text-sm">
-                  {petData.microchip_id ? "Microchipped" : "Not Microchipped"}
-                </Text>
+              <View className="flex-row flex-wrap gap-2">
+                <View className="bg-[#C8E6C9] rounded-full px-4 py-2">
+                  <Text className="text-green-800 font-semibold text-sm">
+                    {petData.microchip_id ? "Microchipped" : "Not Microchipped"}
+                  </Text>
+                </View>
+                {documentStats.expiredCount > 0 && (
+                  <View className="bg-red-100 rounded-full px-4 py-2">
+                    <Text className="text-red-600 font-semibold text-sm">
+                      {documentStats.expiredCount} Expired Document{documentStats.expiredCount > 1 ? "s" : ""}
+                    </Text>
+                  </View>
+                )}
+                {documentStats.expiringSoonCount > 0 && (
+                  <View className="bg-yellow-100 rounded-full px-4 py-2">
+                    <Text className="text-yellow-700 font-semibold text-sm">
+                      {documentStats.expiringSoonCount} Expiring Soon
+                    </Text>
+                  </View>
+                )}
               </View>
             </View>
+
+            {/* Document Status Alert */}
+            {(documentStats.expiredCount > 0 || documentStats.expiringSoonCount > 0) && (
+              <View className="mx-4 mb-2">
+                {documentStats.expiredCount > 0 && (
+                  <View className="bg-red-50 border border-red-200 rounded-xl p-4 mb-2">
+                    <View className="flex-row items-center">
+                      <Feather name="alert-circle" size={20} color="#DC2626" />
+                      <Text className="text-red-700 font-semibold ml-2 flex-1">
+                        Action Required
+                      </Text>
+                    </View>
+                    <Text className="text-red-600 text-sm mt-2">
+                      You have {documentStats.expiredCount} expired document{documentStats.expiredCount > 1 ? "s" : ""} that need{documentStats.expiredCount === 1 ? "s" : ""} to be resubmitted.
+                    </Text>
+                  </View>
+                )}
+                {documentStats.expiringSoonCount > 0 && (
+                  <View className="bg-yellow-50 border border-yellow-200 rounded-xl p-4">
+                    <View className="flex-row items-center">
+                      <Feather name="clock" size={20} color="#B45309" />
+                      <Text className="text-yellow-700 font-semibold ml-2 flex-1">
+                        Expiring Soon
+                      </Text>
+                    </View>
+                    <Text className="text-yellow-600 text-sm mt-2">
+                      You have {documentStats.expiringSoonCount} document{documentStats.expiringSoonCount > 1 ? "s" : ""} expiring within 30 days.
+                    </Text>
+                  </View>
+                )}
+              </View>
+            )}
 
             {/* Current Vaccinations */}
             {petData.vaccinations && petData.vaccinations.length > 0 && (
               <View className="px-6 py-4 bg-white mt-2 rounded-2xl mx-4 shadow-sm">
                 <View className="flex-row items-center justify-between mb-4">
                   <Text className="text-base font-bold text-black">
-                    Current Vaccinations
+                    Vaccinations
                   </Text>
                   <View className="bg-[#FF6B4A] rounded-full px-3 py-1">
                     <Text className="text-white font-semibold text-xs">
@@ -418,35 +550,75 @@ export default function PetProfileScreen() {
                   </View>
                 </View>
 
-                {petData.vaccinations.map((vaccination: any, index: number) => (
-                  <TouchableOpacity
-                    key={vaccination.vaccination_id || index}
-                    className="flex-row items-center justify-between py-3 border-b border-gray-100"
-                    onPress={() =>
-                      handleVaccinationPress(vaccination.vaccine_name)
-                    }
-                  >
-                    <View className="flex-row items-center flex-1">
-                      <View className="w-2 h-2 rounded-full bg-green-500 mr-3" />
-                      <Text className="text-base text-black">
-                        {vaccination.vaccine_name}
-                      </Text>
+                {petData.vaccinations.map((vaccination: any, index: number) => {
+                  const status = getDocumentStatus(vaccination.expiration_date);
+                  const statusBadge = getStatusBadge(status);
+                  const isExpired = status === "expired";
+                  const isExpiringSoon = status === "expiring_soon";
+
+                  return (
+                    <View
+                      key={vaccination.vaccination_id || index}
+                      className={`py-3 ${index < petData.vaccinations.length - 1 ? "border-b border-gray-100" : ""}`}
+                    >
+                      <TouchableOpacity
+                        className="flex-row items-center justify-between"
+                        onPress={() =>
+                          handleVaccinationPress(vaccination.vaccine_name)
+                        }
+                      >
+                        <View className="flex-row items-center flex-1">
+                          <View className={`w-2 h-2 rounded-full ${getStatusColor(status)} mr-3`} />
+                          <View className="flex-1">
+                            <Text className="text-base text-black">
+                              {vaccination.vaccine_name}
+                            </Text>
+                            <Text className="text-sm text-gray-500">
+                              Expires: {dayjs(vaccination.expiration_date).format("MM/DD/YYYY")}
+                            </Text>
+                          </View>
+                        </View>
+                        <View className={`${statusBadge.bg} rounded-full px-3 py-1`}>
+                          <Text className={`${statusBadge.text} font-semibold text-xs`}>
+                            {statusBadge.label}
+                          </Text>
+                        </View>
+                      </TouchableOpacity>
+
+                      {/* Resubmit button for expired documents */}
+                      {isExpired && (
+                        <TouchableOpacity
+                          className="mt-3 bg-red-500 rounded-lg py-2 px-4 flex-row items-center justify-center"
+                          onPress={() => handleResubmitVaccination(vaccination)}
+                        >
+                          <Feather name="upload" size={16} color="white" />
+                          <Text className="text-white font-semibold text-sm ml-2">
+                            Resubmit Document
+                          </Text>
+                        </TouchableOpacity>
+                      )}
+
+                      {/* Warning for expiring soon */}
+                      {isExpiringSoon && (
+                        <View className="mt-2 bg-yellow-50 rounded-lg py-2 px-3 flex-row items-center">
+                          <Feather name="alert-triangle" size={14} color="#B45309" />
+                          <Text className="text-yellow-700 text-xs ml-2">
+                            This document will expire soon. Consider renewing it.
+                          </Text>
+                        </View>
+                      )}
                     </View>
-                    <Text className="text-sm text-gray-600">
-                      Expires:{" "}
-                      {dayjs(vaccination.expiration_date).format("MM/DD/YYYY")}
-                    </Text>
-                  </TouchableOpacity>
-                ))}
+                  );
+                })}
               </View>
             )}
 
-            {/* Recent Health Records */}
+            {/* Health Records */}
             {petData.health_records && petData.health_records.length > 0 && (
               <View className="px-6 py-4 bg-white mt-4 rounded-2xl mx-4 shadow-sm">
                 <View className="flex-row items-center justify-between mb-4">
                   <Text className="text-base font-bold text-black">
-                    Recent Health Records
+                    Health Records
                   </Text>
                   <View className="bg-[#FF6B4A] rounded-full px-3 py-1">
                     <Text className="text-white font-semibold text-xs">
@@ -455,30 +627,73 @@ export default function PetProfileScreen() {
                   </View>
                 </View>
 
-                {petData.health_records.map((record: any, index: number) => (
-                  <TouchableOpacity
-                    key={record.health_record_id || index}
-                    className="flex-row items-center justify-between py-3"
-                    onPress={() => handleHealthRecordPress(record.record_type)}
-                  >
-                    <View className="flex-row items-center flex-1">
-                      <View className="w-2 h-2 rounded-full bg-green-500 mr-3" />
-                      <Text className="text-base text-black">
-                        {record.record_type}
-                      </Text>
+                {petData.health_records.map((record: any, index: number) => {
+                  const status = record.expiration_date 
+                    ? getDocumentStatus(record.expiration_date)
+                    : "valid";
+                  const statusBadge = getStatusBadge(status);
+                  const isExpired = status === "expired";
+                  const isExpiringSoon = status === "expiring_soon";
+
+                  return (
+                    <View
+                      key={record.health_record_id || index}
+                      className={`py-3 ${index < petData.health_records.length - 1 ? "border-b border-gray-100" : ""}`}
+                    >
+                      <TouchableOpacity
+                        className="flex-row items-center justify-between"
+                        onPress={() => handleHealthRecordPress(record.record_type)}
+                      >
+                        <View className="flex-row items-center flex-1">
+                          <View className={`w-2 h-2 rounded-full ${getStatusColor(status)} mr-3`} />
+                          <View className="flex-1">
+                            <Text className="text-base text-black">
+                              {record.record_type}
+                            </Text>
+                            {record.expiration_date && (
+                              <Text className="text-sm text-gray-500">
+                                Expires: {dayjs(record.expiration_date).format("MM/DD/YYYY")}
+                              </Text>
+                            )}
+                            {!record.expiration_date && record.given_date && (
+                              <Text className="text-sm text-gray-500">
+                                Given: {dayjs(record.given_date).format("MM/DD/YYYY")}
+                              </Text>
+                            )}
+                          </View>
+                        </View>
+                        <View className={`${statusBadge.bg} rounded-full px-3 py-1`}>
+                          <Text className={`${statusBadge.text} font-semibold text-xs`}>
+                            {record.expiration_date ? statusBadge.label : record.status}
+                          </Text>
+                        </View>
+                      </TouchableOpacity>
+
+                      {/* Resubmit button for expired documents */}
+                      {isExpired && record.expiration_date && (
+                        <TouchableOpacity
+                          className="mt-3 bg-red-500 rounded-lg py-2 px-4 flex-row items-center justify-center"
+                          onPress={() => handleResubmitHealthRecord(record)}
+                        >
+                          <Feather name="upload" size={16} color="white" />
+                          <Text className="text-white font-semibold text-sm ml-2">
+                            Resubmit Document
+                          </Text>
+                        </TouchableOpacity>
+                      )}
+
+                      {/* Warning for expiring soon */}
+                      {isExpiringSoon && record.expiration_date && (
+                        <View className="mt-2 bg-yellow-50 rounded-lg py-2 px-3 flex-row items-center">
+                          <Feather name="alert-triangle" size={14} color="#B45309" />
+                          <Text className="text-yellow-700 text-xs ml-2">
+                            This document will expire soon. Consider renewing it.
+                          </Text>
+                        </View>
+                      )}
                     </View>
-                    <View className="flex-row items-center">
-                      <View className="bg-[#FF6B4A] rounded-full px-3 py-1 mr-2">
-                        <Text className="text-white font-semibold text-xs">
-                          {record.status}
-                        </Text>
-                      </View>
-                      <Text className="text-sm text-gray-600">
-                        {dayjs(record.given_date).format("MM/DD/YYYY")}
-                      </Text>
-                    </View>
-                  </TouchableOpacity>
-                ))}
+                  );
+                })}
               </View>
             )}
 
