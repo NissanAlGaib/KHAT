@@ -26,6 +26,9 @@ export default function ShooterProfileScreen() {
 
   const [shooterData, setShooterData] = useState<ShooterProfile | null>(null);
   const [loading, setLoading] = useState(true);
+  const [activeRole, setActiveRole] = useState<"shooter" | "pet_owner">(
+    "shooter"
+  );
 
   const fetchShooterData = useCallback(async () => {
     try {
@@ -120,6 +123,38 @@ export default function ShooterProfileScreen() {
         </TouchableOpacity>
       </View>
 
+      {/* Role Toggle Tabs */}
+      <View className="px-5 py-3 flex-row justify-center gap-3 bg-white">
+        <TouchableOpacity
+          onPress={() => setActiveRole("shooter")}
+          className={`px-6 py-2 rounded-full ${
+            activeRole === "shooter" ? "bg-[#ea5b3a]" : "bg-[#F5F5F5]"
+          }`}
+        >
+          <Text
+            className={`text-sm font-semibold ${
+              activeRole === "shooter" ? "text-white" : "text-[#6B6B6B]"
+            }`}
+          >
+            SHOOTER
+          </Text>
+        </TouchableOpacity>
+        <TouchableOpacity
+          onPress={() => setActiveRole("pet_owner")}
+          className={`px-6 py-2 rounded-full ${
+            activeRole === "pet_owner" ? "bg-[#ea5b3a]" : "bg-[#F5F5F5]"
+          }`}
+        >
+          <Text
+            className={`text-sm font-semibold ${
+              activeRole === "pet_owner" ? "text-white" : "text-[#6B6B6B]"
+            }`}
+          >
+            PET OWNER
+          </Text>
+        </TouchableOpacity>
+      </View>
+
       <ScrollView className="flex-1" showsVerticalScrollIndicator={false}>
         {/* Hero Section */}
 
@@ -149,9 +184,10 @@ export default function ShooterProfileScreen() {
               <Text className="text-3xl font-extrabold text-[#111111] mb-1">
                 {shooterData.name}
               </Text>
-              {/* <Text className="text-base text-[#6B6B6B] font-medium mb-3">
-                {shooterData.location || "Baliwasan"}
-              </Text> */}
+              <Text className="text-base text-[#6B6B6B] font-medium mb-3">
+                {(shooterData as ShooterProfile & { location?: string })
+                  .location || "Baliwasan"}
+              </Text>
               <View className="flex-row gap-2 flex-wrap">
                 {ageText && (
                   <View className="bg-[#FFF0D6] px-4 py-2 rounded-full">
@@ -201,8 +237,13 @@ export default function ShooterProfileScreen() {
               <View className="flex-row justify-between">
                 {displayedBreeds.slice(0, 3).map((breed, index) => (
                   <View key={breed + index} className="items-center w-1/3">
-                    <View className="w-16 h-16 rounded-full bg-[#F6F6F6] border-2 border-white shadow items-center justify-center mb-2">
-                      <Feather name="camera" size={20} color="#B5B5B5" />
+                    <View className="relative">
+                      <View className="w-16 h-16 rounded-full bg-[#F6F6F6] border-2 border-[#ea5b3a] shadow items-center justify-center mb-2">
+                        <Feather name="camera" size={20} color="#B5B5B5" />
+                      </View>
+                      <View className="absolute -top-1 -right-1 w-5 h-5 rounded-full bg-[#ea5b3a] items-center justify-center border border-white">
+                        <Feather name="help-circle" size={12} color="white" />
+                      </View>
                     </View>
                     <Text className="text-xs font-semibold text-[#333333]">
                       {breed}
@@ -227,7 +268,7 @@ export default function ShooterProfileScreen() {
                 <View className="flex-row justify-between">
                   {shooterData.pets.slice(0, 3).map((pet) => (
                     <View key={pet.pet_id} className="items-center w-1/3">
-                      <View className="relative w-16 h-16 rounded-full border-2 border-white shadow overflow-hidden mb-2">
+                      <View className="relative w-16 h-16 rounded-full border-2 border-[#ea5b3a] shadow overflow-hidden mb-2">
                         {pet.profile_image ? (
                           <Image
                             source={{
@@ -338,14 +379,14 @@ export default function ShooterProfileScreen() {
           </View>
         </View>
 
-        {/* Verification details */}
+        {/* Owner details */}
         {(shooterData.id_verified ||
           shooterData.breeder_verified ||
           shooterData.shooter_verified) && (
           <View className="px-5 mt-6">
             <View className="bg-white rounded-[28px] border border-[#E6E6E6] px-5 py-4 shadow-sm">
               <Text className="text-base font-extrabold text-[#111111] mb-3">
-                Verification Status:
+                Owner details:
               </Text>
               <View className="gap-2">
                 {shooterData.id_verified && (
