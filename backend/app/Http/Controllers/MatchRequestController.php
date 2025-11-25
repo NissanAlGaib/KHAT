@@ -35,8 +35,15 @@ class MatchRequestController extends Controller
             ], 403);
         }
 
-        // Verify the target pet doesn't belong to the authenticated user
+        // Verify the target pet exists and doesn't belong to the authenticated user
         $targetPet = Pet::where('pet_id', $validated['target_pet_id'])->first();
+
+        if (!$targetPet) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Target pet not found',
+            ], 404);
+        }
 
         if ($targetPet->user_id === $user->id) {
             return response()->json([
