@@ -4,6 +4,7 @@ use App\Http\Controllers\Auth\AuthenticatedSessionController;
 use App\Http\Controllers\Auth\RegisteredUserController;
 use App\Http\Controllers\LitterController;
 use App\Http\Controllers\MatchController;
+use App\Http\Controllers\MatchRequestController;
 use App\Http\Controllers\NotificationController;
 use App\Http\Controllers\PetController;
 use App\Http\Controllers\ShooterController;
@@ -69,4 +70,17 @@ Route::middleware(['auth:sanctum'])
         // Notification routes
         Route::get('/notifications', [NotificationController::class, 'getNotifications']);
         Route::get('/notifications/count', [NotificationController::class, 'getNotificationCount']);
+
+        // Match request routes
+        Route::post('/match-requests', [MatchRequestController::class, 'store']);
+        Route::get('/match-requests/incoming', [MatchRequestController::class, 'incoming']);
+        Route::get('/match-requests/outgoing', [MatchRequestController::class, 'outgoing']);
+        Route::get('/match-requests/matches', [MatchRequestController::class, 'matches']);
+        Route::put('/match-requests/{id}/accept', [MatchRequestController::class, 'accept']);
+        Route::put('/match-requests/{id}/decline', [MatchRequestController::class, 'decline']);
+
+        // Conversation routes
+        Route::get('/conversations', [MatchRequestController::class, 'getConversations']);
+        Route::get('/conversations/{id}/messages', [MatchRequestController::class, 'getMessages']);
+        Route::post('/conversations/{id}/messages', [MatchRequestController::class, 'sendMessage']);
     });

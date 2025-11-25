@@ -94,6 +94,22 @@ class Pet extends Model
     }
 
     /**
+     * Get match requests sent by this pet
+     */
+    public function sentMatchRequests(): HasMany
+    {
+        return $this->hasMany(MatchRequest::class, 'requester_pet_id', 'pet_id');
+    }
+
+    /**
+     * Get match requests received by this pet
+     */
+    public function receivedMatchRequests(): HasMany
+    {
+        return $this->hasMany(MatchRequest::class, 'target_pet_id', 'pet_id');
+    }
+
+    /**
      * Get litters where this pet is the sire (male parent)
      */
     public function littersAsSire(): HasMany
