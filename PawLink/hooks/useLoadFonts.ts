@@ -1,7 +1,8 @@
 import { useFonts } from "expo-font";
+import { useEffect } from "react";
 
 export function useLoadFonts() {
-  const [fontsLoaded] = useFonts({
+  const [fontsLoaded, error] = useFonts({
     // 🟣 Baloo
     "Baloo-Regular": require("@/assets/fonts/Baloo-Regular.ttf"),
 
@@ -17,6 +18,12 @@ export function useLoadFonts() {
     "RobotoCondensed-Regular": require("@/assets/fonts/Roboto_Condensed-Regular.ttf"),
     "RobotoSemiCondensed-Regular": require("@/assets/fonts/Roboto_SemiCondensed-Regular.ttf"),
   });
+
+  useEffect(() => {
+    if (error) {
+      console.error("Font loading error:", error);
+    }
+  }, [error]);
 
   return fontsLoaded;
 }

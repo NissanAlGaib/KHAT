@@ -2,6 +2,8 @@ import {
   useContext,
   createContext,
   useEffect,
+  useMemo,
+  useCallback,
   type PropsWithChildren,
 } from "react";
 import { useStorageState } from "@/hooks/useStorageState";
@@ -48,11 +50,19 @@ export function SessionProvider({ children }: PropsWithChildren) {
   const [[isLoading, session], setSession] = useStorageState<string>("session");
   const [[, user], setUser] = useStorageState<User>("user");
 
-  const updateUser = async (userData: any) => {
-    await setUser(userData);
-  };
+  const handleUpdateUser = useCallback(
+    async (userData: any) => {
+      try {
+        await setUser(userData);
+      } catch (e) {
+        console.error("Error updating user data:", e);
+        throw e;
+      }
+    },
+    [setUser]
+  );
 
-  const handleSignOut = async () => {
+  const handleSignOut = useCallback(async () => {
     try {
       if (session) {
         await axiosInstance.post("/api/logout", null, {
@@ -69,13 +79,30 @@ export function SessionProvider({ children }: PropsWithChildren) {
       delete axiosInstance.defaults.headers.common["Authorization"];
       // navigation will be handled by the RootNavigator based on session state
     }
-  };
+  }, [session, setSession, setUser]);
+
+  const handleSignIn = useCallback(
+    async (token: string, userData: User) => {
+      try {
+        await setSession(token);
+        await setUser(userData);
+        axiosInstance.defaults.headers.common["Authorization"] =
+          `Bearer ${token}`;
+        // navigation will be handled by the RootNavigator or the calling screen
+      } catch (e) {
+        console.error("Error during sign in:", e);
+        throw e;
+      }
+    },
+    [setSession, setUser]
+  );
 
   useEffect(() => {
     if (!session) return;
 
     // ensure axiosInstance has the header for subsequent requests
-    axiosInstance.defaults.headers.common["Authorization"] = `Bearer ${session}`;
+    axiosInstance.defaults.headers.common["Authorization"] =
+      `Bearer ${session}`;
 
     // define the loader inside the effect so it doesn't need to be a dependency
     const loadUserInfo = async (token: string) => {
@@ -98,44 +125,25 @@ export function SessionProvider({ children }: PropsWithChildren) {
       }
     };
 
-    loadUserInfo(session);
-  }, [session, setUser, setSession]);
-  
-  const handleUpdateUser = async (userData: any) => {
-    try {
-      await setUser(userData);
-    } catch (e) {
-      console.error("Error updating user data:", e);
-      throw e;
+    // Only load user if we don't have one yet
+    if (!user) {
+      loadUserInfo(session);
     }
-  };
+  }, [session, user, setUser, setSession]);
 
-  const handleSignIn = async (token: string, userData: User) => {
-    try {
-      await setSession(token);
-      await setUser(userData);
-      axiosInstance.defaults.headers.common[
-        "Authorization"
-      ] = `Bearer ${token}`;
-      // navigation will be handled by the RootNavigator or the calling screen
-    } catch (e) {
-      console.error("Error during sign in:", e);
-      throw e;
-    }
-  };
+  const contextValue = useMemo(
+    () => ({
+      signIn: handleSignIn,
+      signOut: handleSignOut,
+      session,
+      user: user ?? null,
+      isLoading,
+      updateUser: handleUpdateUser,
+    }),
+    [handleSignIn, handleSignOut, session, user, isLoading, handleUpdateUser]
+  );
 
   return (
-    <AuthContext.Provider
-      value={{
-        signIn: handleSignIn,
-        signOut: handleSignOut,
-        session,
-        user: user ?? null,
-        isLoading,
-        updateUser: handleUpdateUser,
-      }}
-    >
-      {children}
-    </AuthContext.Provider>
+    <AuthContext.Provider value={contextValue}>{children}</AuthContext.Provider>
   );
 }
