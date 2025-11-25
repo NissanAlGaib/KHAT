@@ -68,7 +68,9 @@ export default function RootLayout() {
       <SessionProvider>
         <PetProvider>
           <RoleProvider>
-            <RootNavigator />
+            <NotificationProvider>
+              <RootNavigator />
+            </NotificationProvider>
           </RoleProvider>
         </PetProvider>
       </SessionProvider>
