@@ -1,5 +1,6 @@
 import { Slot, Redirect, useSegments } from "expo-router";
 import { SessionProvider, useSession } from "@/context/AuthContext";
+import { PetProvider } from "@/context/PetContext";
 import * as SplashScreen from "expo-splash-screen";
 import { useLoadFonts } from "@/hooks/useLoadFonts";
 import { useEffect } from "react";
@@ -40,7 +41,9 @@ export default function RootLayout() {
 
   return (
     <SessionProvider>
-      <RootNavigator />
+      <PetProvider>
+        <RootNavigator />
+      </PetProvider>
     </SessionProvider>
   );
 }

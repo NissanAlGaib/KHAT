@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useState } from "react";
 import { View, TouchableOpacity, Dimensions, Platform } from "react-native";
 import Animated, { FadeIn, FadeOut } from "react-native-reanimated";
 import Svg, { Path } from "react-native-svg";
@@ -11,6 +11,7 @@ import {
   User,
 } from "lucide-react-native";
 import { BottomTabBarProps } from "@react-navigation/bottom-tabs";
+import PetSelectionModal from "./PetSelectionModal";
 
 const { width } = Dimensions.get("window");
 const TAB_BAR_WIDTH = width * 0.9;
@@ -25,6 +26,7 @@ export default function CurvedTabBar({
 }: BottomTabBarProps) {
   const router = useRouter();
   const current = state.index;
+  const [showPetModal, setShowPetModal] = useState(false);
 
   type TabRoute =
     | "/(tabs)"
@@ -102,7 +104,7 @@ export default function CurvedTabBar({
           }}
         >
           <TouchableOpacity
-            onPress={() => router.push("/(tabs)/match")}
+            onPress={() => setShowPetModal(true)}
             style={{
               width: "100%",
               height: "100%",
@@ -169,6 +171,12 @@ export default function CurvedTabBar({
           })}
         </View>
       </View>
+
+      {/* Pet Selection Modal */}
+      <PetSelectionModal
+        visible={showPetModal}
+        onClose={() => setShowPetModal(false)}
+      />
     </View>
   );
 }

@@ -96,7 +96,6 @@ export const updateUserProfile = async (
 
 /**
  * Get user statistics for breeding overview
- * This is backend-ready but will return zeros until backend implements the logic
  */
 export const getUserStatistics = async (): Promise<UserStatistics> => {
   try {

@@ -10,6 +10,7 @@ import {
   ActivityIndicator,
 } from "react-native";
 import { useSession } from "@/context/AuthContext";
+import { usePet } from "@/context/PetContext";
 import { AnimatedSearchBar } from "@/components/app/AnimatedSearchBar";
 import SettingsDropdown from "@/components/app/SettingsDropdown";
 import {
@@ -102,6 +103,7 @@ function BannerCarousel({ images }: { images: any[] }) {
 
 function TopMatches({ matches }: { matches: TopMatch[] }) {
   const router = useRouter();
+  const { selectedPet } = usePet();
 
   // Show placeholder if no matches
   if (!matches || matches.length === 0) {
@@ -119,24 +121,60 @@ function TopMatches({ matches }: { matches: TopMatch[] }) {
               No Matches Yet
             </Text>
             <Text className="text-gray-500 text-sm">
-              Register a pet first to find perfect matches
+              {selectedPet
+                ? `No matches found for ${selectedPet.name}`
+                : "Select a pet to find perfect matches"}
             </Text>
           </View>
         </View>
 
-        <TouchableOpacity
-          className="mt-4 bg-[#ea5b3a] rounded-full py-3 px-6"
-          onPress={() => router.push("/(verification)/add-pet")}
-        >
-          <Text className="text-white text-center font-semibold">
-            Add Your First Pet
-          </Text>
-        </TouchableOpacity>
+        {!selectedPet && (
+          <TouchableOpacity
+            className="mt-4 bg-[#ea5b3a] rounded-full py-3 px-6"
+            onPress={() => router.push("/(verification)/add-pet")}
+          >
+            <Text className="text-white text-center font-semibold">
+              Add Your First Pet
+            </Text>
+          </TouchableOpacity>
+        )}
       </View>
     );
   }
 
-  const topMatch = matches[0];
+  // Filter matches to only show those involving the selected pet
+  const filteredMatches = selectedPet
+    ? matches.filter(
+        (match) =>
+          match.pet1.pet_id === selectedPet.pet_id ||
+          match.pet2.pet_id === selectedPet.pet_id
+      )
+    : matches;
+
+  if (filteredMatches.length === 0) {
+    return (
+      <View className="w-[90%] mt-6 self-center bg-[#F9DCDC] rounded-2xl p-4 border-[2px] border-white">
+        <View className="flex-row items-center">
+          <View className="w-12 h-12 rounded-full items-center justify-center mr-3">
+            <Image
+              source={require("@/assets/images/Heart_Icon.png")}
+              className="w-15 h-15"
+            />
+          </View>
+          <View className="flex-1">
+            <Text className="text-lg font-baloo text-[#ea5b3a]">
+              No Matches Yet
+            </Text>
+            <Text className="text-gray-500 text-sm">
+              No matches found for {selectedPet?.name}
+            </Text>
+          </View>
+        </View>
+      </View>
+    );
+  }
+
+  const topMatch = filteredMatches[0];
 
   return (
     <View className="w-[90%] mt-6 self-center bg-[#F9DCDC] rounded-2xl p-4 border-[2px] border-white">
@@ -207,6 +245,8 @@ export default function Homepage() {
   const [topMatches, setTopMatches] = useState<TopMatch[]>([]);
   const [shooters, setShooters] = useState<ShooterProfile[]>([]);
   const router = useRouter();
+  const { user } = useSession();
+  const { selectedPet } = usePet();
 
   const bannerImages = [
     require("../../assets/images/Homepage_Banner.png"),
@@ -216,7 +256,7 @@ export default function Homepage() {
 
   useEffect(() => {
     fetchData();
-  }, []);
+  }, [selectedPet]); // Refetch when selected pet changes
 
   const fetchData = async () => {
     try {
@@ -228,7 +268,23 @@ export default function Homepage() {
       ]);
       setAllPets(pets);
       setTopMatches(tops);
-      setShooters(shootersList);
+
+      // Filter out the current user from shooters list
+      console.log("Current user ID:", user?.id);
+      console.log(
+        "Shooters before filter:",
+        shootersList.map((s) => ({ id: s.id, name: s.name }))
+      );
+
+      const filteredShooters = shootersList.filter(
+        (shooter) => shooter.id !== Number(user?.id)
+      );
+
+      console.log(
+        "Shooters after filter:",
+        filteredShooters.map((s) => ({ id: s.id, name: s.name }))
+      );
+      setShooters(filteredShooters);
     } catch (error) {
       console.error("Error fetching homepage data:", error);
     } finally {
@@ -349,112 +405,129 @@ export default function Homepage() {
           </View>
         ) : (
           <View className="flex-row flex-wrap justify-between">
-            {shooters.map((shooter) => (
-              <TouchableOpacity
-                key={shooter.id}
-                onPress={() => console.log("Shooter profile", shooter.id)}
-                activeOpacity={0.85}
-                className="w-[48%] mb-4 bg-white rounded-2xl overflow-hidden"
-                style={{ elevation: 4 }}
-              >
-                <View style={{ position: "relative", height: IMAGE_HEIGHT }}>
-                  {shooter.profile_image ? (
-                    <Image
-                      source={{
-                        uri: `${API_BASE_URL}/storage/${shooter.profile_image}`,
-                      }}
-                      style={{
-                        width: "100%",
-                        height: IMAGE_HEIGHT,
-                        borderTopLeftRadius: 16,
-                        borderTopRightRadius: 16,
-                      }}
-                      resizeMode="cover"
-                    />
-                  ) : (
-                    <Image
-                      source={require("@/assets/images/icon.png")}
-                      style={{
-                        width: "100%",
-                        height: IMAGE_HEIGHT,
-                        borderTopLeftRadius: 16,
-                        borderTopRightRadius: 16,
-                      }}
-                      resizeMode="cover"
-                    />
-                  )}
+            {shooters.map((shooter) => {
+              const age = Math.ceil(shooter.age || 0);
+              const experienceYears = Math.ceil(shooter.experience_years || 0);
 
-                  {shooter.is_pet_owner && (
-                    <View
-                      style={{
-                        position: "absolute",
-                        right: 12,
-                        top: IMAGE_HEIGHT - 16,
-                        backgroundColor: "#ea5b3a",
-                        paddingHorizontal: 10,
-                        paddingVertical: 6,
-                        borderRadius: 20,
-                        elevation: 6,
-                      }}
-                    >
-                      <Text
+              return (
+                <TouchableOpacity
+                  key={shooter.id}
+                  onPress={() => router.push(`/(shooter)/${shooter.id}`)}
+                  activeOpacity={0.85}
+                  className="w-[48%] mb-4 bg-white rounded-2xl overflow-hidden"
+                  style={{ elevation: 4 }}
+                >
+                  <View style={{ position: "relative", height: IMAGE_HEIGHT }}>
+                    {shooter.profile_image ? (
+                      <Image
+                        source={{
+                          uri: shooter.profile_image.startsWith("http")
+                            ? shooter.profile_image
+                            : `${API_BASE_URL}/${shooter.profile_image.startsWith("storage/") ? shooter.profile_image : `storage/${shooter.profile_image}`}`,
+                        }}
                         style={{
-                          color: "white",
-                          fontSize: 12,
-                          fontFamily: "Mulish",
+                          width: "100%",
+                          height: IMAGE_HEIGHT,
+                          borderTopLeftRadius: 16,
+                          borderTopRightRadius: 16,
+                        }}
+                        resizeMode="cover"
+                        onError={(e) =>
+                          console.log(
+                            "Homepage shooter image error:",
+                            shooter.name,
+                            e.nativeEvent.error
+                          )
+                        }
+                      />
+                    ) : (
+                      <Image
+                        source={require("@/assets/images/icon.png")}
+                        style={{
+                          width: "100%",
+                          height: IMAGE_HEIGHT,
+                          borderTopLeftRadius: 16,
+                          borderTopRightRadius: 16,
+                        }}
+                        resizeMode="cover"
+                      />
+                    )}
+
+                    {shooter.is_pet_owner && (
+                      <View
+                        style={{
+                          position: "absolute",
+                          right: 12,
+                          top: IMAGE_HEIGHT - 16,
+                          backgroundColor: "#ea5b3a",
+                          paddingHorizontal: 10,
+                          paddingVertical: 6,
+                          borderRadius: 20,
+                          elevation: 6,
                         }}
                       >
-                        Pet Owner
-                      </Text>
-                    </View>
-                  )}
-                </View>
-
-                <View className="p-3 mt-0">
-                  <Text className="font-baloo text-lg text-[#111]">
-                    {shooter.name}
-                  </Text>
-                  <Text className="text-gray-400 text-sm">
-                    {shooter.specialization || "Pet Photographer"}
-                  </Text>
-
-                  <View className="flex-row gap-2 mt-3">
-                    <View className="bg-yellow-100 px-2 py-1 rounded-full">
-                      <Text className="text-xs text-yellow-800">
-                        {shooter.age || "N/A"} year
-                        {shooter.age !== 1 ? "s" : ""} old
-                      </Text>
-                    </View>
-                    {shooter.sex && (
-                      <View
-                        className={`px-2 py-1 rounded-full ${
-                          shooter.sex?.toLowerCase() === "female"
-                            ? "bg-pink-100"
-                            : "bg-emerald-100"
-                        }`}
-                      >
                         <Text
-                          className={`text-xs ${
-                            shooter.sex?.toLowerCase() === "female"
-                              ? "text-pink-800"
-                              : "text-emerald-800"
-                          }`}
+                          style={{
+                            color: "white",
+                            fontSize: 12,
+                            fontFamily: "Mulish",
+                          }}
                         >
-                          {shooter.sex}
+                          Pet Owner
                         </Text>
                       </View>
                     )}
                   </View>
 
-                  <View className="mt-3">
-                    <Text className="text-sm text-gray-400">
-                      {shooter.experience_years || 0} year
-                      {shooter.experience_years !== 1 ? "s" : ""} experience
+                  <View className="p-3 mt-0">
+                    <Text
+                      className="font-baloo text-lg text-[#111]"
+                      numberOfLines={1}
+                    >
+                      {shooter.name}
                     </Text>
+
+                    <View className="flex-row flex-wrap gap-2 mt-3">
+                      <View className="bg-yellow-100 px-2 py-1 rounded-full">
+                        <Text
+                          className="text-xs text-yellow-800"
+                          numberOfLines={1}
+                        >
+                          {age} year{age !== 1 ? "s" : ""} old
+                        </Text>
+                      </View>
+                      {shooter.sex && (
+                        <View
+                          className={`px-2 py-1 rounded-full ${
+                            shooter.sex?.toLowerCase() === "female"
+                              ? "bg-pink-100"
+                              : "bg-blue-100"
+                          }`}
+                        >
+                          <Text
+                            className={`text-xs ${
+                              shooter.sex?.toLowerCase() === "female"
+                                ? "text-pink-700"
+                                : "text-blue-700"
+                            }`}
+                            numberOfLines={1}
+                          >
+                            {shooter.sex}
+                          </Text>
+                        </View>
+                      )}
+                    </View>
+
+                    <View className="mt-3">
+                      <Text className="text-sm text-gray-400" numberOfLines={1}>
+                        {experienceYears} year{experienceYears !== 1 ? "s" : ""}{" "}
+                        experience
+                      </Text>
+                    </View>
                   </View>
-                </View>
-              </TouchableOpacity>
-            ))}
+                </TouchableOpacity>
+              );
+            })}
           </View>
         )}
       </View>
@@ -496,6 +569,38 @@ export default function Homepage() {
         contentContainerStyle={{ paddingBottom: 100 }}
         showsVerticalScrollIndicator={false}
       >
+        {/* Selected Pet Indicator */}
+        {selectedPet && (
+          <View className="w-[90%] self-center mb-4 bg-white rounded-2xl p-3 flex-row items-center border-2 border-[#ea5b3a]">
+            <View className="mr-3">
+              {selectedPet.photos?.find((p) => p.is_primary)?.photo_url ? (
+                <Image
+                  source={{
+                    uri: `${API_BASE_URL}/storage/${
+                      selectedPet.photos.find((p) => p.is_primary)?.photo_url
+                    }`,
+                  }}
+                  className="w-12 h-12 rounded-full"
+                  resizeMode="cover"
+                />
+              ) : (
+                <View className="w-12 h-12 rounded-full bg-[#FFE0D8] items-center justify-center">
+                  <Text className="text-2xl">🐾</Text>
+                </View>
+              )}
+            </View>
+            <View className="flex-1">
+              <Text className="text-xs text-gray-500">Currently Viewing</Text>
+              <Text className="font-baloo text-base text-[#111111]">
+                {selectedPet.name}
+              </Text>
+            </View>
+            <View className="bg-[#ea5b3a] px-3 py-1 rounded-full">
+              <Text className="text-white text-xs font-semibold">ACTIVE</Text>
+            </View>
+          </View>
+        )}
+
         <BannerCarousel images={bannerImages} />
         <TopMatches matches={topMatches} />
 

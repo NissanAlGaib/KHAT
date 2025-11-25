@@ -131,18 +131,127 @@ class AdminController extends Controller
      */
     public function petsIndex(Request $request)
     {
-        $status = $request->get('status', 'active');
+        $query = Pet::with(['owner.userAuth', 'photos']);
 
-        $query = Pet::with(['owner', 'photos']);
-
-        // Filter by pet status
-        if ($status !== 'all') {
-            $query->where('status', $status);
+        // Filter by species (pet type)
+        if ($request->filled('pet_type')) {
+            $query->where('species', $request->pet_type);
         }
 
-        $pets = $query->paginate(15);
+        // Filter by breed
+        if ($request->filled('breed')) {
+            $query->where('breed', 'like', '%' . $request->breed . '%');
+        }
 
-        return view('admin.pets.index', compact('pets', 'status'));
+        // Filter by sex
+        if ($request->filled('sex')) {
+            $query->where('sex', $request->sex);
+        }
+
+        // Filter by verification status (owner's verification status)
+        if ($request->filled('verification_status')) {
+            $query->whereHas('owner.userAuth', function ($q) use ($request) {
+                $q->where('status', $request->verification_status);
+            });
+        }
+
+        // Filter by activity status (pet status)
+        if ($request->filled('activity_status')) {
+            $query->where('status', $request->activity_status);
+        }
+
+        // Search by name or ID
+        if ($request->filled('search')) {
+            $search = $request->search;
+            $query->where(function ($q) use ($search) {
+                $q->where('name', 'like', "%{$search}%")
+                    ->orWhere('pet_id', 'like', "%{$search}%");
+            });
+        }
+
+        $pets = $query->paginate(10)->appends($request->query());
+
+        return view('admin.pets.index', compact('pets'));
+    }
+
+    /**
+     * Display pet details page.
+     */
+    public function petDetails($petId)
+    {
+        $pet = Pet::with([
+            'owner.userAuth',
+            'photos',
+            'vaccinations',
+            'healthRecords',
+            'littersAsSire.dam',
+            'littersAsSire.offspring',
+            'littersAsDam.sire',
+            'littersAsDam.offspring',
+            'offspringRecord.litter'
+        ])->findOrFail($petId);
+
+        // Get all litters (as sire or dam) with partner information
+        $litters = collect();
+
+        if ($pet->sex === 'male') {
+            $litters = $pet->littersAsSire()
+                ->with(['dam', 'offspring'])
+                ->orderBy('birth_date', 'desc')
+                ->get();
+        } else {
+            $litters = $pet->littersAsDam()
+                ->with(['sire', 'offspring'])
+                ->orderBy('birth_date', 'desc')
+                ->get();
+        }
+
+        return view('admin.pets.show', compact('pet', 'litters'));
+    }
+
+    /**
+     * Update pet status.
+     */
+    public function updatePetStatus(Request $request, $petId)
+    {
+        $request->validate([
+            'status' => 'required|in:active,disabled,cooldown,banned',
+        ]);
+
+        $pet = Pet::findOrFail($petId);
+        $pet->status = $request->status;
+        $pet->save();
+
+        return redirect()->route('admin.pets.details', $petId)
+            ->with('success', 'Pet status updated successfully.');
+    }
+
+    /**
+     * Delete a pet.
+     */
+    public function deletePet($petId)
+    {
+        $pet = Pet::findOrFail($petId);
+        $pet->delete();
+
+        return redirect()->route('admin.pets.index')
+            ->with('success', 'Pet deleted successfully.');
+    }
+
+    /**
+     * Display litter details page.
+     */
+    public function litterDetails($litterId)
+    {
+        $litter = \App\Models\Litter::with([
+            'sire',
+            'dam',
+            'sireOwner',
+            'damOwner',
+            'offspring'
+        ])->findOrFail($litterId);
+
+        return view('admin.litters.show', compact('litter'));
     }
 
     /**

@@ -24,6 +24,18 @@ export interface PetMatch {
   match_reasons?: string[];
 }
 
+export interface ShooterPet {
+  pet_id: number;
+  name: string;
+  breed: string;
+  species: string;
+  sex: string;
+  profile_image?: string;
+  status: "Available" | "Breeding";
+  has_been_bred: boolean;
+  breeding_count: number;
+}
+
 export interface ShooterProfile {
   id: number;
   name: string;
@@ -34,8 +46,24 @@ export interface ShooterProfile {
   experience_years?: number;
   specialization?: string;
   is_pet_owner: boolean;
+  breeds_handled: string[];
+  pets: ShooterPet[];
   rating?: number;
   completed_sessions?: number;
+  breeders_handled?: number;
+  successful_shoots?: number;
+  verification_status?: string;
+  id_verified?: boolean;
+  breeder_verified?: boolean;
+  shooter_verified?: boolean;
+  statistics: {
+    total_pets: number;
+    matched: number;
+    dog_count: number;
+    cat_count: number;
+    breeders_handled: number;
+    successful_shoots: number;
+  };
 }
 
 export interface TopMatch {
@@ -117,6 +145,24 @@ export const getShooters = async (): Promise<ShooterProfile[]> => {
       error.response?.data || error.message
     );
     return [];
+  }
+};
+
+/**
+ * Get detailed shooter profile by ID
+ */
+export const getShooterProfile = async (
+  shooterId: number
+): Promise<ShooterProfile> => {
+  try {
+    const response = await axiosInstance.get(`/api/shooters/${shooterId}`);
+    return response.data.data;
+  } catch (error: any) {
+    console.error(
+      "Error getting shooter profile:",
+      error.response?.data || error.message
+    );
+    throw error;
   }
 };
 

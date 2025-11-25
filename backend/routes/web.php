@@ -28,6 +28,12 @@ Route::prefix('admin')->group(function () {
 
         // Pet Management
         Route::get('/pets', [AdminController::class, 'petsIndex'])->name('admin.pets.index');
+        Route::get('/pets/{petId}/details', [AdminController::class, 'petDetails'])->name('admin.pets.details');
+        Route::post('/pets/{petId}/status', [AdminController::class, 'updatePetStatus'])->name('admin.pets.status.update');
+        Route::delete('/pets/{petId}', [AdminController::class, 'deletePet'])->name('admin.pets.delete');
+
+        // Litter/Match Management
+        Route::get('/litters/{litterId}/details', [AdminController::class, 'litterDetails'])->name('admin.litters.details');
 
         // Other Admin Pages
         Route::get('/matches', [AdminController::class, 'matchHistory'])->name('admin.matches');

@@ -121,18 +121,51 @@ class UserController extends Controller
     {
         $user = $request->user();
 
-        // TODO: Implement actual calculations based on:
-        // - Current breeding: Count of active breeding sessions
-        // - Total matches: Count of all successful matches
-        // - Success rate: Percentage of successful breeding
-        // - Income: Total earnings from breeding services
+        // Get all pet IDs owned by the user
+        $petIds = $user->pets()->pluck('pet_id');
 
-        // For now, return placeholder data
+        // Current breeding: Count of active litters (birth_date within last 6 months)
+        $currentBreeding = \App\Models\Litter::where(function ($query) use ($petIds) {
+            $query->whereIn('sire_id', $petIds)
+                ->orWhereIn('dam_id', $petIds);
+        })
+            ->where('status', 'active')
+            ->where('birth_date', '>=', now()->subMonths(6))
+            ->count();
+
+        // Total matches: Count of all litters where user's pets are involved
+        $totalMatches = \App\Models\Litter::where(function ($query) use ($petIds) {
+            $query->whereIn('sire_id', $petIds)
+                ->orWhereIn('dam_id', $petIds);
+        })
+            ->count();
+
+        // Success rate: Percentage of litters with alive offspring
+        $littersWithData = \App\Models\Litter::where(function ($query) use ($petIds) {
+            $query->whereIn('sire_id', $petIds)
+                ->orWhereIn('dam_id', $petIds);
+        })
+            ->where('total_offspring', '>', 0)
+            ->get();
+
+        $successRate = 0;
+        if ($littersWithData->count() > 0) {
+            $successfulLitters = $littersWithData->filter(function ($litter) {
+                return $litter->alive_offspring > 0;
+            })->count();
+            $successRate = round(($successfulLitters / $littersWithData->count()) * 100);
+        }
+
+        // Income: Calculate based on breeding services
+        // For now, we'll use a placeholder calculation
+        // In a real system, this would come from a transactions or payments table
+        $income = $totalMatches * 500.00; // Example: 500 per match
+
         return response()->json([
-            'current_breeding' => 0,
-            'total_matches' => 0,
-            'success_rate' => 0,
-            'income' => 0.00,
+            'current_breeding' => $currentBreeding,
+            'total_matches' => $totalMatches,
+            'success_rate' => $successRate,
+            'income' => $income,
         ]);
     }
 }

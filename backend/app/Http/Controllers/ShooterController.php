@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use Illuminate\Http\Request;
 use App\Models\User;
 use App\Models\Role;
+use Carbon\Carbon;
 
 class ShooterController extends Controller
 {
@@ -15,7 +16,7 @@ class ShooterController extends Controller
     {
         try {
             // Get the shooter role ID
-            $shooterRole = Role::where('role_type', 'shooter')->first();
+            $shooterRole = Role::where('role_type', 'Shooter')->first();
 
             if (!$shooterRole) {
                 return response()->json([
@@ -38,12 +39,18 @@ class ShooterController extends Controller
 
             $shooterProfiles = $shooters->map(function ($user) {
                 // Calculate experience (assuming user created_at as start date)
-                $experienceYears = $user->created_at ? $user->created_at->diffInYears(now()) : 0;
+                $experienceYears = $user->created_at ? ceil($user->created_at->diffInYears(now())) : 0;
 
                 // Check if user is also a pet owner
                 $isPetOwner = $user->roles->contains(function ($role) {
-                    return $role->role_type === 'pet_owner';
+                    return $role->role_type === 'Breeder';
                 });
+
+                // Get pet breed if user is a pet owner
+                $petBreed = null;
+                if ($isPetOwner && $user->pets->isNotEmpty()) {
+                    $petBreed = $user->pets->first()->breed;
+                }
 
                 return [
                     'id' => $user->id,
@@ -51,10 +58,11 @@ class ShooterController extends Controller
                     'profile_image' => $user->profile_image,
                     'sex' => $user->sex,
                     'birthdate' => $user->birthdate,
-                    'age' => $user->birthdate ? now()->diffInYears($user->birthdate) : null,
+                    'age' => $user->birthdate ? ceil(Carbon::parse($user->birthdate)->diffInYears(now())) : null,
                     'experience_years' => $experienceYears,
                     'specialization' => null, // TODO: Add specialization field to users table
                     'is_pet_owner' => $isPetOwner,
+                    'pet_breed' => $petBreed,
                     'rating' => null, // TODO: Implement rating system
                     'completed_sessions' => null, // TODO: Implement session tracking
                 ];
@@ -79,7 +87,7 @@ class ShooterController extends Controller
     public function show(Request $request, $id)
     {
         try {
-            $shooter = User::with(['roles', 'pets', 'userAuth'])->find($id);
+            $shooter = User::with(['roles', 'pets.photos', 'pets.partnerPreferences', 'userAuth'])->find($id);
 
             if (!$shooter) {
                 return response()->json([
@@ -90,7 +98,7 @@ class ShooterController extends Controller
 
             // Check if user has shooter role
             $hasShooterRole = $shooter->roles->contains(function ($role) {
-                return $role->role_type === 'shooter';
+                return $role->role_type === 'Shooter';
             });
 
             if (!$hasShooterRole) {
@@ -100,11 +108,68 @@ class ShooterController extends Controller
                 ], 404);
             }
 
-            $experienceYears = $shooter->created_at ? $shooter->created_at->diffInYears(now()) : 0;
+            $experienceYears = $shooter->created_at ? ceil($shooter->created_at->diffInYears(now())) : 0;
 
             $isPetOwner = $shooter->roles->contains(function ($role) {
-                return $role->role_type === 'pet_owner';
+                return $role->role_type === 'Breeder';
             });
+
+            // Collect unique breeds handled (from preferences or pets owned)
+            $breedsHandled = collect();
+
+            // Get breeds from owned pets
+            if ($isPetOwner && $shooter->pets->isNotEmpty()) {
+                $shooter->pets->each(function ($pet) use ($breedsHandled) {
+                    $breedsHandled->push($pet->breed);
+                });
+            }
+
+            // Get formatted pets data if user is a breeder
+            $petsData = [];
+            if ($isPetOwner && $shooter->pets->isNotEmpty()) {
+                $petsData = $shooter->pets->map(function ($pet) {
+                    $primaryPhoto = $pet->photos->where('is_primary', true)->first();
+
+                    // Determine status based on breeding activity
+                    $status = 'Available';
+                    if ($pet->has_been_bred && $pet->breeding_count > 0) {
+                        $status = 'Breeding';
+                    }
+
+                    return [
+                        'pet_id' => $pet->pet_id,
+                        'name' => $pet->name,
+                        'breed' => $pet->breed,
+                        'species' => $pet->species,
+                        'sex' => $pet->sex,
+                        'profile_image' => $primaryPhoto ? $primaryPhoto->photo_url : $pet->profile_image,
+                        'status' => $status,
+                        'has_been_bred' => $pet->has_been_bred,
+                        'breeding_count' => $pet->breeding_count,
+                    ];
+                })->values()->toArray();
+            }
+
+            // Calculate statistics
+            $totalPets = $shooter->pets->count();
+            $dogCount = $shooter->pets->where('species', 'Dog')->count();
+            $catCount = $shooter->pets->where('species', 'Cat')->count();
+
+            // Count pets that have been matched/bred
+            $matchedCount = $shooter->pets->where('has_been_bred', true)->count();
+
+            // Check verification statuses
+            $idVerified = $shooter->userAuth->where('auth_type', 'id')
+                ->where('status', 'approved')
+                ->isNotEmpty();
+
+            $breederVerified = $shooter->userAuth->where('auth_type', 'breeder_certificate')
+                ->where('status', 'approved')
+                ->isNotEmpty();
+
+            $shooterVerified = $shooter->userAuth->where('auth_type', 'shooter_certificate')
+                ->where('status', 'approved')
+                ->isNotEmpty();
 
             $shooterProfile = [
                 'id' => $shooter->id,
@@ -113,15 +178,30 @@ class ShooterController extends Controller
                 'profile_image' => $shooter->profile_image,
                 'sex' => $shooter->sex,
                 'birthdate' => $shooter->birthdate,
-                'age' => $shooter->birthdate ? now()->diffInYears($shooter->birthdate) : null,
+                'age' => $shooter->birthdate ? ceil(Carbon::parse($shooter->birthdate)->diffInYears(now())) : null,
                 'contact_number' => $shooter->contact_number,
                 'address' => $shooter->address,
                 'experience_years' => $experienceYears,
                 'specialization' => null,
                 'is_pet_owner' => $isPetOwner,
-                'rating' => null,
-                'completed_sessions' => null,
+                'breeds_handled' => $breedsHandled->unique()->values()->toArray(),
+                'pets' => $petsData,
+                'rating' => null, // TODO: Implement rating system
+                'completed_sessions' => null, // TODO: Implement session tracking
+                'breeders_handled' => 0, // TODO: Implement breeder tracking
+                'successful_shoots' => 0, // TODO: Implement shoot tracking
                 'verification_status' => $shooter->userAuth->where('auth_type', 'shooter_certificate')->first()?->status ?? 'pending',
+                'id_verified' => $idVerified,
+                'breeder_verified' => $breederVerified,
+                'shooter_verified' => $shooterVerified,
+                'statistics' => [
+                    'total_pets' => $totalPets,
+                    'matched' => $matchedCount,
+                    'dog_count' => $dogCount,
+                    'cat_count' => $catCount,
+                    'breeders_handled' => 0, // TODO: Implement
+                    'successful_shoots' => 0, // TODO: Implement
+                ],
             ];
 
             return response()->json([
