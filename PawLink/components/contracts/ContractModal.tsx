@@ -9,6 +9,8 @@ import {
   ActivityIndicator,
   KeyboardAvoidingView,
   Platform,
+  Animated,
+  Dimensions,
 } from "react-native";
 import { X, ChevronLeft, ChevronRight } from "lucide-react-native";
 import DateTimePickerModal from "react-native-modal-datetime-picker";
@@ -19,6 +21,8 @@ import {
   createContract,
   updateContract,
 } from "@/services/contractService";
+
+const { height: SCREEN_HEIGHT } = Dimensions.get("window");
 
 interface ContractModalProps {
   visible: boolean;
@@ -40,6 +44,20 @@ export default function ContractModal({
   const [currentStep, setCurrentStep] = useState(1);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [showDatePicker, setShowDatePicker] = useState(false);
+  const scaleAnim = React.useRef(new Animated.Value(0)).current;
+
+  React.useEffect(() => {
+    if (visible) {
+      Animated.spring(scaleAnim, {
+        toValue: 1,
+        useNativeDriver: true,
+        tension: 50,
+        friction: 7,
+      }).start();
+    } else {
+      scaleAnim.setValue(0);
+    }
+  }, [visible, scaleAnim]);
 
   // Form state
   const [formData, setFormData] = useState<ContractFormData>({
@@ -145,16 +163,16 @@ export default function ContractModal({
   const collateralPerOwner = (formData.collateral_total || 0) / 2;
 
   const renderStepIndicator = () => (
-    <View className="flex-row justify-center items-center py-4">
+    <View className="flex-row justify-center items-center py-3 bg-gray-50">
       {[1, 2, 3].map((step) => (
         <React.Fragment key={step}>
           <View
-            className={`w-8 h-8 rounded-full items-center justify-center ${
+            className={`w-7 h-7 rounded-full items-center justify-center ${
               step <= currentStep ? "bg-[#FF6B6B]" : "bg-gray-300"
             }`}
           >
             <Text
-              className={`font-semibold ${
+              className={`text-sm font-semibold ${
                 step <= currentStep ? "text-white" : "text-gray-600"
               }`}
             >
@@ -174,35 +192,37 @@ export default function ContractModal({
   );
 
   const renderStep1 = () => (
-    <ScrollView className="flex-1" showsVerticalScrollIndicator={false}>
-      <Text className="text-lg font-semibold text-gray-900 mb-2">
+    <ScrollView className="flex-1" showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 16 }}>
+      <Text className="text-base font-semibold text-gray-900 mb-1">
         Optional Shooter Agreement
       </Text>
-      <Text className="text-sm text-gray-500 mb-4">
+      <Text className="text-xs text-gray-500 mb-3">
         Add a third-party shooter if applicable
       </Text>
 
       {/* Shooter Name */}
-      <View className="mb-4">
-        <Text className="text-sm font-medium text-gray-700 mb-2">
+      <View className="mb-3">
+        <Text className="text-xs font-medium text-gray-700 mb-1">
           Shooter Name
         </Text>
         <TextInput
-          className="bg-gray-100 rounded-xl px-4 py-3 text-base"
+          className="bg-gray-100 rounded-xl px-3 py-2.5 text-sm"
           placeholder="Enter shooter name"
+          placeholderTextColor="#9CA3AF"
           value={formData.shooter_name}
           onChangeText={(text) => updateFormField("shooter_name", text)}
         />
       </View>
 
       {/* Shooter Payment */}
-      <View className="mb-4">
-        <Text className="text-sm font-medium text-gray-700 mb-2">
+      <View className="mb-3">
+        <Text className="text-xs font-medium text-gray-700 mb-1">
           Shooter Payment ($)
         </Text>
         <TextInput
-          className="bg-gray-100 rounded-xl px-4 py-3 text-base"
+          className="bg-gray-100 rounded-xl px-3 py-2.5 text-sm"
           placeholder="Enter payment amount"
+          placeholderTextColor="#9CA3AF"
           value={formData.shooter_payment?.toString() || ""}
           onChangeText={(text) =>
             updateFormField(
@@ -215,24 +235,26 @@ export default function ContractModal({
       </View>
 
       {/* Location */}
-      <View className="mb-4">
-        <Text className="text-sm font-medium text-gray-700 mb-2">Location</Text>
+      <View className="mb-3">
+        <Text className="text-xs font-medium text-gray-700 mb-1">Location</Text>
         <TextInput
-          className="bg-gray-100 rounded-xl px-4 py-3 text-base"
+          className="bg-gray-100 rounded-xl px-3 py-2.5 text-sm"
           placeholder="Enter location"
+          placeholderTextColor="#9CA3AF"
           value={formData.shooter_location}
           onChangeText={(text) => updateFormField("shooter_location", text)}
         />
       </View>
 
       {/* Conditions */}
-      <View className="mb-4">
-        <Text className="text-sm font-medium text-gray-700 mb-2">
+      <View className="mb-2">
+        <Text className="text-xs font-medium text-gray-700 mb-1">
           Conditions
         </Text>
         <TextInput
-          className="bg-gray-100 rounded-xl px-4 py-3 text-base min-h-[100px]"
+          className="bg-gray-100 rounded-xl px-3 py-2.5 text-sm min-h-[70px]"
           placeholder="Enter conditions (max 200 characters)"
+          placeholderTextColor="#9CA3AF"
           value={formData.shooter_conditions}
           onChangeText={(text) => updateFormField("shooter_conditions", text)}
           multiline
@@ -247,25 +269,25 @@ export default function ContractModal({
   );
 
   const renderStep2 = () => (
-    <ScrollView className="flex-1" showsVerticalScrollIndicator={false}>
-      <Text className="text-lg font-semibold text-gray-900 mb-2">
+    <ScrollView className="flex-1" showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 16 }}>
+      <Text className="text-base font-semibold text-gray-900 mb-1">
         Payment & Compensation
       </Text>
-      <Text className="text-sm text-gray-500 mb-4">
+      <Text className="text-xs text-gray-500 mb-3">
         Define the financial terms of the agreement
       </Text>
 
       {/* End Contract Date */}
-      <View className="mb-4">
-        <Text className="text-sm font-medium text-gray-700 mb-2">
+      <View className="mb-3">
+        <Text className="text-xs font-medium text-gray-700 mb-1">
           End Contract Date
         </Text>
         <TouchableOpacity
-          className="bg-gray-100 rounded-xl px-4 py-3"
+          className="bg-gray-100 rounded-xl px-3 py-2.5"
           onPress={() => setShowDatePicker(true)}
         >
           <Text
-            className={`text-base ${
+            className={`text-sm ${
               formData.end_contract_date ? "text-gray-900" : "text-gray-400"
             }`}
           >
@@ -278,7 +300,7 @@ export default function ContractModal({
 
       {/* Include Monetary Amount */}
       <TouchableOpacity
-        className="flex-row items-center mb-4"
+        className="flex-row items-center mb-3"
         onPress={() =>
           updateFormField(
             "include_monetary_amount",
@@ -287,7 +309,7 @@ export default function ContractModal({
         }
       >
         <View
-          className={`w-6 h-6 rounded border-2 mr-3 items-center justify-center ${
+          className={`w-5 h-5 rounded border-2 mr-2 items-center justify-center ${
             formData.include_monetary_amount
               ? "bg-[#FF6B6B] border-[#FF6B6B]"
               : "border-gray-300"
@@ -297,14 +319,15 @@ export default function ContractModal({
             <Text className="text-white text-xs font-bold">✓</Text>
           )}
         </View>
-        <Text className="text-base text-gray-700">Include Monetary Amount</Text>
+        <Text className="text-sm text-gray-700">Include Monetary Amount</Text>
       </TouchableOpacity>
 
       {formData.include_monetary_amount && (
-        <View className="mb-4 ml-9">
+        <View className="mb-3 ml-7">
           <TextInput
-            className="bg-gray-100 rounded-xl px-4 py-3 text-base"
+            className="bg-gray-100 rounded-xl px-3 py-2.5 text-sm"
             placeholder="Enter amount ($)"
+            placeholderTextColor="#9CA3AF"
             value={formData.monetary_amount?.toString() || ""}
             onChangeText={(text) =>
               updateFormField(
@@ -319,13 +342,13 @@ export default function ContractModal({
 
       {/* Share Offspring */}
       <TouchableOpacity
-        className="flex-row items-center mb-4"
+        className="flex-row items-center mb-3"
         onPress={() =>
           updateFormField("share_offspring", !formData.share_offspring)
         }
       >
         <View
-          className={`w-6 h-6 rounded border-2 mr-3 items-center justify-center ${
+          className={`w-5 h-5 rounded border-2 mr-2 items-center justify-center ${
             formData.share_offspring
               ? "bg-[#FF6B6B] border-[#FF6B6B]"
               : "border-gray-300"
@@ -335,18 +358,18 @@ export default function ContractModal({
             <Text className="text-white text-xs font-bold">✓</Text>
           )}
         </View>
-        <Text className="text-base text-gray-700">Share Offspring</Text>
+        <Text className="text-sm text-gray-700">Share Offspring</Text>
       </TouchableOpacity>
 
       {formData.share_offspring && (
-        <View className="mb-4 ml-9">
+        <View className="mb-3 ml-7">
           {/* Split Type */}
-          <Text className="text-sm font-medium text-gray-700 mb-2">
+          <Text className="text-xs font-medium text-gray-700 mb-1">
             Split Type
           </Text>
-          <View className="flex-row mb-3">
+          <View className="flex-row mb-2">
             <TouchableOpacity
-              className={`flex-1 py-3 rounded-l-xl border ${
+              className={`flex-1 py-2 rounded-l-xl border ${
                 formData.offspring_split_type === "percentage"
                   ? "bg-[#FF6B6B] border-[#FF6B6B]"
                   : "bg-white border-gray-300"
@@ -356,17 +379,17 @@ export default function ContractModal({
               }
             >
               <Text
-                className={`text-center font-medium ${
+                className={`text-center text-xs font-medium ${
                   formData.offspring_split_type === "percentage"
                     ? "text-white"
                     : "text-gray-700"
                 }`}
               >
-                Percentage Split
+                Percentage
               </Text>
             </TouchableOpacity>
             <TouchableOpacity
-              className={`flex-1 py-3 rounded-r-xl border ${
+              className={`flex-1 py-2 rounded-r-xl border ${
                 formData.offspring_split_type === "specific_number"
                   ? "bg-[#FF6B6B] border-[#FF6B6B]"
                   : "bg-white border-gray-300"
@@ -376,25 +399,26 @@ export default function ContractModal({
               }
             >
               <Text
-                className={`text-center font-medium ${
+                className={`text-center text-xs font-medium ${
                   formData.offspring_split_type === "specific_number"
                     ? "text-white"
                     : "text-gray-700"
                 }`}
               >
-                Specific Number
+                Specific #
               </Text>
             </TouchableOpacity>
           </View>
 
           {/* Split Value */}
           <TextInput
-            className="bg-gray-100 rounded-xl px-4 py-3 text-base mb-3"
+            className="bg-gray-100 rounded-xl px-3 py-2 text-sm mb-2"
             placeholder={
               formData.offspring_split_type === "percentage"
                 ? "Enter percentage (e.g., 50)"
                 : "Enter number of offspring"
             }
+            placeholderTextColor="#9CA3AF"
             value={formData.offspring_split_value?.toString() || ""}
             onChangeText={(text) =>
               updateFormField(
@@ -406,12 +430,12 @@ export default function ContractModal({
           />
 
           {/* Selection Method */}
-          <Text className="text-sm font-medium text-gray-700 mb-2">
+          <Text className="text-xs font-medium text-gray-700 mb-1">
             Selection Method
           </Text>
           <View className="flex-row">
             <TouchableOpacity
-              className={`flex-1 py-3 rounded-l-xl border ${
+              className={`flex-1 py-2 rounded-l-xl border ${
                 formData.offspring_selection_method === "first_pick"
                   ? "bg-[#FF6B6B] border-[#FF6B6B]"
                   : "bg-white border-gray-300"
@@ -421,7 +445,7 @@ export default function ContractModal({
               }
             >
               <Text
-                className={`text-center font-medium ${
+                className={`text-center text-xs font-medium ${
                   formData.offspring_selection_method === "first_pick"
                     ? "text-white"
                     : "text-gray-700"
@@ -431,7 +455,7 @@ export default function ContractModal({
               </Text>
             </TouchableOpacity>
             <TouchableOpacity
-              className={`flex-1 py-3 rounded-r-xl border ${
+              className={`flex-1 py-2 rounded-r-xl border ${
                 formData.offspring_selection_method === "randomized"
                   ? "bg-[#FF6B6B] border-[#FF6B6B]"
                   : "bg-white border-gray-300"
@@ -441,7 +465,7 @@ export default function ContractModal({
               }
             >
               <Text
-                className={`text-center font-medium ${
+                className={`text-center text-xs font-medium ${
                   formData.offspring_selection_method === "randomized"
                     ? "text-white"
                     : "text-gray-700"
@@ -456,13 +480,13 @@ export default function ContractModal({
 
       {/* Include Goods/Foods */}
       <TouchableOpacity
-        className="flex-row items-center mb-4"
+        className="flex-row items-center mb-3"
         onPress={() =>
           updateFormField("include_goods_foods", !formData.include_goods_foods)
         }
       >
         <View
-          className={`w-6 h-6 rounded border-2 mr-3 items-center justify-center ${
+          className={`w-5 h-5 rounded border-2 mr-2 items-center justify-center ${
             formData.include_goods_foods
               ? "bg-[#FF6B6B] border-[#FF6B6B]"
               : "border-gray-300"
@@ -472,14 +496,15 @@ export default function ContractModal({
             <Text className="text-white text-xs font-bold">✓</Text>
           )}
         </View>
-        <Text className="text-base text-gray-700">Include Goods/Foods</Text>
+        <Text className="text-sm text-gray-700">Include Goods/Foods</Text>
       </TouchableOpacity>
 
       {formData.include_goods_foods && (
-        <View className="mb-4 ml-9">
+        <View className="mb-3 ml-7">
           <TextInput
-            className="bg-gray-100 rounded-xl px-4 py-3 text-base"
+            className="bg-gray-100 rounded-xl px-3 py-2.5 text-sm"
             placeholder="Enter value ($)"
+            placeholderTextColor="#9CA3AF"
             value={formData.goods_foods_value?.toString() || ""}
             onChangeText={(text) =>
               updateFormField(
@@ -493,13 +518,14 @@ export default function ContractModal({
       )}
 
       {/* Collateral */}
-      <View className="mb-4">
-        <Text className="text-sm font-medium text-gray-700 mb-2">
+      <View className="mb-3">
+        <Text className="text-xs font-medium text-gray-700 mb-1">
           Total Collateral ($)
         </Text>
         <TextInput
-          className="bg-gray-100 rounded-xl px-4 py-3 text-base"
+          className="bg-gray-100 rounded-xl px-3 py-2.5 text-sm"
           placeholder="Enter total collateral"
+          placeholderTextColor="#9CA3AF"
           value={formData.collateral_total?.toString() || ""}
           onChangeText={(text) =>
             updateFormField(
@@ -512,44 +538,44 @@ export default function ContractModal({
       </View>
 
       {/* Collateral Display */}
-      <View className="bg-[#FFF5F3] rounded-xl p-4 mb-4">
-        <View className="flex-row justify-between mb-2">
-          <Text className="text-gray-600">Total Collateral:</Text>
-          <Text className="font-semibold text-gray-900">
+      <View className="bg-[#FFF5F3] rounded-xl p-3">
+        <View className="flex-row justify-between mb-1">
+          <Text className="text-xs text-gray-600">Total Collateral:</Text>
+          <Text className="text-xs font-semibold text-gray-900">
             ${formData.collateral_total?.toFixed(2) || "0.00"}
           </Text>
         </View>
-        <View className="flex-row justify-between mb-2">
-          <Text className="text-gray-600">{"Each Owner's Share:"}</Text>
-          <Text className="font-semibold text-gray-900">
+        <View className="flex-row justify-between mb-1">
+          <Text className="text-xs text-gray-600">{"Each Owner's Share:"}</Text>
+          <Text className="text-xs font-semibold text-gray-900">
             ${collateralPerOwner.toFixed(2)}
           </Text>
         </View>
-        <Text className="text-xs text-gray-500 mt-2">
-          Note: 5% of collateral will be deducted to the app upon contract
-          completion
+        <Text className="text-xs text-gray-500 mt-1">
+          Note: 5% deducted upon completion
         </Text>
       </View>
     </ScrollView>
   );
 
   const renderStep3 = () => (
-    <ScrollView className="flex-1" showsVerticalScrollIndicator={false}>
-      <Text className="text-lg font-semibold text-gray-900 mb-2">
+    <ScrollView className="flex-1" showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 16 }}>
+      <Text className="text-base font-semibold text-gray-900 mb-1">
         Terms & Policies
       </Text>
-      <Text className="text-sm text-gray-500 mb-4">
+      <Text className="text-xs text-gray-500 mb-3">
         Define the terms and conditions of the agreement
       </Text>
 
       {/* Pet Care Responsibilities */}
-      <View className="mb-4">
-        <Text className="text-sm font-medium text-gray-700 mb-2">
+      <View className="mb-3">
+        <Text className="text-xs font-medium text-gray-700 mb-1">
           Pet Care Responsibilities
         </Text>
         <TextInput
-          className="bg-gray-100 rounded-xl px-4 py-3 text-base min-h-[80px]"
+          className="bg-gray-100 rounded-xl px-3 py-2.5 text-sm min-h-[60px]"
           placeholder="Describe pet care responsibilities..."
+          placeholderTextColor="#9CA3AF"
           value={formData.pet_care_responsibilities}
           onChangeText={(text) =>
             updateFormField("pet_care_responsibilities", text)
@@ -561,13 +587,14 @@ export default function ContractModal({
       </View>
 
       {/* Harm Liability Terms */}
-      <View className="mb-4">
-        <Text className="text-sm font-medium text-gray-700 mb-2">
+      <View className="mb-3">
+        <Text className="text-xs font-medium text-gray-700 mb-1">
           Harm Liability Terms
         </Text>
         <TextInput
-          className="bg-gray-100 rounded-xl px-4 py-3 text-base min-h-[80px]"
+          className="bg-gray-100 rounded-xl px-3 py-2.5 text-sm min-h-[60px]"
           placeholder="Describe liability terms..."
+          placeholderTextColor="#9CA3AF"
           value={formData.harm_liability_terms}
           onChangeText={(text) => updateFormField("harm_liability_terms", text)}
           multiline
@@ -577,13 +604,14 @@ export default function ContractModal({
       </View>
 
       {/* Cancellation Policy */}
-      <View className="mb-4">
-        <Text className="text-sm font-medium text-gray-700 mb-2">
+      <View className="mb-3">
+        <Text className="text-xs font-medium text-gray-700 mb-1">
           Cancellation Policy
         </Text>
         <TextInput
-          className="bg-gray-100 rounded-xl px-4 py-3 text-base min-h-[80px]"
+          className="bg-gray-100 rounded-xl px-3 py-2.5 text-sm min-h-[60px]"
           placeholder="Describe cancellation policy..."
+          placeholderTextColor="#9CA3AF"
           value={formData.cancellation_policy}
           onChangeText={(text) => updateFormField("cancellation_policy", text)}
           multiline
@@ -593,13 +621,14 @@ export default function ContractModal({
       </View>
 
       {/* Custom Terms */}
-      <View className="mb-4">
-        <Text className="text-sm font-medium text-gray-700 mb-2">
+      <View className="mb-2">
+        <Text className="text-xs font-medium text-gray-700 mb-1">
           Custom Terms
         </Text>
         <TextInput
-          className="bg-gray-100 rounded-xl px-4 py-3 text-base min-h-[80px]"
+          className="bg-gray-100 rounded-xl px-3 py-2.5 text-sm min-h-[60px]"
           placeholder="Add any custom terms..."
+          placeholderTextColor="#9CA3AF"
           value={formData.custom_terms}
           onChangeText={(text) => updateFormField("custom_terms", text)}
           multiline
@@ -626,70 +655,81 @@ export default function ContractModal({
   return (
     <Modal
       visible={visible}
-      animationType="slide"
-      presentationStyle="pageSheet"
+      transparent
+      animationType="fade"
       onRequestClose={handleClose}
     >
       <KeyboardAvoidingView
         behavior={Platform.OS === "ios" ? "padding" : "height"}
-        className="flex-1 bg-white"
+        className="flex-1 bg-black/50 justify-center items-center px-4"
       >
-        {/* Header */}
-        <View className="bg-[#FF6B6B] px-4 pt-12 pb-4">
-          <View className="flex-row items-center justify-between">
-            <TouchableOpacity onPress={handleClose}>
-              <X size={24} color="white" />
+        <Animated.View
+          style={{
+            transform: [{ scale: scaleAnim }],
+            maxHeight: SCREEN_HEIGHT * 0.85,
+          }}
+          className="bg-white rounded-3xl w-full overflow-hidden"
+        >
+          {/* Header */}
+          <View className="bg-[#FF6B6B] px-4 py-4 flex-row items-center justify-between">
+            <TouchableOpacity
+              onPress={handleClose}
+              className="w-8 h-8 rounded-full bg-white/20 items-center justify-center"
+            >
+              <X size={18} color="white" />
             </TouchableOpacity>
             <Text className="text-white text-lg font-semibold">
               {existingContract ? "Edit Contract" : "Create Contract"}
             </Text>
-            <View className="w-6" />
+            <View className="w-8" />
           </View>
-        </View>
 
-        {/* Step Indicator */}
-        {renderStepIndicator()}
+          {/* Step Indicator */}
+          {renderStepIndicator()}
 
-        {/* Step Content */}
-        <View className="flex-1 px-6">{renderCurrentStep()}</View>
+          {/* Step Content */}
+          <View style={{ maxHeight: SCREEN_HEIGHT * 0.45 }} className="px-5">
+            {renderCurrentStep()}
+          </View>
 
-        {/* Navigation Buttons */}
-        <View className="flex-row px-6 py-4 border-t border-gray-200">
-          {currentStep > 1 && (
-            <TouchableOpacity
-              onPress={handlePrev}
-              className="flex-1 flex-row items-center justify-center py-4 mr-2 border border-[#FF6B6B] rounded-full"
-            >
-              <ChevronLeft size={20} color="#FF6B6B" />
-              <Text className="text-[#FF6B6B] font-semibold ml-1">Prev</Text>
-            </TouchableOpacity>
-          )}
-          {currentStep < TOTAL_STEPS ? (
-            <TouchableOpacity
-              onPress={handleNext}
-              className="flex-1 flex-row items-center justify-center py-4 bg-[#FF6B6B] rounded-full"
-            >
-              <Text className="text-white font-semibold mr-1">Next</Text>
-              <ChevronRight size={20} color="white" />
-            </TouchableOpacity>
-          ) : (
-            <TouchableOpacity
-              onPress={handleSubmit}
-              disabled={isSubmitting}
-              className={`flex-1 py-4 rounded-full items-center justify-center ${
-                isSubmitting ? "bg-gray-400" : "bg-[#FF6B6B]"
-              }`}
-            >
-              {isSubmitting ? (
-                <ActivityIndicator color="white" />
-              ) : (
-                <Text className="text-white font-semibold">
-                  {existingContract ? "Update Contract" : "Submit Contract"}
-                </Text>
-              )}
-            </TouchableOpacity>
-          )}
-        </View>
+          {/* Navigation Buttons */}
+          <View className="flex-row px-5 py-4 border-t border-gray-100">
+            {currentStep > 1 && (
+              <TouchableOpacity
+                onPress={handlePrev}
+                className="flex-1 flex-row items-center justify-center py-3 mr-2 border border-[#FF6B6B] rounded-full"
+              >
+                <ChevronLeft size={18} color="#FF6B6B" />
+                <Text className="text-[#FF6B6B] font-semibold ml-1">Prev</Text>
+              </TouchableOpacity>
+            )}
+            {currentStep < TOTAL_STEPS ? (
+              <TouchableOpacity
+                onPress={handleNext}
+                className="flex-1 flex-row items-center justify-center py-3 bg-[#FF6B6B] rounded-full"
+              >
+                <Text className="text-white font-semibold mr-1">Next</Text>
+                <ChevronRight size={18} color="white" />
+              </TouchableOpacity>
+            ) : (
+              <TouchableOpacity
+                onPress={handleSubmit}
+                disabled={isSubmitting}
+                className={`flex-1 py-3 rounded-full items-center justify-center ${
+                  isSubmitting ? "bg-gray-400" : "bg-[#FF6B6B]"
+                }`}
+              >
+                {isSubmitting ? (
+                  <ActivityIndicator color="white" />
+                ) : (
+                  <Text className="text-white font-semibold">
+                    {existingContract ? "Update Contract" : "Submit Contract"}
+                  </Text>
+                )}
+              </TouchableOpacity>
+            )}
+          </View>
+        </Animated.View>
 
         {/* Date Picker */}
         <DateTimePickerModal
