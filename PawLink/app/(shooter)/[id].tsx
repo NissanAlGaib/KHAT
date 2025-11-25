@@ -185,8 +185,7 @@ export default function ShooterProfileScreen() {
                 {shooterData.name}
               </Text>
               <Text className="text-base text-[#6B6B6B] font-medium mb-3">
-                {(shooterData as ShooterProfile & { location?: string })
-                  .location || "Baliwasan"}
+                {shooterData.location || "Baliwasan"}
               </Text>
               <View className="flex-row gap-2 flex-wrap">
                 {ageText && (

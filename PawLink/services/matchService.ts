@@ -43,6 +43,7 @@ export interface ShooterProfile {
   sex?: string;
   birthdate?: string;
   age?: number;
+  location?: string;
   experience_years?: number;
   specialization?: string;
   is_pet_owner: boolean;
