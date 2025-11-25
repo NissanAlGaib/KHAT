@@ -106,10 +106,10 @@ class BreedingContractController extends Controller
                 'data' => $this->formatContract($contract, $user),
             ], 201);
         } catch (\Exception $e) {
+            \Log::error('Failed to create contract: ' . $e->getMessage());
             return response()->json([
                 'success' => false,
                 'message' => 'Failed to create contract',
-                'error' => $e->getMessage(),
             ], 500);
         }
     }
@@ -226,10 +226,10 @@ class BreedingContractController extends Controller
                 'data' => $this->formatContract($contract->fresh(), $user),
             ]);
         } catch (\Exception $e) {
+            \Log::error('Failed to update contract: ' . $e->getMessage());
             return response()->json([
                 'success' => false,
                 'message' => 'Failed to update contract',
-                'error' => $e->getMessage(),
             ], 500);
         }
     }
@@ -277,10 +277,10 @@ class BreedingContractController extends Controller
                 'data' => $this->formatContract($contract->fresh(), $user),
             ]);
         } catch (\Exception $e) {
+            \Log::error('Failed to accept contract: ' . $e->getMessage());
             return response()->json([
                 'success' => false,
                 'message' => 'Failed to accept contract',
-                'error' => $e->getMessage(),
             ], 500);
         }
     }
@@ -334,10 +334,10 @@ class BreedingContractController extends Controller
                 'data' => $this->formatContract($contract->fresh(), $user),
             ]);
         } catch (\Exception $e) {
+            \Log::error('Failed to reject contract: ' . $e->getMessage());
             return response()->json([
                 'success' => false,
                 'message' => 'Failed to reject contract',
-                'error' => $e->getMessage(),
             ], 500);
         }
     }

@@ -520,7 +520,7 @@ export default function ContractModal({
           </Text>
         </View>
         <View className="flex-row justify-between mb-2">
-          <Text className="text-gray-600">Each Owner&apos;s Share:</Text>
+          <Text className="text-gray-600">{"Each Owner's Share:"}</Text>
           <Text className="font-semibold text-gray-900">
             ${collateralPerOwner.toFixed(2)}
           </Text>
