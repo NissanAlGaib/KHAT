@@ -4,6 +4,7 @@ use App\Http\Controllers\Auth\AuthenticatedSessionController;
 use App\Http\Controllers\Auth\RegisteredUserController;
 use App\Http\Controllers\LitterController;
 use App\Http\Controllers\MatchController;
+use App\Http\Controllers\NotificationController;
 use App\Http\Controllers\PetController;
 use App\Http\Controllers\ShooterController;
 use App\Http\Controllers\UserController;
@@ -42,6 +43,8 @@ Route::middleware(['auth:sanctum'])
         Route::post('/pets', [PetController::class, 'store']);
         Route::get('/pets/{id}', [PetController::class, 'show']);
         Route::get('/pets/{id}/profile', [PetController::class, 'getPublicProfile']);
+        Route::post('/pets/{petId}/vaccinations/{vaccinationId}/resubmit', [PetController::class, 'resubmitVaccination']);
+        Route::post('/pets/{petId}/health-records/{healthRecordId}/resubmit', [PetController::class, 'resubmitHealthRecord']);
 
         // Litter routes
         Route::get('/pets/{petId}/litters', [LitterController::class, 'getPetLitters']);
@@ -61,4 +64,9 @@ Route::middleware(['auth:sanctum'])
         Route::get('/verification/status/{userId}', [VerificationController::class, 'getVerificationStatus']);
         Route::get('/verification/pending', [VerificationController::class, 'getPendingVerifications']);
         Route::put('/verification/{authId}/status', [VerificationController::class, 'updateVerificationStatus']);
+        Route::post('/verification/{authId}/resubmit', [VerificationController::class, 'resubmitVerification']);
+
+        // Notification routes
+        Route::get('/notifications', [NotificationController::class, 'getNotifications']);
+        Route::get('/notifications/count', [NotificationController::class, 'getNotificationCount']);
     });
