@@ -3,6 +3,26 @@
 @section('title', 'Pet Profile - KHAT Admin')
 
 @section('content')
+<!-- Success Message -->
+@if(session('success'))
+<div class="mb-6 bg-green-100 border border-green-400 text-green-700 px-4 py-3 rounded-lg relative" role="alert">
+    <span class="block sm:inline">{{ session('success') }}</span>
+    <button type="button" class="absolute top-0 bottom-0 right-0 px-4 py-3" onclick="this.parentElement.style.display='none';">
+        <i data-lucide="x" class="w-4 h-4"></i>
+    </button>
+</div>
+@endif
+
+<!-- Error Message -->
+@if(session('error'))
+<div class="mb-6 bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded-lg relative" role="alert">
+    <span class="block sm:inline">{{ session('error') }}</span>
+    <button type="button" class="absolute top-0 bottom-0 right-0 px-4 py-3" onclick="this.parentElement.style.display='none';">
+        <i data-lucide="x" class="w-4 h-4"></i>
+    </button>
+</div>
+@endif
+
 <div class="mb-6">
     <div class="flex items-center gap-2 text-sm text-gray-500 mb-4">
         <a href="{{ route('admin.pets.index') }}" class="hover:text-[#E75234] transition">
@@ -17,6 +37,10 @@
     <div class="flex justify-between items-start">
         <h1 class="text-3xl font-bold text-gray-900">Pet Profile: {{ $pet->name }}</h1>
         <div class="flex gap-3">
+            <button onclick="openDocumentTrackerModal()" class="px-4 py-2 bg-[#E75234] text-white text-sm font-medium rounded-lg hover:bg-[#d14024] transition">
+                <i data-lucide="file-text" class="w-4 h-4 inline mr-1"></i>
+                Document Tracker
+            </button>
             <button onclick="openStatusModal()" class="px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded-lg hover:bg-blue-700 transition">
                 <i data-lucide="settings" class="w-4 h-4 inline mr-1"></i>
                 Change Status
@@ -330,6 +354,458 @@
     </div>
 </div>
 
+<!-- Document Tracker Modal -->
+<div id="documentTrackerModal" class="hidden fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4">
+    <div class="bg-white rounded-xl shadow-xl max-w-6xl w-full max-h-[90vh] overflow-hidden flex flex-col">
+        <!-- Modal Header -->
+        <div class="px-6 py-4 border-b border-gray-200 flex justify-between items-center">
+            <h2 class="text-xl font-bold text-gray-900">User Verification Details: <span>{{ $pet->owner->name ?? 'Unknown' }}</span></h2>
+            <button onclick="closeDocumentTrackerModal()" class="text-gray-400 hover:text-gray-600 transition-colors">
+                <i data-lucide="x" class="w-6 h-6"></i>
+            </button>
+        </div>
+
+        <!-- Modal Content -->
+        <div class="flex-1 overflow-y-auto">
+            <!-- Tabs -->
+            <div class="border-b border-gray-200 bg-white sticky top-0 z-10">
+                <div class="flex">
+                    <button onclick="switchDocTab('documents')" id="tab-documents" class="px-6 py-3 text-sm font-semibold text-white bg-[#E75234] border-b-2 border-[#E75234] transition-colors">
+                        Documents
+                    </button>
+                    <button onclick="switchDocTab('submission-history')" id="tab-submission-history" class="px-6 py-3 text-sm font-medium text-gray-600 hover:text-gray-900 border-b-2 border-transparent transition-colors">
+                        Submission History
+                    </button>
+                    <button onclick="switchDocTab('expiry-tracker')" id="tab-expiry-tracker" class="px-6 py-3 text-sm font-medium text-gray-600 hover:text-gray-900 border-b-2 border-transparent transition-colors">
+                        Expiry Tracker
+                    </button>
+                </div>
+            </div>
+
+            <!-- Tab Content -->
+            <div class="p-6">
+                <!-- Documents Tab -->
+                <div id="content-documents" class="tab-content">
+                    <h3 class="text-lg font-bold text-gray-900 mb-4">Uploaded Documents</h3>
+
+                    <div class="space-y-4">
+                        @php
+                        $allVaccinations = $pet->vaccinations;
+                        $rabiesVaccination = $allVaccinations->where('vaccine_name', 'Rabies')->first();
+                        $dhppVaccination = $allVaccinations->where('vaccine_name', 'DHPP')->first();
+                        $additionalVaccinations = $allVaccinations->whereNotIn('vaccine_name', ['Rabies', 'DHPP']);
+                        $healthRecord = $pet->healthRecords->first();
+                        @endphp
+
+                        <!-- Rabies Vaccination -->
+                        @if($rabiesVaccination)
+                        <div class="bg-white border border-gray-200 rounded-lg p-4">
+                            <div class="flex items-start justify-between">
+                                <div class="flex items-start gap-3">
+                                    <div class="p-2 bg-green-100 rounded-lg">
+                                        <i data-lucide="syringe" class="w-5 h-5 text-green-600"></i>
+                                    </div>
+                                    <div class="flex-1">
+                                        <div class="flex items-center gap-2 mb-1">
+                                            <h4 class="font-semibold text-gray-900">Rabies Vaccination</h4>
+                                            @php
+                                            $daysRemaining = \Carbon\Carbon::now()->diffInDays(\Carbon\Carbon::parse($rabiesVaccination->expiration_date), false);
+                                            @endphp
+                                            <span class="px-2 py-0.5 {{ $daysRemaining > 30 ? 'bg-green-100 text-green-700' : ($daysRemaining > 0 ? 'bg-yellow-100 text-yellow-700' : 'bg-red-100 text-red-700') }} text-xs font-medium rounded-full">
+                                                {{ $daysRemaining > 0 ? 'Active' : 'Expired' }}
+                                            </span>
+                                        </div>
+                                        <p class="text-sm text-gray-600 mb-2">Document Details:</p>
+                                        <div class="text-xs text-gray-500 space-y-1">
+                                            <p><span class="font-medium">Clinic:</span> {{ $rabiesVaccination->clinic_name }}</p>
+                                            <p><span class="font-medium">Veterinarian:</span> {{ $rabiesVaccination->veterinarian_name }}</p>
+                                            <p><span class="font-medium">Given Date:</span> {{ \Carbon\Carbon::parse($rabiesVaccination->given_date)->format('d M Y') }}</p>
+                                            <p><span class="font-medium">Expiry:</span> {{ \Carbon\Carbon::parse($rabiesVaccination->expiration_date)->format('d M Y') }}</p>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="flex items-center gap-2">
+                                    <button onclick="viewDocument('{{ asset('storage/' . $rabiesVaccination->vaccination_record) }}')" class="px-3 py-1.5 bg-white border border-gray-300 text-gray-700 text-xs font-medium rounded hover:bg-gray-50 transition">
+                                        View
+                                    </button>
+                                    @if($rabiesVaccination->status === 'pending')
+                                    <button onclick="approveDocument('vaccination', {{ $rabiesVaccination->vaccination_id }}, 'Rabies Vaccination')" class="px-3 py-1.5 bg-green-600 text-white text-xs font-medium rounded hover:bg-green-700 transition">
+                                        Accept
+                                    </button>
+                                    <button onclick="rejectDocument('vaccination', {{ $rabiesVaccination->vaccination_id }}, 'Rabies Vaccination')" class="px-3 py-1.5 bg-red-600 text-white text-xs font-medium rounded hover:bg-red-700 transition">
+                                        Reject
+                                    </button>
+                                    @elseif($rabiesVaccination->status === 'approved')
+                                    <span class="px-3 py-1.5 bg-green-100 text-green-700 text-xs font-medium rounded">
+                                        ✓ Approved
+                                    </span>
+                                    @elseif($rabiesVaccination->status === 'rejected')
+                                    <span class="px-3 py-1.5 bg-red-100 text-red-700 text-xs font-medium rounded">
+                                        ✗ Rejected
+                                    </span>
+                                    @endif
+                                </div>
+                            </div>
+                        </div>
+                        @endif
+
+                        <!-- DHPP Vaccination -->
+                        @if($dhppVaccination)
+                        <div class="bg-white border border-gray-200 rounded-lg p-4">
+                            <div class="flex items-start justify-between">
+                                <div class="flex items-start gap-3">
+                                    <div class="p-2 bg-green-100 rounded-lg">
+                                        <i data-lucide="syringe" class="w-5 h-5 text-green-600"></i>
+                                    </div>
+                                    <div class="flex-1">
+                                        <div class="flex items-center gap-2 mb-1">
+                                            <h4 class="font-semibold text-gray-900">DHPP Vaccination</h4>
+                                            @php
+                                            $daysRemaining = \Carbon\Carbon::now()->diffInDays(\Carbon\Carbon::parse($dhppVaccination->expiration_date), false);
+                                            @endphp
+                                            <span class="px-2 py-0.5 {{ $daysRemaining > 30 ? 'bg-green-100 text-green-700' : ($daysRemaining > 0 ? 'bg-yellow-100 text-yellow-700' : 'bg-red-100 text-red-700') }} text-xs font-medium rounded-full">
+                                                {{ $daysRemaining > 0 ? 'Active' : 'Expired' }}
+                                            </span>
+                                        </div>
+                                        <p class="text-sm text-gray-600 mb-2">Document Details:</p>
+                                        <div class="text-xs text-gray-500 space-y-1">
+                                            <p><span class="font-medium">Clinic:</span> {{ $dhppVaccination->clinic_name }}</p>
+                                            <p><span class="font-medium">Veterinarian:</span> {{ $dhppVaccination->veterinarian_name }}</p>
+                                            <p><span class="font-medium">Given Date:</span> {{ \Carbon\Carbon::parse($dhppVaccination->given_date)->format('d M Y') }}</p>
+                                            <p><span class="font-medium">Expiry:</span> {{ \Carbon\Carbon::parse($dhppVaccination->expiration_date)->format('d M Y') }}</p>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="flex items-center gap-2">
+                                    <button onclick="viewDocument('{{ asset('storage/' . $dhppVaccination->vaccination_record) }}')" class="px-3 py-1.5 bg-white border border-gray-300 text-gray-700 text-xs font-medium rounded hover:bg-gray-50 transition">
+                                        View
+                                    </button>
+                                    @if($dhppVaccination->status === 'pending')
+                                    <button onclick="approveDocument('vaccination', {{ $dhppVaccination->vaccination_id }}, 'DHPP Vaccination')" class="px-3 py-1.5 bg-green-600 text-white text-xs font-medium rounded hover:bg-green-700 transition">
+                                        Accept
+                                    </button>
+                                    <button onclick="rejectDocument('vaccination', {{ $dhppVaccination->vaccination_id }}, 'DHPP Vaccination')" class="px-3 py-1.5 bg-red-600 text-white text-xs font-medium rounded hover:bg-red-700 transition">
+                                        Reject
+                                    </button>
+                                    @elseif($dhppVaccination->status === 'approved')
+                                    <span class="px-3 py-1.5 bg-green-100 text-green-700 text-xs font-medium rounded">
+                                        ✓ Approved
+                                    </span>
+                                    @elseif($dhppVaccination->status === 'rejected')
+                                    <span class="px-3 py-1.5 bg-red-100 text-red-700 text-xs font-medium rounded">
+                                        ✗ Rejected
+                                    </span>
+                                    @endif
+                                </div>
+                            </div>
+                        </div>
+                        @endif
+
+                        <!-- Additional Vaccinations -->
+                        @foreach($additionalVaccinations as $vaccination)
+                        <div class="bg-white border border-gray-200 rounded-lg p-4">
+                            <div class="flex items-start justify-between">
+                                <div class="flex items-start gap-3">
+                                    <div class="p-2 bg-blue-100 rounded-lg">
+                                        <i data-lucide="syringe" class="w-5 h-5 text-blue-600"></i>
+                                    </div>
+                                    <div class="flex-1">
+                                        <div class="flex items-center gap-2 mb-1">
+                                            <h4 class="font-semibold text-gray-900">{{ $vaccination->vaccine_name }} Vaccination</h4>
+                                            @php
+                                            $daysRemaining = \Carbon\Carbon::now()->diffInDays(\Carbon\Carbon::parse($vaccination->expiration_date), false);
+                                            @endphp
+                                            <span class="px-2 py-0.5 {{ $daysRemaining > 30 ? 'bg-green-100 text-green-700' : ($daysRemaining > 0 ? 'bg-yellow-100 text-yellow-700' : 'bg-red-100 text-red-700') }} text-xs font-medium rounded-full">
+                                                {{ $daysRemaining > 0 ? 'Active' : 'Expired' }}
+                                            </span>
+                                        </div>
+                                        <p class="text-sm text-gray-600 mb-2">Document Details:</p>
+                                        <div class="text-xs text-gray-500 space-y-1">
+                                            <p><span class="font-medium">Clinic:</span> {{ $vaccination->clinic_name }}</p>
+                                            <p><span class="font-medium">Veterinarian:</span> {{ $vaccination->veterinarian_name }}</p>
+                                            <p><span class="font-medium">Given Date:</span> {{ \Carbon\Carbon::parse($vaccination->given_date)->format('d M Y') }}</p>
+                                            <p><span class="font-medium">Expiry:</span> {{ \Carbon\Carbon::parse($vaccination->expiration_date)->format('d M Y') }}</p>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="flex items-center gap-2">
+                                    <button onclick="viewDocument('{{ asset('storage/' . $vaccination->vaccination_record) }}')" class="px-3 py-1.5 bg-white border border-gray-300 text-gray-700 text-xs font-medium rounded hover:bg-gray-50 transition">
+                                        View
+                                    </button>
+                                    @if($vaccination->status === 'pending')
+                                    <button onclick="approveDocument('vaccination', {{ $vaccination->vaccination_id }}, '{{ $vaccination->vaccine_name }} Vaccination')" class="px-3 py-1.5 bg-green-600 text-white text-xs font-medium rounded hover:bg-green-700 transition">
+                                        Accept
+                                    </button>
+                                    <button onclick="rejectDocument('vaccination', {{ $vaccination->vaccination_id }}, '{{ $vaccination->vaccine_name }} Vaccination')" class="px-3 py-1.5 bg-red-600 text-white text-xs font-medium rounded hover:bg-red-700 transition">
+                                        Reject
+                                    </button>
+                                    @elseif($vaccination->status === 'approved')
+                                    <span class="px-3 py-1.5 bg-green-100 text-green-700 text-xs font-medium rounded">
+                                        ✓ Approved
+                                    </span>
+                                    @elseif($vaccination->status === 'rejected')
+                                    <span class="px-3 py-1.5 bg-red-100 text-red-700 text-xs font-medium rounded">
+                                        ✗ Rejected
+                                    </span>
+                                    @endif
+                                </div>
+                            </div>
+                        </div>
+                        @endforeach
+
+                        <!-- Health Certificate -->
+                        @if($healthRecord)
+                        <div class="bg-white border border-gray-200 rounded-lg p-4">
+                            <div class="flex items-start justify-between">
+                                <div class="flex items-start gap-3">
+                                    <div class="p-2 bg-green-100 rounded-lg">
+                                        <i data-lucide="file-heart" class="w-5 h-5 text-green-600"></i>
+                                    </div>
+                                    <div class="flex-1">
+                                        <div class="flex items-center gap-2 mb-1">
+                                            <h4 class="font-semibold text-gray-900">Health Certificate</h4>
+                                            @php
+                                            $daysRemaining = \Carbon\Carbon::now()->diffInDays(\Carbon\Carbon::parse($healthRecord->expiration_date), false);
+                                            @endphp
+                                            <span class="px-2 py-0.5 {{ $daysRemaining > 30 ? 'bg-green-100 text-green-700' : ($daysRemaining > 0 ? 'bg-yellow-100 text-yellow-700' : 'bg-red-100 text-red-700') }} text-xs font-medium rounded-full">
+                                                {{ $daysRemaining > 0 ? 'Active' : 'Expired' }}
+                                            </span>
+                                        </div>
+                                        <p class="text-sm text-gray-600 mb-2">Document Details:</p>
+                                        <div class="text-xs text-gray-500 space-y-1">
+                                            <p><span class="font-medium">Clinic:</span> {{ $healthRecord->clinic_name }}</p>
+                                            <p><span class="font-medium">Veterinarian:</span> {{ $healthRecord->veterinarian_name }}</p>
+                                            <p><span class="font-medium">Given Date:</span> {{ \Carbon\Carbon::parse($healthRecord->given_date)->format('d M Y') }}</p>
+                                            <p><span class="font-medium">Expiry:</span> {{ \Carbon\Carbon::parse($healthRecord->expiration_date)->format('d M Y') }}</p>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="flex items-center gap-2">
+                                    <button onclick="viewDocument('{{ asset('storage/' . $healthRecord->record_path) }}')" class="px-3 py-1.5 bg-white border border-gray-300 text-gray-700 text-xs font-medium rounded hover:bg-gray-50 transition">
+                                        View
+                                    </button>
+                                    @if($healthRecord->status === 'pending')
+                                    <button onclick="approveDocument('health', {{ $healthRecord->health_record_id }}, 'Health Certificate')" class="px-3 py-1.5 bg-green-600 text-white text-xs font-medium rounded hover:bg-green-700 transition">
+                                        Accept
+                                    </button>
+                                    <button onclick="rejectDocument('health', {{ $healthRecord->health_record_id }}, 'Health Certificate')" class="px-3 py-1.5 bg-red-600 text-white text-xs font-medium rounded hover:bg-red-700 transition">
+                                        Reject
+                                    </button>
+                                    @elseif($healthRecord->status === 'approved')
+                                    <span class="px-3 py-1.5 bg-green-100 text-green-700 text-xs font-medium rounded">
+                                        ✓ Approved
+                                    </span>
+                                    @elseif($healthRecord->status === 'rejected')
+                                    <span class="px-3 py-1.5 bg-red-100 text-red-700 text-xs font-medium rounded">
+                                        ✗ Rejected
+                                    </span>
+                                    @endif
+                                </div>
+                            </div>
+                        </div>
+                        @endif
+                    </div>
+                </div>
+
+                <!-- Submission History Tab -->
+                <div id="content-submission-history" class="tab-content hidden">
+                    <h3 class="text-lg font-bold text-gray-900 mb-4">Verification Activities</h3>
+
+                    <div class="space-y-3">
+                        @php
+                        $activities = collect();
+
+                        // Collect all vaccination activities
+                        foreach($allVaccinations as $vaccination) {
+                        if ($vaccination->status === 'approved') {
+                        $activities->push([
+                        'date' => $vaccination->updated_at,
+                        'type' => 'approved',
+                        'message' => $vaccination->vaccine_name . ' Vaccination approved'
+                        ]);
+                        } elseif ($vaccination->status === 'rejected') {
+                        $activities->push([
+                        'date' => $vaccination->updated_at,
+                        'type' => 'rejected',
+                        'message' => $vaccination->vaccine_name . ' Vaccination rejected' . ($vaccination->rejection_reason ? ': ' . $vaccination->rejection_reason : '')
+                        ]);
+                        } elseif ($vaccination->status === 'pending') {
+                        $activities->push([
+                        'date' => $vaccination->created_at,
+                        'type' => 'pending',
+                        'message' => $vaccination->vaccine_name . ' Vaccination awaiting review'
+                        ]);
+                        }
+                        }
+
+                        // Collect health record activities
+                        if ($healthRecord) {
+                        if ($healthRecord->status === 'approved') {
+                        $activities->push([
+                        'date' => $healthRecord->updated_at,
+                        'type' => 'approved',
+                        'message' => 'Health Certificate approved'
+                        ]);
+                        } elseif ($healthRecord->status === 'rejected') {
+                        $activities->push([
+                        'date' => $healthRecord->updated_at,
+                        'type' => 'rejected',
+                        'message' => 'Health Certificate rejected' . ($healthRecord->rejection_reason ? ': ' . $healthRecord->rejection_reason : '')
+                        ]);
+                        } elseif ($healthRecord->status === 'pending') {
+                        $activities->push([
+                        'date' => $healthRecord->created_at,
+                        'type' => 'pending',
+                        'message' => 'Health Certificate awaiting review'
+                        ]);
+                        }
+                        }
+
+                        // Sort activities by date (newest first)
+                        $activities = $activities->sortByDesc('date');
+                        @endphp
+
+                        @forelse($activities as $activity)
+                        <div class="flex items-start gap-3 p-3 bg-white border border-gray-200 rounded-lg">
+                            <div class="p-2 {{ $activity['type'] === 'approved' ? 'bg-green-100' : ($activity['type'] === 'rejected' ? 'bg-red-100' : 'bg-yellow-100') }} rounded-full">
+                                <i data-lucide="{{ $activity['type'] === 'approved' ? 'check-circle' : ($activity['type'] === 'rejected' ? 'x-circle' : 'clock') }}" class="w-4 h-4 {{ $activity['type'] === 'approved' ? 'text-green-600' : ($activity['type'] === 'rejected' ? 'text-red-600' : 'text-yellow-600') }}"></i>
+                            </div>
+                            <div class="flex-1">
+                                <div class="flex items-center justify-between mb-1">
+                                    <p class="text-sm font-semibold text-gray-900">{{ \Carbon\Carbon::parse($activity['date'])->format('d M') }}</p>
+                                    <p class="text-xs text-gray-500">{{ $activity['type'] === 'approved' ? 'Document Approved' : ($activity['type'] === 'rejected' ? 'Document Rejected' : 'Awaiting Verification') }}</p>
+                                </div>
+                                <p class="text-xs text-gray-600">{{ $activity['message'] }}</p>
+                            </div>
+                        </div>
+                        @empty
+                        <div class="text-center py-8 text-gray-500">
+                            <i data-lucide="inbox" class="w-12 h-12 mx-auto mb-2 opacity-50"></i>
+                            <p class="text-sm">No verification activities yet</p>
+                        </div>
+                        @endforelse
+                    </div>
+                </div>
+
+                <!-- Expiry Tracker Tab -->
+                <div id="content-expiry-tracker" class="tab-content hidden">
+                    <h3 class="text-lg font-bold text-gray-900 mb-4">Document Validity Overview</h3>
+
+                    <div class="overflow-x-auto">
+                        <table class="w-full text-left border-collapse">
+                            <thead>
+                                <tr class="bg-[#E75234] text-white text-xs">
+                                    <th class="px-4 py-3 font-semibold rounded-tl-lg">Document</th>
+                                    <th class="px-4 py-3 font-semibold">Expiry Date</th>
+                                    <th class="px-4 py-3 font-semibold">Days Remaining</th>
+                                    <th class="px-4 py-3 font-semibold">Status</th>
+                                    <th class="px-4 py-3 font-semibold rounded-tr-lg">Action</th>
+                                </tr>
+                            </thead>
+                            <tbody class="divide-y divide-gray-200 text-xs">
+                                @if($rabiesVaccination)
+                                @php
+                                $expiryDate = \Carbon\Carbon::parse($rabiesVaccination->expiration_date);
+                                $daysRemaining = \Carbon\Carbon::now()->diffInDays($expiryDate, false);
+                                @endphp
+                                <tr class="hover:bg-gray-50">
+                                    <td class="px-4 py-3 font-medium">Rabies Vaccination</td>
+                                    <td class="px-4 py-3">{{ $expiryDate->format('d M Y') }}</td>
+                                    <td class="px-4 py-3">{{ $daysRemaining > 0 ? $daysRemaining . ' days' : 'Expired' }}</td>
+                                    <td class="px-4 py-3">
+                                        <span class="px-2 py-1 {{ $daysRemaining > 30 ? 'bg-green-100 text-green-700' : ($daysRemaining > 0 ? 'bg-yellow-100 text-yellow-700' : 'bg-red-100 text-red-700') }} text-xs font-medium rounded-full">
+                                            {{ $daysRemaining > 0 ? 'Active' : 'Expired' }}
+                                        </span>
+                                    </td>
+                                    <td class="px-4 py-3">
+                                        <button onclick="requestUpdate('Rabies')" class="px-3 py-1 bg-white border border-gray-300 text-gray-700 text-xs font-medium rounded hover:bg-gray-50 transition">
+                                            Request Update
+                                        </button>
+                                    </td>
+                                </tr>
+                                @endif
+
+                                @if($dhppVaccination)
+                                @php
+                                $expiryDate = \Carbon\Carbon::parse($dhppVaccination->expiration_date);
+                                $daysRemaining = \Carbon\Carbon::now()->diffInDays($expiryDate, false);
+                                @endphp
+                                <tr class="hover:bg-gray-50">
+                                    <td class="px-4 py-3 font-medium">DHPP Vaccination</td>
+                                    <td class="px-4 py-3">{{ $expiryDate->format('d M Y') }}</td>
+                                    <td class="px-4 py-3">{{ $daysRemaining > 0 ? $daysRemaining . ' days' : 'Expired' }}</td>
+                                    <td class="px-4 py-3">
+                                        <span class="px-2 py-1 {{ $daysRemaining > 30 ? 'bg-green-100 text-green-700' : ($daysRemaining > 0 ? 'bg-yellow-100 text-yellow-700' : 'bg-red-100 text-red-700') }} text-xs font-medium rounded-full">
+                                            {{ $daysRemaining > 0 ? 'Active' : 'Expired' }}
+                                        </span>
+                                    </td>
+                                    <td class="px-4 py-3">
+                                        <button onclick="requestUpdate('DHPP')" class="px-3 py-1 bg-white border border-gray-300 text-gray-700 text-xs font-medium rounded hover:bg-gray-50 transition">
+                                            Request Update
+                                        </button>
+                                    </td>
+                                </tr>
+                                @endif
+
+                                @foreach($additionalVaccinations as $vaccination)
+                                @php
+                                $expiryDate = \Carbon\Carbon::parse($vaccination->expiration_date);
+                                $daysRemaining = \Carbon\Carbon::now()->diffInDays($expiryDate, false);
+                                @endphp
+                                <tr class="hover:bg-gray-50">
+                                    <td class="px-4 py-3 font-medium">{{ $vaccination->vaccine_name }} Vaccination</td>
+                                    <td class="px-4 py-3">{{ $expiryDate->format('d M Y') }}</td>
+                                    <td class="px-4 py-3">{{ $daysRemaining > 0 ? $daysRemaining . ' days' : 'Expired' }}</td>
+                                    <td class="px-4 py-3">
+                                        <span class="px-2 py-1 {{ $daysRemaining > 30 ? 'bg-green-100 text-green-700' : ($daysRemaining > 0 ? 'bg-yellow-100 text-yellow-700' : 'bg-red-100 text-red-700') }} text-xs font-medium rounded-full">
+                                            {{ $daysRemaining > 0 ? 'Active' : 'Expired' }}
+                                        </span>
+                                    </td>
+                                    <td class="px-4 py-3">
+                                        <button onclick="requestUpdate('{{ $vaccination->vaccine_name }}')" class="px-3 py-1 bg-white border border-gray-300 text-gray-700 text-xs font-medium rounded hover:bg-gray-50 transition">
+                                            Request Update
+                                        </button>
+                                    </td>
+                                </tr>
+                                @endforeach
+
+                                @if($healthRecord)
+                                @php
+                                $expiryDate = \Carbon\Carbon::parse($healthRecord->expiration_date);
+                                $daysRemaining = \Carbon\Carbon::now()->diffInDays($expiryDate, false);
+                                @endphp
+                                <tr class="hover:bg-gray-50">
+                                    <td class="px-4 py-3 font-medium">Health Certificate</td>
+                                    <td class="px-4 py-3">{{ $expiryDate->format('d M Y') }}</td>
+                                    <td class="px-4 py-3">{{ $daysRemaining > 0 ? $daysRemaining . ' days' : 'Expired' }}</td>
+                                    <td class="px-4 py-3">
+                                        <span class="px-2 py-1 {{ $daysRemaining > 30 ? 'bg-green-100 text-green-700' : ($daysRemaining > 0 ? 'bg-yellow-100 text-yellow-700' : 'bg-red-100 text-red-700') }} text-xs font-medium rounded-full">
+                                            {{ $daysRemaining > 0 ? 'Active' : 'Expired' }}
+                                        </span>
+                                    </td>
+                                    <td class="px-4 py-3">
+                                        <button onclick="requestUpdate('Health Certificate')" class="px-3 py-1 bg-white border border-gray-300 text-gray-700 text-xs font-medium rounded hover:bg-gray-50 transition">
+                                            Request Update
+                                        </button>
+                                    </td>
+                                </tr>
+                                @endif
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Modal Footer -->
+        <div class="px-6 py-4 border-t border-gray-200 bg-gray-50 flex justify-end">
+            <button onclick="closeDocumentTrackerModal()" class="px-6 py-2.5 bg-white text-gray-700 text-sm font-medium rounded-lg border border-gray-300 hover:bg-gray-50 transition">
+                Close
+            </button>
+        </div>
+    </div>
+</div>
+
 <!-- Status Change Modal -->
 <div id="statusModal" class="hidden fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center">
     <div class="bg-white rounded-xl shadow-xl max-w-md w-full mx-4 p-6">
@@ -363,8 +839,100 @@
     @method('DELETE')
 </form>
 
+<!-- Document Approval Form -->
+<form id="approveDocumentForm" method="POST" style="display: none;">
+    @csrf
+    <input type="hidden" name="status" value="approved">
+</form>
+
+<!-- Document Rejection Form -->
+<form id="rejectDocumentForm" method="POST" style="display: none;">
+    @csrf
+    <input type="hidden" name="status" value="rejected">
+</form>
+
 @push('scripts')
 <script>
+    function openDocumentTrackerModal() {
+        document.getElementById('documentTrackerModal').classList.remove('hidden');
+        document.body.style.overflow = 'hidden';
+    }
+
+    function closeDocumentTrackerModal() {
+        document.getElementById('documentTrackerModal').classList.add('hidden');
+        document.body.style.overflow = 'auto';
+    }
+
+    function switchDocTab(tabName) {
+        // Hide all tab contents
+        document.querySelectorAll('.tab-content').forEach(content => {
+            content.classList.add('hidden');
+        });
+
+        // Reset all tabs
+        document.querySelectorAll('[id^="tab-"]').forEach(tab => {
+            tab.classList.remove('text-white', 'bg-[#E75234]', 'border-[#E75234]');
+            tab.classList.add('text-gray-600', 'border-transparent');
+        });
+
+        // Show selected tab content
+        document.getElementById('content-' + tabName).classList.remove('hidden');
+
+        // Highlight selected tab
+        const selectedTab = document.getElementById('tab-' + tabName);
+        selectedTab.classList.remove('text-gray-600', 'border-transparent');
+        selectedTab.classList.add('text-white', 'bg-[#E75234]', 'border-[#E75234]');
+    }
+
+    function viewDocument(url) {
+        window.open(url, '_blank');
+    }
+
+    function requestUpdate(documentType) {
+        if (confirm(`Send a request to the user to update their ${documentType} document?`)) {
+            // TODO: Implement request update functionality
+            alert('Request sent successfully!');
+        }
+    }
+
+    function approveDocument(type, id, name) {
+        if (confirm(`Are you sure you want to approve the ${name}?`)) {
+            const form = document.getElementById('approveDocumentForm');
+            if (type === 'vaccination') {
+                form.action = `/admin/pets/vaccinations/${id}/status`;
+            } else if (type === 'health') {
+                form.action = `/admin/pets/health-records/${id}/status`;
+            }
+            form.submit();
+        }
+    }
+
+    function rejectDocument(type, id, name) {
+        const reason = prompt(`Please provide a reason for rejecting the ${name}:`);
+        if (reason && reason.trim()) {
+            const form = document.getElementById('rejectDocumentForm');
+            if (type === 'vaccination') {
+                form.action = `/admin/pets/vaccinations/${id}/status`;
+            } else if (type === 'health') {
+                form.action = `/admin/pets/health-records/${id}/status`;
+            }
+
+            // Add rejection reason
+            let reasonInput = form.querySelector('input[name="rejection_reason"]');
+            if (!reasonInput) {
+                reasonInput = document.createElement('input');
+                reasonInput.type = 'hidden';
+                reasonInput.name = 'rejection_reason';
+                form.appendChild(reasonInput);
+            }
+            reasonInput.value = reason;
+
+            form.submit();
+        } else if (reason !== null) {
+            alert('Rejection reason is required.');
+        }
+    }
+
     function openStatusModal() {
         document.getElementById('statusModal').classList.remove('hidden');
     }
@@ -379,7 +947,13 @@
         }
     }
 
-    // Close modal when clicking outside
+    // Close modals when clicking outside
+    document.getElementById('documentTrackerModal').addEventListener('click', function(e) {
+        if (e.target === this) {
+            closeDocumentTrackerModal();
+        }
+    });
+
     document.getElementById('statusModal').addEventListener('click', function(e) {
         if (e.target === this) {
             closeStatusModal();

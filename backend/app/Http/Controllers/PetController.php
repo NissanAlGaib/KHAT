@@ -58,6 +58,7 @@ class PetController extends Controller
 
             // Step 3 - Additional Vaccinations (optional)
             'additional_vaccinations' => 'nullable|array',
+            'additional_vaccinations.*.vaccination_type' => 'required|string|max:255',
             'additional_vaccinations.*.vaccination_record' => 'required|file|mimes:jpg,jpeg,png,pdf|max:20480',
             'additional_vaccinations.*.clinic_name' => 'required|string|max:255',
             'additional_vaccinations.*.veterinarian_name' => 'required|string|max:255',
@@ -218,7 +219,7 @@ class PetController extends Controller
                     $vaccinationPath = $vaccination['vaccination_record']->store('vaccinations', 'public');
                     Vaccination::create([
                         'pet_id' => $pet->pet_id,
-                        'vaccine_name' => 'Other',
+                        'vaccine_name' => $vaccination['vaccination_type'],
                         'vaccination_record' => $vaccinationPath,
                         'clinic_name' => $vaccination['clinic_name'],
                         'veterinarian_name' => $vaccination['veterinarian_name'],

@@ -32,6 +32,10 @@ Route::prefix('admin')->group(function () {
         Route::post('/pets/{petId}/status', [AdminController::class, 'updatePetStatus'])->name('admin.pets.status.update');
         Route::delete('/pets/{petId}', [AdminController::class, 'deletePet'])->name('admin.pets.delete');
 
+        // Pet Document Management
+        Route::post('/pets/vaccinations/{vaccinationId}/status', [AdminController::class, 'updateVaccinationStatus'])->name('admin.pets.vaccinations.status');
+        Route::post('/pets/health-records/{healthRecordId}/status', [AdminController::class, 'updateHealthRecordStatus'])->name('admin.pets.health-records.status');
+
         // Litter/Match Management
         Route::get('/litters/{litterId}/details', [AdminController::class, 'litterDetails'])->name('admin.litters.details');
 

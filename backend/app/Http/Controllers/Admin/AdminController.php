@@ -239,6 +239,58 @@ class AdminController extends Controller
     }
 
     /**
+     * Update vaccination status (approve/reject).
+     */
+    public function updateVaccinationStatus(Request $request, $vaccinationId)
+    {
+        $request->validate([
+            'status' => 'required|in:approved,rejected',
+            'rejection_reason' => 'required_if:status,rejected|string|max:500',
+        ]);
+
+        $vaccination = \App\Models\Vaccination::findOrFail($vaccinationId);
+        $vaccination->status = $request->status;
+
+        if ($request->status === 'rejected' && $request->rejection_reason) {
+            $vaccination->rejection_reason = $request->rejection_reason;
+        }
+
+        $vaccination->save();
+
+        $message = $request->status === 'approved'
+            ? 'Vaccination approved successfully.'
+            : 'Vaccination rejected successfully.';
+
+        return redirect()->back()->with('success', $message);
+    }
+
+    /**
+     * Update health record status (approve/reject).
+     */
+    public function updateHealthRecordStatus(Request $request, $healthRecordId)
+    {
+        $request->validate([
+            'status' => 'required|in:approved,rejected',
+            'rejection_reason' => 'required_if:status,rejected|string|max:500',
+        ]);
+
+        $healthRecord = \App\Models\HealthRecord::findOrFail($healthRecordId);
+        $healthRecord->status = $request->status;
+
+        if ($request->status === 'rejected' && $request->rejection_reason) {
+            $healthRecord->rejection_reason = $request->rejection_reason;
+        }
+
+        $healthRecord->save();
+
+        $message = $request->status === 'approved'
+            ? 'Health certificate approved successfully.'
+            : 'Health certificate rejected successfully.';
+
+        return redirect()->back()->with('success', $message);
+    }
+
+    /**
      * Display litter details page.
      */
     public function litterDetails($litterId)

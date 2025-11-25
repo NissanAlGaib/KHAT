@@ -18,6 +18,7 @@ class Vaccination extends Model
         'given_date',
         'expiration_date',
         'status',
+        'rejection_reason',
     ];
 
     protected $casts = [

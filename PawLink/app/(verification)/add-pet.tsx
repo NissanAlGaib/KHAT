@@ -348,6 +348,7 @@ export default function AddPetScreen() {
         (vaccination) => {
           if (vaccination.vaccinationRecord) {
             return {
+              vaccination_type: vaccination.vaccinationType,
               vaccination_record: {
                 uri: vaccination.vaccinationRecord.uri,
                 name: vaccination.vaccinationRecord.name || "vaccination.pdf",
@@ -443,7 +444,13 @@ export default function AddPetScreen() {
         type: ["image/*", "application/pdf"],
       });
       if (!result.canceled && result.assets && result.assets.length > 0) {
-        setFormData({ ...formData, [field]: result.assets[0] });
+        // Check if it's a vaccination document field
+        if (field.startsWith("vaccination_")) {
+          const index = parseInt(field.split("_")[1]);
+          updateVaccination(index, "vaccinationRecord", result.assets[0]);
+        } else {
+          setFormData({ ...formData, [field]: result.assets[0] });
+        }
       }
     } catch (error) {
       console.error("Error picking document:", error);
@@ -475,6 +482,7 @@ export default function AddPetScreen() {
       vaccinations: [
         ...formData.vaccinations,
         {
+          vaccinationType: "",
           vaccinationRecord: null,
           clinicName: "",
           veterinarianName: "",
@@ -483,6 +491,22 @@ export default function AddPetScreen() {
         },
       ],
     });
+  };
+
+  const updateVaccination = (index: number, field: string, value: any) => {
+    const updatedVaccinations = [...formData.vaccinations];
+    updatedVaccinations[index] = {
+      ...updatedVaccinations[index],
+      [field]: value,
+    };
+    setFormData({ ...formData, vaccinations: updatedVaccinations });
+  };
+
+  const removeVaccination = (index: number) => {
+    const updatedVaccinations = formData.vaccinations.filter(
+      (_, i) => i !== index
+    );
+    setFormData({ ...formData, vaccinations: updatedVaccinations });
   };
 
   const toggleBehavior = (behavior: string) => {
@@ -593,11 +617,20 @@ export default function AddPetScreen() {
   const handleDateConfirm = (date: Date) => {
     if (datePickerField) {
       const formattedDate = date.toISOString().split("T")[0]; // YYYY-MM-DD format
-      setFormData({ ...formData, [datePickerField]: formattedDate });
 
-      // Clear validation error if exists
-      if (validationErrors[datePickerField]) {
-        setValidationErrors({ ...validationErrors, [datePickerField]: "" });
+      // Check if it's a vaccination date field
+      if (datePickerField.startsWith("vaccination_")) {
+        const parts = datePickerField.split("_");
+        const index = parseInt(parts[1]);
+        const field = parts[2]; // givenDate or expirationDate
+        updateVaccination(index, field, formattedDate);
+      } else {
+        setFormData({ ...formData, [datePickerField]: formattedDate });
+
+        // Clear validation error if exists
+        if (validationErrors[datePickerField]) {
+          setValidationErrors({ ...validationErrors, [datePickerField]: "" });
+        }
       }
     }
     setShowDatePicker(false);
@@ -1335,6 +1368,130 @@ export default function AddPetScreen() {
         </View>
       </View>
 
+      {/* Additional Vaccinations */}
+      {formData.vaccinations.map((vaccination, index) => (
+        <View key={index} className="mb-6 border-t border-gray-300 pt-6">
+          <View className="flex-row items-center justify-between mb-3">
+            <Text className="text-base font-bold text-black">
+              Additional Vaccination {index + 1}
+            </Text>
+            <TouchableOpacity
+              onPress={() => removeVaccination(index)}
+              className="bg-red-500 rounded-full p-2"
+            >
+              <Feather name="trash-2" size={16} color="white" />
+            </TouchableOpacity>
+          </View>
+
+          {/* Vaccination Type */}
+          <View className="mb-4">
+            <Text className="text-base font-semibold text-black mb-2">
+              Vaccination Type/Name
+            </Text>
+            <TextInput
+              className="border border-gray-300 rounded-lg px-4 py-3 bg-white"
+              placeholder="e.g., Bordetella, Leptospirosis, etc."
+              value={vaccination.vaccinationType}
+              onChangeText={(text) =>
+                updateVaccination(index, "vaccinationType", text)
+              }
+            />
+          </View>
+
+          {/* Vaccination Record */}
+          <View className="mb-4">
+            <TouchableOpacity
+              className="border border-gray-300 rounded-lg px-4 py-6 bg-gray-50"
+              onPress={() => {
+                pickDocument(`vaccination_${index}`);
+              }}
+            >
+              <View className="flex-row items-center">
+                <Feather name="upload" size={20} color="gray" />
+                <Text className="text-gray-600 ml-2">
+                  {vaccination.vaccinationRecord
+                    ? vaccination.vaccinationRecord.name
+                    : "Vaccination Record"}
+                </Text>
+              </View>
+              <Text className="text-gray-500 text-xs mt-2">Choose file</Text>
+            </TouchableOpacity>
+          </View>
+
+          {/* Clinic Name */}
+          <View className="mb-4">
+            <Text className="text-base font-semibold text-black mb-2">
+              Clinic Name
+            </Text>
+            <TextInput
+              className="border border-gray-300 rounded-lg px-4 py-3 bg-white"
+              placeholder="Enter name"
+              value={vaccination.clinicName}
+              onChangeText={(text) =>
+                updateVaccination(index, "clinicName", text)
+              }
+            />
+          </View>
+
+          {/* Veterinarian's Name */}
+          <View className="mb-4">
+            <Text className="text-base font-semibold text-black mb-2">
+              Veterinarian's Name
+            </Text>
+            <TextInput
+              className="border border-gray-300 rounded-lg px-4 py-3 bg-white"
+              placeholder="Enter name"
+              value={vaccination.veterinarianName}
+              onChangeText={(text) =>
+                updateVaccination(index, "veterinarianName", text)
+              }
+            />
+          </View>
+
+          {/* Given Date and Expiration Date */}
+          <View className="flex-row gap-3 mb-4">
+            <View className="flex-1">
+              <Text className="text-base font-semibold text-black mb-2">
+                Given Date
+              </Text>
+              <TouchableOpacity
+                className="border border-gray-300 rounded-lg px-4 py-3 bg-white flex-row items-center justify-between"
+                onPress={() => openDatePicker(`vaccination_${index}_givenDate`)}
+              >
+                <Text
+                  className={
+                    vaccination.givenDate ? "text-black" : "text-gray-400"
+                  }
+                >
+                  {formatDateDisplay(vaccination.givenDate)}
+                </Text>
+                <Feather name="calendar" size={20} color="gray" />
+              </TouchableOpacity>
+            </View>
+            <View className="flex-1">
+              <Text className="text-base font-semibold text-black mb-2">
+                Expiration Date
+              </Text>
+              <TouchableOpacity
+                className="border border-gray-300 rounded-lg px-4 py-3 bg-white flex-row items-center justify-between"
+                onPress={() =>
+                  openDatePicker(`vaccination_${index}_expirationDate`)
+                }
+              >
+                <Text
+                  className={
+                    vaccination.expirationDate ? "text-black" : "text-gray-400"
+                  }
+                >
+                  {formatDateDisplay(vaccination.expirationDate)}
+                </Text>
+                <Feather name="calendar" size={20} color="gray" />
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      ))}
+
       {/* Add Vaccination Button */}
       <TouchableOpacity
         className="bg-[#FF6B4A] rounded-lg py-4 mb-4"
@@ -1944,7 +2101,7 @@ export default function AddPetScreen() {
         mode="date"
         onConfirm={handleDateConfirm}
         onCancel={handleDateCancel}
-        maximumDate={new Date()}
+        maximumDate={datePickerField === "birthdate" ? new Date() : undefined}
       />
 
       {/* Preferred Breed Modal */}

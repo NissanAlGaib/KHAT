@@ -19,6 +19,7 @@ class HealthRecord extends Model
         'expiration_date',
         'notes',
         'status',
+        'rejection_reason',
     ];
 
     protected $casts = [
