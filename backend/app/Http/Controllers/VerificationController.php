@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Http\Controllers\NotificationController;
 use Illuminate\Http\Request;
 use App\Models\UserAuth;
 use Illuminate\Support\Facades\Storage;
