@@ -20,10 +20,7 @@ import {
   type ConversationDetail,
   type Message,
 } from "@/services/matchRequestService";
-import {
-  getContract,
-  type BreedingContract,
-} from "@/services/contractService";
+import { getContract, type BreedingContract } from "@/services/contractService";
 import { API_BASE_URL } from "@/config/env";
 import {
   ContractPrompt,
@@ -162,6 +159,10 @@ export default function ConversationScreen() {
 
   const renderMessages = () => {
     if (!conversation?.messages.length) {
+      const recipientName = conversation?.is_shooter_view
+        ? `${conversation.owner1?.name} and ${conversation.owner2?.name}`
+        : conversation?.owner?.name;
+
       return (
         <View className="items-center justify-center py-20">
           <Feather name="message-circle" size={48} color="#ccc" />
@@ -169,7 +170,7 @@ export default function ConversationScreen() {
             Start the conversation
           </Text>
           <Text className="text-gray-400 text-sm text-center mt-1">
-            Send a message to connect with {conversation?.owner.name}
+            Send a message to connect with {recipientName}
           </Text>
         </View>
       );
@@ -203,9 +204,7 @@ export default function ConversationScreen() {
                   : "bg-white rounded-bl-md"
               }`}
             >
-              <Text
-                className={message.is_own ? "text-white" : "text-black"}
-              >
+              <Text className={message.is_own ? "text-white" : "text-black"}>
                 {message.content}
               </Text>
             </View>
@@ -240,35 +239,81 @@ export default function ConversationScreen() {
         <TouchableOpacity onPress={() => router.back()} className="mr-3">
           <Feather name="arrow-left" size={24} color="black" />
         </TouchableOpacity>
-        {conversation?.matched_pet.photo_url ? (
-          <Image
-            source={{
-              uri: getImageUrl(conversation?.matched_pet.photo_url) || undefined,
-            }}
-            className="w-10 h-10 rounded-full bg-gray-200"
-          />
+
+        {conversation?.is_shooter_view ? (
+          // Shooter view header - show both pets
+          <>
+            <View className="flex-row">
+              {conversation.pet1?.photo_url ? (
+                <Image
+                  source={{
+                    uri: getImageUrl(conversation.pet1.photo_url) || undefined,
+                  }}
+                  className="w-10 h-10 rounded-full bg-gray-200 border-2 border-white"
+                />
+              ) : (
+                <View className="w-10 h-10 rounded-full bg-gray-200 items-center justify-center border-2 border-white">
+                  <Feather name="image" size={16} color="#9CA3AF" />
+                </View>
+              )}
+              {conversation.pet2?.photo_url ? (
+                <Image
+                  source={{
+                    uri: getImageUrl(conversation.pet2.photo_url) || undefined,
+                  }}
+                  className="w-10 h-10 rounded-full bg-gray-200 -ml-2 border-2 border-white"
+                />
+              ) : (
+                <View className="w-10 h-10 rounded-full bg-gray-200 items-center justify-center -ml-2 border-2 border-white">
+                  <Feather name="image" size={16} color="#9CA3AF" />
+                </View>
+              )}
+            </View>
+            <View className="flex-1 ml-3">
+              <Text className="font-bold text-base">
+                {conversation.pet1?.name} & {conversation.pet2?.name}
+              </Text>
+              <Text className="text-gray-500 text-sm">
+                {conversation.owner1?.name} & {conversation.owner2?.name}
+              </Text>
+            </View>
+          </>
         ) : (
-          <View className="w-10 h-10 rounded-full bg-gray-200 items-center justify-center">
-            <Feather name="image" size={16} color="#9CA3AF" />
-          </View>
+          // Owner view header - show matched pet
+          <>
+            {conversation?.matched_pet?.photo_url ? (
+              <Image
+                source={{
+                  uri:
+                    getImageUrl(conversation?.matched_pet.photo_url) ||
+                    undefined,
+                }}
+                className="w-10 h-10 rounded-full bg-gray-200"
+              />
+            ) : (
+              <View className="w-10 h-10 rounded-full bg-gray-200 items-center justify-center">
+                <Feather name="image" size={16} color="#9CA3AF" />
+              </View>
+            )}
+            <View className="flex-1 ml-3">
+              <Text className="font-bold text-base">
+                {conversation?.matched_pet?.name}
+              </Text>
+              <Text className="text-gray-500 text-sm">
+                {conversation?.owner?.name}
+              </Text>
+            </View>
+            <TouchableOpacity
+              onPress={() =>
+                router.push(
+                  `/(pet)/view-profile?id=${conversation?.matched_pet?.pet_id}`
+                )
+              }
+            >
+              <Feather name="info" size={24} color="#FF6B6B" />
+            </TouchableOpacity>
+          </>
         )}
-        <View className="flex-1 ml-3">
-          <Text className="font-bold text-base">
-            {conversation?.matched_pet.name}
-          </Text>
-          <Text className="text-gray-500 text-sm">
-            {conversation?.owner.name}
-          </Text>
-        </View>
-        <TouchableOpacity
-          onPress={() =>
-            router.push(
-              `/(pet)/view-profile?id=${conversation?.matched_pet.pet_id}`
-            )
-          }
-        >
-          <Feather name="info" size={24} color="#FF6B6B" />
-        </TouchableOpacity>
       </View>
 
       <KeyboardAvoidingView

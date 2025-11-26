@@ -11,7 +11,12 @@ import { useRouter } from "expo-router";
 import { AnimatedSearchBar } from "@/components/app/AnimatedSearchBar";
 import SettingsDropdown from "@/components/app/SettingsDropdown";
 import { API_BASE_URL } from "@/config/env";
-import { getShooterOffers, getMyShooterOffers, ShooterOffer } from "@/services/shooterService";
+import {
+  getShooterOffers,
+  getMyShooterOffers,
+  ShooterOffer,
+} from "@/services/shooterService";
+import { Feather } from "@expo/vector-icons";
 
 export default function ShooterHomepage() {
   const router = useRouter();
@@ -30,7 +35,9 @@ export default function ShooterHomepage() {
 
       setAvailableOffers(available);
       setMyOffers(my);
-      setCurrentHandling(my.filter(o => o.shooter_status === 'accepted_by_owners').length);
+      setCurrentHandling(
+        my.filter((o) => o.shooter_status === "accepted_by_owners").length
+      );
     } catch (error) {
       console.error("Error fetching offers:", error);
     } finally {
@@ -43,16 +50,33 @@ export default function ShooterHomepage() {
   }, [fetchOffers]);
 
   const handleOfferPress = (offer: ShooterOffer) => {
-    router.push(`/(shooter)/offer-details?id=${offer.id}`);
+    // If both owners have accepted, navigate to the conversation
+    if (
+      offer.shooter_status === "accepted_by_owners" &&
+      offer.conversation_id
+    ) {
+      router.push(`/(chat)/conversation?id=${offer.conversation_id}`);
+    } else {
+      // Otherwise, show offer details
+      router.push(`/(shooter)/offer-details?id=${offer.id}`);
+    }
   };
 
   const getImageUrl = (path?: string) => {
     if (!path) return null;
-    if (path.startsWith('http')) return path;
+    if (path.startsWith("http")) return path;
     return `${API_BASE_URL}/storage/${path}`;
   };
 
-  const OfferCard = ({ offer, showStatus = false }: { offer: ShooterOffer; showStatus?: boolean }) => {
+  const OfferCard = ({
+    offer,
+    showStatus = false,
+  }: {
+    offer: ShooterOffer;
+    showStatus?: boolean;
+  }) => {
+    const isConfirmed = offer.shooter_status === "accepted_by_owners";
+
     return (
       <TouchableOpacity
         key={offer.id}
@@ -68,7 +92,9 @@ export default function ShooterHomepage() {
             <View className="w-1/2 h-24 bg-gray-200">
               {offer.pet1.photo_url ? (
                 <Image
-                  source={{ uri: getImageUrl(offer.pet1.photo_url) || undefined }}
+                  source={{
+                    uri: getImageUrl(offer.pet1.photo_url) || undefined,
+                  }}
                   className="w-full h-full"
                   resizeMode="cover"
                 />
@@ -86,7 +112,9 @@ export default function ShooterHomepage() {
             <View className="w-1/2 h-24 bg-gray-200">
               {offer.pet2.photo_url ? (
                 <Image
-                  source={{ uri: getImageUrl(offer.pet2.photo_url) || undefined }}
+                  source={{
+                    uri: getImageUrl(offer.pet2.photo_url) || undefined,
+                  }}
                   className="w-full h-full"
                   resizeMode="cover"
                 />
@@ -103,11 +131,22 @@ export default function ShooterHomepage() {
           </View>
           {/* Status Badge */}
           {showStatus && offer.shooter_status && (
-            <View className={`absolute top-2 right-2 px-2 py-1 rounded-full ${
-              offer.shooter_status === 'accepted_by_owners' ? 'bg-green-500' : 'bg-yellow-500'
-            }`}>
+            <View
+              className={`absolute top-2 right-2 px-2 py-1 rounded-full ${
+                isConfirmed ? "bg-green-500" : "bg-yellow-500"
+              }`}
+            >
               <Text className="text-white text-xs font-semibold">
-                {offer.shooter_status === 'accepted_by_owners' ? 'Confirmed' : 'Pending'}
+                {isConfirmed ? "Confirmed" : "Pending"}
+              </Text>
+            </View>
+          )}
+          {/* Chat indicator for confirmed offers */}
+          {showStatus && isConfirmed && (
+            <View className="absolute bottom-2 left-2 bg-[#FF6B6B] px-2 py-1 rounded-full flex-row items-center">
+              <Feather name="message-circle" size={12} color="white" />
+              <Text className="text-white text-xs font-semibold ml-1">
+                Chat Open
               </Text>
             </View>
           )}
@@ -214,8 +253,11 @@ export default function ShooterHomepage() {
         {/* My Accepted Offers (pending owner confirmation or confirmed) */}
         {myOffers.length > 0 && (
           <View className="px-4 mb-4">
-            <Text className="text-2xl font-baloo text-[#ea5b3a] mb-4">
+            <Text className="text-2xl font-baloo text-[#ea5b3a] mb-2">
               My Breeding Assignments
+            </Text>
+            <Text className="text-gray-600 text-sm mb-4">
+              Tap confirmed assignments to open chat with both owners
             </Text>
             <View className="flex-row flex-wrap justify-between">
               {myOffers.map((offer) => (
