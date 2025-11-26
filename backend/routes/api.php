@@ -66,6 +66,10 @@ Route::middleware(['auth:sanctum'])
         Route::get('/shooter/offers/{id}', [ShooterController::class, 'getOfferDetails']);
         Route::put('/shooter/offers/{id}/accept', [ShooterController::class, 'acceptOffer']);
         Route::get('/shooter/my-offers', [ShooterController::class, 'getMyOffers']);
+        
+        // Debug routes for shooter offers
+        Route::get('/shooter/debug/contracts', [ShooterController::class, 'debugContracts']);
+        Route::post('/shooter/debug/fix-status', [ShooterController::class, 'fixShooterStatus']);
 
         // Verification routes
         Route::post('/verification/submit', [VerificationController::class, 'submitVerification']);

@@ -272,8 +272,18 @@ class BreedingContractController extends Controller
             ];
 
             // If contract has shooter payment, set shooter_status to pending
-            if ($contract->shooter_payment && $contract->shooter_payment > 0) {
+            // Cast to float to handle decimal string comparison properly
+            $shooterPayment = (float) $contract->shooter_payment;
+            \Log::info('Contract accept - shooter payment check', [
+                'contract_id' => $contract->id,
+                'shooter_payment_raw' => $contract->shooter_payment,
+                'shooter_payment_float' => $shooterPayment,
+                'has_shooter_payment' => $shooterPayment > 0,
+            ]);
+            
+            if ($shooterPayment > 0) {
                 $updateData['shooter_status'] = 'pending';
+                \Log::info('Setting shooter_status to pending for contract ' . $contract->id);
             }
 
             $contract->update($updateData);

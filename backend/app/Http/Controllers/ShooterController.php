@@ -121,12 +121,21 @@ class ShooterController extends Controller
                 ])
                 ->get();
 
+            // Detailed debug logging
+            $allAccepted = BreedingContract::where('status', 'accepted')->get();
             \Log::info('Shooter offers query results', [
                 'count' => $offers->count(),
                 'user_id' => $user->id,
-                'total_accepted_contracts' => BreedingContract::where('status', 'accepted')->count(),
-                'contracts_with_shooter_payment' => BreedingContract::where('status', 'accepted')->whereNotNull('shooter_payment')->where('shooter_payment', '>', 0)->count(),
-                'contracts_with_pending_shooter' => BreedingContract::where('status', 'accepted')->where('shooter_status', 'pending')->count(),
+                'total_accepted_contracts' => $allAccepted->count(),
+                'contracts_with_shooter_payment' => $allAccepted->filter(fn($c) => $c->shooter_payment && (float) $c->shooter_payment > 0)->count(),
+                'contracts_with_pending_shooter' => $allAccepted->where('shooter_status', 'pending')->count(),
+                'all_accepted_details' => $allAccepted->map(fn($c) => [
+                    'id' => $c->id,
+                    'status' => $c->status,
+                    'shooter_status' => $c->shooter_status,
+                    'shooter_payment' => $c->shooter_payment,
+                    'shooter_payment_float' => (float) $c->shooter_payment,
+                ])->toArray(),
             ]);
 
             $formattedOffers = $offers->filter(function ($contract) {
@@ -590,6 +599,95 @@ class ShooterController extends Controller
             return response()->json([
                 'success' => false,
                 'message' => 'Failed to get shooter profile',
+                'error' => $e->getMessage()
+            ], 500);
+        }
+    }
+
+    /**
+     * Debug endpoint to check contract states
+     */
+    public function debugContracts(Request $request)
+    {
+        try {
+            $allContracts = BreedingContract::with(['conversation.matchRequest.requesterPet', 'conversation.matchRequest.targetPet'])
+                ->get();
+
+            $data = $allContracts->map(function ($contract) {
+                return [
+                    'id' => $contract->id,
+                    'conversation_id' => $contract->conversation_id,
+                    'status' => $contract->status,
+                    'shooter_status' => $contract->shooter_status,
+                    'shooter_payment' => $contract->shooter_payment,
+                    'shooter_payment_is_null' => is_null($contract->shooter_payment),
+                    'shooter_payment_float' => (float) $contract->shooter_payment,
+                    'has_conversation' => $contract->conversation !== null,
+                    'has_match_request' => $contract->conversation?->matchRequest !== null,
+                    'has_requester_pet' => $contract->conversation?->matchRequest?->requesterPet !== null,
+                    'has_target_pet' => $contract->conversation?->matchRequest?->targetPet !== null,
+                    'created_at' => $contract->created_at?->toISOString(),
+                    'accepted_at' => $contract->accepted_at?->toISOString(),
+                ];
+            });
+
+            $summary = [
+                'total_contracts' => $allContracts->count(),
+                'accepted_contracts' => $allContracts->where('status', 'accepted')->count(),
+                'with_shooter_payment' => $allContracts->filter(fn($c) => (float) $c->shooter_payment > 0)->count(),
+                'pending_shooter_status' => $allContracts->where('shooter_status', 'pending')->count(),
+                'eligible_for_shooter' => $allContracts->filter(fn($c) => 
+                    $c->status === 'accepted' && 
+                    $c->shooter_status === 'pending' && 
+                    (float) $c->shooter_payment > 0
+                )->count(),
+            ];
+
+            return response()->json([
+                'success' => true,
+                'summary' => $summary,
+                'contracts' => $data,
+            ]);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Debug failed',
+                'error' => $e->getMessage()
+            ], 500);
+        }
+    }
+
+    /**
+     * Manually fix shooter status for existing contracts
+     */
+    public function fixShooterStatus(Request $request)
+    {
+        try {
+            // Get contracts that should have pending shooter status
+            $contracts = BreedingContract::where('status', 'accepted')
+                ->whereNotNull('shooter_payment')
+                ->where('shooter_payment', '>', 0)
+                ->where(function ($query) {
+                    $query->where('shooter_status', 'none')
+                          ->orWhereNull('shooter_status');
+                })
+                ->get();
+
+            $fixedIds = [];
+            foreach ($contracts as $contract) {
+                $contract->update(['shooter_status' => 'pending']);
+                $fixedIds[] = $contract->id;
+            }
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Fixed ' . count($fixedIds) . ' contracts',
+                'fixed_contract_ids' => $fixedIds,
+            ]);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Fix failed',
                 'error' => $e->getMessage()
             ], 500);
         }
