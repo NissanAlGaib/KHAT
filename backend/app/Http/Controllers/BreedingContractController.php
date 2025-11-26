@@ -280,7 +280,7 @@ class BreedingContractController extends Controller
                 'shooter_payment_float' => $shooterPayment,
                 'has_shooter_payment' => $shooterPayment > 0,
             ]);
-            
+
             if ($shooterPayment > 0) {
                 $updateData['shooter_status'] = 'pending';
                 \Log::info('Setting shooter_status to pending for contract ' . $contract->id);
@@ -374,8 +374,8 @@ class BreedingContractController extends Controller
                     ->orWhereIn('target_pet_id', $userPetIds);
             });
         })
-        ->with(['conversation.matchRequest.requesterPet', 'conversation.matchRequest.targetPet'])
-        ->find($contractId);
+            ->with(['conversation.matchRequest.requesterPet', 'conversation.matchRequest.targetPet'])
+            ->find($contractId);
 
         if (!$contract) {
             return response()->json([
@@ -423,7 +423,7 @@ class BreedingContractController extends Controller
 
             return response()->json([
                 'success' => true,
-                'message' => $contract->shooter_status === 'accepted_by_owners' 
+                'message' => $contract->shooter_status === 'accepted_by_owners'
                     ? 'Both owners have accepted the shooter. Shooter is now confirmed.'
                     : 'You have accepted the shooter request. Waiting for the other owner.',
                 'data' => $this->formatContract($contract->fresh(), $user),
@@ -507,8 +507,8 @@ class BreedingContractController extends Controller
                     ->orWhereIn('target_pet_id', $userPetIds);
             });
         })
-        ->with(['shooter', 'conversation.matchRequest.requesterPet', 'conversation.matchRequest.targetPet'])
-        ->find($contractId);
+            ->with(['shooter', 'conversation.matchRequest.requesterPet', 'conversation.matchRequest.targetPet'])
+            ->find($contractId);
 
         if (!$contract) {
             return response()->json([
@@ -538,9 +538,58 @@ class BreedingContractController extends Controller
                 'owner1_accepted' => $contract->owner1_accepted_shooter,
                 'owner2_accepted' => $contract->owner2_accepted_shooter,
                 'is_owner1' => $isOwner1,
-                'current_user_accepted' => $isOwner1 
-                    ? $contract->owner1_accepted_shooter 
+                'current_user_accepted' => $isOwner1
+                    ? $contract->owner1_accepted_shooter
                     : $contract->owner2_accepted_shooter,
+            ],
+        ]);
+    }
+
+    /**
+     * Get count of pending shooter requests for current user's contracts
+     */
+    public function getPendingShooterRequestsCount(Request $request)
+    {
+        $user = $request->user();
+        $userPetIds = Pet::where('user_id', $user->id)->pluck('pet_id');
+
+        // Count contracts where:
+        // 1. User has access to the contract (through their pet)
+        // 2. Contract is accepted
+        // 3. Shooter status is 'accepted_by_shooter' (shooter has accepted, waiting for owner approval)
+        // 4. Current user hasn't accepted the shooter yet
+        $count = BreedingContract::whereHas('conversation.matchRequest', function ($query) use ($userPetIds) {
+            $query->where(function ($q) use ($userPetIds) {
+                $q->whereIn('requester_pet_id', $userPetIds)
+                    ->orWhereIn('target_pet_id', $userPetIds);
+            });
+        })
+            ->where('status', 'accepted')
+            ->where('shooter_status', 'accepted_by_shooter')
+            ->where(function ($query) use ($user, $userPetIds) {
+                // Check if current user hasn't accepted yet
+                $query->where(function ($q) use ($user, $userPetIds) {
+                    // For contracts where user is owner1 (requester)
+                    $q->whereHas('conversation.matchRequest', function ($subQ) use ($userPetIds) {
+                        $subQ->whereIn('requester_pet_id', $userPetIds);
+                    })
+                        ->where('owner1_accepted_shooter', false);
+                })
+                    ->orWhere(function ($q) use ($user, $userPetIds) {
+                        // For contracts where user is owner2 (target)
+                        $q->whereHas('conversation.matchRequest', function ($subQ) use ($userPetIds) {
+                            $subQ->whereIn('target_pet_id', $userPetIds)
+                                ->whereNotIn('requester_pet_id', $userPetIds);
+                        })
+                            ->where('owner2_accepted_shooter', false);
+                    });
+            })
+            ->count();
+
+        return response()->json([
+            'success' => true,
+            'data' => [
+                'count' => $count,
             ],
         ]);
     }
@@ -550,8 +599,15 @@ class BreedingContractController extends Controller
      */
     private function formatContract(BreedingContract $contract, $user): array
     {
-        $contract->load('shooter');
-        
+        $contract->load('shooter', 'conversation.matchRequest.requesterPet', 'conversation.matchRequest.targetPet');
+
+        // Determine if user is owner1 or owner2
+        $matchRequest = $contract->conversation->matchRequest;
+        $isOwner1 = $matchRequest->requesterPet->user_id === $user->id;
+        $currentUserAcceptedShooter = $isOwner1
+            ? $contract->owner1_accepted_shooter
+            : $contract->owner2_accepted_shooter;
+
         return [
             'id' => $contract->id,
             'conversation_id' => $contract->conversation_id,
@@ -602,6 +658,8 @@ class BreedingContractController extends Controller
             'can_edit' => $contract->canBeEditedBy($user),
             'can_accept' => $contract->canBeAcceptedBy($user),
             'is_creator' => $contract->isCreator($user),
+            'is_owner1' => $isOwner1,
+            'current_user_accepted_shooter' => $currentUserAcceptedShooter,
         ];
     }
 }

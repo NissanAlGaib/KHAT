@@ -15,7 +15,12 @@ export interface BreedingContract {
 
   // Shooter Request Status
   shooter_user_id?: number;
-  shooter_status?: "none" | "pending" | "accepted_by_shooter" | "accepted_by_owners" | "declined";
+  shooter_status?:
+    | "none"
+    | "pending"
+    | "accepted_by_shooter"
+    | "accepted_by_owners"
+    | "declined";
   shooter_accepted_at?: string;
   owner1_accepted_shooter?: boolean;
   owner2_accepted_shooter?: boolean;
@@ -57,6 +62,8 @@ export interface BreedingContract {
   can_edit: boolean;
   can_accept: boolean;
   is_creator: boolean;
+  is_owner1?: boolean;
+  current_user_accepted_shooter?: boolean;
 }
 
 export interface ShooterRequestStatus {
@@ -158,7 +165,10 @@ export const updateContract = async (
   data: ContractFormData
 ): Promise<ApiResponse<BreedingContract>> => {
   try {
-    const response = await axiosInstance.put(`/api/contracts/${contractId}`, data);
+    const response = await axiosInstance.put(
+      `/api/contracts/${contractId}`,
+      data
+    );
     return {
       success: true,
       message: response.data.message,
@@ -276,5 +286,23 @@ export const declineShooterRequest = async (
     const errorMessage =
       error.response?.data?.message || "Failed to decline shooter request";
     return { success: false, message: errorMessage };
+  }
+};
+
+/**
+ * Get count of pending shooter requests for current user
+ */
+export const getPendingShooterRequestsCount = async (): Promise<number> => {
+  try {
+    const response = await axiosInstance.get(
+      `/api/contracts/shooter-requests/count`
+    );
+    return response.data.data?.count || 0;
+  } catch (error: any) {
+    console.error(
+      "Error getting pending shooter requests count:",
+      error.response?.data || error.message
+    );
+    return 0;
   }
 };

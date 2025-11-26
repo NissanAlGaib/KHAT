@@ -60,13 +60,13 @@ Route::middleware(['auth:sanctum'])
         // Shooter routes
         Route::get('/shooters', [ShooterController::class, 'index']);
         Route::get('/shooters/{id}', [ShooterController::class, 'show']);
-        
+
         // Shooter offer routes (for shooters)
         Route::get('/shooter/offers', [ShooterController::class, 'getOffers']);
         Route::get('/shooter/offers/{id}', [ShooterController::class, 'getOfferDetails']);
         Route::put('/shooter/offers/{id}/accept', [ShooterController::class, 'acceptOffer']);
         Route::get('/shooter/my-offers', [ShooterController::class, 'getMyOffers']);
-        
+
         // Debug routes for shooter offers
         Route::get('/shooter/debug/contracts', [ShooterController::class, 'debugContracts']);
         Route::post('/shooter/debug/fix-status', [ShooterController::class, 'fixShooterStatus']);
@@ -101,8 +101,9 @@ Route::middleware(['auth:sanctum'])
         Route::put('/contracts/{id}', [BreedingContractController::class, 'update']);
         Route::put('/contracts/{id}/accept', [BreedingContractController::class, 'accept']);
         Route::put('/contracts/{id}/reject', [BreedingContractController::class, 'reject']);
-        
+
         // Shooter request routes (for owners)
+        Route::get('/contracts/shooter-requests/count', [BreedingContractController::class, 'getPendingShooterRequestsCount']);
         Route::get('/contracts/{id}/shooter-request', [BreedingContractController::class, 'getShooterRequest']);
         Route::put('/contracts/{id}/shooter-request/accept', [BreedingContractController::class, 'acceptShooterRequest']);
         Route::put('/contracts/{id}/shooter-request/decline', [BreedingContractController::class, 'declineShooterRequest']);

@@ -1,5 +1,5 @@
-import React, { useState } from "react";
-import { View, TouchableOpacity, Dimensions } from "react-native";
+import React, { useState, useEffect } from "react";
+import { View, TouchableOpacity, Dimensions, Text } from "react-native";
 import Animated, { FadeIn, FadeOut } from "react-native-reanimated";
 import Svg, { Path } from "react-native-svg";
 import { useRouter } from "expo-router";
@@ -13,6 +13,7 @@ import {
 import { BottomTabBarProps } from "@react-navigation/bottom-tabs";
 import PetSelectionModal from "./PetSelectionModal";
 import { useRole } from "@/context/RoleContext";
+import { getPendingShooterRequestsCount } from "@/services/contractService";
 
 const { width } = Dimensions.get("window");
 const TAB_BAR_WIDTH = width * 0.9;
@@ -29,9 +30,28 @@ export default function CurvedTabBar({
   const current = state.index;
   const [showPetModal, setShowPetModal] = useState(false);
   const { role } = useRole();
+  const [pendingShooterRequestsCount, setPendingShooterRequestsCount] =
+    useState(0);
 
   // Check if user is in Shooter mode
   const isShooterMode = role === "Shooter";
+
+  // Fetch pending shooter requests count
+  useEffect(() => {
+    const fetchPendingCount = async () => {
+      if (!isShooterMode) {
+        const count = await getPendingShooterRequestsCount();
+        setPendingShooterRequestsCount(count);
+      }
+    };
+
+    fetchPendingCount();
+
+    // Poll every 30 seconds to keep count updated
+    const interval = setInterval(fetchPendingCount, 30000);
+
+    return () => clearInterval(interval);
+  }, [isShooterMode]);
 
   type TabRoute =
     | "/(tabs)"
@@ -167,6 +187,10 @@ export default function CurvedTabBar({
             const Icon = item.icon;
             const isActive = current === index;
 
+            // Show badge on favorites tab (index 1) if there are pending shooter requests
+            const showBadge =
+              index === 1 && pendingShooterRequestsCount > 0 && !isShooterMode;
+
             return (
               <TouchableOpacity
                 key={index}
@@ -178,11 +202,44 @@ export default function CurvedTabBar({
                   paddingVertical: 12,
                 }}
               >
-                <Icon
-                  size={28}
-                  color={isActive ? "white" : "rgba(255, 255, 255, 0.6)"}
-                  strokeWidth={2.5}
-                />
+                <View style={{ position: "relative" }}>
+                  <Icon
+                    size={28}
+                    color={isActive ? "white" : "rgba(255, 255, 255, 0.6)"}
+                    strokeWidth={2.5}
+                  />
+                  {/* Notification badge */}
+                  {showBadge && (
+                    <View
+                      style={{
+                        position: "absolute",
+                        top: -4,
+                        right: -8,
+                        backgroundColor: "#FFD700",
+                        borderRadius: 10,
+                        minWidth: 20,
+                        height: 20,
+                        alignItems: "center",
+                        justifyContent: "center",
+                        paddingHorizontal: 4,
+                        borderWidth: 2,
+                        borderColor: "#EA5B3A",
+                      }}
+                    >
+                      <Text
+                        style={{
+                          color: "#EA5B3A",
+                          fontSize: 11,
+                          fontWeight: "bold",
+                        }}
+                      >
+                        {pendingShooterRequestsCount > 9
+                          ? "9+"
+                          : pendingShooterRequestsCount}
+                      </Text>
+                    </View>
+                  )}
+                </View>
                 {/* Active indicator dot */}
                 {isActive && (
                   <View

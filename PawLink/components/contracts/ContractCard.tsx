@@ -160,9 +160,8 @@ export default function ContractCard({
   const collateralPerOwner = contract.collateral_total / 2;
 
   // Determine if current user has already accepted the shooter
-  // Note: We'll need the backend to provide which owner the current user is
   const hasCurrentUserAcceptedShooter =
-    contract.owner1_accepted_shooter || contract.owner2_accepted_shooter;
+    contract.current_user_accepted_shooter ?? false;
   const bothOwnersAccepted =
     contract.owner1_accepted_shooter && contract.owner2_accepted_shooter;
 

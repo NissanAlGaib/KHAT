@@ -84,7 +84,9 @@ const Favorites = () => {
               text: "Start Chat",
               onPress: () => {
                 if (result.conversation_id) {
-                  router.push(`/(chat)/conversation?id=${result.conversation_id}`);
+                  router.push(
+                    `/(chat)/conversation?id=${result.conversation_id}`
+                  );
                 }
               },
             },
@@ -175,7 +177,9 @@ const Favorites = () => {
       )}
       <View className="flex-1 ml-3">
         <Text className="text-gray-500 text-sm">{request.owner.name}</Text>
-        <Text className="font-bold text-base">{request.requester_pet.name}</Text>
+        <Text className="font-bold text-base">
+          {request.requester_pet.name}
+        </Text>
         <Text className="text-gray-400 text-xs">
           {formatTimeAgo(request.created_at)}
         </Text>
@@ -235,6 +239,14 @@ const Favorites = () => {
         <Text className="text-green-500 text-xs">
           Matched {formatTimeAgo(match.matched_at)}
         </Text>
+        {match.has_pending_shooter_request && (
+          <View className="flex-row items-center mt-1">
+            <View className="w-2 h-2 rounded-full bg-yellow-500 mr-1" />
+            <Text className="text-yellow-600 text-xs font-semibold">
+              Pending Shooter Request
+            </Text>
+          </View>
+        )}
       </View>
       <TouchableOpacity
         className="w-10 h-10 bg-[#FF6B6B] rounded-full items-center justify-center"
