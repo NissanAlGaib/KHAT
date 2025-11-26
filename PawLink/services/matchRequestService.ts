@@ -35,8 +35,39 @@ export interface AcceptedMatch {
 
 export interface ConversationPreview {
   id: number;
-  matched_pet: MatchRequestPet;
-  owner: MatchRequestOwner;
+  is_shooter_conversation: boolean;
+  // For owner conversations
+  matched_pet?: MatchRequestPet;
+  owner?: MatchRequestOwner;
+  shooter?: {
+    id: number;
+    name: string;
+    profile_image?: string;
+  };
+  // For shooter conversations
+  pet1?: {
+    pet_id: number;
+    name: string;
+    breed: string;
+    photo_url?: string;
+  };
+  pet2?: {
+    pet_id: number;
+    name: string;
+    breed: string;
+    photo_url?: string;
+  };
+  owner1?: {
+    id: number;
+    name: string;
+    profile_image?: string;
+  };
+  owner2?: {
+    id: number;
+    name: string;
+    profile_image?: string;
+  };
+  // Common fields
   last_message?: {
     content: string;
     created_at: string;
@@ -63,8 +94,36 @@ export interface Message {
 
 export interface ConversationDetail {
   conversation_id: number;
-  matched_pet: MatchRequestPet;
-  owner: MatchRequestOwner;
+  is_shooter_view?: boolean;
+  // For owner view
+  matched_pet?: MatchRequestPet;
+  owner?: MatchRequestOwner;
+  shooter?: {
+    id: number;
+    name: string;
+    profile_image?: string;
+  };
+  // For shooter view
+  pet1?: {
+    pet_id: number;
+    name: string;
+    photo_url?: string;
+  };
+  pet2?: {
+    pet_id: number;
+    name: string;
+    photo_url?: string;
+  };
+  owner1?: {
+    id: number;
+    name: string;
+    profile_image?: string;
+  };
+  owner2?: {
+    id: number;
+    name: string;
+    profile_image?: string;
+  };
   messages: Message[];
 }
 

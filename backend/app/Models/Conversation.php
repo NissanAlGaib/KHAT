@@ -11,7 +11,16 @@ class Conversation extends Model
 {
     protected $fillable = [
         'match_request_id',
+        'shooter_user_id',
     ];
+
+    /**
+     * Get the shooter user for this conversation
+     */
+    public function shooter(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'shooter_user_id');
+    }
 
     /**
      * Get the match request that created this conversation

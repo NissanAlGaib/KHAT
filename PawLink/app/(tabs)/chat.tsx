@@ -64,61 +64,153 @@ const Chat = () => {
     return date.toLocaleDateString();
   };
 
-  const renderConversationItem = (conversation: ConversationPreview) => (
-    <TouchableOpacity
-      key={conversation.id}
-      className="bg-white rounded-2xl p-4 mb-3 flex-row items-center shadow-sm"
-      onPress={() => router.push(`/(chat)/conversation?id=${conversation.id}`)}
-    >
-      <View className="relative">
-        {conversation.matched_pet.photo_url ? (
-          <Image
-            source={{
-              uri: getImageUrl(conversation.matched_pet.photo_url) || undefined,
-            }}
-            className="w-16 h-16 rounded-full bg-gray-200"
-          />
-        ) : (
-          <View className="w-16 h-16 rounded-full bg-gray-200 items-center justify-center">
-            <Feather name="image" size={24} color="#9CA3AF" />
-          </View>
-        )}
-        {conversation.unread_count > 0 && (
-          <View className="absolute -top-1 -right-1 bg-[#FF6B6B] rounded-full min-w-[20px] h-5 items-center justify-center px-1">
-            <Text className="text-white text-xs font-bold">
-              {conversation.unread_count > 99 ? "99+" : conversation.unread_count}
+  const renderConversationItem = (conversation: ConversationPreview) => {
+    // Handle shooter conversations differently
+    if (conversation.is_shooter_conversation) {
+      return (
+        <TouchableOpacity
+          key={conversation.id}
+          className="bg-white rounded-2xl p-4 mb-3 shadow-sm"
+          onPress={() =>
+            router.push(`/(chat)/conversation?id=${conversation.id}`)
+          }
+        >
+          <View className="flex-row items-center mb-2">
+            <View className="bg-[#FF6B6B] px-2 py-1 rounded">
+              <Text className="text-white text-xs font-semibold">Shooter</Text>
+            </View>
+            <Text className="text-gray-400 text-xs ml-auto">
+              {conversation.last_message
+                ? formatTimeAgo(conversation.last_message.created_at)
+                : formatTimeAgo(conversation.updated_at)}
             </Text>
           </View>
-        )}
-      </View>
-      <View className="flex-1 ml-3">
-        <View className="flex-row items-center justify-between">
-          <Text className="font-bold text-base">
-            {conversation.matched_pet.name}
-          </Text>
-          <Text className="text-gray-400 text-xs">
-            {conversation.last_message
-              ? formatTimeAgo(conversation.last_message.created_at)
-              : formatTimeAgo(conversation.updated_at)}
-          </Text>
+          <View className="flex-row items-center">
+            <View className="flex-row">
+              {conversation.pet1?.photo_url ? (
+                <Image
+                  source={{
+                    uri: getImageUrl(conversation.pet1.photo_url) || undefined,
+                  }}
+                  className="w-12 h-12 rounded-full bg-gray-200 border-2 border-white"
+                />
+              ) : (
+                <View className="w-12 h-12 rounded-full bg-gray-200 items-center justify-center border-2 border-white">
+                  <Feather name="image" size={20} color="#9CA3AF" />
+                </View>
+              )}
+              {conversation.pet2?.photo_url ? (
+                <Image
+                  source={{
+                    uri: getImageUrl(conversation.pet2.photo_url) || undefined,
+                  }}
+                  className="w-12 h-12 rounded-full bg-gray-200 -ml-3 border-2 border-white"
+                />
+              ) : (
+                <View className="w-12 h-12 rounded-full bg-gray-200 items-center justify-center -ml-3 border-2 border-white">
+                  <Feather name="image" size={20} color="#9CA3AF" />
+                </View>
+              )}
+            </View>
+            <View className="flex-1 ml-3">
+              <Text className="font-bold text-base">
+                {conversation.pet1?.name} & {conversation.pet2?.name}
+              </Text>
+              <Text className="text-gray-500 text-sm">
+                {conversation.owner1?.name} & {conversation.owner2?.name}
+              </Text>
+            </View>
+            {conversation.unread_count > 0 && (
+              <View className="bg-[#FF6B6B] rounded-full min-w-[20px] h-5 items-center justify-center px-1">
+                <Text className="text-white text-xs font-bold">
+                  {conversation.unread_count > 99
+                    ? "99+"
+                    : conversation.unread_count}
+                </Text>
+              </View>
+            )}
+          </View>
+          {conversation.last_message && (
+            <Text
+              className={`text-sm mt-2 ${
+                conversation.unread_count > 0
+                  ? "text-black font-medium"
+                  : "text-gray-400"
+              }`}
+              numberOfLines={1}
+            >
+              {conversation.last_message.is_own ? "You: " : ""}
+              {conversation.last_message.content}
+            </Text>
+          )}
+        </TouchableOpacity>
+      );
+    }
+
+    // Regular owner conversation
+    return (
+      <TouchableOpacity
+        key={conversation.id}
+        className="bg-white rounded-2xl p-4 mb-3 flex-row items-center shadow-sm"
+        onPress={() =>
+          router.push(`/(chat)/conversation?id=${conversation.id}`)
+        }
+      >
+        <View className="relative">
+          {conversation.matched_pet?.photo_url ? (
+            <Image
+              source={{
+                uri:
+                  getImageUrl(conversation.matched_pet.photo_url) || undefined,
+              }}
+              className="w-16 h-16 rounded-full bg-gray-200"
+            />
+          ) : (
+            <View className="w-16 h-16 rounded-full bg-gray-200 items-center justify-center">
+              <Feather name="image" size={24} color="#9CA3AF" />
+            </View>
+          )}
+          {conversation.unread_count > 0 && (
+            <View className="absolute -top-1 -right-1 bg-[#FF6B6B] rounded-full min-w-[20px] h-5 items-center justify-center px-1">
+              <Text className="text-white text-xs font-bold">
+                {conversation.unread_count > 99
+                  ? "99+"
+                  : conversation.unread_count}
+              </Text>
+            </View>
+          )}
         </View>
-        <Text className="text-gray-500 text-sm">{conversation.owner.name}</Text>
-        {conversation.last_message && (
-          <Text
-            className={`text-sm mt-1 ${
-              conversation.unread_count > 0
-                ? "text-black font-medium"
-                : "text-gray-400"
-            }`}
-            numberOfLines={1}
-          >
-            {conversation.last_message.is_own ? "You: " : ""}
-            {conversation.last_message.content}
+        <View className="flex-1 ml-3">
+          <View className="flex-row items-center justify-between">
+            <Text className="font-bold text-base">
+              {conversation.matched_pet?.name}
+            </Text>
+            <Text className="text-gray-400 text-xs">
+              {conversation.last_message
+                ? formatTimeAgo(conversation.last_message.created_at)
+                : formatTimeAgo(conversation.updated_at)}
+            </Text>
+          </View>
+          <Text className="text-gray-500 text-sm">
+            {conversation.owner?.name}
           </Text>
-        )}
-      </View>
-    </TouchableOpacity>
-  );
+          {conversation.last_message && (
+            <Text
+              className={`text-sm mt-1 ${
+                conversation.unread_count > 0
+                  ? "text-black font-medium"
+                  : "text-gray-400"
+              }`}
+              numberOfLines={1}
+            >
+              {conversation.last_message.is_own ? "You: " : ""}
+              {conversation.last_message.content}
+            </Text>
+          )}
+        </View>
+      </TouchableOpacity>
+    );
+  };
 
   if (loading) {
     return (

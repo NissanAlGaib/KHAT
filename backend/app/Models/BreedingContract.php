@@ -17,6 +17,8 @@ class BreedingContract extends Model
         'shooter_payment',
         'shooter_location',
         'shooter_conditions',
+        'shooter_collateral',
+        'shooter_collateral_paid',
         // Shooter Offer
         'shooter_user_id',
         'shooter_status',
@@ -49,6 +51,8 @@ class BreedingContract extends Model
 
     protected $casts = [
         'shooter_payment' => 'decimal:2',
+        'shooter_collateral' => 'decimal:2',
+        'shooter_collateral_paid' => 'boolean',
         'end_contract_date' => 'date',
         'include_monetary_amount' => 'boolean',
         'monetary_amount' => 'decimal:2',
@@ -111,8 +115,8 @@ class BreedingContract extends Model
      */
     public function hasShooterOffer(): bool
     {
-        return $this->status === 'accepted' 
-            && $this->shooter_payment !== null 
+        return $this->status === 'accepted'
+            && $this->shooter_payment !== null
             && $this->shooter_payment > 0
             && $this->shooter_status === 'pending';
     }
@@ -122,12 +126,17 @@ class BreedingContract extends Model
      */
     public function canBeEditedBy(User $user): bool
     {
-        // Only allow editing if status is pending_review
-        if ($this->status !== 'pending_review') {
+        // Allow editing if status is pending_review or accepted
+        if (!in_array($this->status, ['pending_review', 'accepted'])) {
             return false;
         }
 
-        // The user who last edited (or created) cannot edit again
+        // For accepted contracts, both parties can edit
+        if ($this->status === 'accepted') {
+            return true;
+        }
+
+        // For pending_review, the user who last edited (or created) cannot edit again
         // The other party needs to respond
         $lastEditor = $this->last_edited_by ?? $this->created_by;
         return $lastEditor !== $user->id;
@@ -155,5 +164,24 @@ class BreedingContract extends Model
     public function isCreator(User $user): bool
     {
         return $this->created_by === $user->id;
+    }
+
+    /**
+     * Check if the given user is the assigned shooter for this contract
+     */
+    public function isShooter(User $user): bool
+    {
+        return $this->shooter_user_id === $user->id;
+    }
+
+    /**
+     * Check if the shooter can edit their contract terms
+     * Shooter can only edit when status is 'accepted_by_owners' and collateral is not yet paid
+     */
+    public function canShooterEditTerms(User $user): bool
+    {
+        return $this->isShooter($user)
+            && $this->shooter_status === 'accepted_by_owners'
+            && !$this->shooter_collateral_paid;
     }
 }

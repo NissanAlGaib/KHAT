@@ -107,4 +107,9 @@ Route::middleware(['auth:sanctum'])
         Route::get('/contracts/{id}/shooter-request', [BreedingContractController::class, 'getShooterRequest']);
         Route::put('/contracts/{id}/shooter-request/accept', [BreedingContractController::class, 'acceptShooterRequest']);
         Route::put('/contracts/{id}/shooter-request/decline', [BreedingContractController::class, 'declineShooterRequest']);
+
+        // Shooter contract management routes (for shooter to edit their terms and submit collateral)
+        Route::get('/shooter/contracts/{id}', [BreedingContractController::class, 'getShooterContract']);
+        Route::put('/shooter/contracts/{id}/terms', [BreedingContractController::class, 'shooterUpdateTerms']);
+        Route::post('/shooter/contracts/{id}/collateral', [BreedingContractController::class, 'submitShooterCollateral']);
     });

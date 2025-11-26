@@ -404,13 +404,21 @@ class MatchRequestController extends Controller
         // Get all pet IDs owned by the user
         $userPetIds = Pet::where('user_id', $user->id)->pluck('pet_id');
 
-        // Get conversations where user is part of the match
-        $conversations = Conversation::whereHas('matchRequest', function ($query) use ($userPetIds) {
-            $query->where(function ($q) use ($userPetIds) {
+        // Debug logging
+        \Log::info('Getting conversations for user', [
+            'user_id' => $user->id,
+            'user_pet_ids' => $userPetIds->toArray(),
+        ]);
+
+        // Get conversations where user is part of the match OR is the assigned shooter
+        $conversations = Conversation::where(function ($query) use ($userPetIds, $user) {
+            // User is an owner (has a pet in the match request)
+            $query->whereHas('matchRequest', function ($q) use ($userPetIds) {
                 $q->whereIn('requester_pet_id', $userPetIds)
                     ->orWhereIn('target_pet_id', $userPetIds);
             });
         })
+            ->orWhere('shooter_user_id', $user->id)
             ->with([
                 'matchRequest' => function ($query) {
                     $query->with([
@@ -423,12 +431,74 @@ class MatchRequestController extends Controller
                     ]);
                 },
                 'lastMessage',
+                'shooter:id,name,profile_image',
             ])
             ->get();
+
+        // Debug logging
+        \Log::info('Found conversations', [
+            'count' => $conversations->count(),
+            'conversation_ids' => $conversations->pluck('id')->toArray(),
+            'shooter_conversations' => $conversations->filter(function ($conv) use ($user) {
+                return $conv->shooter_user_id === $user->id;
+            })->pluck('id')->toArray(),
+        ]);
 
         $formattedConversations = $conversations->map(function ($conversation) use ($user, $userPetIds) {
             $matchRequest = $conversation->matchRequest;
             $isRequester = $userPetIds->contains($matchRequest->requester_pet_id);
+            $isTarget = $userPetIds->contains($matchRequest->target_pet_id);
+            $isShooter = $conversation->shooter_user_id === $user->id;
+
+            // For shooter, show both pets and owners
+            if ($isShooter && !$isRequester && !$isTarget) {
+                $pet1 = $matchRequest->requesterPet;
+                $pet2 = $matchRequest->targetPet;
+                $pet1Photo = $pet1->photos->firstWhere('is_primary', true) ?? $pet1->photos->first();
+                $pet2Photo = $pet2->photos->firstWhere('is_primary', true) ?? $pet2->photos->first();
+
+                // Count unread messages
+                $unreadCount = Message::where('conversation_id', $conversation->id)
+                    ->where('sender_id', '!=', $user->id)
+                    ->whereNull('read_at')
+                    ->count();
+
+                return [
+                    'id' => $conversation->id,
+                    'is_shooter_conversation' => true,
+                    'pet1' => [
+                        'pet_id' => $pet1->pet_id,
+                        'name' => $pet1->name,
+                        'breed' => $pet1->breed,
+                        'photo_url' => $pet1Photo?->photo_url,
+                    ],
+                    'pet2' => [
+                        'pet_id' => $pet2->pet_id,
+                        'name' => $pet2->name,
+                        'breed' => $pet2->breed,
+                        'photo_url' => $pet2Photo?->photo_url,
+                    ],
+                    'owner1' => [
+                        'id' => $pet1->owner->id,
+                        'name' => $pet1->owner->name,
+                        'profile_image' => $pet1->owner->profile_image,
+                    ],
+                    'owner2' => [
+                        'id' => $pet2->owner->id,
+                        'name' => $pet2->owner->name,
+                        'profile_image' => $pet2->owner->profile_image,
+                    ],
+                    'last_message' => $conversation->lastMessage ? [
+                        'content' => $conversation->lastMessage->content,
+                        'created_at' => $conversation->lastMessage->created_at,
+                        'is_own' => $conversation->lastMessage->sender_id === $user->id,
+                    ] : null,
+                    'unread_count' => $unreadCount,
+                    'updated_at' => $conversation->lastMessage?->created_at ?? $conversation->created_at,
+                ];
+            }
+
+            // For owners, use existing logic
             $userPet = $isRequester ? $matchRequest->requesterPet : $matchRequest->targetPet;
             $otherPet = $isRequester ? $matchRequest->targetPet : $matchRequest->requesterPet;
 
@@ -443,6 +513,7 @@ class MatchRequestController extends Controller
 
             return [
                 'id' => $conversation->id,
+                'is_shooter_conversation' => false,
                 'matched_pet' => [
                     'pet_id' => $otherPet->pet_id,
                     'name' => $otherPet->name,
@@ -454,6 +525,11 @@ class MatchRequestController extends Controller
                     'name' => $otherPet->owner->name,
                     'profile_image' => $otherPet->owner->profile_image,
                 ],
+                'shooter' => $conversation->shooter ? [
+                    'id' => $conversation->shooter->id,
+                    'name' => $conversation->shooter->name,
+                    'profile_image' => $conversation->shooter->profile_image,
+                ] : null,
                 'last_message' => $conversation->lastMessage ? [
                     'content' => $conversation->lastMessage->content,
                     'created_at' => $conversation->lastMessage->created_at,
@@ -480,13 +556,16 @@ class MatchRequestController extends Controller
         // Get all pet IDs owned by the user
         $userPetIds = Pet::where('user_id', $user->id)->pluck('pet_id');
 
-        // Get the conversation and verify user has access
-        $conversation = Conversation::whereHas('matchRequest', function ($query) use ($userPetIds) {
-            $query->where(function ($q) use ($userPetIds) {
-                $q->whereIn('requester_pet_id', $userPetIds)
-                    ->orWhereIn('target_pet_id', $userPetIds);
-            });
-        })->findOrFail($id);
+        // Get the conversation and verify user has access (as owner or shooter)
+        $conversation = Conversation::where('id', $id)
+            ->where(function ($query) use ($userPetIds, $user) {
+                $query->whereHas('matchRequest', function ($q) use ($userPetIds) {
+                    $q->whereIn('requester_pet_id', $userPetIds)
+                        ->orWhereIn('target_pet_id', $userPetIds);
+                })
+                    ->orWhere('shooter_user_id', $user->id);
+            })
+            ->firstOrFail();
 
         // Mark messages as read
         Message::where('conversation_id', $id)
@@ -526,6 +605,46 @@ class MatchRequestController extends Controller
         ])->first();
 
         $isRequester = $userPetIds->contains($matchRequest->requester_pet_id);
+        $isTarget = $userPetIds->contains($matchRequest->target_pet_id);
+        $isShooter = $conversation->shooter_user_id === $user->id;
+
+        // For shooter view, show both pets
+        if ($isShooter && !$isRequester && !$isTarget) {
+            $pet1 = $matchRequest->requesterPet;
+            $pet2 = $matchRequest->targetPet;
+            $pet1Photo = $pet1->photos->firstWhere('is_primary', true) ?? $pet1->photos->first();
+            $pet2Photo = $pet2->photos->firstWhere('is_primary', true) ?? $pet2->photos->first();
+
+            return response()->json([
+                'success' => true,
+                'data' => [
+                    'conversation_id' => $conversation->id,
+                    'is_shooter_view' => true,
+                    'pet1' => [
+                        'pet_id' => $pet1->pet_id,
+                        'name' => $pet1->name,
+                        'photo_url' => $pet1Photo?->photo_url,
+                    ],
+                    'pet2' => [
+                        'pet_id' => $pet2->pet_id,
+                        'name' => $pet2->name,
+                        'photo_url' => $pet2Photo?->photo_url,
+                    ],
+                    'owner1' => [
+                        'id' => $pet1->owner->id,
+                        'name' => $pet1->owner->name,
+                        'profile_image' => $pet1->owner->profile_image,
+                    ],
+                    'owner2' => [
+                        'id' => $pet2->owner->id,
+                        'name' => $pet2->owner->name,
+                        'profile_image' => $pet2->owner->profile_image,
+                    ],
+                    'messages' => $formattedMessages,
+                ],
+            ]);
+        }
+
         $otherPet = $isRequester ? $matchRequest->targetPet : $matchRequest->requesterPet;
 
         $primaryPhoto = $otherPet->photos->firstWhere('is_primary', true)
@@ -535,6 +654,7 @@ class MatchRequestController extends Controller
             'success' => true,
             'data' => [
                 'conversation_id' => $conversation->id,
+                'is_shooter_view' => false,
                 'matched_pet' => [
                     'pet_id' => $otherPet->pet_id,
                     'name' => $otherPet->name,
@@ -545,6 +665,11 @@ class MatchRequestController extends Controller
                     'name' => $otherPet->owner->name,
                     'profile_image' => $otherPet->owner->profile_image,
                 ],
+                'shooter' => $conversation->shooter_user_id ? [
+                    'id' => $conversation->shooter->id ?? null,
+                    'name' => $conversation->shooter->name ?? null,
+                    'profile_image' => $conversation->shooter->profile_image ?? null,
+                ] : null,
                 'messages' => $formattedMessages,
             ],
         ]);
@@ -564,13 +689,16 @@ class MatchRequestController extends Controller
         // Get all pet IDs owned by the user
         $userPetIds = Pet::where('user_id', $user->id)->pluck('pet_id');
 
-        // Get the conversation and verify user has access
-        $conversation = Conversation::whereHas('matchRequest', function ($query) use ($userPetIds) {
-            $query->where(function ($q) use ($userPetIds) {
-                $q->whereIn('requester_pet_id', $userPetIds)
-                    ->orWhereIn('target_pet_id', $userPetIds);
-            });
-        })->findOrFail($id);
+        // Get the conversation and verify user has access (as owner or shooter)
+        $conversation = Conversation::where('id', $id)
+            ->where(function ($query) use ($userPetIds, $user) {
+                $query->whereHas('matchRequest', function ($q) use ($userPetIds) {
+                    $q->whereIn('requester_pet_id', $userPetIds)
+                        ->orWhereIn('target_pet_id', $userPetIds);
+                })
+                    ->orWhere('shooter_user_id', $user->id);
+            })
+            ->firstOrFail();
 
         try {
             $message = Message::create([
