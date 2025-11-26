@@ -489,10 +489,8 @@ export const getOffspring = async (
     );
     return response.data.data || null;
   } catch (error: any) {
-    console.error(
-      "Error getting offspring:",
-      error.response?.data || error.message
-    );
+    // Return null to indicate no offspring data available
+    // The calling component can handle this gracefully
     return null;
   }
 };

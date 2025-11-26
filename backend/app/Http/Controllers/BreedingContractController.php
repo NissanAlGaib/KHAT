@@ -1067,11 +1067,14 @@ class BreedingContractController extends Controller
                     $femaleCount++;
                 }
 
-                if ($offspring['status'] === 'alive' || $offspring['status'] === 'adopted') {
+                // Count by status - only 'alive' count as living for allocation purposes
+                // 'adopted' offspring are not available for allocation
+                if ($offspring['status'] === 'alive') {
                     $aliveCount++;
                 } elseif ($offspring['status'] === 'died') {
                     $diedCount++;
                 }
+                // 'adopted' status means offspring was already given away and is not counted in alive/died
             }
 
             // Create the litter linked to the contract
@@ -1104,11 +1107,15 @@ class BreedingContractController extends Controller
                 ]);
             }
 
-            // Update breeding count on parent pets
-            $sire->increment('breeding_count');
-            $sire->update(['has_been_bred' => true]);
-            $dam->increment('breeding_count');
-            $dam->update(['has_been_bred' => true]);
+            // Update breeding count on parent pets (combined update for efficiency)
+            $sire->update([
+                'breeding_count' => DB::raw('breeding_count + 1'),
+                'has_been_bred' => true,
+            ]);
+            $dam->update([
+                'breeding_count' => DB::raw('breeding_count + 1'),
+                'has_been_bred' => true,
+            ]);
 
             DB::commit();
 
@@ -1384,9 +1391,10 @@ class BreedingContractController extends Controller
         $sireOwnerId = $parents['sire']->user_id;
         $damOwnerId = $parents['dam']->user_id;
 
-        // Get alive offspring only for allocation
+        // Get only 'alive' offspring for allocation
+        // 'adopted' offspring are already given away and not available for allocation
         $aliveOffspring = $contract->litter->offspring
-            ->filter(fn($o) => in_array($o->status, ['alive', 'adopted']))
+            ->filter(fn($o) => $o->status === 'alive')
             ->values();
 
         if ($aliveOffspring->isEmpty()) {
