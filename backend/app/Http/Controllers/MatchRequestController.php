@@ -412,14 +412,13 @@ class MatchRequestController extends Controller
 
         // Get conversations where user is part of the match OR is the assigned shooter
         $conversations = Conversation::where(function ($query) use ($userPetIds, $user) {
+            // User is an owner (has a pet in the match request)
             $query->whereHas('matchRequest', function ($q) use ($userPetIds) {
-                $q->where(function ($subQ) use ($userPetIds) {
-                    $subQ->whereIn('requester_pet_id', $userPetIds)
-                        ->orWhereIn('target_pet_id', $userPetIds);
-                });
-            })
-                ->orWhere('conversations.shooter_user_id', $user->id);
+                $q->whereIn('requester_pet_id', $userPetIds)
+                    ->orWhereIn('target_pet_id', $userPetIds);
+            });
         })
+        ->orWhere('shooter_user_id', $user->id)
             ->with([
                 'matchRequest' => function ($query) {
                     $query->with([
@@ -558,15 +557,14 @@ class MatchRequestController extends Controller
         $userPetIds = Pet::where('user_id', $user->id)->pluck('pet_id');
 
         // Get the conversation and verify user has access (as owner or shooter)
-        $conversation = Conversation::where(function ($query) use ($userPetIds, $user) {
+        $conversation = Conversation::where(function ($query) use ($userPetIds) {
             $query->whereHas('matchRequest', function ($q) use ($userPetIds) {
-                $q->where(function ($subQ) use ($userPetIds) {
-                    $subQ->whereIn('requester_pet_id', $userPetIds)
-                        ->orWhereIn('target_pet_id', $userPetIds);
-                });
-            })
-                ->orWhere('conversations.shooter_user_id', $user->id);
-        })->findOrFail($id);
+                $q->whereIn('requester_pet_id', $userPetIds)
+                    ->orWhereIn('target_pet_id', $userPetIds);
+            });
+        })
+        ->orWhere('shooter_user_id', $user->id)
+        ->findOrFail($id);
 
         // Mark messages as read
         Message::where('conversation_id', $id)
@@ -691,15 +689,14 @@ class MatchRequestController extends Controller
         $userPetIds = Pet::where('user_id', $user->id)->pluck('pet_id');
 
         // Get the conversation and verify user has access (as owner or shooter)
-        $conversation = Conversation::where(function ($query) use ($userPetIds, $user) {
+        $conversation = Conversation::where(function ($query) use ($userPetIds) {
             $query->whereHas('matchRequest', function ($q) use ($userPetIds) {
-                $q->where(function ($subQ) use ($userPetIds) {
-                    $subQ->whereIn('requester_pet_id', $userPetIds)
-                        ->orWhereIn('target_pet_id', $userPetIds);
-                });
-            })
-                ->orWhere('conversations.shooter_user_id', $user->id);
-        })->findOrFail($id);
+                $q->whereIn('requester_pet_id', $userPetIds)
+                    ->orWhereIn('target_pet_id', $userPetIds);
+            });
+        })
+        ->orWhere('shooter_user_id', $user->id)
+        ->findOrFail($id);
 
         try {
             $message = Message::create([
