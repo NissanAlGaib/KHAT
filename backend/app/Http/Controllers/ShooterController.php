@@ -114,9 +114,9 @@ class ShooterController extends Controller
                 ->whereNotNull('shooter_payment')
                 ->where('shooter_payment', '>', 0)
                 ->with([
-                    'conversation.matchRequest.requesterPet.user',
+                    'conversation.matchRequest.requesterPet.owner',
                     'conversation.matchRequest.requesterPet.photos',
-                    'conversation.matchRequest.targetPet.user',
+                    'conversation.matchRequest.targetPet.owner',
                     'conversation.matchRequest.targetPet.photos',
                 ])
                 ->get();
@@ -138,20 +138,38 @@ class ShooterController extends Controller
                 ])->toArray(),
             ]);
 
+            // Log relationship details for debugging
+            foreach ($offers as $contract) {
+                \Log::info("Contract {$contract->id} relationships", [
+                    'has_conversation' => $contract->conversation ? 'yes' : 'no',
+                    'has_match_request' => $contract->conversation?->matchRequest ? 'yes' : 'no',
+                    'has_requester_pet' => $contract->conversation?->matchRequest?->requesterPet ? 'yes' : 'no',
+                    'has_target_pet' => $contract->conversation?->matchRequest?->targetPet ? 'yes' : 'no',
+                    'has_requester_owner' => $contract->conversation?->matchRequest?->requesterPet?->owner ? 'yes' : 'no',
+                    'has_target_owner' => $contract->conversation?->matchRequest?->targetPet?->owner ? 'yes' : 'no',
+                ]);
+            }
+
             $formattedOffers = $offers->filter(function ($contract) {
                 // Filter out contracts with missing relationships
-                return $contract->conversation 
-                    && $contract->conversation->matchRequest 
-                    && $contract->conversation->matchRequest->requesterPet 
+                $hasAllRelationships = $contract->conversation
+                    && $contract->conversation->matchRequest
+                    && $contract->conversation->matchRequest->requesterPet
                     && $contract->conversation->matchRequest->targetPet
-                    && $contract->conversation->matchRequest->requesterPet->user
-                    && $contract->conversation->matchRequest->targetPet->user;
+                    && $contract->conversation->matchRequest->requesterPet->owner
+                    && $contract->conversation->matchRequest->targetPet->owner;
+
+                if (!$hasAllRelationships) {
+                    \Log::warning("Contract {$contract->id} filtered out due to missing relationships");
+                }
+
+                return $hasAllRelationships;
             })->map(function ($contract) {
                 $matchRequest = $contract->conversation->matchRequest;
                 $pet1 = $matchRequest->requesterPet;
                 $pet2 = $matchRequest->targetPet;
-                $owner1 = $pet1->user;
-                $owner2 = $pet2->user;
+                $owner1 = $pet1->owner;
+                $owner2 = $pet2->owner;
 
                 $pet1Photo = $pet1->photos->where('is_primary', true)->first();
                 $pet2Photo = $pet2->photos->where('is_primary', true)->first();
@@ -191,6 +209,13 @@ class ShooterController extends Controller
                 ];
             })->values();
 
+            \Log::info('Returning shooter offers', [
+                'user_id' => $user->id,
+                'user_name' => $user->name,
+                'total_offers' => $formattedOffers->count(),
+                'offer_ids' => $formattedOffers->pluck('id')->toArray(),
+            ]);
+
             return response()->json([
                 'success' => true,
                 'data' => $formattedOffers
@@ -229,15 +254,23 @@ class ShooterController extends Controller
                 ], 403);
             }
 
-            // Get the contract
+            // Get the contract - allow viewing if:
+            // 1. It's a pending offer (shooter_status = 'pending'), OR
+            // 2. The current shooter has accepted it (shooter_user_id matches current user)
             $contract = BreedingContract::where('status', 'accepted')
-                ->where('shooter_status', 'pending')
                 ->whereNotNull('shooter_payment')
                 ->where('shooter_payment', '>', 0)
+                ->where(function ($query) use ($user) {
+                    $query->where('shooter_status', 'pending')
+                        ->orWhere(function ($q) use ($user) {
+                            $q->where('shooter_user_id', $user->id)
+                                ->whereIn('shooter_status', ['accepted_by_shooter', 'accepted_by_owners']);
+                        });
+                })
                 ->with([
-                    'conversation.matchRequest.requesterPet.user',
+                    'conversation.matchRequest.requesterPet.owner',
                     'conversation.matchRequest.requesterPet.photos',
-                    'conversation.matchRequest.targetPet.user',
+                    'conversation.matchRequest.targetPet.owner',
                     'conversation.matchRequest.targetPet.photos',
                 ])
                 ->find($contractId);
@@ -252,8 +285,8 @@ class ShooterController extends Controller
             $matchRequest = $contract->conversation->matchRequest;
             $pet1 = $matchRequest->requesterPet;
             $pet2 = $matchRequest->targetPet;
-            $owner1 = $pet1->user;
-            $owner2 = $pet2->user;
+            $owner1 = $pet1->owner;
+            $owner2 = $pet2->owner;
 
             $pet1Photo = $pet1->photos->where('is_primary', true)->first();
             $pet2Photo = $pet2->photos->where('is_primary', true)->first();
@@ -297,6 +330,9 @@ class ShooterController extends Controller
                     'location' => $contract->shooter_location,
                     'conditions' => $contract->shooter_conditions,
                     'shooter_name' => $contract->shooter_name,
+                    'shooter_status' => $contract->shooter_status,
+                    'owner1_accepted' => $contract->owner1_accepted_shooter,
+                    'owner2_accepted' => $contract->owner2_accepted_shooter,
                     'end_contract_date' => $contract->end_contract_date?->format('Y-m-d'),
                     'created_at' => $contract->created_at->toISOString(),
                 ]
@@ -402,9 +438,9 @@ class ShooterController extends Controller
             $offers = BreedingContract::where('shooter_user_id', $user->id)
                 ->whereIn('shooter_status', ['accepted_by_shooter', 'accepted_by_owners'])
                 ->with([
-                    'conversation.matchRequest.requesterPet.user',
+                    'conversation.matchRequest.requesterPet.owner',
                     'conversation.matchRequest.requesterPet.photos',
-                    'conversation.matchRequest.targetPet.user',
+                    'conversation.matchRequest.targetPet.owner',
                     'conversation.matchRequest.targetPet.photos',
                 ])
                 ->get();
@@ -413,8 +449,8 @@ class ShooterController extends Controller
                 $matchRequest = $contract->conversation->matchRequest;
                 $pet1 = $matchRequest->requesterPet;
                 $pet2 = $matchRequest->targetPet;
-                $owner1 = $pet1->user;
-                $owner2 = $pet2->user;
+                $owner1 = $pet1->owner;
+                $owner2 = $pet2->owner;
 
                 $pet1Photo = $pet1->photos->where('is_primary', true)->first();
                 $pet2Photo = $pet2->photos->where('is_primary', true)->first();
@@ -636,10 +672,11 @@ class ShooterController extends Controller
                 'accepted_contracts' => $allContracts->where('status', 'accepted')->count(),
                 'with_shooter_payment' => $allContracts->filter(fn($c) => (float) $c->shooter_payment > 0)->count(),
                 'pending_shooter_status' => $allContracts->where('shooter_status', 'pending')->count(),
-                'eligible_for_shooter' => $allContracts->filter(fn($c) => 
-                    $c->status === 'accepted' && 
-                    $c->shooter_status === 'pending' && 
-                    (float) $c->shooter_payment > 0
+                'eligible_for_shooter' => $allContracts->filter(
+                    fn($c) =>
+                    $c->status === 'accepted' &&
+                        $c->shooter_status === 'pending' &&
+                        (float) $c->shooter_payment > 0
                 )->count(),
             ];
 
@@ -669,7 +706,7 @@ class ShooterController extends Controller
                 ->where('shooter_payment', '>', 0)
                 ->where(function ($query) {
                     $query->where('shooter_status', 'none')
-                          ->orWhereNull('shooter_status');
+                        ->orWhereNull('shooter_status');
                 })
                 ->get();
 

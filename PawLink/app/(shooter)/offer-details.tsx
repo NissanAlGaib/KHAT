@@ -63,7 +63,9 @@ export default function ShooterOfferDetailsScreen() {
       const result = await acceptShooterOffer(parseInt(offerId));
       showAlert({
         title: "Success",
-        message: result.message || "Offer accepted successfully. Waiting for owners to confirm.",
+        message:
+          result.message ||
+          "Offer accepted successfully. Waiting for owners to confirm.",
         type: "success",
         buttons: [{ text: "OK", onPress: () => router.back() }],
       });
@@ -146,7 +148,9 @@ export default function ShooterOfferDetailsScreen() {
               </View>
             )}
             <View className="absolute bottom-2 left-2 bg-black/50 px-3 py-1 rounded-full">
-              <Text className="text-white text-sm font-semibold">{offer.pet1.name}</Text>
+              <Text className="text-white text-sm font-semibold">
+                {offer.pet1.name}
+              </Text>
             </View>
           </View>
           <View className="flex-1 bg-gray-200">
@@ -162,7 +166,9 @@ export default function ShooterOfferDetailsScreen() {
               </View>
             )}
             <View className="absolute bottom-2 right-2 bg-black/50 px-3 py-1 rounded-full">
-              <Text className="text-white text-sm font-semibold">{offer.pet2.name}</Text>
+              <Text className="text-white text-sm font-semibold">
+                {offer.pet2.name}
+              </Text>
             </View>
           </View>
         </View>
@@ -177,33 +183,47 @@ export default function ShooterOfferDetailsScreen() {
 
         {/* Pet Details */}
         <View className="mx-4 mt-4 bg-white rounded-2xl p-5">
-          <Text className="text-lg font-bold text-gray-900 mb-4">Breeding Pair</Text>
-          
+          <Text className="text-lg font-bold text-gray-900 mb-4">
+            Breeding Pair
+          </Text>
+
           <View className="flex-row justify-between mb-4">
             <View className="flex-1">
               <Text className="text-xs text-gray-500 mb-1">Pet 1</Text>
-              <Text className="text-base font-semibold text-gray-900">{offer.pet1.name}</Text>
+              <Text className="text-base font-semibold text-gray-900">
+                {offer.pet1.name}
+              </Text>
               <Text className="text-sm text-gray-600">{offer.pet1.breed}</Text>
-              <Text className="text-xs text-gray-500">{offer.pet1.species} • {offer.pet1.sex}</Text>
+              <Text className="text-xs text-gray-500">
+                {offer.pet1.species} • {offer.pet1.sex}
+              </Text>
             </View>
             <View className="flex-1 items-end">
               <Text className="text-xs text-gray-500 mb-1">Pet 2</Text>
-              <Text className="text-base font-semibold text-gray-900">{offer.pet2.name}</Text>
+              <Text className="text-base font-semibold text-gray-900">
+                {offer.pet2.name}
+              </Text>
               <Text className="text-sm text-gray-600">{offer.pet2.breed}</Text>
-              <Text className="text-xs text-gray-500">{offer.pet2.species} • {offer.pet2.sex}</Text>
+              <Text className="text-xs text-gray-500">
+                {offer.pet2.species} • {offer.pet2.sex}
+              </Text>
             </View>
           </View>
         </View>
 
         {/* Owners */}
         <View className="mx-4 mt-4 bg-white rounded-2xl p-5">
-          <Text className="text-lg font-bold text-gray-900 mb-4">Pet Owners</Text>
-          
+          <Text className="text-lg font-bold text-gray-900 mb-4">
+            Pet Owners
+          </Text>
+
           <View className="flex-row items-center mb-4">
             <View className="w-12 h-12 rounded-full bg-gray-200 items-center justify-center mr-3 overflow-hidden">
               {offer.owner1.profile_image ? (
                 <Image
-                  source={{ uri: getImageUrl(offer.owner1.profile_image) || undefined }}
+                  source={{
+                    uri: getImageUrl(offer.owner1.profile_image) || undefined,
+                  }}
                   className="w-full h-full"
                   resizeMode="cover"
                 />
@@ -212,8 +232,12 @@ export default function ShooterOfferDetailsScreen() {
               )}
             </View>
             <View>
-              <Text className="text-base font-semibold text-gray-900">{offer.owner1.name}</Text>
-              <Text className="text-sm text-gray-500">Owner of {offer.pet1.name}</Text>
+              <Text className="text-base font-semibold text-gray-900">
+                {offer.owner1.name}
+              </Text>
+              <Text className="text-sm text-gray-500">
+                Owner of {offer.pet1.name}
+              </Text>
             </View>
           </View>
 
@@ -221,7 +245,9 @@ export default function ShooterOfferDetailsScreen() {
             <View className="w-12 h-12 rounded-full bg-gray-200 items-center justify-center mr-3 overflow-hidden">
               {offer.owner2.profile_image ? (
                 <Image
-                  source={{ uri: getImageUrl(offer.owner2.profile_image) || undefined }}
+                  source={{
+                    uri: getImageUrl(offer.owner2.profile_image) || undefined,
+                  }}
                   className="w-full h-full"
                   resizeMode="cover"
                 />
@@ -230,8 +256,12 @@ export default function ShooterOfferDetailsScreen() {
               )}
             </View>
             <View>
-              <Text className="text-base font-semibold text-gray-900">{offer.owner2.name}</Text>
-              <Text className="text-sm text-gray-500">Owner of {offer.pet2.name}</Text>
+              <Text className="text-base font-semibold text-gray-900">
+                {offer.owner2.name}
+              </Text>
+              <Text className="text-sm text-gray-500">
+                Owner of {offer.pet2.name}
+              </Text>
             </View>
           </View>
         </View>
@@ -239,10 +269,14 @@ export default function ShooterOfferDetailsScreen() {
         {/* Location */}
         {offer.location && (
           <View className="mx-4 mt-4 bg-white rounded-2xl p-5">
-            <Text className="text-lg font-bold text-gray-900 mb-2">Location</Text>
+            <Text className="text-lg font-bold text-gray-900 mb-2">
+              Location
+            </Text>
             <View className="flex-row items-center">
               <Feather name="map-pin" size={18} color="#ea5b3a" />
-              <Text className="ml-2 text-base text-gray-700">{offer.location}</Text>
+              <Text className="ml-2 text-base text-gray-700">
+                {offer.location}
+              </Text>
             </View>
           </View>
         )}
@@ -250,36 +284,70 @@ export default function ShooterOfferDetailsScreen() {
         {/* Conditions */}
         {offer.conditions && (
           <View className="mx-4 mt-4 bg-white rounded-2xl p-5">
-            <Text className="text-lg font-bold text-gray-900 mb-2">Conditions</Text>
-            <Text className="text-base text-gray-700 leading-6">{offer.conditions}</Text>
+            <Text className="text-lg font-bold text-gray-900 mb-2">
+              Conditions
+            </Text>
+            <Text className="text-base text-gray-700 leading-6">
+              {offer.conditions}
+            </Text>
           </View>
         )}
 
         {/* Contract Date */}
         {offer.end_contract_date && (
           <View className="mx-4 mt-4 bg-white rounded-2xl p-5">
-            <Text className="text-lg font-bold text-gray-900 mb-2">Contract End Date</Text>
+            <Text className="text-lg font-bold text-gray-900 mb-2">
+              Contract End Date
+            </Text>
             <View className="flex-row items-center">
               <Feather name="calendar" size={18} color="#ea5b3a" />
-              <Text className="ml-2 text-base text-gray-700">{offer.end_contract_date}</Text>
+              <Text className="ml-2 text-base text-gray-700">
+                {offer.end_contract_date}
+              </Text>
             </View>
           </View>
         )}
       </ScrollView>
 
-      {/* Accept Button */}
+      {/* Accept Button or Status Display */}
       <View className="absolute bottom-0 left-0 right-0 bg-white border-t border-gray-100 px-4 py-4">
-        <TouchableOpacity
-          onPress={handleAcceptOffer}
-          disabled={accepting}
-          className={`py-4 rounded-full items-center ${accepting ? 'bg-gray-400' : 'bg-[#ea5b3a]'}`}
-        >
-          {accepting ? (
-            <ActivityIndicator color="white" />
-          ) : (
-            <Text className="text-white font-bold text-base">Accept This Offer</Text>
-          )}
-        </TouchableOpacity>
+        {offer.shooter_status === "accepted_by_shooter" ? (
+          <View className="py-4 rounded-full items-center bg-yellow-100 border-2 border-yellow-500">
+            <View className="flex-row items-center">
+              <Feather name="clock" size={20} color="#f59e0b" />
+              <Text className="text-yellow-800 font-bold text-base ml-2">
+                Waiting for Owners' Confirmation
+              </Text>
+            </View>
+            <Text className="text-yellow-700 text-sm mt-1">
+              {offer.owner1_accepted ? "✓" : "○"} Owner 1 •{" "}
+              {offer.owner2_accepted ? "✓" : "○"} Owner 2
+            </Text>
+          </View>
+        ) : offer.shooter_status === "accepted_by_owners" ? (
+          <View className="py-4 rounded-full items-center bg-green-100 border-2 border-green-500">
+            <View className="flex-row items-center">
+              <Feather name="check-circle" size={20} color="#10b981" />
+              <Text className="text-green-800 font-bold text-base ml-2">
+                Confirmed - Both Owners Accepted
+              </Text>
+            </View>
+          </View>
+        ) : (
+          <TouchableOpacity
+            onPress={handleAcceptOffer}
+            disabled={accepting}
+            className={`py-4 rounded-full items-center ${accepting ? "bg-gray-400" : "bg-[#ea5b3a]"}`}
+          >
+            {accepting ? (
+              <ActivityIndicator color="white" />
+            ) : (
+              <Text className="text-white font-bold text-base">
+                Accept This Offer
+              </Text>
+            )}
+          </TouchableOpacity>
+        )}
       </View>
 
       <AlertModal

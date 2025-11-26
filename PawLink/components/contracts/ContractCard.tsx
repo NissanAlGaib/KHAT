@@ -1,10 +1,5 @@
 import React, { useState } from "react";
-import {
-  View,
-  Text,
-  TouchableOpacity,
-  ActivityIndicator,
-} from "react-native";
+import { View, Text, TouchableOpacity, ActivityIndicator } from "react-native";
 import {
   FileText,
   ChevronDown,
@@ -15,12 +10,16 @@ import {
   DollarSign,
   Users,
   Shield,
+  UserCheck,
+  Clock,
 } from "lucide-react-native";
 import dayjs from "dayjs";
 import {
   BreedingContract,
   acceptContract,
   rejectContract,
+  acceptShooterRequest,
+  declineShooterRequest,
 } from "@/services/contractService";
 
 interface ContractCardProps {
@@ -99,6 +98,8 @@ export default function ContractCard({
 }: ContractCardProps) {
   const [isAccepting, setIsAccepting] = useState(false);
   const [isRejecting, setIsRejecting] = useState(false);
+  const [isAcceptingShooter, setIsAcceptingShooter] = useState(false);
+  const [isDecliningShooter, setIsDecliningShooter] = useState(false);
 
   const handleAccept = async () => {
     setIsAccepting(true);
@@ -128,7 +129,42 @@ export default function ContractCard({
     }
   };
 
+  const handleAcceptShooter = async () => {
+    setIsAcceptingShooter(true);
+    try {
+      const result = await acceptShooterRequest(contract.id);
+      if (result.success && result.data) {
+        onContractUpdate(result.data);
+      }
+    } catch (error) {
+      console.error("Error accepting shooter:", error);
+    } finally {
+      setIsAcceptingShooter(false);
+    }
+  };
+
+  const handleDeclineShooter = async () => {
+    setIsDecliningShooter(true);
+    try {
+      const result = await declineShooterRequest(contract.id);
+      if (result.success && result.data) {
+        onContractUpdate(result.data);
+      }
+    } catch (error) {
+      console.error("Error declining shooter:", error);
+    } finally {
+      setIsDecliningShooter(false);
+    }
+  };
+
   const collateralPerOwner = contract.collateral_total / 2;
+
+  // Determine if current user has already accepted the shooter
+  // Note: We'll need the backend to provide which owner the current user is
+  const hasCurrentUserAcceptedShooter =
+    contract.owner1_accepted_shooter || contract.owner2_accepted_shooter;
+  const bothOwnersAccepted =
+    contract.owner1_accepted_shooter && contract.owner2_accepted_shooter;
 
   return (
     <View className="bg-white rounded-2xl mx-4 my-2 shadow-sm border border-gray-100 overflow-hidden">
@@ -150,19 +186,20 @@ export default function ContractCard({
           <CollapsibleSection
             title="Shooter Agreement"
             icon={<Users size={18} color="#FF6B6B" />}
+            defaultExpanded={contract.shooter_status === "accepted_by_shooter"}
           >
             <View className="bg-gray-50 rounded-xl p-3">
               <View className="flex-row justify-between mb-2">
                 <Text className="text-gray-500 text-sm">Name:</Text>
                 <Text className="text-gray-800 text-sm font-medium">
-                  {contract.shooter_name}
+                  {contract.shooter_name || "Any verified shooter"}
                 </Text>
               </View>
               {contract.shooter_payment && (
                 <View className="flex-row justify-between mb-2">
                   <Text className="text-gray-500 text-sm">Payment:</Text>
                   <Text className="text-gray-800 text-sm font-medium">
-                    ${contract.shooter_payment}
+                    ₱{contract.shooter_payment.toLocaleString()}
                   </Text>
                 </View>
               )}
@@ -176,12 +213,96 @@ export default function ContractCard({
               )}
               {contract.shooter_conditions && (
                 <View className="mt-2">
-                  <Text className="text-gray-500 text-sm mb-1">Conditions:</Text>
+                  <Text className="text-gray-500 text-sm mb-1">
+                    Conditions:
+                  </Text>
                   <Text className="text-gray-800 text-sm">
                     {contract.shooter_conditions}
                   </Text>
                 </View>
               )}
+
+              {/* Shooter Status */}
+              {contract.shooter_status &&
+                contract.shooter_status !== "none" &&
+                contract.shooter_status !== "pending" && (
+                  <View className="mt-3 pt-3 border-t border-gray-200">
+                    {contract.shooter_status === "accepted_by_shooter" && (
+                      <View className="bg-yellow-50 rounded-lg p-3">
+                        <View className="flex-row items-center mb-2">
+                          <Clock size={16} color="#f59e0b" />
+                          <Text className="text-yellow-800 font-semibold ml-2">
+                            Shooter Accepted
+                          </Text>
+                        </View>
+                        {contract.shooter && (
+                          <Text className="text-yellow-800 text-sm mb-2">
+                            {contract.shooter.name} has accepted this offer
+                          </Text>
+                        )}
+                        <View className="flex-row items-center justify-between">
+                          <View className="flex-row items-center">
+                            <UserCheck
+                              size={14}
+                              color={
+                                contract.owner1_accepted_shooter
+                                  ? "#10b981"
+                                  : "#9CA3AF"
+                              }
+                            />
+                            <Text
+                              className={`text-xs ml-1 ${contract.owner1_accepted_shooter ? "text-green-700" : "text-gray-500"}`}
+                            >
+                              Owner 1{" "}
+                              {contract.owner1_accepted_shooter ? "✓" : ""}
+                            </Text>
+                          </View>
+                          <View className="flex-row items-center">
+                            <UserCheck
+                              size={14}
+                              color={
+                                contract.owner2_accepted_shooter
+                                  ? "#10b981"
+                                  : "#9CA3AF"
+                              }
+                            />
+                            <Text
+                              className={`text-xs ml-1 ${contract.owner2_accepted_shooter ? "text-green-700" : "text-gray-500"}`}
+                            >
+                              Owner 2{" "}
+                              {contract.owner2_accepted_shooter ? "✓" : ""}
+                            </Text>
+                          </View>
+                        </View>
+                      </View>
+                    )}
+
+                    {contract.shooter_status === "accepted_by_owners" && (
+                      <View className="bg-green-50 rounded-lg p-3 flex-row items-center">
+                        <Check size={16} color="#10b981" />
+                        <View className="ml-2 flex-1">
+                          <Text className="text-green-800 font-semibold">
+                            Shooter Confirmed
+                          </Text>
+                          {contract.shooter && (
+                            <Text className="text-green-700 text-sm">
+                              {contract.shooter.name} is your confirmed shooter
+                            </Text>
+                          )}
+                        </View>
+                      </View>
+                    )}
+
+                    {contract.shooter_status === "declined" && (
+                      <View className="bg-red-50 rounded-lg p-3 flex-row items-center">
+                        <X size={16} color="#ef4444" />
+                        <Text className="text-red-800 text-sm ml-2">
+                          Shooter request was declined
+                        </Text>
+                      </View>
+                    )}
+                  </View>
+                )}
             </View>
           </CollapsibleSection>
         )}
@@ -212,11 +333,16 @@ export default function ContractCard({
             {contract.share_offspring && (
               <>
                 <View className="flex-row justify-between mb-2">
-                  <Text className="text-gray-500 text-sm">Offspring Split:</Text>
+                  <Text className="text-gray-500 text-sm">
+                    Offspring Split:
+                  </Text>
                   <Text className="text-gray-800 text-sm font-medium">
                     {contract.offspring_split_value}
-                    {contract.offspring_split_type === "percentage" ? "%" : ""}{" "}
-                    ({contract.offspring_split_type === "percentage"
+                    {contract.offspring_split_type === "percentage"
+                      ? "%"
+                      : ""}{" "}
+                    (
+                    {contract.offspring_split_type === "percentage"
                       ? "Percentage"
                       : "Specific Number"}
                     )
@@ -234,7 +360,9 @@ export default function ContractCard({
             )}
             {contract.include_goods_foods && contract.goods_foods_value && (
               <View className="flex-row justify-between mb-2">
-                <Text className="text-gray-500 text-sm">Goods/Foods Value:</Text>
+                <Text className="text-gray-500 text-sm">
+                  Goods/Foods Value:
+                </Text>
                 <Text className="text-gray-800 text-sm font-medium">
                   ${contract.goods_foods_value}
                 </Text>
@@ -332,6 +460,77 @@ export default function ContractCard({
           </View>
         )}
 
+        {/* Shooter Request Action Buttons - Only show when contract is accepted and shooter has accepted */}
+        {contract.status === "accepted" &&
+          contract.shooter_status === "accepted_by_shooter" && (
+            <View className="mb-3">
+              {!bothOwnersAccepted && (
+                <View className="bg-yellow-50 rounded-xl p-4 mb-3">
+                  <View className="flex-row items-center mb-2">
+                    <Users size={20} color="#f59e0b" />
+                    <Text className="text-yellow-900 font-bold text-base ml-2">
+                      Shooter Request Pending
+                    </Text>
+                  </View>
+                  {contract.shooter && (
+                    <Text className="text-yellow-800 text-sm mb-3">
+                      {contract.shooter.name} has accepted your shooter offer.
+                      Both owners must approve to confirm.
+                    </Text>
+                  )}
+
+                  {!hasCurrentUserAcceptedShooter ? (
+                    // Show action buttons if current user hasn't accepted yet
+                    <View className="flex-row space-x-2">
+                      <TouchableOpacity
+                        onPress={handleAcceptShooter}
+                        disabled={isAcceptingShooter || isDecliningShooter}
+                        className="flex-1 bg-[#10b981] py-3 rounded-full flex-row items-center justify-center mr-2"
+                      >
+                        {isAcceptingShooter ? (
+                          <ActivityIndicator color="white" size="small" />
+                        ) : (
+                          <>
+                            <Check size={18} color="white" />
+                            <Text className="text-white font-semibold ml-1">
+                              Accept Shooter
+                            </Text>
+                          </>
+                        )}
+                      </TouchableOpacity>
+
+                      <TouchableOpacity
+                        onPress={handleDeclineShooter}
+                        disabled={isAcceptingShooter || isDecliningShooter}
+                        className="flex-1 border border-red-500 py-3 rounded-full flex-row items-center justify-center"
+                      >
+                        {isDecliningShooter ? (
+                          <ActivityIndicator color="#ef4444" size="small" />
+                        ) : (
+                          <>
+                            <X size={18} color="#ef4444" />
+                            <Text className="text-red-500 font-semibold ml-1">
+                              Decline
+                            </Text>
+                          </>
+                        )}
+                      </TouchableOpacity>
+                    </View>
+                  ) : (
+                    // Show waiting message if current user has already accepted
+                    <View className="bg-blue-50 rounded-lg p-3 flex-row items-center">
+                      <Clock size={18} color="#3b82f6" />
+                      <Text className="text-blue-800 text-sm ml-2">
+                        You've accepted the shooter. Waiting for the other owner
+                        to confirm.
+                      </Text>
+                    </View>
+                  )}
+                </View>
+              )}
+            </View>
+          )}
+
         {/* Action Buttons */}
         {contract.status === "pending_review" && (
           <View className="mt-3">
@@ -400,7 +599,9 @@ export default function ContractCard({
       {/* Footer */}
       <View className="border-t border-gray-100 px-4 py-2 bg-gray-50">
         <Text className="text-gray-400 text-xs text-center">
-          {contract.is_creator ? "You created this contract" : "Contract from partner"}
+          {contract.is_creator
+            ? "You created this contract"
+            : "Contract from partner"}
           {" • "}
           {dayjs(contract.created_at).format("MMM D, YYYY h:mm A")}
         </Text>

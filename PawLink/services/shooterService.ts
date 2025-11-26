@@ -116,7 +116,7 @@ export interface BreedingDetail extends BreedingPair {
  */
 export async function getShooterOffers(): Promise<ShooterOffer[]> {
   try {
-    const response = await axiosInstance.get("/shooter/offers");
+    const response = await axiosInstance.get("api/shooter/offers");
     return response.data.data || [];
   } catch (error: any) {
     if (error.response?.status === 404) {
@@ -139,7 +139,7 @@ export async function getShooterOfferDetails(
   offerId: number
 ): Promise<ShooterOffer> {
   try {
-    const response = await axiosInstance.get(`/shooter/offers/${offerId}`);
+    const response = await axiosInstance.get(`api/shooter/offers/${offerId}`);
     return response.data.data;
   } catch (error) {
     console.error("Error fetching shooter offer details:", error);
@@ -155,7 +155,7 @@ export async function acceptShooterOffer(
 ): Promise<{ success: boolean; message: string }> {
   try {
     const response = await axiosInstance.put(
-      `/shooter/offers/${offerId}/accept`
+      `api/shooter/offers/${offerId}/accept`
     );
     return {
       success: response.data.success,
@@ -172,7 +172,7 @@ export async function acceptShooterOffer(
  */
 export async function getMyShooterOffers(): Promise<ShooterOffer[]> {
   try {
-    const response = await axiosInstance.get("/shooter/my-offers");
+    const response = await axiosInstance.get("api/shooter/my-offers");
     return response.data.data || [];
   } catch (error: any) {
     if (error.response?.status === 404) {
@@ -194,7 +194,7 @@ export async function getMyShooterOffers(): Promise<ShooterOffer[]> {
  */
 export async function getShooterBreedingPairs(): Promise<BreedingPairResponse> {
   try {
-    const response = await axiosInstance.get("/shooter/breeding-pairs");
+    const response = await axiosInstance.get("api/shooter/breeding-pairs");
     return response.data;
   } catch (error) {
     console.error("Error fetching shooter breeding pairs:", error);
@@ -211,7 +211,7 @@ export async function getBreedingPairDetail(
 ): Promise<BreedingDetail> {
   try {
     const response = await axiosInstance.get(
-      `/shooter/breeding-pairs/${pairId}`
+      `api/shooter/breeding-pairs/${pairId}`
     );
     return response.data;
   } catch (error) {
@@ -230,7 +230,7 @@ export async function updateBreedingStatus(
   notes?: string
 ): Promise<void> {
   try {
-    await axiosInstance.put(`/shooter/breeding-pairs/${pairId}/status`, {
+    await axiosInstance.put(`api/shooter/breeding-pairs/${pairId}/status`, {
       status,
       notes,
     });
@@ -250,7 +250,7 @@ export async function addBreedingUpdate(
   photos?: string[]
 ): Promise<void> {
   try {
-    await axiosInstance.post(`/shooter/breeding-pairs/${pairId}/updates`, {
+    await axiosInstance.post(`api/shooter/breeding-pairs/${pairId}/updates`, {
       update,
       photos,
     });
@@ -274,7 +274,7 @@ export async function getShooterStatistics(): Promise<{
   reviews_count: number;
 }> {
   try {
-    const response = await axiosInstance.get("/shooter/statistics");
+    const response = await axiosInstance.get("api/shooter/statistics");
     return response.data;
   } catch (error) {
     console.error("Error fetching shooter statistics:", error);
@@ -292,7 +292,7 @@ export async function respondToBreedingRequest(
   reason?: string
 ): Promise<void> {
   try {
-    await axiosInstance.post(`/shooter/breeding-pairs/${pairId}/respond`, {
+    await axiosInstance.post(`api/shooter/breeding-pairs/${pairId}/respond`, {
       accept,
       reason,
     });
