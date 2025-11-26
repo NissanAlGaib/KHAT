@@ -118,16 +118,26 @@ export async function getShooterOffers(): Promise<ShooterOffer[]> {
   try {
     const response = await axiosInstance.get("/shooter/offers");
     return response.data.data || [];
-  } catch (error) {
+  } catch (error: any) {
+    if (error.response?.status === 404) {
+      // No shooter role found or no offers available
+      return [];
+    }
+    if (error.response?.status === 403) {
+      // User is not a shooter
+      return [];
+    }
     console.error("Error fetching shooter offers:", error);
-    throw error;
+    return [];
   }
 }
 
 /**
  * Get details of a specific shooter offer
  */
-export async function getShooterOfferDetails(offerId: number): Promise<ShooterOffer> {
+export async function getShooterOfferDetails(
+  offerId: number
+): Promise<ShooterOffer> {
   try {
     const response = await axiosInstance.get(`/shooter/offers/${offerId}`);
     return response.data.data;
@@ -140,9 +150,13 @@ export async function getShooterOfferDetails(offerId: number): Promise<ShooterOf
 /**
  * Accept a shooter offer
  */
-export async function acceptShooterOffer(offerId: number): Promise<{ success: boolean; message: string }> {
+export async function acceptShooterOffer(
+  offerId: number
+): Promise<{ success: boolean; message: string }> {
   try {
-    const response = await axiosInstance.put(`/shooter/offers/${offerId}/accept`);
+    const response = await axiosInstance.put(
+      `/shooter/offers/${offerId}/accept`
+    );
     return {
       success: response.data.success,
       message: response.data.message,
@@ -160,9 +174,17 @@ export async function getMyShooterOffers(): Promise<ShooterOffer[]> {
   try {
     const response = await axiosInstance.get("/shooter/my-offers");
     return response.data.data || [];
-  } catch (error) {
+  } catch (error: any) {
+    if (error.response?.status === 404) {
+      // No offers found or shooter role not found
+      return [];
+    }
+    if (error.response?.status === 403) {
+      // User is not a shooter
+      return [];
+    }
     console.error("Error fetching my shooter offers:", error);
-    throw error;
+    return [];
   }
 }
 

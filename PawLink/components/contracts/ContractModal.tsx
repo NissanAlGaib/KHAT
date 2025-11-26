@@ -82,9 +82,9 @@ export default function ContractModal({
     custom_terms: existingContract?.custom_terms || "",
   });
 
-  // Update form data when existingContract changes
+  // Update form data when existingContract changes (only when modal first opens)
   React.useEffect(() => {
-    if (existingContract) {
+    if (visible && existingContract) {
       setFormData({
         shooter_name: existingContract.shooter_name || "",
         shooter_payment: existingContract.shooter_payment || undefined,
@@ -107,7 +107,7 @@ export default function ContractModal({
         custom_terms: existingContract.custom_terms || "",
       });
     }
-  }, [existingContract]);
+  }, [visible, existingContract?.id]); // Only re-run when modal opens or contract ID changes
 
   const updateFormField = (field: keyof ContractFormData, value: any) => {
     setFormData((prev) => ({ ...prev, [field]: value }));
@@ -557,10 +557,7 @@ export default function ContractModal({
           value={formData.collateral_total?.toString() || ""}
           onChangeText={(text) => {
             const value = text ? parseFloat(text) : 0;
-            updateFormField(
-              "collateral_total",
-              isNaN(value) ? 0 : value
-            );
+            updateFormField("collateral_total", isNaN(value) ? 0 : value);
           }}
           keyboardType="numeric"
         />
@@ -642,7 +639,9 @@ export default function ContractModal({
           <View className="flex-row mb-1.5">
             <Text className="text-gray-600 mr-1.5">•</Text>
             <Text className="text-xs text-gray-700 flex-1">
-              {"If one party doesn't respond within 3 days contract auto-cancels"}
+              {
+                "If one party doesn't respond within 3 days contract auto-cancels"
+              }
             </Text>
           </View>
           <View className="flex-row">

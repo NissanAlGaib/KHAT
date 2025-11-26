@@ -121,6 +121,14 @@ class ShooterController extends Controller
                 ])
                 ->get();
 
+            \Log::info('Shooter offers query results', [
+                'count' => $offers->count(),
+                'user_id' => $user->id,
+                'total_accepted_contracts' => BreedingContract::where('status', 'accepted')->count(),
+                'contracts_with_shooter_payment' => BreedingContract::where('status', 'accepted')->whereNotNull('shooter_payment')->where('shooter_payment', '>', 0)->count(),
+                'contracts_with_pending_shooter' => BreedingContract::where('status', 'accepted')->where('shooter_status', 'pending')->count(),
+            ]);
+
             $formattedOffers = $offers->map(function ($contract) {
                 $matchRequest = $contract->conversation->matchRequest;
                 $pet1 = $matchRequest->requesterPet;
