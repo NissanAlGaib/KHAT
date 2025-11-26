@@ -224,24 +224,37 @@ export default function ContractModal({
         Add a third-party shooter if applicable
       </Text>
 
+      {/* Info box about shooter offer */}
+      <View className="bg-[#FFF5F3] rounded-xl p-3 mb-4 border border-[#FF6B6B]/20">
+        <Text className="text-xs text-[#FF6B6B] font-semibold mb-1">
+          💡 Want to hire a professional shooter?
+        </Text>
+        <Text className="text-xs text-gray-600">
+          Fill in the shooter payment below, and once this contract is accepted, verified shooters will see this offer on their homepage and can apply for the job.
+        </Text>
+      </View>
+
       {/* Shooter Name */}
       <View className="mb-3">
         <Text className="text-xs font-medium text-gray-700 mb-1">
-          Shooter Name
+          Shooter Name (Optional)
         </Text>
         <TextInput
           className="bg-gray-100 rounded-xl px-3 py-2.5 text-sm"
-          placeholder="Enter shooter name"
+          placeholder="Leave blank to accept any shooter"
           placeholderTextColor="#9CA3AF"
           value={formData.shooter_name}
           onChangeText={(text) => updateFormField("shooter_name", text)}
         />
+        <Text className="text-xs text-gray-400 mt-1">
+          Specify if you have a preferred shooter in mind
+        </Text>
       </View>
 
       {/* Shooter Payment */}
       <View className="mb-3">
         <Text className="text-xs font-medium text-gray-700 mb-1">
-          Shooter Payment ($)
+          Shooter Payment ($) *
         </Text>
         <TextInput
           className="bg-gray-100 rounded-xl px-3 py-2.5 text-sm"
@@ -256,6 +269,9 @@ export default function ContractModal({
           }
           keyboardType="numeric"
         />
+        <Text className="text-xs text-[#FF6B6B] mt-1">
+          * Required to make this offer visible to shooters
+        </Text>
       </View>
 
       {/* Location */}
@@ -263,7 +279,7 @@ export default function ContractModal({
         <Text className="text-xs font-medium text-gray-700 mb-1">Location</Text>
         <TextInput
           className="bg-gray-100 rounded-xl px-3 py-2.5 text-sm"
-          placeholder="Enter location"
+          placeholder="Where will the breeding take place?"
           placeholderTextColor="#9CA3AF"
           value={formData.shooter_location}
           onChangeText={(text) => updateFormField("shooter_location", text)}
@@ -273,11 +289,11 @@ export default function ContractModal({
       {/* Conditions */}
       <View className="mb-2">
         <Text className="text-xs font-medium text-gray-700 mb-1">
-          Conditions
+          Conditions for Shooter
         </Text>
         <TextInput
           className="bg-gray-100 rounded-xl px-3 py-2.5 text-sm min-h-[70px]"
-          placeholder="Enter conditions (max 200 characters)"
+          placeholder="Any specific requirements or conditions for the shooter..."
           placeholderTextColor="#9CA3AF"
           value={formData.shooter_conditions}
           onChangeText={(text) => updateFormField("shooter_conditions", text)}

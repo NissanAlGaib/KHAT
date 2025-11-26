@@ -129,7 +129,15 @@ class ShooterController extends Controller
                 'contracts_with_pending_shooter' => BreedingContract::where('status', 'accepted')->where('shooter_status', 'pending')->count(),
             ]);
 
-            $formattedOffers = $offers->map(function ($contract) {
+            $formattedOffers = $offers->filter(function ($contract) {
+                // Filter out contracts with missing relationships
+                return $contract->conversation 
+                    && $contract->conversation->matchRequest 
+                    && $contract->conversation->matchRequest->requesterPet 
+                    && $contract->conversation->matchRequest->targetPet
+                    && $contract->conversation->matchRequest->requesterPet->user
+                    && $contract->conversation->matchRequest->targetPet->user;
+            })->map(function ($contract) {
                 $matchRequest = $contract->conversation->matchRequest;
                 $pet1 = $matchRequest->requesterPet;
                 $pet2 = $matchRequest->targetPet;
@@ -172,7 +180,7 @@ class ShooterController extends Controller
                     'shooter_name' => $contract->shooter_name,
                     'created_at' => $contract->created_at->toISOString(),
                 ];
-            });
+            })->values();
 
             return response()->json([
                 'success' => true,
