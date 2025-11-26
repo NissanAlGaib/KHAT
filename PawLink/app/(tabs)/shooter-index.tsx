@@ -7,111 +7,58 @@ import {
   ScrollView,
   ActivityIndicator,
 } from "react-native";
+import { useRouter } from "expo-router";
 import { AnimatedSearchBar } from "@/components/app/AnimatedSearchBar";
 import SettingsDropdown from "@/components/app/SettingsDropdown";
 import { API_BASE_URL } from "@/config/env";
-
-// Type definitions - ready for backend integration
-interface BreedingPair {
-  id: number;
-  pet1: {
-    pet_id: number;
-    name: string;
-    photo_url?: string;
-  };
-  pet2: {
-    pet_id: number;
-    name: string;
-    photo_url?: string;
-  };
-  owner1_name: string;
-  owner2_name: string;
-  location: string;
-  fee: number;
-  status: "active" | "pending" | "completed";
-  booking_id?: number;
-}
-
-// Mock data for now - replace with actual API call
-const MOCK_BREEDING_PAIRS: BreedingPair[] = [
-  {
-    id: 1,
-    pet1: { pet_id: 1, name: "May23", photo_url: "" },
-    pet2: { pet_id: 2, name: "Marie 23", photo_url: "" },
-    owner1_name: "Copper",
-    owner2_name: "Luna",
-    location: "Zamboanga City",
-    fee: 2000,
-    status: "active",
-  },
-  {
-    id: 2,
-    pet1: { pet_id: 3, name: "hns33", photo_url: "" },
-    pet2: { pet_id: 4, name: "jokee3", photo_url: "" },
-    owner1_name: "Puppy",
-    owner2_name: "Cloud",
-    location: "Zamboanga City",
-    fee: 3000,
-    status: "active",
-  },
-  {
-    id: 3,
-    pet1: { pet_id: 5, name: "May23", photo_url: "" },
-    pet2: { pet_id: 6, name: "Marie 23", photo_url: "" },
-    owner1_name: "Copper",
-    owner2_name: "Ling",
-    location: "Zamboanga City",
-    fee: 2000,
-    status: "active",
-  },
-  {
-    id: 4,
-    pet1: { pet_id: 7, name: "May23", photo_url: "" },
-    pet2: { pet_id: 8, name: "Marie 23", photo_url: "" },
-    owner1_name: "Copper",
-    owner2_name: "Ling",
-    location: "Zamboanga City",
-    fee: 2000,
-    status: "active",
-  },
-];
+import { getShooterOffers, getMyShooterOffers, ShooterOffer } from "@/services/shooterService";
 
 export default function ShooterHomepage() {
+  const router = useRouter();
   const [loading, setLoading] = useState(true);
-  const [breedingPairs, setBreedingPairs] = useState<BreedingPair[]>([]);
+  const [availableOffers, setAvailableOffers] = useState<ShooterOffer[]>([]);
+  const [myOffers, setMyOffers] = useState<ShooterOffer[]>([]);
   const [currentHandling, setCurrentHandling] = useState<number>(0);
 
-  // TODO: Replace with actual API call
-  const fetchBreedingPairs = useCallback(async () => {
+  const fetchOffers = useCallback(async () => {
     try {
       setLoading(true);
-      // Simulate API call
-      await new Promise((resolve) => setTimeout(resolve, 1000));
+      const [available, my] = await Promise.all([
+        getShooterOffers(),
+        getMyShooterOffers(),
+      ]);
 
-      setBreedingPairs(MOCK_BREEDING_PAIRS);
-      setCurrentHandling(MOCK_BREEDING_PAIRS.length);
+      setAvailableOffers(available);
+      setMyOffers(my);
+      setCurrentHandling(my.filter(o => o.shooter_status === 'accepted_by_owners').length);
     } catch (error) {
-      console.error("Error fetching breeding pairs:", error);
+      console.error("Error fetching offers:", error);
     } finally {
       setLoading(false);
     }
   }, []);
 
   useEffect(() => {
-    fetchBreedingPairs();
-  }, [fetchBreedingPairs]);
+    fetchOffers();
+  }, [fetchOffers]);
 
-  const handleBreedingPairPress = (_pair: BreedingPair) => {
-    // TODO: Navigate to breeding pair details when implemented
+  const handleOfferPress = (offer: ShooterOffer) => {
+    router.push(`/(shooter)/offer-details?id=${offer.id}`);
   };
 
-  const BreedingCard = ({ pair }: { pair: BreedingPair }) => {
+  const getImageUrl = (path?: string) => {
+    if (!path) return null;
+    if (path.startsWith('http')) return path;
+    return `${API_BASE_URL}/storage/${path}`;
+  };
+
+  const OfferCard = ({ offer, showStatus = false }: { offer: ShooterOffer; showStatus?: boolean }) => {
     return (
       <TouchableOpacity
-        key={pair.id}
+        key={offer.id}
         className="w-[48%] mb-4 bg-white rounded-2xl overflow-hidden shadow-md"
         style={{ elevation: 4 }}
-        onPress={() => handleBreedingPairPress(pair)}
+        onPress={() => handleOfferPress(offer)}
         activeOpacity={0.85}
       >
         {/* Pet Images */}
@@ -119,11 +66,9 @@ export default function ShooterHomepage() {
           <View className="flex-row">
             {/* Pet 1 */}
             <View className="w-1/2 h-24 bg-gray-200">
-              {pair.pet1.photo_url ? (
+              {offer.pet1.photo_url ? (
                 <Image
-                  source={{
-                    uri: `${API_BASE_URL}/storage/${pair.pet1.photo_url}`,
-                  }}
+                  source={{ uri: getImageUrl(offer.pet1.photo_url) || undefined }}
                   className="w-full h-full"
                   resizeMode="cover"
                 />
@@ -139,11 +84,9 @@ export default function ShooterHomepage() {
             </View>
             {/* Pet 2 */}
             <View className="w-1/2 h-24 bg-gray-200">
-              {pair.pet2.photo_url ? (
+              {offer.pet2.photo_url ? (
                 <Image
-                  source={{
-                    uri: `${API_BASE_URL}/storage/${pair.pet2.photo_url}`,
-                  }}
+                  source={{ uri: getImageUrl(offer.pet2.photo_url) || undefined }}
                   className="w-full h-full"
                   resizeMode="cover"
                 />
@@ -158,6 +101,16 @@ export default function ShooterHomepage() {
               )}
             </View>
           </View>
+          {/* Status Badge */}
+          {showStatus && offer.shooter_status && (
+            <View className={`absolute top-2 right-2 px-2 py-1 rounded-full ${
+              offer.shooter_status === 'accepted_by_owners' ? 'bg-green-500' : 'bg-yellow-500'
+            }`}>
+              <Text className="text-white text-xs font-semibold">
+                {offer.shooter_status === 'accepted_by_owners' ? 'Confirmed' : 'Pending'}
+              </Text>
+            </View>
+          )}
         </View>
 
         {/* Card Content */}
@@ -166,7 +119,7 @@ export default function ShooterHomepage() {
           <View className="flex-row items-center mb-2">
             <Text className="text-[#ea5b3a] mr-1">🐾</Text>
             <Text className="font-baloo text-sm text-[#111]" numberOfLines={1}>
-              {pair.pet1.name} & {pair.pet2.name}
+              {offer.pet1.name} & {offer.pet2.name}
             </Text>
           </View>
 
@@ -178,7 +131,7 @@ export default function ShooterHomepage() {
               resizeMode="contain"
             />
             <Text className="text-xs text-gray-600" numberOfLines={1}>
-              {pair.owner1_name} & {pair.owner2_name}
+              {offer.owner1.name} & {offer.owner2.name}
             </Text>
           </View>
 
@@ -186,17 +139,19 @@ export default function ShooterHomepage() {
           <View className="flex-row items-center mb-2">
             <Text className="text-[#ea5b3a] mr-1">💰</Text>
             <Text className="text-xs font-semibold text-[#ea5b3a]">
-              ₱{pair.fee.toLocaleString()}
+              ₱{offer.payment?.toLocaleString() || 0}
             </Text>
           </View>
 
           {/* Location */}
-          <View className="flex-row items-center">
-            <Text className="text-gray-500 mr-1">📍</Text>
-            <Text className="text-xs text-gray-500" numberOfLines={1}>
-              {pair.location}
-            </Text>
-          </View>
+          {offer.location && (
+            <View className="flex-row items-center">
+              <Text className="text-gray-500 mr-1">📍</Text>
+              <Text className="text-xs text-gray-500" numberOfLines={1}>
+                {offer.location}
+              </Text>
+            </View>
+          )}
         </View>
       </TouchableOpacity>
     );
@@ -256,29 +211,43 @@ export default function ShooterHomepage() {
           </View>
         </View>
 
-        {/* Breeding Pairs Grid */}
+        {/* My Accepted Offers (pending owner confirmation or confirmed) */}
+        {myOffers.length > 0 && (
+          <View className="px-4 mb-4">
+            <Text className="text-2xl font-baloo text-[#ea5b3a] mb-4">
+              My Breeding Assignments
+            </Text>
+            <View className="flex-row flex-wrap justify-between">
+              {myOffers.map((offer) => (
+                <OfferCard key={offer.id} offer={offer} showStatus={true} />
+              ))}
+            </View>
+          </View>
+        )}
+
+        {/* Available Offers */}
         <View className="px-4">
           <Text className="text-2xl font-baloo text-[#ea5b3a] mb-4">
-            Active Breeding Pairs
+            Available Offers
           </Text>
 
           {loading ? (
             <View className="flex-row justify-center py-10">
               <ActivityIndicator size="large" color="#ea5b3a" />
             </View>
-          ) : breedingPairs.length === 0 ? (
+          ) : availableOffers.length === 0 ? (
             <View className="py-10 bg-white rounded-2xl">
               <Text className="text-center text-gray-500 mb-2">
-                No active breeding pairs at the moment
+                No available offers at the moment
               </Text>
               <Text className="text-center text-gray-400 text-sm">
-                Breeding assignments will appear here
+                New breeding offers will appear here
               </Text>
             </View>
           ) : (
             <View className="flex-row flex-wrap justify-between">
-              {breedingPairs.map((pair) => (
-                <BreedingCard key={pair.id} pair={pair} />
+              {availableOffers.map((offer) => (
+                <OfferCard key={offer.id} offer={offer} />
               ))}
             </View>
           )}

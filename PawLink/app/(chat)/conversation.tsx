@@ -12,6 +12,7 @@ import {
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Feather } from "@expo/vector-icons";
+import { FileText } from "lucide-react-native";
 import { useRouter, useLocalSearchParams } from "expo-router";
 import {
   getConversationMessages,
@@ -19,7 +20,16 @@ import {
   type ConversationDetail,
   type Message,
 } from "@/services/matchRequestService";
+import {
+  getContract,
+  type BreedingContract,
+} from "@/services/contractService";
 import { API_BASE_URL } from "@/config/env";
+import {
+  ContractPrompt,
+  ContractModal,
+  ContractCard,
+} from "@/components/contracts";
 
 export default function ConversationScreen() {
   const router = useRouter();
@@ -33,6 +43,12 @@ export default function ConversationScreen() {
   const [loading, setLoading] = useState(true);
   const [sending, setSending] = useState(false);
   const [messageText, setMessageText] = useState("");
+
+  // Contract state
+  const [contract, setContract] = useState<BreedingContract | null>(null);
+  const [showContractPrompt, setShowContractPrompt] = useState(false);
+  const [showContractModal, setShowContractModal] = useState(false);
+  const [isEditingContract, setIsEditingContract] = useState(false);
 
   const getImageUrl = (path: string | null | undefined) => {
     if (!path) return null;
@@ -50,22 +66,49 @@ export default function ConversationScreen() {
     }
   }, [conversationId]);
 
+  const fetchContract = useCallback(async () => {
+    try {
+      const contractData = await getContract(parseInt(conversationId));
+      setContract(contractData);
+    } catch (error) {
+      console.error("Error fetching contract:", error);
+    }
+  }, [conversationId]);
+
   useEffect(() => {
     if (conversationId) {
       fetchMessages();
+      fetchContract();
     }
-  }, [conversationId, fetchMessages]);
+  }, [conversationId, fetchMessages, fetchContract]);
 
   // Poll for new messages every 5 seconds
   useEffect(() => {
     const interval = setInterval(() => {
       if (conversationId && !sending) {
         fetchMessages();
+        fetchContract();
       }
     }, 5000);
 
     return () => clearInterval(interval);
-  }, [conversationId, fetchMessages, sending]);
+  }, [conversationId, fetchMessages, fetchContract, sending]);
+
+  const handleContractSuccess = (newContract: BreedingContract) => {
+    setContract(newContract);
+    setIsEditingContract(false);
+  };
+
+  const handleEditContract = () => {
+    setIsEditingContract(true);
+    setShowContractModal(true);
+  };
+
+  const handleCreateContract = () => {
+    setShowContractPrompt(false);
+    setIsEditingContract(false);
+    setShowContractModal(true);
+  };
 
   const handleSend = async () => {
     if (!messageText.trim() || sending) return;
@@ -236,15 +279,38 @@ export default function ConversationScreen() {
         {/* Messages */}
         <ScrollView
           ref={scrollViewRef}
-          className="flex-1 px-4"
+          className="flex-1"
           showsVerticalScrollIndicator={false}
           contentContainerStyle={{ paddingVertical: 16 }}
           onContentSizeChange={() =>
             scrollViewRef.current?.scrollToEnd({ animated: false })
           }
         >
-          {renderMessages()}
+          {/* Contract Card */}
+          {contract && (
+            <ContractCard
+              contract={contract}
+              onContractUpdate={handleContractSuccess}
+              onEdit={handleEditContract}
+            />
+          )}
+
+          {/* Messages */}
+          <View className="px-4">{renderMessages()}</View>
         </ScrollView>
+
+        {/* Create Contract Button - shown when no contract exists */}
+        {!contract && contract !== undefined && (
+          <TouchableOpacity
+            onPress={() => setShowContractPrompt(true)}
+            className="mx-4 mb-2 bg-[#FF6B6B] py-3 px-6 rounded-full flex-row items-center justify-center"
+          >
+            <FileText size={18} color="white" />
+            <Text className="text-white font-semibold ml-2">
+              Create a Contract
+            </Text>
+          </TouchableOpacity>
+        )}
 
         {/* Input */}
         <View className="px-4 py-3 bg-white border-t border-gray-100">
@@ -274,6 +340,25 @@ export default function ConversationScreen() {
           </View>
         </View>
       </KeyboardAvoidingView>
+
+      {/* Contract Prompt Modal */}
+      <ContractPrompt
+        visible={showContractPrompt}
+        onClose={() => setShowContractPrompt(false)}
+        onAccept={handleCreateContract}
+      />
+
+      {/* Contract Creation/Edit Modal */}
+      <ContractModal
+        visible={showContractModal}
+        onClose={() => {
+          setShowContractModal(false);
+          setIsEditingContract(false);
+        }}
+        onSuccess={handleContractSuccess}
+        conversationId={parseInt(conversationId)}
+        existingContract={isEditingContract ? contract : null}
+      />
     </SafeAreaView>
   );
 }

@@ -518,11 +518,7 @@
                             } else if (daysRemaining < 0) {
                                 statusBadge = 'bg-red-100 text-red-700';
                                 statusText = 'Expired';
-                                daysText = `
-        $ {
-            Math.abs(daysRemaining)
-        }
-        days ago`;
+                                daysText = `${Math.abs(daysRemaining)} days ago`;
                             } else if (daysRemaining === 0) {
                                 statusBadge = 'bg-red-100 text-red-700';
                                 statusText = 'Expires Today';
@@ -530,52 +526,31 @@
                             } else if (daysRemaining <= 30) {
                                 statusBadge = 'bg-orange-100 text-orange-700';
                                 statusText = 'Expiring Soon';
-                                daysText = `
-        $ {
-            daysRemaining
-        }
-        days`;
+                                daysText = `${daysRemaining} days`;
                             } else {
                                 statusBadge = 'bg-green-100 text-green-700';
                                 statusText = 'Active';
-                                daysText = `
-        $ {
-            daysRemaining
-        }
-        days`;
+                                daysText = `${daysRemaining} days`;
                             }
                             
-                            return ` <
-        tr class = "text-sm" >
-        <
-        td class = "px-4 py-3 capitalize" > $ {
-            doc.auth_type.replace(/_/g, ' ')
-        } < /td> <
-        td class = "px-4 py-3" > $ {
-            doc.date_submitted
-        } < /td> <
-        td class = "px-4 py-3" > $ {
-            expiryDate
-        } < /td> <
-        td class = "px-4 py-3" > $ {
-            daysText
-        } < /td> <
-        td class = "px-4 py-3" >
-        <
-        span class = "px-2 py-1 rounded-md text-xs font-semibold ${statusBadge}" >
-        $ {
-            statusText
-        } <
-        /span> < /
-        td > <
-            td class = "px-4 py-3" >
-            <
-            button class = "text-orange-600 hover:text-orange-700 text-xs font-medium" >
-            Request Update <
-            /button> < /
-            td > <
-            /tr>
-        `;
+                            return `
+                                <tr class="text-sm">
+                                    <td class="px-4 py-3 capitalize">${doc.auth_type.replace(/_/g, ' ')}</td>
+                                    <td class="px-4 py-3">${doc.date_submitted}</td>
+                                    <td class="px-4 py-3">${expiryDate}</td>
+                                    <td class="px-4 py-3">${daysText}</td>
+                                    <td class="px-4 py-3">
+                                        <span class="px-2 py-1 rounded-md text-xs font-semibold ${statusBadge}">
+                                            ${statusText}
+                                        </span>
+                                    </td>
+                                    <td class="px-4 py-3">
+                                        <button class="text-orange-600 hover:text-orange-700 text-xs font-medium">
+                                            Request Update
+                                        </button>
+                                    </td>
+                                </tr>
+                            `;
                         }).join('')}
                     </tbody>
                 </table>

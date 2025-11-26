@@ -23,6 +23,50 @@ export interface BreedingPair {
   scheduled_date?: string;
 }
 
+export interface ShooterOffer {
+  id: number;
+  conversation_id: number;
+  pet1: {
+    pet_id: number;
+    name: string;
+    breed: string;
+    species: string;
+    sex?: string;
+    birthdate?: string;
+    photo_url?: string;
+  };
+  pet2: {
+    pet_id: number;
+    name: string;
+    breed: string;
+    species: string;
+    sex?: string;
+    birthdate?: string;
+    photo_url?: string;
+  };
+  owner1: {
+    id: number;
+    name: string;
+    profile_image?: string;
+    contact_number?: string;
+  };
+  owner2: {
+    id: number;
+    name: string;
+    profile_image?: string;
+    contact_number?: string;
+  };
+  payment: number;
+  location?: string;
+  conditions?: string;
+  shooter_name?: string;
+  shooter_status?: string;
+  owner1_accepted?: boolean;
+  owner2_accepted?: boolean;
+  end_contract_date?: string;
+  created_at: string;
+}
+
 export interface BreedingPairResponse {
   breeding_pairs: BreedingPair[];
   current_handling: number;
@@ -68,12 +112,89 @@ export interface BreedingDetail extends BreedingPair {
 }
 
 /**
+ * Get available shooter offers (contracts with shooter payment)
+ */
+export async function getShooterOffers(): Promise<ShooterOffer[]> {
+  try {
+    const response = await axiosInstance.get("api/shooter/offers");
+    return response.data.data || [];
+  } catch (error: any) {
+    if (error.response?.status === 404) {
+      // No shooter role found or no offers available
+      return [];
+    }
+    if (error.response?.status === 403) {
+      // User is not a shooter
+      return [];
+    }
+    console.error("Error fetching shooter offers:", error);
+    return [];
+  }
+}
+
+/**
+ * Get details of a specific shooter offer
+ */
+export async function getShooterOfferDetails(
+  offerId: number
+): Promise<ShooterOffer> {
+  try {
+    const response = await axiosInstance.get(`api/shooter/offers/${offerId}`);
+    return response.data.data;
+  } catch (error) {
+    console.error("Error fetching shooter offer details:", error);
+    throw error;
+  }
+}
+
+/**
+ * Accept a shooter offer
+ */
+export async function acceptShooterOffer(
+  offerId: number
+): Promise<{ success: boolean; message: string }> {
+  try {
+    const response = await axiosInstance.put(
+      `api/shooter/offers/${offerId}/accept`
+    );
+    return {
+      success: response.data.success,
+      message: response.data.message,
+    };
+  } catch (error) {
+    console.error("Error accepting shooter offer:", error);
+    throw error;
+  }
+}
+
+/**
+ * Get shooter's accepted offers (pending owner confirmation)
+ */
+export async function getMyShooterOffers(): Promise<ShooterOffer[]> {
+  try {
+    const response = await axiosInstance.get("api/shooter/my-offers");
+    return response.data.data || [];
+  } catch (error: any) {
+    if (error.response?.status === 404) {
+      // No offers found or shooter role not found
+      return [];
+    }
+    if (error.response?.status === 403) {
+      // User is not a shooter
+      return [];
+    }
+    console.error("Error fetching my shooter offers:", error);
+    return [];
+  }
+}
+
+/**
  * Get all active breeding pairs assigned to the shooter
  * TODO: Backend endpoint to implement: GET /api/shooter/breeding-pairs
  */
 export async function getShooterBreedingPairs(): Promise<BreedingPairResponse> {
   try {
-    const response = await axiosInstance.get("/shooter/breeding-pairs");
+    const response = await axiosInstance.get("api/shooter/breeding-pairs");
     return response.data;
   } catch (error) {
     console.error("Error fetching shooter breeding pairs:", error);
@@ -90,7 +211,7 @@ export async function getBreedingPairDetail(
 ): Promise<BreedingDetail> {
   try {
     const response = await axiosInstance.get(
-      `/shooter/breeding-pairs/${pairId}`
+      `api/shooter/breeding-pairs/${pairId}`
     );
     return response.data;
   } catch (error) {
@@ -109,7 +230,7 @@ export async function updateBreedingStatus(
   notes?: string
 ): Promise<void> {
   try {
-    await axiosInstance.put(`/shooter/breeding-pairs/${pairId}/status`, {
+    await axiosInstance.put(`api/shooter/breeding-pairs/${pairId}/status`, {
       status,
       notes,
     });
@@ -129,7 +250,7 @@ export async function addBreedingUpdate(
   photos?: string[]
 ): Promise<void> {
   try {
-    await axiosInstance.post(`/shooter/breeding-pairs/${pairId}/updates`, {
+    await axiosInstance.post(`api/shooter/breeding-pairs/${pairId}/updates`, {
       update,
       photos,
     });
@@ -153,7 +274,7 @@ export async function getShooterStatistics(): Promise<{
   reviews_count: number;
 }> {
   try {
-    const response = await axiosInstance.get("/shooter/statistics");
+    const response = await axiosInstance.get("api/shooter/statistics");
     return response.data;
   } catch (error) {
     console.error("Error fetching shooter statistics:", error);
@@ -171,7 +292,7 @@ export async function respondToBreedingRequest(
   reason?: string
 ): Promise<void> {
   try {
-    await axiosInstance.post(`/shooter/breeding-pairs/${pairId}/respond`, {
+    await axiosInstance.post(`api/shooter/breeding-pairs/${pairId}/respond`, {
       accept,
       reason,
     });

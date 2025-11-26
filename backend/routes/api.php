@@ -2,6 +2,7 @@
 
 use App\Http\Controllers\Auth\AuthenticatedSessionController;
 use App\Http\Controllers\Auth\RegisteredUserController;
+use App\Http\Controllers\BreedingContractController;
 use App\Http\Controllers\LitterController;
 use App\Http\Controllers\MatchController;
 use App\Http\Controllers\MatchRequestController;
@@ -60,6 +61,16 @@ Route::middleware(['auth:sanctum'])
         Route::get('/shooters', [ShooterController::class, 'index']);
         Route::get('/shooters/{id}', [ShooterController::class, 'show']);
 
+        // Shooter offer routes (for shooters)
+        Route::get('/shooter/offers', [ShooterController::class, 'getOffers']);
+        Route::get('/shooter/offers/{id}', [ShooterController::class, 'getOfferDetails']);
+        Route::put('/shooter/offers/{id}/accept', [ShooterController::class, 'acceptOffer']);
+        Route::get('/shooter/my-offers', [ShooterController::class, 'getMyOffers']);
+
+        // Debug routes for shooter offers
+        Route::get('/shooter/debug/contracts', [ShooterController::class, 'debugContracts']);
+        Route::post('/shooter/debug/fix-status', [ShooterController::class, 'fixShooterStatus']);
+
         // Verification routes
         Route::post('/verification/submit', [VerificationController::class, 'submitVerification']);
         Route::get('/verification/status/{userId}', [VerificationController::class, 'getVerificationStatus']);
@@ -83,4 +94,17 @@ Route::middleware(['auth:sanctum'])
         Route::get('/conversations', [MatchRequestController::class, 'getConversations']);
         Route::get('/conversations/{id}/messages', [MatchRequestController::class, 'getMessages']);
         Route::post('/conversations/{id}/messages', [MatchRequestController::class, 'sendMessage']);
+
+        // Breeding contract routes
+        Route::post('/conversations/{id}/contracts', [BreedingContractController::class, 'store']);
+        Route::get('/conversations/{id}/contracts', [BreedingContractController::class, 'show']);
+        Route::put('/contracts/{id}', [BreedingContractController::class, 'update']);
+        Route::put('/contracts/{id}/accept', [BreedingContractController::class, 'accept']);
+        Route::put('/contracts/{id}/reject', [BreedingContractController::class, 'reject']);
+
+        // Shooter request routes (for owners)
+        Route::get('/contracts/shooter-requests/count', [BreedingContractController::class, 'getPendingShooterRequestsCount']);
+        Route::get('/contracts/{id}/shooter-request', [BreedingContractController::class, 'getShooterRequest']);
+        Route::put('/contracts/{id}/shooter-request/accept', [BreedingContractController::class, 'acceptShooterRequest']);
+        Route::put('/contracts/{id}/shooter-request/decline', [BreedingContractController::class, 'declineShooterRequest']);
     });

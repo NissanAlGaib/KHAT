@@ -30,6 +30,7 @@ export interface AcceptedMatch {
   owner: MatchRequestOwner;
   status: "accepted";
   matched_at: string;
+  has_pending_shooter_request?: boolean;
 }
 
 export interface ConversationPreview {

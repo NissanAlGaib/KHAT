@@ -224,12 +224,14 @@ class MatchRequestController extends Controller
                 'targetPet' => function ($query) {
                     $query->with(['owner:id,name,profile_image', 'photos']);
                 },
-                'conversation',
+                'conversation' => function ($query) {
+                    $query->with('breedingContract');
+                },
             ])
             ->orderBy('updated_at', 'desc')
             ->get();
 
-        $formattedRequests = $requests->map(function ($request) use ($userPetIds) {
+        $formattedRequests = $requests->map(function ($request) use ($userPetIds, $user) {
             // Determine which pet is the user's and which is the other
             $isRequester = $userPetIds->contains($request->requester_pet_id);
             $userPet = $isRequester ? $request->requesterPet : $request->targetPet;
@@ -237,6 +239,24 @@ class MatchRequestController extends Controller
 
             $primaryPhoto = $otherPet->photos->firstWhere('is_primary', true)
                 ?? $otherPet->photos->first();
+
+            // Check if there's a pending shooter request for this match's contract
+            $hasPendingShooterRequest = false;
+            if ($request->conversation) {
+                $contract = $request->conversation->breedingContract;
+                if (
+                    $contract &&
+                    $contract->status === 'accepted' &&
+                    $contract->shooter_status === 'accepted_by_shooter'
+                ) {
+                    // Check if current user hasn't accepted the shooter yet
+                    if ($isRequester && !$contract->owner1_accepted_shooter) {
+                        $hasPendingShooterRequest = true;
+                    } elseif (!$isRequester && !$contract->owner2_accepted_shooter) {
+                        $hasPendingShooterRequest = true;
+                    }
+                }
+            }
 
             return [
                 'id' => $request->id,
@@ -258,6 +278,7 @@ class MatchRequestController extends Controller
                 ],
                 'status' => $request->status,
                 'matched_at' => $request->updated_at,
+                'has_pending_shooter_request' => $hasPendingShooterRequest,
             ];
         });
 
