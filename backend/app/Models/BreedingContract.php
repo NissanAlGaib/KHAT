@@ -12,6 +12,12 @@ class BreedingContract extends Model
         'created_by',
         'last_edited_by',
         'status',
+        // Breeding Completion
+        'breeding_status',
+        'breeding_completed_by',
+        'breeding_completed_at',
+        'has_offspring',
+        'breeding_notes',
         // Shooter Agreement
         'shooter_name',
         'shooter_payment',
@@ -68,6 +74,8 @@ class BreedingContract extends Model
         'shooter_accepted_at' => 'datetime',
         'owner1_accepted_shooter' => 'boolean',
         'owner2_accepted_shooter' => 'boolean',
+        'breeding_completed_at' => 'datetime',
+        'has_offspring' => 'boolean',
     ];
 
     /**
@@ -183,5 +191,103 @@ class BreedingContract extends Model
         return $this->isShooter($user)
             && $this->shooter_status === 'accepted_by_owners'
             && !$this->shooter_collateral_paid;
+    }
+
+    /**
+     * Get the litter associated with this contract
+     */
+    public function litter(): \Illuminate\Database\Eloquent\Relations\HasOne
+    {
+        return $this->hasOne(Litter::class, 'contract_id');
+    }
+
+    /**
+     * Get the user who completed the breeding
+     */
+    public function breedingCompletedBy(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'breeding_completed_by');
+    }
+
+    /**
+     * Check if the given user can mark breeding as complete
+     * - Shooter if assigned and accepted by owners
+     * - Male pet owner if no shooter
+     */
+    public function canMarkBreedingComplete(User $user): bool
+    {
+        // Only accepted contracts with in_progress or pending breeding status can be completed
+        if ($this->status !== 'accepted' || !in_array($this->breeding_status, ['pending', 'in_progress'])) {
+            return false;
+        }
+
+        // If shooter is assigned and accepted by both owners, only shooter can complete
+        if ($this->shooter_user_id && $this->shooter_status === 'accepted_by_owners') {
+            return $this->shooter_user_id === $user->id;
+        }
+
+        // Otherwise, the male pet owner can complete
+        $this->load('conversation.matchRequest.requesterPet', 'conversation.matchRequest.targetPet');
+        $matchRequest = $this->conversation->matchRequest;
+        
+        // Find the male pet owner
+        $requesterPet = $matchRequest->requesterPet;
+        $targetPet = $matchRequest->targetPet;
+        
+        $malePetOwnerId = $requesterPet->sex === 'male' 
+            ? $requesterPet->user_id 
+            : $targetPet->user_id;
+        
+        return $malePetOwnerId === $user->id;
+    }
+
+    /**
+     * Check if the given user can input offspring for this contract
+     * - Shooter if assigned and accepted by owners
+     * - Male pet owner if no shooter
+     */
+    public function canInputOffspring(User $user): bool
+    {
+        // Only completed contracts with offspring can have offspring input
+        if ($this->status !== 'accepted' || $this->breeding_status !== 'completed' || !$this->has_offspring) {
+            return false;
+        }
+
+        // If shooter is assigned and accepted by both owners, only shooter can input
+        if ($this->shooter_user_id && $this->shooter_status === 'accepted_by_owners') {
+            return $this->shooter_user_id === $user->id;
+        }
+
+        // Otherwise, the male pet owner can input
+        $this->load('conversation.matchRequest.requesterPet', 'conversation.matchRequest.targetPet');
+        $matchRequest = $this->conversation->matchRequest;
+        
+        // Find the male pet owner
+        $requesterPet = $matchRequest->requesterPet;
+        $targetPet = $matchRequest->targetPet;
+        
+        $malePetOwnerId = $requesterPet->sex === 'male' 
+            ? $requesterPet->user_id 
+            : $targetPet->user_id;
+        
+        return $malePetOwnerId === $user->id;
+    }
+
+    /**
+     * Get the sire and dam from the match request
+     */
+    public function getSireAndDam(): array
+    {
+        $this->load('conversation.matchRequest.requesterPet', 'conversation.matchRequest.targetPet');
+        $matchRequest = $this->conversation->matchRequest;
+        
+        $requesterPet = $matchRequest->requesterPet;
+        $targetPet = $matchRequest->targetPet;
+        
+        if ($requesterPet->sex === 'male') {
+            return ['sire' => $requesterPet, 'dam' => $targetPet];
+        }
+        
+        return ['sire' => $targetPet, 'dam' => $requesterPet];
     }
 }

@@ -23,6 +23,9 @@ class LitterOffspring extends Model
         'status',
         'death_date',
         'notes',
+        'assigned_to',
+        'allocation_status',
+        'selection_order',
     ];
 
     protected $casts = [
@@ -43,5 +46,13 @@ class LitterOffspring extends Model
     public function pet(): BelongsTo
     {
         return $this->belongsTo(Pet::class, 'pet_id', 'pet_id');
+    }
+
+    /**
+     * Get the user this offspring is assigned to
+     */
+    public function assignedTo(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'assigned_to');
     }
 }
