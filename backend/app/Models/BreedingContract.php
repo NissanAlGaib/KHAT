@@ -17,6 +17,8 @@ class BreedingContract extends Model
         'shooter_payment',
         'shooter_location',
         'shooter_conditions',
+        'shooter_collateral',
+        'shooter_collateral_paid',
         // Shooter Offer
         'shooter_user_id',
         'shooter_status',
@@ -49,6 +51,8 @@ class BreedingContract extends Model
 
     protected $casts = [
         'shooter_payment' => 'decimal:2',
+        'shooter_collateral' => 'decimal:2',
+        'shooter_collateral_paid' => 'boolean',
         'end_contract_date' => 'date',
         'include_monetary_amount' => 'boolean',
         'monetary_amount' => 'decimal:2',
@@ -155,5 +159,24 @@ class BreedingContract extends Model
     public function isCreator(User $user): bool
     {
         return $this->created_by === $user->id;
+    }
+
+    /**
+     * Check if the given user is the assigned shooter for this contract
+     */
+    public function isShooter(User $user): bool
+    {
+        return $this->shooter_user_id === $user->id;
+    }
+
+    /**
+     * Check if the shooter can edit their contract terms
+     * Shooter can only edit when status is 'accepted_by_owners' and collateral is not yet paid
+     */
+    public function canShooterEditTerms(User $user): bool
+    {
+        return $this->isShooter($user) 
+            && $this->shooter_status === 'accepted_by_owners'
+            && !$this->shooter_collateral_paid;
     }
 }
