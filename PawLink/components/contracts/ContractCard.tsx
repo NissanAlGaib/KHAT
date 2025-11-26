@@ -1,5 +1,12 @@
 import React, { useState } from "react";
-import { View, Text, TouchableOpacity, ActivityIndicator } from "react-native";
+import {
+  View,
+  Text,
+  TouchableOpacity,
+  ActivityIndicator,
+  Alert,
+  TextInput,
+} from "react-native";
 import {
   FileText,
   ChevronDown,
@@ -12,6 +19,9 @@ import {
   Shield,
   UserCheck,
   Clock,
+  CheckCircle,
+  XCircle,
+  Baby,
 } from "lucide-react-native";
 import dayjs from "dayjs";
 import {
@@ -21,8 +31,12 @@ import {
   acceptShooterRequest,
   declineShooterRequest,
   updateShooterTerms,
+  completeBreeding,
 } from "@/services/contractService";
-import { ShooterContractEditModal } from "@/components/contracts";
+import {
+  ShooterContractEditModal,
+  OffspringInputModal,
+} from "@/components/contracts";
 
 interface ContractCardProps {
   contract: BreedingContract;
@@ -103,6 +117,10 @@ export default function ContractCard({
   const [isAcceptingShooter, setIsAcceptingShooter] = useState(false);
   const [isDecliningShooter, setIsDecliningShooter] = useState(false);
   const [showShooterEditModal, setShowShooterEditModal] = useState(false);
+  const [isMarkingComplete, setIsMarkingComplete] = useState(false);
+  const [showBreedingNotes, setShowBreedingNotes] = useState(false);
+  const [breedingNotes, setBreedingNotes] = useState("");
+  const [showOffspringModal, setShowOffspringModal] = useState(false);
 
   const handleAccept = async () => {
     setIsAccepting(true);
@@ -170,6 +188,58 @@ export default function ContractCard({
   const handleShooterEditSuccess = (updatedContract: BreedingContract) => {
     onContractUpdate(updatedContract);
     setShowShooterEditModal(false);
+  };
+
+  const handleMarkBreedingComplete = async (hasOffspring: boolean) => {
+    const status = hasOffspring ? "completed" : "failed";
+    const statusText = hasOffspring ? "successful" : "failed";
+
+    Alert.alert(
+      `Mark Breeding as ${hasOffspring ? "Complete" : "Failed"}`,
+      `Are you sure the breeding was ${statusText}${hasOffspring ? " with offspring" : ""}?`,
+      [
+        {
+          text: "Cancel",
+          style: "cancel",
+        },
+        {
+          text: "Confirm",
+          onPress: async () => {
+            setIsMarkingComplete(true);
+            try {
+              const result = await completeBreeding(contract.id, {
+                breeding_status: status,
+                has_offspring: hasOffspring,
+                breeding_notes: breedingNotes || undefined,
+              });
+
+              if (result.success && result.data) {
+                onContractUpdate(result.data);
+                setBreedingNotes("");
+                setShowBreedingNotes(false);
+
+                if (hasOffspring) {
+                  Alert.alert(
+                    "Success",
+                    "Breeding marked as complete! You can now input offspring details."
+                  );
+                }
+              } else {
+                Alert.alert(
+                  "Error",
+                  result.message || "Failed to update breeding status"
+                );
+              }
+            } catch (error) {
+              console.error("Error marking breeding complete:", error);
+              Alert.alert("Error", "Failed to mark breeding complete");
+            } finally {
+              setIsMarkingComplete(false);
+            }
+          },
+        },
+      ]
+    );
   };
 
   const collateralPerOwner = contract.collateral_total / 2;
@@ -369,7 +439,7 @@ export default function ContractCard({
               <View className="flex-row justify-between mb-2">
                 <Text className="text-gray-500 text-sm">Monetary Amount:</Text>
                 <Text className="text-gray-800 text-sm font-medium">
-                  ${contract.monetary_amount}
+                  ₱{contract.monetary_amount}
                 </Text>
               </View>
             )}
@@ -407,7 +477,7 @@ export default function ContractCard({
                   Goods/Foods Value:
                 </Text>
                 <Text className="text-gray-800 text-sm font-medium">
-                  ${contract.goods_foods_value}
+                  ₱{contract.goods_foods_value}
                 </Text>
               </View>
             )}
@@ -415,13 +485,13 @@ export default function ContractCard({
               <View className="flex-row justify-between mb-1">
                 <Text className="text-gray-500 text-sm">Total Collateral:</Text>
                 <Text className="text-gray-800 text-sm font-semibold">
-                  ${contract.collateral_total}
+                  ₱{contract.collateral_total}
                 </Text>
               </View>
               <View className="flex-row justify-between">
                 <Text className="text-gray-500 text-sm">Each Owner:</Text>
                 <Text className="text-gray-800 text-sm font-medium">
-                  ${collateralPerOwner.toFixed(2)}
+                  ₱{collateralPerOwner.toFixed(2)}
                 </Text>
               </View>
             </View>
@@ -630,6 +700,162 @@ export default function ContractCard({
             </View>
           )}
 
+        {/* Breeding Completion Section */}
+        {contract.status === "accepted" &&
+          contract.can_mark_breeding_complete &&
+          (!contract.breeding_status ||
+            contract.breeding_status === "pending" ||
+            contract.breeding_status === "in_progress") && (
+            <View className="mt-3 border-t border-gray-200 pt-3">
+              <View className="bg-blue-50 rounded-lg p-3 mb-3">
+                <Text className="text-blue-900 font-semibold mb-1">
+                  Mark Breeding Status
+                </Text>
+                <Text className="text-blue-700 text-sm">
+                  {contract.is_shooter
+                    ? "As the shooter, you can mark the breeding completion status."
+                    : "As the male pet owner, you can mark the breeding completion status."}
+                </Text>
+              </View>
+
+              {/* Optional Notes */}
+              <TouchableOpacity
+                onPress={() => setShowBreedingNotes(!showBreedingNotes)}
+                className="mb-2"
+              >
+                <Text className="text-gray-600 text-sm">
+                  {showBreedingNotes ? "Hide" : "Add"} notes (optional)
+                </Text>
+              </TouchableOpacity>
+
+              {showBreedingNotes && (
+                <TextInput
+                  value={breedingNotes}
+                  onChangeText={setBreedingNotes}
+                  placeholder="Add any notes about the breeding..."
+                  multiline
+                  numberOfLines={3}
+                  className="border border-gray-300 rounded-lg p-3 mb-3 text-gray-800"
+                  style={{ textAlignVertical: "top" }}
+                />
+              )}
+
+              <View>
+                <TouchableOpacity
+                  onPress={() => handleMarkBreedingComplete(true)}
+                  disabled={isMarkingComplete}
+                  style={{ backgroundColor: "#16a34a" }}
+                  className="py-3 rounded-full flex-row items-center justify-center"
+                >
+                  {isMarkingComplete ? (
+                    <ActivityIndicator color="white" size="small" />
+                  ) : (
+                    <>
+                      <CheckCircle size={18} color="white" />
+                      <Text className="text-white font-semibold ml-1">
+                        Complete (With Offspring)
+                      </Text>
+                    </>
+                  )}
+                </TouchableOpacity>
+
+                <TouchableOpacity
+                  onPress={() => handleMarkBreedingComplete(false)}
+                  disabled={isMarkingComplete}
+                  className="border border-red-500 py-3 rounded-full flex-row items-center justify-center mt-2"
+                >
+                  {isMarkingComplete ? (
+                    <ActivityIndicator color="#ef4444" size="small" />
+                  ) : (
+                    <>
+                      <XCircle size={18} color="#ef4444" />
+                      <Text className="text-red-500 font-semibold ml-1">
+                        Failed/No Offspring
+                      </Text>
+                    </>
+                  )}
+                </TouchableOpacity>
+              </View>
+            </View>
+          )}
+
+        {/* Breeding Status Display */}
+        {contract.status === "accepted" && contract.breeding_status && (
+          <View className="mt-3 border-t border-gray-200 pt-3">
+            {contract.breeding_status === "completed" && (
+              <View className="bg-green-50 rounded-lg p-3">
+                <View className="flex-row items-center mb-1">
+                  <CheckCircle size={16} color="#10b981" />
+                  <Text className="text-green-800 font-semibold ml-2">
+                    Breeding Complete
+                  </Text>
+                </View>
+                <Text className="text-green-700 text-sm">
+                  Marked as{" "}
+                  {contract.has_offspring
+                    ? "successful with offspring"
+                    : "complete without offspring"}
+                  {contract.breeding_completed_at &&
+                    ` on ${dayjs(contract.breeding_completed_at).format(
+                      "MMM D, YYYY"
+                    )}`}
+                </Text>
+                {contract.breeding_notes && (
+                  <Text className="text-green-600 text-sm mt-2 italic">
+                    Note: {contract.breeding_notes}
+                  </Text>
+                )}
+
+                {/* Add Offspring Button */}
+                {contract.has_offspring && contract.can_input_offspring && (
+                  <TouchableOpacity
+                    onPress={() => setShowOffspringModal(true)}
+                    style={{ backgroundColor: "#16a34a" }}
+                    className="mt-3 py-2 rounded-full flex-row items-center justify-center"
+                  >
+                    <Baby size={16} color="white" />
+                    <Text className="text-white font-semibold ml-1">
+                      Add Offspring Details
+                    </Text>
+                  </TouchableOpacity>
+                )}
+              </View>
+            )}
+            {contract.breeding_status === "failed" && (
+              <View className="bg-red-50 rounded-lg p-3">
+                <View className="flex-row items-center mb-1">
+                  <XCircle size={16} color="#ef4444" />
+                  <Text className="text-red-800 font-semibold ml-2">
+                    Breeding Failed
+                  </Text>
+                </View>
+                <Text className="text-red-700 text-sm">
+                  Marked as failed
+                  {contract.breeding_completed_at &&
+                    ` on ${dayjs(contract.breeding_completed_at).format(
+                      "MMM D, YYYY"
+                    )}`}
+                </Text>
+                {contract.breeding_notes && (
+                  <Text className="text-red-600 text-sm mt-2 italic">
+                    Note: {contract.breeding_notes}
+                  </Text>
+                )}
+              </View>
+            )}
+            {contract.breeding_status === "in_progress" && (
+              <View className="bg-yellow-50 rounded-lg p-3">
+                <View className="flex-row items-center">
+                  <Clock size={16} color="#f59e0b" />
+                  <Text className="text-yellow-800 font-semibold ml-2">
+                    Breeding In Progress
+                  </Text>
+                </View>
+              </View>
+            )}
+          </View>
+        )}
+
         {/* Action Buttons */}
         {contract.status === "pending_review" && (
           <View className="mt-3">
@@ -713,6 +939,14 @@ export default function ContractCard({
         onSuccess={handleShooterEditSuccess}
         contract={contract}
         onSubmit={handleShooterEditSubmit}
+      />
+
+      {/* Offspring Input Modal */}
+      <OffspringInputModal
+        visible={showOffspringModal}
+        onClose={() => setShowOffspringModal(false)}
+        contract={contract}
+        onSuccess={onContractUpdate}
       />
     </View>
   );

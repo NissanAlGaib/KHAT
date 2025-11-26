@@ -230,7 +230,9 @@ export default function ContractModal({
           💡 Want to hire a professional shooter?
         </Text>
         <Text className="text-xs text-gray-600">
-          Fill in the shooter payment below, and once this contract is accepted, verified shooters will see this offer on their homepage and can apply for the job.
+          Fill in the shooter payment below, and once this contract is accepted,
+          verified shooters will see this offer on their homepage and can apply
+          for the job.
         </Text>
       </View>
 
@@ -254,7 +256,7 @@ export default function ContractModal({
       {/* Shooter Payment */}
       <View className="mb-3">
         <Text className="text-xs font-medium text-gray-700 mb-1">
-          Shooter Payment ($) *
+          Shooter Payment (₱) *
         </Text>
         <TextInput
           className="bg-gray-100 rounded-xl px-3 py-2.5 text-sm"
@@ -370,7 +372,7 @@ export default function ContractModal({
         <View className="mb-3 ml-7">
           <TextInput
             className="bg-gray-100 rounded-xl px-3 py-2.5 text-sm"
-            placeholder="Enter amount ($)"
+            placeholder="Enter amount (₱)"
             placeholderTextColor="#9CA3AF"
             value={formData.monetary_amount?.toString() || ""}
             onChangeText={(text) =>
@@ -564,7 +566,7 @@ export default function ContractModal({
       {/* Collateral */}
       <View className="mb-3">
         <Text className="text-xs font-medium text-gray-700 mb-1">
-          Total Collateral ($)
+          Total Collateral (₱)
         </Text>
         <TextInput
           className="bg-gray-100 rounded-xl px-3 py-2.5 text-sm"
@@ -584,13 +586,13 @@ export default function ContractModal({
         <View className="flex-row justify-between mb-1">
           <Text className="text-xs text-gray-600">Total Collateral:</Text>
           <Text className="text-xs font-semibold text-gray-900">
-            ${(Number(formData.collateral_total) || 0).toFixed(2)}
+            ₱{(Number(formData.collateral_total) || 0).toFixed(2)}
           </Text>
         </View>
         <View className="flex-row justify-between mb-1">
           <Text className="text-xs text-gray-600">{"Each Owner's Share:"}</Text>
           <Text className="text-xs font-semibold text-gray-900">
-            ${collateralPerOwner.toFixed(2)}
+            ₱{collateralPerOwner.toFixed(2)}
           </Text>
         </View>
         <Text className="text-xs text-gray-500 mt-1">

@@ -518,7 +518,7 @@ const Register = () => {
 
       <Text className="text-center text-sm text-[#6B7280] mt-4 mb-6 font-roboto">
         Already have an account?{" "}
-        <Link href="/Login">
+        <Link href="/login">
           <Text className="text-[#E4492E] font-roboto">Login</Text>
         </Link>
       </Text>

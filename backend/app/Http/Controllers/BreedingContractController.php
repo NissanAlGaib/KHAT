@@ -9,6 +9,7 @@ use App\Models\LitterOffspring;
 use App\Models\Pet;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Storage;
 
 class BreedingContractController extends Controller
 {
@@ -941,7 +942,7 @@ class BreedingContractController extends Controller
                     $q->whereIn('requester_pet_id', $userPetIds)
                         ->orWhereIn('target_pet_id', $userPetIds);
                 })
-                ->orWhere('shooter_user_id', $user->id);
+                    ->orWhere('shooter_user_id', $user->id);
             })
             ->first();
 
@@ -1003,6 +1004,7 @@ class BreedingContractController extends Controller
             'offspring.*.status' => 'required|in:alive,died,adopted',
             'offspring.*.death_date' => 'required_if:offspring.*.status,died|nullable|date',
             'offspring.*.notes' => 'nullable|string',
+            'offspring.*.photo' => 'nullable|string', // Base64 encoded image
         ]);
 
         $user = $request->user();
@@ -1018,7 +1020,7 @@ class BreedingContractController extends Controller
                     $q->whereIn('requester_pet_id', $userPetIds)
                         ->orWhereIn('target_pet_id', $userPetIds);
                 })
-                ->orWhere('shooter_user_id', $user->id);
+                    ->orWhere('shooter_user_id', $user->id);
             })
             ->first();
 
@@ -1095,11 +1097,39 @@ class BreedingContractController extends Controller
 
             // Create offspring records
             foreach ($validated['offspring'] as $offspringData) {
+                // Handle photo upload if provided
+                $photoUrl = null;
+                if (!empty($offspringData['photo'])) {
+                    try {
+                        // Decode base64 image
+                        $imageData = $offspringData['photo'];
+
+                        // Check if it's a base64 string or file path
+                        if (preg_match('/^data:image\/(\w+);base64,/', $imageData, $type)) {
+                            // Base64 encoded image
+                            $imageData = substr($imageData, strpos($imageData, ',') + 1);
+                            $imageData = base64_decode($imageData);
+                            $extension = strtolower($type[1]);
+
+                            // Generate unique filename
+                            $filename = 'offspring_' . $litter->litter_id . '_' . uniqid() . '.' . $extension;
+
+                            // Save to storage
+                            Storage::disk('public')->put('offspring/' . $filename, $imageData);
+                            $photoUrl = 'storage/offspring/' . $filename;
+                        }
+                    } catch (\Exception $e) {
+                        \Log::error('Error uploading offspring photo: ' . $e->getMessage());
+                        // Continue without photo if upload fails
+                    }
+                }
+
                 LitterOffspring::create([
                     'litter_id' => $litter->litter_id,
                     'name' => $offspringData['name'] ?? null,
                     'sex' => $offspringData['sex'],
                     'color' => $offspringData['color'] ?? null,
+                    'photo_url' => $photoUrl,
                     'status' => $offspringData['status'],
                     'death_date' => $offspringData['death_date'] ?? null,
                     'notes' => $offspringData['notes'] ?? null,
@@ -1107,15 +1137,12 @@ class BreedingContractController extends Controller
                 ]);
             }
 
-            // Update breeding count on parent pets (combined update for efficiency)
-            $sire->update([
-                'breeding_count' => DB::raw('breeding_count + 1'),
-                'has_been_bred' => true,
-            ]);
-            $dam->update([
-                'breeding_count' => DB::raw('breeding_count + 1'),
-                'has_been_bred' => true,
-            ]);
+            // Update breeding count on parent pets
+            $sire->increment('breeding_count');
+            $sire->update(['has_been_bred' => true]);
+
+            $dam->increment('breeding_count');
+            $dam->update(['has_been_bred' => true]);
 
             DB::commit();
 
@@ -1129,10 +1156,14 @@ class BreedingContractController extends Controller
             ], 201);
         } catch (\Exception $e) {
             DB::rollBack();
-            \Log::error('Failed to store offspring: ' . $e->getMessage());
+            \Log::error('Failed to store offspring: ' . $e->getMessage(), [
+                'exception' => $e,
+                'contract_id' => $contractId,
+                'user_id' => $user->id,
+            ]);
             return response()->json([
                 'success' => false,
-                'message' => 'Failed to store offspring',
+                'message' => 'Failed to store offspring: ' . (config('app.debug') ? $e->getMessage() : 'An error occurred'),
             ], 500);
         }
     }
@@ -1152,7 +1183,7 @@ class BreedingContractController extends Controller
                     $q->whereIn('requester_pet_id', $userPetIds)
                         ->orWhereIn('target_pet_id', $userPetIds);
                 })
-                ->orWhere('shooter_user_id', $user->id);
+                    ->orWhere('shooter_user_id', $user->id);
             })
             ->with(['litter.offspring.assignedTo', 'litter.sire', 'litter.dam'])
             ->first();
@@ -1244,7 +1275,7 @@ class BreedingContractController extends Controller
                     $q->whereIn('requester_pet_id', $userPetIds)
                         ->orWhereIn('target_pet_id', $userPetIds);
                 })
-                ->orWhere('shooter_user_id', $user->id);
+                    ->orWhere('shooter_user_id', $user->id);
             })
             ->with(['litter.offspring', 'conversation.matchRequest.requesterPet', 'conversation.matchRequest.targetPet'])
             ->first();
@@ -1359,7 +1390,7 @@ class BreedingContractController extends Controller
                     $q->whereIn('requester_pet_id', $userPetIds)
                         ->orWhereIn('target_pet_id', $userPetIds);
                 })
-                ->orWhere('shooter_user_id', $user->id);
+                    ->orWhere('shooter_user_id', $user->id);
             })
             ->with(['litter.offspring', 'conversation.matchRequest.requesterPet', 'conversation.matchRequest.targetPet'])
             ->first();
