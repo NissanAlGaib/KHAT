@@ -20,7 +20,9 @@ import {
   rejectContract,
   acceptShooterRequest,
   declineShooterRequest,
+  updateShooterTerms,
 } from "@/services/contractService";
+import { ShooterContractEditModal } from "@/components/contracts";
 
 interface ContractCardProps {
   contract: BreedingContract;
@@ -100,6 +102,7 @@ export default function ContractCard({
   const [isRejecting, setIsRejecting] = useState(false);
   const [isAcceptingShooter, setIsAcceptingShooter] = useState(false);
   const [isDecliningShooter, setIsDecliningShooter] = useState(false);
+  const [showShooterEditModal, setShowShooterEditModal] = useState(false);
 
   const handleAccept = async () => {
     setIsAccepting(true);
@@ -157,6 +160,18 @@ export default function ContractCard({
     }
   };
 
+  const handleShooterEditSubmit = async (
+    payment: number,
+    collateral: number
+  ) => {
+    return await updateShooterTerms(contract.id, payment, collateral);
+  };
+
+  const handleShooterEditSuccess = (updatedContract: BreedingContract) => {
+    onContractUpdate(updatedContract);
+    setShowShooterEditModal(false);
+  };
+
   const collateralPerOwner = contract.collateral_total / 2;
 
   // Determine if current user has already accepted the shooter
@@ -180,12 +195,18 @@ export default function ContractCard({
 
       {/* Content */}
       <View className="px-4 py-3">
-        {/* Shooter Agreement Section */}
-        {contract.shooter_name && (
+        {/* Shooter Agreement Section - Show if shooter details exist OR if current user is the shooter */}
+        {(contract.shooter_name ||
+          contract.is_shooter ||
+          contract.shooter_payment) && (
           <CollapsibleSection
             title="Shooter Agreement"
             icon={<Users size={18} color="#FF6B6B" />}
-            defaultExpanded={contract.shooter_status === "accepted_by_shooter"}
+            defaultExpanded={
+              contract.shooter_status === "accepted_by_shooter" ||
+              contract.status === "accepted" ||
+              contract.is_shooter === true
+            }
           >
             <View className="bg-gray-50 rounded-xl p-3">
               <View className="flex-row justify-between mb-2">
@@ -220,6 +241,15 @@ export default function ContractCard({
                   </Text>
                 </View>
               )}
+              {contract.shooter_collateral &&
+                contract.shooter_collateral > 0 && (
+                  <View className="flex-row justify-between mb-2 mt-2">
+                    <Text className="text-gray-500 text-sm">Collateral:</Text>
+                    <Text className="text-gray-800 text-sm font-medium">
+                      ₱{contract.shooter_collateral.toLocaleString()}
+                    </Text>
+                  </View>
+                )}
 
               {/* Shooter Status */}
               {contract.shooter_status &&
@@ -277,18 +307,32 @@ export default function ContractCard({
                     )}
 
                     {contract.shooter_status === "accepted_by_owners" && (
-                      <View className="bg-green-50 rounded-lg p-3 flex-row items-center">
-                        <Check size={16} color="#10b981" />
-                        <View className="ml-2 flex-1">
-                          <Text className="text-green-800 font-semibold">
+                      <View className="bg-green-50 rounded-lg p-3">
+                        <View className="flex-row items-center mb-2">
+                          <Check size={16} color="#10b981" />
+                          <Text className="text-green-800 font-semibold ml-2">
                             Shooter Confirmed
                           </Text>
-                          {contract.shooter && (
-                            <Text className="text-green-700 text-sm">
-                              {contract.shooter.name} is your confirmed shooter
-                            </Text>
-                          )}
                         </View>
+                        {contract.shooter && (
+                          <Text className="text-green-700 text-sm mb-2">
+                            {contract.shooter.name} is your confirmed shooter
+                          </Text>
+                        )}
+                        {contract.shooter_collateral &&
+                          contract.shooter_collateral > 0 && (
+                            <View className="bg-white rounded-lg p-2 mt-1">
+                              <View className="flex-row justify-between">
+                                <Text className="text-gray-600 text-xs">
+                                  Collateral Provided:
+                                </Text>
+                                <Text className="text-green-700 text-xs font-semibold">
+                                  ₱
+                                  {contract.shooter_collateral.toLocaleString()}
+                                </Text>
+                              </View>
+                            </View>
+                          )}
                       </View>
                     )}
 
@@ -310,7 +354,7 @@ export default function ContractCard({
         <CollapsibleSection
           title="Payment & Compensation"
           icon={<DollarSign size={18} color="#FF6B6B" />}
-          defaultExpanded
+          defaultExpanded={true}
         >
           <View className="bg-gray-50 rounded-xl p-3">
             {contract.end_contract_date && (
@@ -392,6 +436,7 @@ export default function ContractCard({
           <CollapsibleSection
             title="Terms & Policies"
             icon={<Shield size={18} color="#FF6B6B" />}
+            defaultExpanded={contract.status === "accepted"}
           >
             <View className="bg-gray-50 rounded-xl p-3">
               {contract.pet_care_responsibilities && (
@@ -440,12 +485,40 @@ export default function ContractCard({
 
         {/* Status Messages */}
         {contract.status === "accepted" && (
-          <View className="bg-green-50 rounded-xl p-3 flex-row items-center mb-3">
-            <Check size={18} color="#10b981" />
-            <Text className="text-green-800 text-sm ml-2">
-              Contract accepted on{" "}
-              {dayjs(contract.accepted_at).format("MMMM D, YYYY")}
-            </Text>
+          <View className="mb-3">
+            <View className="bg-green-50 rounded-xl p-3 flex-row items-center">
+              <Check size={18} color="#10b981" />
+              <Text className="text-green-800 text-sm ml-2">
+                Contract accepted on{" "}
+                {dayjs(contract.accepted_at).format("MMMM D, YYYY")}
+              </Text>
+            </View>
+
+            {/* Edit button for accepted contracts (owners) */}
+            {contract.can_edit && !contract.can_shooter_edit && (
+              <TouchableOpacity
+                onPress={onEdit}
+                className="mt-3 bg-[#FF6B6B] py-3 rounded-full flex-row items-center justify-center"
+              >
+                <Edit size={18} color="white" />
+                <Text className="text-white font-semibold ml-2">
+                  Edit Contract
+                </Text>
+              </TouchableOpacity>
+            )}
+
+            {/* Edit button for shooter */}
+            {contract.can_shooter_edit && (
+              <TouchableOpacity
+                onPress={() => setShowShooterEditModal(true)}
+                className="mt-3 bg-[#FF6B6B] py-3 rounded-full flex-row items-center justify-center"
+              >
+                <Edit size={18} color="white" />
+                <Text className="text-white font-semibold ml-2">
+                  Edit Payment & Collateral
+                </Text>
+              </TouchableOpacity>
+            )}
           </View>
         )}
 
@@ -468,14 +541,41 @@ export default function ContractCard({
                   <View className="flex-row items-center mb-2">
                     <Users size={20} color="#f59e0b" />
                     <Text className="text-yellow-900 font-bold text-base ml-2">
-                      Shooter Request Pending
+                      Shooter Agreement Pending
                     </Text>
                   </View>
                   {contract.shooter && (
-                    <Text className="text-yellow-800 text-sm mb-3">
-                      {contract.shooter.name} has accepted your shooter offer.
-                      Both owners must approve to confirm.
-                    </Text>
+                    <View className="mb-3">
+                      <Text className="text-yellow-800 text-sm mb-2">
+                        {contract.shooter.name} has submitted their payment and
+                        collateral terms. Both owners must approve to confirm.
+                      </Text>
+                      {/* Show submitted terms */}
+                      <View className="bg-white rounded-lg p-3 mt-2">
+                        <Text className="text-gray-700 font-semibold text-sm mb-2">
+                          Submitted Terms:
+                        </Text>
+                        <View className="flex-row justify-between mb-1">
+                          <Text className="text-gray-600 text-sm">
+                            Payment:
+                          </Text>
+                          <Text className="text-gray-900 text-sm font-semibold">
+                            ₱{contract.shooter_payment?.toLocaleString()}
+                          </Text>
+                        </View>
+                        {contract.shooter_collateral &&
+                          contract.shooter_collateral > 0 && (
+                            <View className="flex-row justify-between">
+                              <Text className="text-gray-600 text-sm">
+                                Collateral:
+                              </Text>
+                              <Text className="text-gray-900 text-sm font-semibold">
+                                ₱{contract.shooter_collateral.toLocaleString()}
+                              </Text>
+                            </View>
+                          )}
+                      </View>
+                    </View>
                   )}
 
                   {!hasCurrentUserAcceptedShooter ? (
@@ -605,6 +705,15 @@ export default function ContractCard({
           {dayjs(contract.created_at).format("MMM D, YYYY h:mm A")}
         </Text>
       </View>
+
+      {/* Shooter Edit Modal */}
+      <ShooterContractEditModal
+        visible={showShooterEditModal}
+        onClose={() => setShowShooterEditModal(false)}
+        onSuccess={handleShooterEditSuccess}
+        contract={contract}
+        onSubmit={handleShooterEditSubmit}
+      />
     </View>
   );
 }

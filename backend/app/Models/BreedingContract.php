@@ -115,8 +115,8 @@ class BreedingContract extends Model
      */
     public function hasShooterOffer(): bool
     {
-        return $this->status === 'accepted' 
-            && $this->shooter_payment !== null 
+        return $this->status === 'accepted'
+            && $this->shooter_payment !== null
             && $this->shooter_payment > 0
             && $this->shooter_status === 'pending';
     }
@@ -126,12 +126,17 @@ class BreedingContract extends Model
      */
     public function canBeEditedBy(User $user): bool
     {
-        // Only allow editing if status is pending_review
-        if ($this->status !== 'pending_review') {
+        // Allow editing if status is pending_review or accepted
+        if (!in_array($this->status, ['pending_review', 'accepted'])) {
             return false;
         }
 
-        // The user who last edited (or created) cannot edit again
+        // For accepted contracts, both parties can edit
+        if ($this->status === 'accepted') {
+            return true;
+        }
+
+        // For pending_review, the user who last edited (or created) cannot edit again
         // The other party needs to respond
         $lastEditor = $this->last_edited_by ?? $this->created_by;
         return $lastEditor !== $user->id;
@@ -175,7 +180,7 @@ class BreedingContract extends Model
      */
     public function canShooterEditTerms(User $user): bool
     {
-        return $this->isShooter($user) 
+        return $this->isShooter($user)
             && $this->shooter_status === 'accepted_by_owners'
             && !$this->shooter_collateral_paid;
     }

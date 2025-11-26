@@ -197,6 +197,16 @@ export default function ConversationScreen() {
               message.is_own ? "self-end" : "self-start"
             }`}
           >
+            {/* Sender name */}
+            <Text
+              className={`text-xs font-semibold mb-1 ${
+                message.is_own
+                  ? "text-right text-[#FF6B6B]"
+                  : "text-left text-gray-600"
+              }`}
+            >
+              {message.sender.name}
+            </Text>
             <View
               className={`px-4 py-3 rounded-2xl ${
                 message.is_own
@@ -301,6 +311,12 @@ export default function ConversationScreen() {
               </Text>
               <Text className="text-gray-500 text-sm">
                 {conversation?.owner?.name}
+                {conversation?.shooter && (
+                  <Text className="text-[#FF6B6B]">
+                    {" "}
+                    • Shooter: {conversation.shooter.name}
+                  </Text>
+                )}
               </Text>
             </View>
             <TouchableOpacity

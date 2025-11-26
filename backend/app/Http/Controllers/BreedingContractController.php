@@ -122,13 +122,17 @@ class BreedingContractController extends Controller
         $user = $request->user();
         $userPetIds = Pet::where('user_id', $user->id)->pluck('pet_id');
 
-        // Verify user has access to this conversation
-        $conversation = Conversation::whereHas('matchRequest', function ($query) use ($userPetIds) {
-            $query->where(function ($q) use ($userPetIds) {
-                $q->whereIn('requester_pet_id', $userPetIds)
-                    ->orWhereIn('target_pet_id', $userPetIds);
-            });
-        })->with('breedingContract')->find($conversationId);
+        // Verify user has access to this conversation (as owner or shooter)
+        $conversation = Conversation::where('id', $conversationId)
+            ->where(function ($query) use ($userPetIds, $user) {
+                $query->whereHas('matchRequest', function ($q) use ($userPetIds) {
+                    $q->whereIn('requester_pet_id', $userPetIds)
+                        ->orWhereIn('target_pet_id', $userPetIds);
+                })
+                    ->orWhere('shooter_user_id', $user->id);
+            })
+            ->with('breedingContract')
+            ->first();
 
         if (!$conversation) {
             return response()->json([
@@ -419,7 +423,7 @@ class BreedingContractController extends Controller
             // Check if both owners have accepted
             if ($contract->owner1_accepted_shooter && $contract->owner2_accepted_shooter) {
                 $contract->update(['shooter_status' => 'accepted_by_owners']);
-                
+
                 // Add shooter to the conversation
                 $conversation = $contract->conversation;
                 $conversation->update(['shooter_user_id' => $contract->shooter_user_id]);
@@ -599,13 +603,14 @@ class BreedingContractController extends Controller
     }
 
     /**
-     * Update shooter's contract terms (payment amount)
-     * Shooter can only edit when both owners have accepted and collateral is not yet paid
+     * Update shooter's contract terms (payment amount and collateral)
+     * Shooter must provide collateral to ensure safety of users
      */
     public function shooterUpdateTerms(Request $request, $contractId)
     {
         $validated = $request->validate([
             'shooter_payment' => 'required|numeric|min:0',
+            'shooter_collateral' => 'required|numeric|min:0',
         ]);
 
         $user = $request->user();
@@ -613,13 +618,13 @@ class BreedingContractController extends Controller
         // Get the contract where the user is the assigned shooter
         $contract = BreedingContract::where('id', $contractId)
             ->where('shooter_user_id', $user->id)
-            ->where('shooter_status', 'accepted_by_owners')
+            ->where('status', 'accepted')
             ->first();
 
         if (!$contract) {
             return response()->json([
                 'success' => false,
-                'message' => 'Contract not found or you are not the assigned shooter',
+                'message' => 'Contract not found, you are not the assigned shooter, or the contract is not yet accepted by both owners',
             ], 404);
         }
 
@@ -632,13 +637,33 @@ class BreedingContractController extends Controller
         }
 
         try {
-            $contract->update([
+            // Check if this is first time submitting or if payment was changed
+            $isFirstSubmission = !$contract->shooter_collateral_paid;
+            $paymentChanged = $contract->shooter_payment != $validated['shooter_payment'];
+
+            $updateData = [
                 'shooter_payment' => $validated['shooter_payment'],
-            ]);
+                'shooter_collateral' => $validated['shooter_collateral'],
+                'shooter_collateral_paid' => true, // Mark collateral as paid when updating
+            ];
+
+            // Always require owner approval when shooter submits/updates terms
+            // Reset to 'accepted_by_shooter' to require owner re-approval
+            $updateData['shooter_status'] = 'accepted_by_shooter';
+            $updateData['owner1_accepted_shooter'] = false;
+            $updateData['owner2_accepted_shooter'] = false;
+
+            $contract->update($updateData);
+
+            $message = $isFirstSubmission
+                ? 'Payment and collateral submitted successfully. Both owners must approve your terms.'
+                : ($paymentChanged
+                    ? 'Payment and collateral updated. Both owners must re-approve the new payment amount.'
+                    : 'Collateral updated. Both owners must approve the changes.');
 
             return response()->json([
                 'success' => true,
-                'message' => 'Shooter payment terms updated successfully',
+                'message' => $message,
                 'data' => $this->formatContractForShooter($contract->fresh()),
             ]);
         } catch (\Exception $e) {
@@ -740,8 +765,12 @@ class BreedingContractController extends Controller
      */
     private function formatContractForShooter(BreedingContract $contract): array
     {
-        $contract->load('conversation.matchRequest.requesterPet.owner', 'conversation.matchRequest.requesterPet.photos', 
-                       'conversation.matchRequest.targetPet.owner', 'conversation.matchRequest.targetPet.photos');
+        $contract->load(
+            'conversation.matchRequest.requesterPet.owner',
+            'conversation.matchRequest.requesterPet.photos',
+            'conversation.matchRequest.targetPet.owner',
+            'conversation.matchRequest.targetPet.photos'
+        );
 
         $matchRequest = $contract->conversation->matchRequest;
         $pet1 = $matchRequest->requesterPet;

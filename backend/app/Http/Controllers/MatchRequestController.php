@@ -418,7 +418,7 @@ class MatchRequestController extends Controller
                     ->orWhereIn('target_pet_id', $userPetIds);
             });
         })
-        ->orWhere('shooter_user_id', $user->id)
+            ->orWhere('shooter_user_id', $user->id)
             ->with([
                 'matchRequest' => function ($query) {
                     $query->with([
@@ -557,14 +557,15 @@ class MatchRequestController extends Controller
         $userPetIds = Pet::where('user_id', $user->id)->pluck('pet_id');
 
         // Get the conversation and verify user has access (as owner or shooter)
-        $conversation = Conversation::where(function ($query) use ($userPetIds) {
-            $query->whereHas('matchRequest', function ($q) use ($userPetIds) {
-                $q->whereIn('requester_pet_id', $userPetIds)
-                    ->orWhereIn('target_pet_id', $userPetIds);
-            });
-        })
-        ->orWhere('shooter_user_id', $user->id)
-        ->findOrFail($id);
+        $conversation = Conversation::where('id', $id)
+            ->where(function ($query) use ($userPetIds, $user) {
+                $query->whereHas('matchRequest', function ($q) use ($userPetIds) {
+                    $q->whereIn('requester_pet_id', $userPetIds)
+                        ->orWhereIn('target_pet_id', $userPetIds);
+                })
+                    ->orWhere('shooter_user_id', $user->id);
+            })
+            ->firstOrFail();
 
         // Mark messages as read
         Message::where('conversation_id', $id)
@@ -689,14 +690,15 @@ class MatchRequestController extends Controller
         $userPetIds = Pet::where('user_id', $user->id)->pluck('pet_id');
 
         // Get the conversation and verify user has access (as owner or shooter)
-        $conversation = Conversation::where(function ($query) use ($userPetIds) {
-            $query->whereHas('matchRequest', function ($q) use ($userPetIds) {
-                $q->whereIn('requester_pet_id', $userPetIds)
-                    ->orWhereIn('target_pet_id', $userPetIds);
-            });
-        })
-        ->orWhere('shooter_user_id', $user->id)
-        ->findOrFail($id);
+        $conversation = Conversation::where('id', $id)
+            ->where(function ($query) use ($userPetIds, $user) {
+                $query->whereHas('matchRequest', function ($q) use ($userPetIds) {
+                    $q->whereIn('requester_pet_id', $userPetIds)
+                        ->orWhereIn('target_pet_id', $userPetIds);
+                })
+                    ->orWhere('shooter_user_id', $user->id);
+            })
+            ->firstOrFail();
 
         try {
             $message = Message::create([

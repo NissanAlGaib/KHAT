@@ -12,6 +12,8 @@ export interface BreedingContract {
   shooter_payment?: number;
   shooter_location?: string;
   shooter_conditions?: string;
+  shooter_collateral?: number;
+  shooter_collateral_paid?: boolean;
 
   // Shooter Request Status
   shooter_user_id?: number;
@@ -63,6 +65,8 @@ export interface BreedingContract {
   can_accept: boolean;
   is_creator: boolean;
   is_owner1?: boolean;
+  is_shooter?: boolean;
+  can_shooter_edit?: boolean;
   current_user_accepted_shooter?: boolean;
 }
 
@@ -304,5 +308,34 @@ export const getPendingShooterRequestsCount = async (): Promise<number> => {
       error.response?.data || error.message
     );
     return 0;
+  }
+};
+
+/**
+ * Update shooter's payment and collateral
+ * Shooter can only edit payment and must provide collateral
+ */
+export const updateShooterTerms = async (
+  contractId: number,
+  shooterPayment: number,
+  shooterCollateral: number
+): Promise<ApiResponse<BreedingContract>> => {
+  try {
+    const response = await axiosInstance.put(
+      `/api/shooter/contracts/${contractId}/terms`,
+      {
+        shooter_payment: shooterPayment,
+        shooter_collateral: shooterCollateral,
+      }
+    );
+    return {
+      success: true,
+      message: response.data.message,
+      data: response.data.data,
+    };
+  } catch (error: any) {
+    const errorMessage =
+      error.response?.data?.message || "Failed to update shooter terms";
+    return { success: false, message: errorMessage };
   }
 };
