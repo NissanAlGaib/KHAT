@@ -106,7 +106,7 @@ const Login = () => {
       <CustomButton title="Login" onPress={handleLogin} isLoading={loading} />
       <Text className="text-sm text-[#6B7280] text-center mb-6 font-roboto">
         Not registered yet?{" "}
-        <Link href="/Register">
+        <Link href="/register">
           <Text className="text-[#E4492E] font-roboto">Create Account</Text>
         </Link>
       </Text>

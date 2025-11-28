@@ -4,8 +4,12 @@ namespace App\Http\Controllers;
 
 use App\Models\BreedingContract;
 use App\Models\Conversation;
+use App\Models\Litter;
+use App\Models\LitterOffspring;
 use App\Models\Pet;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Storage;
 
 class BreedingContractController extends Controller
 {
@@ -895,6 +899,11 @@ class BreedingContractController extends Controller
             'rejected_at' => $contract->rejected_at?->toISOString(),
             'created_at' => $contract->created_at->toISOString(),
             'updated_at' => $contract->updated_at->toISOString(),
+            // Breeding completion fields
+            'breeding_status' => $contract->breeding_status,
+            'breeding_completed_at' => $contract->breeding_completed_at?->toISOString(),
+            'has_offspring' => $contract->has_offspring,
+            'breeding_notes' => $contract->breeding_notes,
             // User-specific fields
             'can_edit' => $contract->canBeEditedBy($user),
             'can_accept' => $contract->canBeAcceptedBy($user),
@@ -904,6 +913,603 @@ class BreedingContractController extends Controller
             'is_shooter' => $isShooter,
             'can_shooter_edit' => $isShooter ? $contract->canShooterEditTerms($user) : false,
             'current_user_accepted_shooter' => $currentUserAcceptedShooter,
+            'can_mark_breeding_complete' => $contract->canMarkBreedingComplete($user),
+            'can_input_offspring' => $contract->canInputOffspring($user),
         ];
+    }
+
+    /**
+     * Mark breeding as complete
+     * Only shooter (if assigned) or male pet owner can mark breeding complete
+     */
+    public function completeBreeding(Request $request, $contractId)
+    {
+        $validated = $request->validate([
+            'breeding_status' => 'required|in:completed,failed',
+            'has_offspring' => 'required|boolean',
+            'breeding_notes' => 'nullable|string|max:1000',
+        ]);
+
+        $user = $request->user();
+        $userPetIds = Pet::where('user_id', $user->id)->pluck('pet_id');
+
+        // Get the contract
+        $contract = BreedingContract::where('id', $contractId)
+            ->where('status', 'accepted')
+            ->where(function ($query) use ($userPetIds, $user) {
+                // User has access as owner or shooter
+                $query->whereHas('conversation.matchRequest', function ($q) use ($userPetIds) {
+                    $q->whereIn('requester_pet_id', $userPetIds)
+                        ->orWhereIn('target_pet_id', $userPetIds);
+                })
+                    ->orWhere('shooter_user_id', $user->id);
+            })
+            ->first();
+
+        if (!$contract) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Contract not found or you do not have access',
+            ], 404);
+        }
+
+        // Check if user can mark breeding as complete
+        if (!$contract->canMarkBreedingComplete($user)) {
+            return response()->json([
+                'success' => false,
+                'message' => 'You are not authorized to mark this breeding as complete. Only the shooter or male pet owner can do this.',
+            ], 403);
+        }
+
+        try {
+            $contract->update([
+                'breeding_status' => $validated['breeding_status'],
+                'breeding_completed_by' => $user->id,
+                'breeding_completed_at' => now(),
+                'has_offspring' => $validated['has_offspring'],
+                'breeding_notes' => $validated['breeding_notes'] ?? null,
+            ]);
+
+            return response()->json([
+                'success' => true,
+                'message' => $validated['breeding_status'] === 'completed'
+                    ? ($validated['has_offspring']
+                        ? 'Breeding marked as complete with offspring. You can now input the offspring details.'
+                        : 'Breeding marked as complete without offspring.')
+                    : 'Breeding marked as failed.',
+                'data' => $this->formatContract($contract->fresh(), $user),
+            ]);
+        } catch (\Exception $e) {
+            \Log::error('Failed to complete breeding: ' . $e->getMessage());
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to complete breeding',
+            ], 500);
+        }
+    }
+
+    /**
+     * Input offspring for a completed breeding contract
+     * Only shooter (if assigned) or male pet owner can input offspring
+     */
+    public function storeOffspring(Request $request, $contractId)
+    {
+        $validated = $request->validate([
+            'birth_date' => 'required|date|before_or_equal:today',
+            'notes' => 'nullable|string',
+            'offspring' => 'required|array|min:1',
+            'offspring.*.name' => 'nullable|string|max:255',
+            'offspring.*.sex' => 'required|in:male,female',
+            'offspring.*.color' => 'nullable|string|max:255',
+            'offspring.*.status' => 'required|in:alive,died,adopted',
+            'offspring.*.death_date' => 'required_if:offspring.*.status,died|nullable|date',
+            'offspring.*.notes' => 'nullable|string',
+            'offspring.*.photo' => 'nullable|string', // Base64 encoded image
+        ]);
+
+        $user = $request->user();
+        $userPetIds = Pet::where('user_id', $user->id)->pluck('pet_id');
+
+        // Get the contract
+        $contract = BreedingContract::where('id', $contractId)
+            ->where('status', 'accepted')
+            ->where('breeding_status', 'completed')
+            ->where('has_offspring', true)
+            ->where(function ($query) use ($userPetIds, $user) {
+                $query->whereHas('conversation.matchRequest', function ($q) use ($userPetIds) {
+                    $q->whereIn('requester_pet_id', $userPetIds)
+                        ->orWhereIn('target_pet_id', $userPetIds);
+                })
+                    ->orWhere('shooter_user_id', $user->id);
+            })
+            ->first();
+
+        if (!$contract) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Contract not found, breeding not completed, or no offspring indicated',
+            ], 404);
+        }
+
+        // Check if user can input offspring
+        if (!$contract->canInputOffspring($user)) {
+            return response()->json([
+                'success' => false,
+                'message' => 'You are not authorized to input offspring. Only the shooter or male pet owner can do this.',
+            ], 403);
+        }
+
+        // Check if litter already exists for this contract
+        if ($contract->litter) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Offspring have already been recorded for this contract',
+            ], 409);
+        }
+
+        try {
+            DB::beginTransaction();
+
+            // Get sire and dam from contract
+            $parents = $contract->getSireAndDam();
+            $sire = $parents['sire'];
+            $dam = $parents['dam'];
+
+            // Count offspring by sex and status
+            $totalOffspring = count($validated['offspring']);
+            $maleCount = 0;
+            $femaleCount = 0;
+            $aliveCount = 0;
+            $diedCount = 0;
+
+            foreach ($validated['offspring'] as $offspring) {
+                if ($offspring['sex'] === 'male') {
+                    $maleCount++;
+                } else {
+                    $femaleCount++;
+                }
+
+                // Count by status - only 'alive' count as living for allocation purposes
+                // 'adopted' offspring are not available for allocation
+                if ($offspring['status'] === 'alive') {
+                    $aliveCount++;
+                } elseif ($offspring['status'] === 'died') {
+                    $diedCount++;
+                }
+                // 'adopted' status means offspring was already given away and is not counted in alive/died
+            }
+
+            // Create the litter linked to the contract
+            $litter = Litter::create([
+                'contract_id' => $contract->id,
+                'sire_id' => $sire->pet_id,
+                'dam_id' => $dam->pet_id,
+                'sire_owner_id' => $sire->user_id,
+                'dam_owner_id' => $dam->user_id,
+                'birth_date' => $validated['birth_date'],
+                'total_offspring' => $totalOffspring,
+                'alive_offspring' => $aliveCount,
+                'died_offspring' => $diedCount,
+                'male_count' => $maleCount,
+                'female_count' => $femaleCount,
+                'notes' => $validated['notes'] ?? null,
+            ]);
+
+            // Create offspring records
+            foreach ($validated['offspring'] as $offspringData) {
+                // Handle photo upload if provided
+                $photoUrl = null;
+                if (!empty($offspringData['photo'])) {
+                    try {
+                        // Decode base64 image
+                        $imageData = $offspringData['photo'];
+
+                        // Check if it's a base64 string or file path
+                        if (preg_match('/^data:image\/(\w+);base64,/', $imageData, $type)) {
+                            // Base64 encoded image
+                            $imageData = substr($imageData, strpos($imageData, ',') + 1);
+                            $imageData = base64_decode($imageData);
+                            $extension = strtolower($type[1]);
+
+                            // Generate unique filename
+                            $filename = 'offspring_' . $litter->litter_id . '_' . uniqid() . '.' . $extension;
+
+                            // Save to storage
+                            Storage::disk('public')->put('offspring/' . $filename, $imageData);
+                            $photoUrl = 'storage/offspring/' . $filename;
+                        }
+                    } catch (\Exception $e) {
+                        \Log::error('Error uploading offspring photo: ' . $e->getMessage());
+                        // Continue without photo if upload fails
+                    }
+                }
+
+                LitterOffspring::create([
+                    'litter_id' => $litter->litter_id,
+                    'name' => $offspringData['name'] ?? null,
+                    'sex' => $offspringData['sex'],
+                    'color' => $offspringData['color'] ?? null,
+                    'photo_url' => $photoUrl,
+                    'status' => $offspringData['status'],
+                    'death_date' => $offspringData['death_date'] ?? null,
+                    'notes' => $offspringData['notes'] ?? null,
+                    'allocation_status' => 'unassigned',
+                ]);
+            }
+
+            // Update breeding count on parent pets
+            $sire->increment('breeding_count');
+            $sire->update(['has_been_bred' => true]);
+
+            $dam->increment('breeding_count');
+            $dam->update(['has_been_bred' => true]);
+
+            DB::commit();
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Offspring recorded successfully',
+                'data' => [
+                    'litter' => $litter->load('offspring'),
+                    'contract' => $this->formatContract($contract->fresh(), $user),
+                ],
+            ], 201);
+        } catch (\Exception $e) {
+            DB::rollBack();
+            \Log::error('Failed to store offspring: ' . $e->getMessage(), [
+                'exception' => $e,
+                'contract_id' => $contractId,
+                'user_id' => $user->id,
+            ]);
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to store offspring: ' . (config('app.debug') ? $e->getMessage() : 'An error occurred'),
+            ], 500);
+        }
+    }
+
+    /**
+     * Get offspring for a contract
+     */
+    public function getOffspring(Request $request, $contractId)
+    {
+        $user = $request->user();
+        $userPetIds = Pet::where('user_id', $user->id)->pluck('pet_id');
+
+        // Get the contract with litter
+        $contract = BreedingContract::where('id', $contractId)
+            ->where(function ($query) use ($userPetIds, $user) {
+                $query->whereHas('conversation.matchRequest', function ($q) use ($userPetIds) {
+                    $q->whereIn('requester_pet_id', $userPetIds)
+                        ->orWhereIn('target_pet_id', $userPetIds);
+                })
+                    ->orWhere('shooter_user_id', $user->id);
+            })
+            ->with(['litter.offspring.assignedTo', 'litter.sire', 'litter.dam'])
+            ->first();
+
+        if (!$contract) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Contract not found or you do not have access',
+            ], 404);
+        }
+
+        if (!$contract->litter) {
+            return response()->json([
+                'success' => true,
+                'data' => null,
+            ]);
+        }
+
+        $litter = $contract->litter;
+
+        return response()->json([
+            'success' => true,
+            'data' => [
+                'litter_id' => $litter->litter_id,
+                'birth_date' => $litter->birth_date->format('Y-m-d'),
+                'statistics' => [
+                    'total_offspring' => $litter->total_offspring,
+                    'alive_offspring' => $litter->alive_offspring,
+                    'died_offspring' => $litter->died_offspring,
+                    'male_count' => $litter->male_count,
+                    'female_count' => $litter->female_count,
+                ],
+                'parents' => [
+                    'sire' => [
+                        'pet_id' => $litter->sire->pet_id,
+                        'name' => $litter->sire->name,
+                    ],
+                    'dam' => [
+                        'pet_id' => $litter->dam->pet_id,
+                        'name' => $litter->dam->name,
+                    ],
+                ],
+                'offspring' => $litter->offspring->map(function ($offspring) {
+                    return [
+                        'offspring_id' => $offspring->offspring_id,
+                        'name' => $offspring->name,
+                        'sex' => $offspring->sex,
+                        'color' => $offspring->color,
+                        'status' => $offspring->status,
+                        'allocation_status' => $offspring->allocation_status,
+                        'assigned_to' => $offspring->assignedTo ? [
+                            'id' => $offspring->assignedTo->id,
+                            'name' => $offspring->assignedTo->name,
+                        ] : null,
+                        'selection_order' => $offspring->selection_order,
+                    ];
+                }),
+                'share_offspring' => $contract->share_offspring,
+                'offspring_split_type' => $contract->offspring_split_type,
+                'offspring_split_value' => $contract->offspring_split_value,
+                'offspring_selection_method' => $contract->offspring_selection_method,
+            ],
+        ]);
+    }
+
+    /**
+     * Allocate offspring based on contract compensation
+     * Distributes offspring between sire and dam owners based on contract terms
+     */
+    public function allocateOffspring(Request $request, $contractId)
+    {
+        $validated = $request->validate([
+            'allocations' => 'required|array',
+            'allocations.*.offspring_id' => 'required|integer',
+            'allocations.*.assigned_to' => 'required|integer',
+            'allocations.*.selection_order' => 'nullable|integer',
+        ]);
+
+        $user = $request->user();
+        $userPetIds = Pet::where('user_id', $user->id)->pluck('pet_id');
+
+        // Get the contract with litter
+        $contract = BreedingContract::where('id', $contractId)
+            ->where('status', 'accepted')
+            ->where('breeding_status', 'completed')
+            ->where('share_offspring', true)
+            ->where(function ($query) use ($userPetIds, $user) {
+                $query->whereHas('conversation.matchRequest', function ($q) use ($userPetIds) {
+                    $q->whereIn('requester_pet_id', $userPetIds)
+                        ->orWhereIn('target_pet_id', $userPetIds);
+                })
+                    ->orWhere('shooter_user_id', $user->id);
+            })
+            ->with(['litter.offspring', 'conversation.matchRequest.requesterPet', 'conversation.matchRequest.targetPet'])
+            ->first();
+
+        if (!$contract) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Contract not found, offspring sharing not enabled, or you do not have access',
+            ], 404);
+        }
+
+        if (!$contract->litter) {
+            return response()->json([
+                'success' => false,
+                'message' => 'No offspring recorded for this contract yet',
+            ], 400);
+        }
+
+        // Verify the user can allocate (shooter or male pet owner)
+        if (!$contract->canInputOffspring($user)) {
+            return response()->json([
+                'success' => false,
+                'message' => 'You are not authorized to allocate offspring. Only the shooter or male pet owner can do this.',
+            ], 403);
+        }
+
+        // Get valid owner IDs
+        $matchRequest = $contract->conversation->matchRequest;
+        $owner1Id = $matchRequest->requesterPet->user_id;
+        $owner2Id = $matchRequest->targetPet->user_id;
+        $validOwnerIds = [$owner1Id, $owner2Id];
+
+        // Validate all offspring_ids and assigned_to values
+        $litterOffspringIds = $contract->litter->offspring->pluck('offspring_id')->toArray();
+        foreach ($validated['allocations'] as $allocation) {
+            if (!in_array($allocation['offspring_id'], $litterOffspringIds)) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Invalid offspring ID: ' . $allocation['offspring_id'],
+                ], 400);
+            }
+            if (!in_array($allocation['assigned_to'], $validOwnerIds)) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Invalid owner ID. Offspring can only be assigned to contract owners.',
+                ], 400);
+            }
+        }
+
+        try {
+            DB::beginTransaction();
+
+            foreach ($validated['allocations'] as $allocation) {
+                LitterOffspring::where('offspring_id', $allocation['offspring_id'])
+                    ->update([
+                        'assigned_to' => $allocation['assigned_to'],
+                        'allocation_status' => 'assigned',
+                        'selection_order' => $allocation['selection_order'] ?? null,
+                    ]);
+            }
+
+            DB::commit();
+
+            // Reload the litter with updated offspring
+            $contract->load(['litter.offspring.assignedTo']);
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Offspring allocated successfully',
+                'data' => [
+                    'offspring' => $contract->litter->offspring->map(function ($offspring) {
+                        return [
+                            'offspring_id' => $offspring->offspring_id,
+                            'name' => $offspring->name,
+                            'sex' => $offspring->sex,
+                            'allocation_status' => $offspring->allocation_status,
+                            'assigned_to' => $offspring->assignedTo ? [
+                                'id' => $offspring->assignedTo->id,
+                                'name' => $offspring->assignedTo->name,
+                            ] : null,
+                            'selection_order' => $offspring->selection_order,
+                        ];
+                    }),
+                ],
+            ]);
+        } catch (\Exception $e) {
+            DB::rollBack();
+            \Log::error('Failed to allocate offspring: ' . $e->getMessage());
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to allocate offspring',
+            ], 500);
+        }
+    }
+
+    /**
+     * Auto-allocate offspring based on contract terms
+     * Uses contract's split type and selection method to distribute
+     */
+    public function autoAllocateOffspring(Request $request, $contractId)
+    {
+        $user = $request->user();
+        $userPetIds = Pet::where('user_id', $user->id)->pluck('pet_id');
+
+        // Get the contract with litter
+        $contract = BreedingContract::where('id', $contractId)
+            ->where('status', 'accepted')
+            ->where('breeding_status', 'completed')
+            ->where('share_offspring', true)
+            ->where(function ($query) use ($userPetIds, $user) {
+                $query->whereHas('conversation.matchRequest', function ($q) use ($userPetIds) {
+                    $q->whereIn('requester_pet_id', $userPetIds)
+                        ->orWhereIn('target_pet_id', $userPetIds);
+                })
+                    ->orWhere('shooter_user_id', $user->id);
+            })
+            ->with(['litter.offspring', 'conversation.matchRequest.requesterPet', 'conversation.matchRequest.targetPet'])
+            ->first();
+
+        if (!$contract) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Contract not found, offspring sharing not enabled, or you do not have access',
+            ], 404);
+        }
+
+        if (!$contract->litter) {
+            return response()->json([
+                'success' => false,
+                'message' => 'No offspring recorded for this contract yet',
+            ], 400);
+        }
+
+        // Verify the user can allocate
+        if (!$contract->canInputOffspring($user)) {
+            return response()->json([
+                'success' => false,
+                'message' => 'You are not authorized to allocate offspring.',
+            ], 403);
+        }
+
+        // Get sire and dam owners
+        $parents = $contract->getSireAndDam();
+        $sireOwnerId = $parents['sire']->user_id;
+        $damOwnerId = $parents['dam']->user_id;
+
+        // Get only 'alive' offspring for allocation
+        // 'adopted' offspring are already given away and not available for allocation
+        $aliveOffspring = $contract->litter->offspring
+            ->filter(fn($o) => $o->status === 'alive')
+            ->values();
+
+        if ($aliveOffspring->isEmpty()) {
+            return response()->json([
+                'success' => false,
+                'message' => 'No alive offspring to allocate',
+            ], 400);
+        }
+
+        $totalAlive = $aliveOffspring->count();
+        $splitType = $contract->offspring_split_type;
+        $splitValue = $contract->offspring_split_value;
+        $selectionMethod = $contract->offspring_selection_method;
+
+        // Calculate how many go to dam owner (contract specifies dam owner's share)
+        $damOwnerCount = 0;
+        if ($splitType === 'percentage') {
+            $damOwnerCount = (int) ceil(($splitValue / 100) * $totalAlive);
+        } elseif ($splitType === 'specific_number') {
+            $damOwnerCount = min($splitValue, $totalAlive);
+        }
+        $sireOwnerCount = $totalAlive - $damOwnerCount;
+
+        try {
+            DB::beginTransaction();
+
+            // Prepare offspring list based on selection method
+            $offspringList = $aliveOffspring;
+            if ($selectionMethod === 'randomized') {
+                $offspringList = $offspringList->shuffle();
+            }
+            // For 'first_pick', dam owner picks first (gets first in list)
+
+            $order = 1;
+            foreach ($offspringList as $index => $offspring) {
+                // First $damOwnerCount go to dam owner, rest to sire owner
+                $assignedTo = $index < $damOwnerCount ? $damOwnerId : $sireOwnerId;
+
+                LitterOffspring::where('offspring_id', $offspring->offspring_id)
+                    ->update([
+                        'assigned_to' => $assignedTo,
+                        'allocation_status' => 'assigned',
+                        'selection_order' => $order++,
+                    ]);
+            }
+
+            DB::commit();
+
+            // Reload the litter with updated offspring
+            $contract->load(['litter.offspring.assignedTo']);
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Offspring auto-allocated successfully',
+                'data' => [
+                    'allocation_summary' => [
+                        'total_alive' => $totalAlive,
+                        'dam_owner_receives' => $damOwnerCount,
+                        'sire_owner_receives' => $sireOwnerCount,
+                        'selection_method' => $selectionMethod,
+                    ],
+                    'offspring' => $contract->litter->offspring->map(function ($offspring) {
+                        return [
+                            'offspring_id' => $offspring->offspring_id,
+                            'name' => $offspring->name,
+                            'sex' => $offspring->sex,
+                            'status' => $offspring->status,
+                            'allocation_status' => $offspring->allocation_status,
+                            'assigned_to' => $offspring->assignedTo ? [
+                                'id' => $offspring->assignedTo->id,
+                                'name' => $offspring->assignedTo->name,
+                            ] : null,
+                            'selection_order' => $offspring->selection_order,
+                        ];
+                    }),
+                ],
+            ]);
+        } catch (\Exception $e) {
+            DB::rollBack();
+            \Log::error('Failed to auto-allocate offspring: ' . $e->getMessage());
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to auto-allocate offspring',
+            ], 500);
+        }
     }
 }

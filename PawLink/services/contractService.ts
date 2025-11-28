@@ -54,6 +54,12 @@ export interface BreedingContract {
   cancellation_policy?: string;
   custom_terms?: string;
 
+  // Breeding Completion
+  breeding_status?: "pending" | "in_progress" | "completed" | "failed";
+  breeding_completed_at?: string;
+  has_offspring?: boolean;
+  breeding_notes?: string;
+
   // Timestamps
   accepted_at?: string;
   rejected_at?: string;
@@ -68,6 +74,8 @@ export interface BreedingContract {
   is_shooter?: boolean;
   can_shooter_edit?: boolean;
   current_user_accepted_shooter?: boolean;
+  can_mark_breeding_complete?: boolean;
+  can_input_offspring?: boolean;
 }
 
 export interface ShooterRequestStatus {
@@ -336,6 +344,203 @@ export const updateShooterTerms = async (
   } catch (error: any) {
     const errorMessage =
       error.response?.data?.message || "Failed to update shooter terms";
+    return { success: false, message: errorMessage };
+  }
+};
+
+// ==================== BREEDING COMPLETION INTERFACES ====================
+
+export interface BreedingCompletionData {
+  breeding_status: "completed" | "failed";
+  has_offspring: boolean;
+  breeding_notes?: string;
+}
+
+export interface OffspringData {
+  name?: string;
+  sex: "male" | "female";
+  color?: string;
+  status: "alive" | "died" | "adopted";
+  death_date?: string;
+  notes?: string;
+}
+
+export interface OffspringInputData {
+  birth_date: string;
+  notes?: string;
+  offspring: OffspringData[];
+}
+
+export interface OffspringAllocation {
+  offspring_id: number;
+  assigned_to: number;
+  selection_order?: number;
+}
+
+export interface Offspring {
+  offspring_id: number;
+  name?: string;
+  sex: "male" | "female";
+  color?: string;
+  status: "alive" | "died" | "adopted";
+  allocation_status: "unassigned" | "assigned" | "transferred";
+  assigned_to?: {
+    id: number;
+    name: string;
+  };
+  selection_order?: number;
+}
+
+export interface LitterData {
+  litter_id: number;
+  birth_date: string;
+  statistics: {
+    total_offspring: number;
+    alive_offspring: number;
+    died_offspring: number;
+    male_count: number;
+    female_count: number;
+  };
+  parents: {
+    sire: {
+      pet_id: number;
+      name: string;
+    };
+    dam: {
+      pet_id: number;
+      name: string;
+    };
+  };
+  offspring: Offspring[];
+  share_offspring?: boolean;
+  offspring_split_type?: "percentage" | "specific_number";
+  offspring_split_value?: number;
+  offspring_selection_method?: "first_pick" | "randomized";
+}
+
+export interface AllocationSummary {
+  total_alive: number;
+  dam_owner_receives: number;
+  sire_owner_receives: number;
+  selection_method: string;
+}
+
+// ==================== BREEDING COMPLETION FUNCTIONS ====================
+
+/**
+ * Mark breeding as complete
+ * Only shooter (if assigned) or male pet owner can mark breeding complete
+ */
+export const completeBreeding = async (
+  contractId: number,
+  data: BreedingCompletionData
+): Promise<ApiResponse<BreedingContract>> => {
+  try {
+    const response = await axiosInstance.put(
+      `/api/contracts/${contractId}/complete-breeding`,
+      data
+    );
+    return {
+      success: true,
+      message: response.data.message,
+      data: response.data.data,
+    };
+  } catch (error: any) {
+    const errorMessage =
+      error.response?.data?.message || "Failed to complete breeding";
+    return { success: false, message: errorMessage };
+  }
+};
+
+/**
+ * Input offspring for a completed breeding contract
+ * Only shooter (if assigned) or male pet owner can input offspring
+ */
+export const storeOffspring = async (
+  contractId: number,
+  data: OffspringInputData
+): Promise<ApiResponse<{ litter: LitterData; contract: BreedingContract }>> => {
+  try {
+    const response = await axiosInstance.post(
+      `/api/contracts/${contractId}/offspring`,
+      data
+    );
+    return {
+      success: true,
+      message: response.data.message,
+      data: response.data.data,
+    };
+  } catch (error: any) {
+    const errorMessage =
+      error.response?.data?.message || "Failed to store offspring";
+    return { success: false, message: errorMessage };
+  }
+};
+
+/**
+ * Get offspring for a contract
+ */
+export const getOffspring = async (
+  contractId: number
+): Promise<LitterData | null> => {
+  try {
+    const response = await axiosInstance.get(
+      `/api/contracts/${contractId}/offspring`
+    );
+    return response.data.data || null;
+  } catch (error: any) {
+    // Return null to indicate no offspring data available
+    // The calling component can handle this gracefully
+    return null;
+  }
+};
+
+/**
+ * Manually allocate offspring to owners
+ * Only shooter (if assigned) or male pet owner can allocate
+ */
+export const allocateOffspring = async (
+  contractId: number,
+  allocations: OffspringAllocation[]
+): Promise<ApiResponse<{ offspring: Offspring[] }>> => {
+  try {
+    const response = await axiosInstance.put(
+      `/api/contracts/${contractId}/offspring/allocate`,
+      { allocations }
+    );
+    return {
+      success: true,
+      message: response.data.message,
+      data: response.data.data,
+    };
+  } catch (error: any) {
+    const errorMessage =
+      error.response?.data?.message || "Failed to allocate offspring";
+    return { success: false, message: errorMessage };
+  }
+};
+
+/**
+ * Auto-allocate offspring based on contract terms
+ * Uses contract's split type and selection method to distribute
+ */
+export const autoAllocateOffspring = async (
+  contractId: number
+): Promise<
+  ApiResponse<{ allocation_summary: AllocationSummary; offspring: Offspring[] }>
+> => {
+  try {
+    const response = await axiosInstance.post(
+      `/api/contracts/${contractId}/offspring/auto-allocate`
+    );
+    return {
+      success: true,
+      message: response.data.message,
+      data: response.data.data,
+    };
+  } catch (error: any) {
+    const errorMessage =
+      error.response?.data?.message || "Failed to auto-allocate offspring";
     return { success: false, message: errorMessage };
   }
 };

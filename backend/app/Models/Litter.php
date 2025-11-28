@@ -14,6 +14,7 @@ class Litter extends Model
     protected $primaryKey = 'litter_id';
 
     protected $fillable = [
+        'contract_id',
         'sire_id',
         'dam_id',
         'sire_owner_id',
@@ -75,6 +76,14 @@ class Litter extends Model
     public function offspring(): HasMany
     {
         return $this->hasMany(LitterOffspring::class, 'litter_id', 'litter_id');
+    }
+
+    /**
+     * Get the breeding contract this litter belongs to
+     */
+    public function contract(): BelongsTo
+    {
+        return $this->belongsTo(BreedingContract::class, 'contract_id');
     }
 
     /**

@@ -554,3 +554,358 @@ test('non-shooter user cannot access shooter contract endpoints', function () {
 
     $response->assertStatus(404);
 });
+
+// ==================== BREEDING COMPLETION TESTS ====================
+
+test('male pet owner can mark breeding as complete when no shooter', function () {
+    // Create an accepted contract without shooter
+    $contract = BreedingContract::create([
+        'conversation_id' => $this->conversation->id,
+        'created_by' => $this->user1->id,
+        'status' => 'accepted',
+        'accepted_at' => now(),
+        'breeding_status' => 'pending',
+    ]);
+
+    // user1 is the male pet owner (pet1 is male)
+    $response = $this->actingAs($this->user1)->putJson(
+        "/api/contracts/{$contract->id}/complete-breeding",
+        [
+            'breeding_status' => 'completed',
+            'has_offspring' => true,
+            'breeding_notes' => 'Breeding was successful',
+        ]
+    );
+
+    $response->assertStatus(200)
+        ->assertJson([
+            'success' => true,
+        ]);
+
+    $this->assertDatabaseHas('breeding_contracts', [
+        'id' => $contract->id,
+        'breeding_status' => 'completed',
+        'has_offspring' => true,
+        'breeding_completed_by' => $this->user1->id,
+    ]);
+});
+
+test('female pet owner cannot mark breeding as complete when no shooter', function () {
+    // Create an accepted contract without shooter
+    $contract = BreedingContract::create([
+        'conversation_id' => $this->conversation->id,
+        'created_by' => $this->user1->id,
+        'status' => 'accepted',
+        'accepted_at' => now(),
+        'breeding_status' => 'pending',
+    ]);
+
+    // user2 is the female pet owner (pet2 is female)
+    $response = $this->actingAs($this->user2)->putJson(
+        "/api/contracts/{$contract->id}/complete-breeding",
+        [
+            'breeding_status' => 'completed',
+            'has_offspring' => true,
+        ]
+    );
+
+    $response->assertStatus(403);
+});
+
+test('shooter can mark breeding as complete when assigned', function () {
+    $shooter = User::factory()->create();
+
+    // Create an accepted contract with shooter
+    $contract = BreedingContract::create([
+        'conversation_id' => $this->conversation->id,
+        'created_by' => $this->user1->id,
+        'status' => 'accepted',
+        'accepted_at' => now(),
+        'shooter_user_id' => $shooter->id,
+        'shooter_status' => 'accepted_by_owners',
+        'breeding_status' => 'pending',
+    ]);
+
+    // Shooter marks breeding as complete
+    $response = $this->actingAs($shooter)->putJson(
+        "/api/contracts/{$contract->id}/complete-breeding",
+        [
+            'breeding_status' => 'completed',
+            'has_offspring' => true,
+        ]
+    );
+
+    $response->assertStatus(200)
+        ->assertJson([
+            'success' => true,
+        ]);
+
+    $this->assertDatabaseHas('breeding_contracts', [
+        'id' => $contract->id,
+        'breeding_status' => 'completed',
+        'breeding_completed_by' => $shooter->id,
+    ]);
+});
+
+test('male pet owner cannot mark breeding complete when shooter is assigned', function () {
+    $shooter = User::factory()->create();
+
+    // Create an accepted contract with shooter
+    $contract = BreedingContract::create([
+        'conversation_id' => $this->conversation->id,
+        'created_by' => $this->user1->id,
+        'status' => 'accepted',
+        'accepted_at' => now(),
+        'shooter_user_id' => $shooter->id,
+        'shooter_status' => 'accepted_by_owners',
+        'breeding_status' => 'pending',
+    ]);
+
+    // Male pet owner tries to mark complete
+    $response = $this->actingAs($this->user1)->putJson(
+        "/api/contracts/{$contract->id}/complete-breeding",
+        [
+            'breeding_status' => 'completed',
+            'has_offspring' => true,
+        ]
+    );
+
+    $response->assertStatus(403);
+});
+
+// ==================== OFFSPRING INPUT TESTS ====================
+
+test('male pet owner can input offspring when no shooter', function () {
+    // Create a completed contract with offspring indicated
+    $contract = BreedingContract::create([
+        'conversation_id' => $this->conversation->id,
+        'created_by' => $this->user1->id,
+        'status' => 'accepted',
+        'accepted_at' => now(),
+        'breeding_status' => 'completed',
+        'has_offspring' => true,
+        'breeding_completed_by' => $this->user1->id,
+        'breeding_completed_at' => now(),
+    ]);
+
+    $response = $this->actingAs($this->user1)->postJson(
+        "/api/contracts/{$contract->id}/offspring",
+        [
+            'birth_date' => now()->subDays(7)->format('Y-m-d'),
+            'notes' => 'Healthy litter',
+            'offspring' => [
+                ['name' => 'Puppy 1', 'sex' => 'male', 'color' => 'golden', 'status' => 'alive'],
+                ['name' => 'Puppy 2', 'sex' => 'female', 'color' => 'cream', 'status' => 'alive'],
+                ['name' => 'Puppy 3', 'sex' => 'male', 'color' => 'golden', 'status' => 'died', 'death_date' => now()->subDays(5)->format('Y-m-d')],
+            ],
+        ]
+    );
+
+    $response->assertStatus(201)
+        ->assertJson([
+            'success' => true,
+            'message' => 'Offspring recorded successfully',
+        ]);
+
+    $this->assertDatabaseHas('litters', [
+        'contract_id' => $contract->id,
+        'total_offspring' => 3,
+        'alive_offspring' => 2,
+        'died_offspring' => 1,
+        'male_count' => 2,
+        'female_count' => 1,
+    ]);
+
+    $this->assertDatabaseCount('litter_offspring', 3);
+});
+
+test('shooter can input offspring when assigned', function () {
+    $shooter = User::factory()->create();
+
+    // Create a completed contract with shooter
+    $contract = BreedingContract::create([
+        'conversation_id' => $this->conversation->id,
+        'created_by' => $this->user1->id,
+        'status' => 'accepted',
+        'accepted_at' => now(),
+        'shooter_user_id' => $shooter->id,
+        'shooter_status' => 'accepted_by_owners',
+        'breeding_status' => 'completed',
+        'has_offspring' => true,
+        'breeding_completed_by' => $shooter->id,
+        'breeding_completed_at' => now(),
+    ]);
+
+    $response = $this->actingAs($shooter)->postJson(
+        "/api/contracts/{$contract->id}/offspring",
+        [
+            'birth_date' => now()->subDays(7)->format('Y-m-d'),
+            'offspring' => [
+                ['name' => 'Puppy 1', 'sex' => 'male', 'status' => 'alive'],
+            ],
+        ]
+    );
+
+    $response->assertStatus(201);
+
+    $this->assertDatabaseHas('litters', [
+        'contract_id' => $contract->id,
+    ]);
+});
+
+test('cannot input offspring twice for same contract', function () {
+    // Create a completed contract
+    $contract = BreedingContract::create([
+        'conversation_id' => $this->conversation->id,
+        'created_by' => $this->user1->id,
+        'status' => 'accepted',
+        'accepted_at' => now(),
+        'breeding_status' => 'completed',
+        'has_offspring' => true,
+        'breeding_completed_by' => $this->user1->id,
+        'breeding_completed_at' => now(),
+    ]);
+
+    // First input
+    $this->actingAs($this->user1)->postJson(
+        "/api/contracts/{$contract->id}/offspring",
+        [
+            'birth_date' => now()->subDays(7)->format('Y-m-d'),
+            'offspring' => [
+                ['name' => 'Puppy 1', 'sex' => 'male', 'status' => 'alive'],
+            ],
+        ]
+    )->assertStatus(201);
+
+    // Second attempt should fail
+    $response = $this->actingAs($this->user1)->postJson(
+        "/api/contracts/{$contract->id}/offspring",
+        [
+            'birth_date' => now()->subDays(7)->format('Y-m-d'),
+            'offspring' => [
+                ['name' => 'Another Puppy', 'sex' => 'female', 'status' => 'alive'],
+            ],
+        ]
+    );
+
+    $response->assertStatus(409)
+        ->assertJson([
+            'success' => false,
+            'message' => 'Offspring have already been recorded for this contract',
+        ]);
+});
+
+// ==================== OFFSPRING ALLOCATION TESTS ====================
+
+test('can get offspring for a contract', function () {
+    // Create a completed contract with litter
+    $contract = BreedingContract::create([
+        'conversation_id' => $this->conversation->id,
+        'created_by' => $this->user1->id,
+        'status' => 'accepted',
+        'accepted_at' => now(),
+        'breeding_status' => 'completed',
+        'has_offspring' => true,
+        'share_offspring' => true,
+        'offspring_split_type' => 'percentage',
+        'offspring_split_value' => 50,
+    ]);
+
+    // Create litter manually for testing
+    $litter = \App\Models\Litter::create([
+        'contract_id' => $contract->id,
+        'sire_id' => $this->pet1->pet_id,
+        'dam_id' => $this->pet2->pet_id,
+        'sire_owner_id' => $this->user1->id,
+        'dam_owner_id' => $this->user2->id,
+        'birth_date' => now()->subDays(7),
+        'total_offspring' => 2,
+        'alive_offspring' => 2,
+        'male_count' => 1,
+        'female_count' => 1,
+    ]);
+
+    \App\Models\LitterOffspring::create([
+        'litter_id' => $litter->litter_id,
+        'name' => 'Puppy 1',
+        'sex' => 'male',
+        'status' => 'alive',
+    ]);
+    \App\Models\LitterOffspring::create([
+        'litter_id' => $litter->litter_id,
+        'name' => 'Puppy 2',
+        'sex' => 'female',
+        'status' => 'alive',
+    ]);
+
+    $response = $this->actingAs($this->user1)->getJson(
+        "/api/contracts/{$contract->id}/offspring"
+    );
+
+    $response->assertStatus(200)
+        ->assertJson([
+            'success' => true,
+        ]);
+
+    $this->assertCount(2, $response->json('data.offspring'));
+});
+
+test('can auto-allocate offspring based on contract terms', function () {
+    // Create a completed contract with offspring sharing
+    $contract = BreedingContract::create([
+        'conversation_id' => $this->conversation->id,
+        'created_by' => $this->user1->id,
+        'status' => 'accepted',
+        'accepted_at' => now(),
+        'breeding_status' => 'completed',
+        'has_offspring' => true,
+        'share_offspring' => true,
+        'offspring_split_type' => 'percentage',
+        'offspring_split_value' => 50,
+        'offspring_selection_method' => 'first_pick',
+    ]);
+
+    // Create litter
+    $litter = \App\Models\Litter::create([
+        'contract_id' => $contract->id,
+        'sire_id' => $this->pet1->pet_id,
+        'dam_id' => $this->pet2->pet_id,
+        'sire_owner_id' => $this->user1->id,
+        'dam_owner_id' => $this->user2->id,
+        'birth_date' => now()->subDays(7),
+        'total_offspring' => 4,
+        'alive_offspring' => 4,
+        'male_count' => 2,
+        'female_count' => 2,
+    ]);
+
+    for ($i = 1; $i <= 4; $i++) {
+        \App\Models\LitterOffspring::create([
+            'litter_id' => $litter->litter_id,
+            'name' => "Puppy $i",
+            'sex' => $i <= 2 ? 'male' : 'female',
+            'status' => 'alive',
+        ]);
+    }
+
+    // Male pet owner auto-allocates
+    $response = $this->actingAs($this->user1)->postJson(
+        "/api/contracts/{$contract->id}/offspring/auto-allocate"
+    );
+
+    $response->assertStatus(200)
+        ->assertJson([
+            'success' => true,
+            'message' => 'Offspring auto-allocated successfully',
+        ]);
+
+    // Dam owner should get 50% = 2 puppies, sire owner gets the rest
+    $this->assertEquals(2, $response->json('data.allocation_summary.dam_owner_receives'));
+    $this->assertEquals(2, $response->json('data.allocation_summary.sire_owner_receives'));
+
+    // Verify all offspring are now assigned
+    $this->assertDatabaseMissing('litter_offspring', [
+        'litter_id' => $litter->litter_id,
+        'allocation_status' => 'unassigned',
+    ]);
+});
