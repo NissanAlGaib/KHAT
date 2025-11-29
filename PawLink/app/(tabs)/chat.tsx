@@ -7,9 +7,11 @@ import {
   Image,
   ActivityIndicator,
   RefreshControl,
+  StyleSheet,
+  TextInput,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { Feather } from "@expo/vector-icons";
+import { Feather, Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
 import {
   getConversations,
@@ -17,19 +19,21 @@ import {
 } from "@/services/matchRequestService";
 import { API_BASE_URL } from "@/config/env";
 
-const Chat = () => {
+export default function ChatScreen() {
   const router = useRouter();
   const [conversations, setConversations] = useState<ConversationPreview[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+  const [activeTab, setActiveTab] = useState<'active' | 'archived'>('active');
 
-  const getImageUrl = (path: string | null | undefined) => {
-    if (!path) return null;
+  const getImageUrl = (path: string | null | undefined): string | undefined => {
+    if (!path) return undefined;
     return `${API_BASE_URL}/storage/${path}`;
   };
 
   const fetchConversations = useCallback(async () => {
     try {
+      setLoading(true);
       const data = await getConversations();
       setConversations(data);
     } catch (error) {
@@ -53,214 +57,142 @@ const Chat = () => {
     const date = new Date(dateString);
     const now = new Date();
     const diffMs = now.getTime() - date.getTime();
-    const diffMins = Math.floor(diffMs / (1000 * 60));
-    const diffHours = Math.floor(diffMs / (1000 * 60 * 60));
-    const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
-
-    if (diffMins < 1) return "Now";
+    const diffMins = Math.round(diffMs / 60000);
+    if (diffMins < 1) return "now";
     if (diffMins < 60) return `${diffMins}m`;
+    const diffHours = Math.floor(diffMins / 60);
     if (diffHours < 24) return `${diffHours}h`;
+    const diffDays = Math.floor(diffHours / 24);
     if (diffDays < 7) return `${diffDays}d`;
     return date.toLocaleDateString();
   };
 
-  const renderConversationItem = (conversation: ConversationPreview) => {
-    // Handle shooter conversations differently
-    if (conversation.is_shooter_conversation) {
-      return (
-        <TouchableOpacity
-          key={conversation.id}
-          className="bg-white rounded-2xl p-4 mb-3 shadow-sm"
-          onPress={() =>
-            router.push(`/(chat)/conversation?id=${conversation.id}`)
-          }
-        >
-          <View className="flex-row items-center mb-2">
-            <View className="bg-[#FF6B6B] px-2 py-1 rounded">
-              <Text className="text-white text-xs font-semibold">Shooter</Text>
-            </View>
-            <Text className="text-gray-400 text-xs ml-auto">
-              {conversation.last_message
-                ? formatTimeAgo(conversation.last_message.created_at)
-                : formatTimeAgo(conversation.updated_at)}
-            </Text>
-          </View>
-          <View className="flex-row items-center">
-            <View className="flex-row">
-              {conversation.pet1?.photo_url ? (
-                <Image
-                  source={{
-                    uri: getImageUrl(conversation.pet1.photo_url) || undefined,
-                  }}
-                  className="w-12 h-12 rounded-full bg-gray-200 border-2 border-white"
-                />
-              ) : (
-                <View className="w-12 h-12 rounded-full bg-gray-200 items-center justify-center border-2 border-white">
-                  <Feather name="image" size={20} color="#9CA3AF" />
-                </View>
-              )}
-              {conversation.pet2?.photo_url ? (
-                <Image
-                  source={{
-                    uri: getImageUrl(conversation.pet2.photo_url) || undefined,
-                  }}
-                  className="w-12 h-12 rounded-full bg-gray-200 -ml-3 border-2 border-white"
-                />
-              ) : (
-                <View className="w-12 h-12 rounded-full bg-gray-200 items-center justify-center -ml-3 border-2 border-white">
-                  <Feather name="image" size={20} color="#9CA3AF" />
-                </View>
-              )}
-            </View>
-            <View className="flex-1 ml-3">
-              <Text className="font-bold text-base">
-                {conversation.pet1?.name} & {conversation.pet2?.name}
-              </Text>
-              <Text className="text-gray-500 text-sm">
-                {conversation.owner1?.name} & {conversation.owner2?.name}
-              </Text>
-            </View>
-            {conversation.unread_count > 0 && (
-              <View className="bg-[#FF6B6B] rounded-full min-w-[20px] h-5 items-center justify-center px-1">
-                <Text className="text-white text-xs font-bold">
-                  {conversation.unread_count > 99
-                    ? "99+"
-                    : conversation.unread_count}
-                </Text>
-              </View>
-            )}
-          </View>
-          {conversation.last_message && (
-            <Text
-              className={`text-sm mt-2 ${
-                conversation.unread_count > 0
-                  ? "text-black font-medium"
-                  : "text-gray-400"
-              }`}
-              numberOfLines={1}
-            >
-              {conversation.last_message.is_own ? "You: " : ""}
-              {conversation.last_message.content}
-            </Text>
-          )}
-        </TouchableOpacity>
-      );
-    }
-
-    // Regular owner conversation
-    return (
-      <TouchableOpacity
-        key={conversation.id}
-        className="bg-white rounded-2xl p-4 mb-3 flex-row items-center shadow-sm"
-        onPress={() =>
-          router.push(`/(chat)/conversation?id=${conversation.id}`)
-        }
-      >
-        <View className="relative">
-          {conversation.matched_pet?.photo_url ? (
-            <Image
-              source={{
-                uri:
-                  getImageUrl(conversation.matched_pet.photo_url) || undefined,
-              }}
-              className="w-16 h-16 rounded-full bg-gray-200"
-            />
-          ) : (
-            <View className="w-16 h-16 rounded-full bg-gray-200 items-center justify-center">
-              <Feather name="image" size={24} color="#9CA3AF" />
-            </View>
-          )}
-          {conversation.unread_count > 0 && (
-            <View className="absolute -top-1 -right-1 bg-[#FF6B6B] rounded-full min-w-[20px] h-5 items-center justify-center px-1">
-              <Text className="text-white text-xs font-bold">
-                {conversation.unread_count > 99
-                  ? "99+"
-                  : conversation.unread_count}
-              </Text>
-            </View>
-          )}
-        </View>
-        <View className="flex-1 ml-3">
-          <View className="flex-row items-center justify-between">
-            <Text className="font-bold text-base">
-              {conversation.matched_pet?.name}
-            </Text>
-            <Text className="text-gray-400 text-xs">
-              {conversation.last_message
-                ? formatTimeAgo(conversation.last_message.created_at)
-                : formatTimeAgo(conversation.updated_at)}
-            </Text>
-          </View>
-          <Text className="text-gray-500 text-sm">
-            {conversation.owner?.name}
+  const renderConversationItem = (conversation: ConversationPreview) => (
+    <TouchableOpacity
+      key={conversation.id}
+      style={styles.chatItem}
+      onPress={() => router.push(`/(chat)/conversation?id=${conversation.id}`)}
+    >
+      <View style={styles.avatarContainer}>
+        {conversation.is_shooter_conversation ? (
+          <>
+            <Image source={{ uri: getImageUrl(conversation.pet1?.photo_url) }} style={styles.avatar} />
+            <Image source={{ uri: getImageUrl(conversation.pet2?.photo_url) }} style={[styles.avatar, styles.avatarOverlap]} />
+          </>
+        ) : (
+          <Image source={{ uri: getImageUrl(conversation.matched_pet?.photo_url) }} style={styles.avatar} />
+        )}
+      </View>
+      <View style={styles.chatContent}>
+        <View style={styles.chatHeader}>
+          <Text style={styles.chatName} numberOfLines={1}>
+            {conversation.is_shooter_conversation ? `${conversation.pet1?.name} & ${conversation.pet2?.name}` : conversation.matched_pet?.name}
           </Text>
-          {conversation.last_message && (
-            <Text
-              className={`text-sm mt-1 ${
-                conversation.unread_count > 0
-                  ? "text-black font-medium"
-                  : "text-gray-400"
-              }`}
-              numberOfLines={1}
-            >
-              {conversation.last_message.is_own ? "You: " : ""}
-              {conversation.last_message.content}
-            </Text>
+          <Text style={styles.chatTime}>
+            {conversation.last_message ? formatTimeAgo(conversation.last_message.created_at) : formatTimeAgo(conversation.updated_at)}
+          </Text>
+        </View>
+        <View style={styles.chatMessage}>
+          <Text style={[styles.lastMessage, conversation.unread_count > 0 && styles.lastMessageUnread]} numberOfLines={1}>
+            {conversation.last_message?.is_own && "You: "}
+            {conversation.last_message?.content || (conversation.is_shooter_conversation ? 'Shooter conversation started' : 'Match successful!')}
+          </Text>
+          {conversation.unread_count > 0 && (
+            <View style={styles.unreadBadge}>
+              <Text style={styles.unreadCount}>{conversation.unread_count > 9 ? '9+' : conversation.unread_count}</Text>
+            </View>
           )}
         </View>
-      </TouchableOpacity>
-    );
-  };
+      </View>
+    </TouchableOpacity>
+  );
 
-  if (loading) {
-    return (
-      <SafeAreaView className="flex-1 bg-[#FFF5F5] items-center justify-center">
-        <ActivityIndicator size="large" color="#ea5b3a" />
-      </SafeAreaView>
-    );
-  }
+  const filteredConversations = conversations.filter(c => activeTab === 'active' ? !c.archived : c.archived);
 
   return (
-    <SafeAreaView className="flex-1 bg-[#FFF5F5]" edges={["top"]}>
-      {/* Header */}
-      <View className="px-6 py-4 bg-white flex-row items-center justify-between">
-        <Text className="text-2xl font-bold">Messages</Text>
+    <SafeAreaView style={styles.container} edges={["top"]}>
+      <View style={styles.header}>
+        <Text style={styles.headerTitle}>Messages</Text>
         <TouchableOpacity>
-          <Feather name="search" size={24} color="black" />
+          <Feather name="search" size={24} color="#333" />
         </TouchableOpacity>
       </View>
-
-      {/* Content */}
+      
+      <View style={styles.tabContainer}>
+        <TouchableOpacity style={[styles.tabButton, activeTab === 'active' && styles.tabActive]} onPress={() => setActiveTab('active')}>
+          <Text style={[styles.tabText, activeTab === 'active' && styles.tabTextActive]}>Active</Text>
+        </TouchableOpacity>
+        <TouchableOpacity style={[styles.tabButton, activeTab === 'archived' && styles.tabActive]} onPress={() => setActiveTab('archived')}>
+          <Text style={[styles.tabText, activeTab === 'archived' && styles.tabTextActive]}>Archived</Text>
+        </TouchableOpacity>
+      </View>
+      
       <ScrollView
-        className="flex-1 px-4 mt-4"
         showsVerticalScrollIndicator={false}
-        refreshControl={
-          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
-        }
+        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={["#FF6B4A"]} />}
         contentContainerStyle={{ paddingBottom: 100 }}
       >
-        {conversations.length > 0 ? (
-          conversations.map(renderConversationItem)
+        {loading ? (
+          <ActivityIndicator size="large" color="#FF6B4A" style={{ marginTop: 50 }}/>
+        ) : filteredConversations.length > 0 ? (
+          filteredConversations.map(renderConversationItem)
         ) : (
-          <View className="items-center justify-center py-20">
-            <Feather name="message-circle" size={48} color="#ccc" />
-            <Text className="text-gray-400 mt-4 text-center">
-              No conversations yet
+          <View style={styles.emptyState}>
+            <Feather name="message-square" size={48} color="#D1D5DB" />
+            <Text style={styles.emptyStateText}>No {activeTab} conversations</Text>
+            <Text style={styles.emptyStateSubText}>
+              {activeTab === 'active' ? 'New matches will appear here.' : 'You have no archived chats.'}
             </Text>
-            <Text className="text-gray-400 text-sm text-center mt-1">
-              Accept a match request to start chatting
-            </Text>
-            <TouchableOpacity
-              className="mt-6 bg-[#FF6B6B] px-6 py-3 rounded-full"
-              onPress={() => router.push("/(tabs)/favorites")}
-            >
-              <Text className="text-white font-semibold">View Requests</Text>
-            </TouchableOpacity>
           </View>
         )}
       </ScrollView>
     </SafeAreaView>
   );
-};
+}
 
-export default Chat;
+const styles = StyleSheet.create({
+  container: { flex: 1, backgroundColor: "#FFF" },
+  header: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingHorizontal: 20,
+    paddingVertical: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: '#F3F4F6',
+  },
+  headerTitle: { fontSize: 32, fontWeight: 'bold' },
+  tabContainer: {
+    flexDirection: 'row',
+    justifyContent: 'space-around',
+    paddingHorizontal: 20,
+    paddingVertical: 10,
+    borderBottomWidth: 1,
+    borderBottomColor: '#F3F4F6'
+  },
+  tabButton: { paddingVertical: 8, paddingHorizontal: 12, borderRadius: 20 },
+  tabActive: { backgroundColor: '#FF6B4A' },
+  tabText: { fontSize: 16, fontWeight: '600', color: '#6B7280' },
+  tabTextActive: { color: 'white' },
+  chatItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 20,
+    paddingVertical: 12,
+  },
+  avatarContainer: { flexDirection: 'row', alignItems: 'center' },
+  avatar: { width: 60, height: 60, borderRadius: 30, backgroundColor: '#E5E7EB' },
+  avatarOverlap: { marginLeft: -20, borderWidth: 2, borderColor: 'white' },
+  chatContent: { flex: 1, marginLeft: 12, borderBottomWidth: 1, borderBottomColor: '#F3F4F6', paddingBottom: 12 },
+  chatHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
+  chatName: { fontSize: 17, fontWeight: 'bold' },
+  chatTime: { fontSize: 13, color: '#9CA3AF' },
+  chatMessage: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginTop: 4 },
+  lastMessage: { fontSize: 15, color: '#6B7280', flex: 1 },
+  lastMessageUnread: { color: '#111827', fontWeight: '600' },
+  unreadBadge: { backgroundColor: '#FF6B4A', borderRadius: 12, height: 24, minWidth: 24, justifyContent: 'center', alignItems: 'center', paddingHorizontal: 6 },
+  unreadCount: { color: 'white', fontWeight: 'bold', fontSize: 12 },
+  emptyState: { flex: 1, justifyContent: 'center', alignItems: 'center', paddingTop: 80 },
+  emptyStateText: { fontSize: 18, fontWeight: '600', color: '#6B7280', marginTop: 16 },
+  emptyStateSubText: { fontSize: 14, color: '#9CA3AF', marginTop: 4 }
+});

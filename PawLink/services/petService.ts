@@ -36,6 +36,7 @@ export interface PetFormData {
 
   // Step 3 - Additional vaccinations (optional)
   additional_vaccinations?: Array<{
+    vaccination_type: string;
     vaccination_record: File;
     clinic_name: string;
     veterinarian_name: string;
@@ -120,6 +121,10 @@ export const createPet = async (petData: PetFormData) => {
     petData.additional_vaccinations.length > 0
   ) {
     petData.additional_vaccinations.forEach((vaccination, index) => {
+      formData.append(
+        `additional_vaccinations[${index}][vaccination_type]`,
+        vaccination.vaccination_type
+      );
       formData.append(
         `additional_vaccinations[${index}][vaccination_record]`,
         vaccination.vaccination_record

@@ -6,22 +6,30 @@ import {
   ScrollView,
   TextInput,
   Image,
-  Modal,
+  StyleSheet,
+  Dimensions,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useRouter } from "expo-router";
-import { Feather } from "@expo/vector-icons";
+import { Ionicons } from "@expo/vector-icons";
 import { useAlert } from "@/hooks/useAlert";
 import AlertModal from "@/components/core/AlertModal";
 import * as DocumentPicker from "expo-document-picker";
 import * as ImagePicker from "expo-image-picker";
 import { createPet } from "@/services/petService";
 import DateTimePickerModal from "react-native-modal-datetime-picker";
+import StyledModal from "@/components/core/StyledModal";
+import { LinearGradient } from "expo-linear-gradient";
 
+// Interface for validation errors
 interface ValidationErrors {
   [key: string]: string;
 }
 
+// Get screen dimensions
+const { width } = Dimensions.get("window");
+
+// Main component for adding a pet
 export default function AddPetScreen() {
   const router = useRouter();
   const { visible, alertOptions, showAlert, hideAlert } = useAlert();
@@ -38,7 +46,7 @@ export default function AddPetScreen() {
   const [datePickerField, setDatePickerField] = useState<string | null>(null);
   const [showPreferredBreedModal, setShowPreferredBreedModal] = useState(false);
 
-  // Available behavior and attribute options
+  // Options for behavior and attributes
   const [availableBehaviors, setAvailableBehaviors] = useState([
     "LOYAL",
     "SOCIAL",
@@ -80,8 +88,8 @@ export default function AddPetScreen() {
     "FLOPPY",
   ]);
 
-  const [formData, setFormData] = useState({
-    // Step 1 - Breeding History
+  // Form data state
+  const [formData, setFormData] = useState<Record<string, any>>({
     hasBeenBred: false,
     breedingCount: "",
     name: "",
@@ -92,42 +100,28 @@ export default function AddPetScreen() {
     birthdate: "",
     height: "",
     weight: "",
-
-    // Step 2 - About
     behaviors: [] as string[],
     behaviorTags: "",
     attributes: [] as string[],
     attributeTags: "",
     description: "",
-
-    // Step 3 - Documents (Rabies)
     rabiesVaccinationRecord: null as any,
     rabiesClinicName: "",
     rabiesVeterinarianName: "",
     rabiesGivenDate: "",
     rabiesExpirationDate: "",
-
-    // Step 3 - Documents (DHPP)
     dhppVaccinationRecord: null as any,
     dhppClinicName: "",
     dhppVeterinarianName: "",
     dhppGivenDate: "",
     dhppExpirationDate: "",
-
-    // Additional vaccinations
     vaccinations: [] as any[],
-
-    // Step 4 - Health Certificate
     healthCertificate: null as any,
     healthClinicName: "",
     healthVeterinarianName: "",
     healthGivenDate: "",
     healthExpirationDate: "",
-
-    // Step 5 - Pet Photos
     petPhotos: [] as any[],
-
-    // Step 6 - Partner Preferences
     preferredBreed: "",
     partnerBehaviors: [] as string[],
     partnerBehaviorTags: "",
@@ -137,11 +131,9 @@ export default function AddPetScreen() {
     maxAge: "",
   });
 
+  // Handle stepping to the next part of the form
   const handleNext = () => {
-    // Clear previous errors
     setValidationErrors({});
-
-    // Validate current step
     const errors = validateStep(currentStep);
 
     if (Object.keys(errors).length > 0) {
@@ -156,216 +148,149 @@ export default function AddPetScreen() {
     }
   };
 
+  // Validate fields for the current step
   const validateStep = (step: number): ValidationErrors => {
     const errors: ValidationErrors = {};
 
     switch (step) {
-      case 1: // Basic Information
-        if (!formData.name.trim()) {
-          errors.name = "Pet name is required";
-        }
-        if (!formData.species.trim()) {
-          errors.species = "Species is required";
-        }
-        if (!formData.breed.trim()) {
-          errors.breed = "Breed is required";
-        }
-        if (!formData.sex) {
-          errors.sex = "Sex is required";
-        }
-        if (!formData.birthdate) {
-          errors.birthdate = "Birthdate is required";
-        }
-        if (!formData.height.trim()) {
-          errors.height = "Height is required";
-        } else if (
-          isNaN(Number(formData.height)) ||
-          Number(formData.height) <= 0
-        ) {
-          errors.height = "Height must be a valid number";
-        }
-        if (!formData.weight.trim()) {
-          errors.weight = "Weight is required";
-        } else if (
-          isNaN(Number(formData.weight)) ||
-          Number(formData.weight) <= 0
-        ) {
-          errors.weight = "Weight must be a valid number";
-        }
-        if (formData.hasBeenBred && !formData.breedingCount.trim()) {
-          errors.breedingCount =
-            "Breeding count is required when pet has been bred";
-        }
+      case 1:
+        if (!formData.name.trim()) errors.name = "Pet name is required";
+        if (!formData.species.trim()) errors.species = "Species is required";
+        if (!formData.breed.trim()) errors.breed = "Breed is required";
+        if (!formData.sex) errors.sex = "Sex is required";
+        if (!formData.birthdate) errors.birthdate = "Birthdate is required";
+        if (!formData.height.trim()) errors.height = "Height is required";
+        if (!formData.weight.trim()) errors.weight = "Weight is required";
         break;
-
-      case 2: // About
-        if (formData.behaviors.length === 0) {
+      case 2:
+        if (formData.behaviors.length === 0)
           errors.behaviors = "Please select at least one behavior";
-        }
-        if (formData.attributes.length === 0) {
+        if (formData.attributes.length === 0)
           errors.attributes = "Please select at least one attribute";
-        }
-        if (!formData.description.trim()) {
+        if (!formData.description.trim())
           errors.description = "Description is required";
-        } else if (formData.description.length > 200) {
-          errors.description = "Description cannot exceed 200 characters";
-        }
         break;
-
-      case 3: // Vaccinations
-        if (!formData.rabiesVaccinationRecord) {
+      case 3:
+        if (!formData.rabiesVaccinationRecord)
           errors.rabiesVaccinationRecord =
             "Rabies vaccination record is required";
-        }
-        if (!formData.rabiesClinicName.trim()) {
-          errors.rabiesClinicName =
-            "Clinic name is required for Rabies vaccination";
-        }
-        if (!formData.rabiesVeterinarianName.trim()) {
+        if (!formData.rabiesClinicName.trim())
+          errors.rabiesClinicName = "Rabies clinic name is required";
+        if (!formData.rabiesVeterinarianName.trim())
           errors.rabiesVeterinarianName =
-            "Veterinarian name is required for Rabies vaccination";
-        }
-        if (!formData.rabiesGivenDate) {
-          errors.rabiesGivenDate =
-            "Given date is required for Rabies vaccination";
-        }
-        if (!formData.rabiesExpirationDate) {
-          errors.rabiesExpirationDate =
-            "Expiration date is required for Rabies vaccination";
-        }
+            "Rabies veterinarian name is required";
+        if (!formData.rabiesGivenDate)
+          errors.rabiesGivenDate = "Rabies given date is required";
+        if (!formData.rabiesExpirationDate)
+          errors.rabiesExpirationDate = "Rabies expiration date is required";
 
-        if (!formData.dhppVaccinationRecord) {
+        if (!formData.dhppVaccinationRecord)
           errors.dhppVaccinationRecord = "DHPP vaccination record is required";
-        }
-        if (!formData.dhppClinicName.trim()) {
-          errors.dhppClinicName =
-            "Clinic name is required for DHPP vaccination";
-        }
-        if (!formData.dhppVeterinarianName.trim()) {
-          errors.dhppVeterinarianName =
-            "Veterinarian name is required for DHPP vaccination";
-        }
-        if (!formData.dhppGivenDate) {
-          errors.dhppGivenDate = "Given date is required for DHPP vaccination";
-        }
-        if (!formData.dhppExpirationDate) {
-          errors.dhppExpirationDate =
-            "Expiration date is required for DHPP vaccination";
-        }
-        break;
+        if (!formData.dhppClinicName.trim())
+          errors.dhppClinicName = "DHPP clinic name is required";
+        if (!formData.dhppVeterinarianName.trim())
+          errors.dhppVeterinarianName = "DHPP veterinarian name is required";
+        if (!formData.dhppGivenDate)
+          errors.dhppGivenDate = "DHPP given date is required";
+        if (!formData.dhppExpirationDate)
+          errors.dhppExpirationDate = "DHPP expiration date is required";
 
-      case 4: // Health Certificate
-        if (!formData.healthCertificate) {
-          errors.healthCertificate = "Health certificate is required";
-        }
-        if (!formData.healthClinicName.trim()) {
-          errors.healthClinicName =
-            "Clinic name is required for health certificate";
-        }
-        if (!formData.healthVeterinarianName.trim()) {
-          errors.healthVeterinarianName =
-            "Veterinarian name is required for health certificate";
-        }
-        if (!formData.healthGivenDate) {
-          errors.healthGivenDate =
-            "Given date is required for health certificate";
-        }
-        if (!formData.healthExpirationDate) {
-          errors.healthExpirationDate =
-            "Expiration date is required for health certificate";
-        }
-        break;
-
-      case 5: // Pet Photos
-        if (formData.petPhotos.length < 3) {
-          errors.petPhotos = "At least 3 pet photos are required";
-        }
-        break;
-
-      case 6: // Partner Preferences (optional, but validate if filled)
-        if (formData.minAge && formData.maxAge) {
-          if (Number(formData.minAge) > Number(formData.maxAge)) {
-            errors.maxAge =
-              "Maximum age must be greater than or equal to minimum age";
+        // Validate additional vaccinations if any
+        formData.vaccinations.forEach((vac: any, index: number) => {
+          if (vac.vaccinationRecord && !vac.vaccinationType?.trim()) {
+            errors[`vaccination_${index}_vaccinationType`] =
+              "Vaccine name is required";
           }
-        }
+          if (vac.vaccinationRecord && !vac.clinicName?.trim()) {
+            errors[`vaccination_${index}_clinicName`] =
+              "Clinic name is required";
+          }
+          if (vac.vaccinationRecord && !vac.veterinarianName?.trim()) {
+            errors[`vaccination_${index}_veterinarianName`] =
+              "Veterinarian name is required";
+          }
+          if (vac.vaccinationRecord && !vac.givenDate) {
+            errors[`vaccination_${index}_givenDate`] = "Given date is required";
+          }
+          if (vac.vaccinationRecord && !vac.expirationDate) {
+            errors[`vaccination_${index}_expirationDate`] =
+              "Expiration date is required";
+          }
+        });
+        break;
+      case 4:
+        if (!formData.healthCertificate)
+          errors.healthCertificate = "Health certificate is required";
+        if (!formData.healthClinicName.trim())
+          errors.healthClinicName = "Health clinic name is required";
+        if (!formData.healthVeterinarianName.trim())
+          errors.healthVeterinarianName =
+            "Health veterinarian name is required";
+        if (!formData.healthGivenDate)
+          errors.healthGivenDate = "Health given date is required";
+        if (!formData.healthExpirationDate)
+          errors.healthExpirationDate = "Health expiration date is required";
+        break;
+      case 5:
+        if (formData.petPhotos.length < 3)
+          errors.petPhotos = "At least 3 pet photos are required";
         break;
     }
 
     return errors;
   };
 
+  // Handle going back to the previous step
   const handlePrev = () => {
     if (currentStep > 1) {
       setCurrentStep(currentStep - 1);
     }
   };
 
-  const handleSkip = () => {
-    // Skip partner preferences and submit
-    handleSubmit();
-  };
-
+  // Handle form submission
   const handleSubmit = async () => {
     setShowConfirmModal(false);
     setIsSubmitting(true);
 
     try {
-      // Build RN/Expo-compatible file objects (use `uri`, `name`, `type`) instead
-      // of using `fetch(...).blob()`/`File` which aren't available in this environment.
-      const rabiesFile = formData.rabiesVaccinationRecord
-        ? {
-            uri: formData.rabiesVaccinationRecord.uri,
-            name: formData.rabiesVaccinationRecord.name || "rabies.pdf",
-            type:
-              formData.rabiesVaccinationRecord.mimeType || "application/pdf",
-          }
-        : null;
+      // Helper to convert document picker result to File-like object
+      const createFileObject = (doc: any, defaultName: string) => {
+        if (!doc) return null;
+        return {
+          uri: doc.uri,
+          name: doc.name || defaultName,
+          type: doc.mimeType || "application/pdf",
+        } as any;
+      };
 
-      const dhppFile = formData.dhppVaccinationRecord
-        ? {
-            uri: formData.dhppVaccinationRecord.uri,
-            name: formData.dhppVaccinationRecord.name || "dhpp.pdf",
-            type: formData.dhppVaccinationRecord.mimeType || "application/pdf",
-          }
-        : null;
-
-      const healthFile = formData.healthCertificate
-        ? {
-            uri: formData.healthCertificate.uri,
-            name: formData.healthCertificate.name || "health.pdf",
-            type: formData.healthCertificate.mimeType || "application/pdf",
-          }
-        : null;
-
-      // Photo objects
-      const photoFiles = formData.petPhotos.map((photo) => ({
-        uri: photo.uri,
-        name: photo.fileName || "photo.jpg",
-        type: photo.mimeType || "image/jpeg",
-      }));
-
-      // Additional vaccinations
-      const additionalVaccinations = formData.vaccinations.map(
-        (vaccination) => {
-          if (vaccination.vaccinationRecord) {
-            return {
-              vaccination_type: vaccination.vaccinationType,
-              vaccination_record: {
-                uri: vaccination.vaccinationRecord.uri,
-                name: vaccination.vaccinationRecord.name || "vaccination.pdf",
-                type:
-                  vaccination.vaccinationRecord.mimeType || "application/pdf",
-              },
-              clinic_name: vaccination.clinicName,
-              veterinarian_name: vaccination.veterinarianName,
-              given_date: vaccination.givenDate,
-              expiration_date: vaccination.expirationDate,
-            };
-          }
-          return null;
-        }
+      // Convert photo assets to File-like objects
+      const photoFiles = formData.petPhotos.map(
+        (photo: any) =>
+          ({
+            uri: photo.uri,
+            name: photo.fileName || "photo.jpg",
+            type: photo.mimeType || "image/jpeg",
+          }) as any
       );
+
+      // Convert additional vaccinations with proper field names
+      const additionalVaccinations = formData.vaccinations
+        .map((vac: any) =>
+          vac.vaccinationRecord
+            ? {
+                vaccination_type: vac.vaccinationType,
+                vaccination_record: createFileObject(
+                  vac.vaccinationRecord,
+                  "vaccination.pdf"
+                ),
+                clinic_name: vac.clinicName,
+                veterinarian_name: vac.veterinarianName,
+                given_date: vac.givenDate,
+                expiration_date: vac.expirationDate,
+              }
+            : null
+        )
+        .filter(Boolean);
 
       const petData = {
         name: formData.name,
@@ -373,58 +298,77 @@ export default function AddPetScreen() {
         breed: formData.breed,
         sex: formData.sex.toLowerCase(),
         birthdate: formData.birthdate,
-        microchip: formData.microchip,
+        microchip: formData.microchip || "",
         height: formData.height,
         weight: formData.weight,
         has_been_bred: formData.hasBeenBred,
-        breeding_count: formData.breedingCount,
+        breeding_count: formData.breedingCount || "",
+
         behaviors: formData.behaviors,
-        behavior_tags: formData.behaviorTags,
+        behavior_tags: formData.behaviorTags || "",
         attributes: formData.attributes,
-        attribute_tags: formData.attributeTags,
+        attribute_tags: formData.attributeTags || "",
         description: formData.description,
-        rabies_vaccination_record: rabiesFile,
+
+        rabies_vaccination_record: createFileObject(
+          formData.rabiesVaccinationRecord,
+          "rabies.pdf"
+        ),
         rabies_clinic_name: formData.rabiesClinicName,
         rabies_veterinarian_name: formData.rabiesVeterinarianName,
         rabies_given_date: formData.rabiesGivenDate,
         rabies_expiration_date: formData.rabiesExpirationDate,
-        dhpp_vaccination_record: dhppFile,
+
+        dhpp_vaccination_record: createFileObject(
+          formData.dhppVaccinationRecord,
+          "dhpp.pdf"
+        ),
         dhpp_clinic_name: formData.dhppClinicName,
         dhpp_veterinarian_name: formData.dhppVeterinarianName,
         dhpp_given_date: formData.dhppGivenDate,
         dhpp_expiration_date: formData.dhppExpirationDate,
-        additional_vaccinations: additionalVaccinations.filter(
-          (v) => v !== null
-        ) as any[],
-        health_certificate: healthFile,
+
+        health_certificate: createFileObject(
+          formData.healthCertificate,
+          "health.pdf"
+        ),
         health_clinic_name: formData.healthClinicName,
         health_veterinarian_name: formData.healthVeterinarianName,
         health_given_date: formData.healthGivenDate,
         health_expiration_date: formData.healthExpirationDate,
+
         pet_photos: photoFiles,
-        preferred_breed: formData.preferredBreed,
-        partner_behaviors: formData.partnerBehaviors,
-        partner_behavior_tags: formData.partnerBehaviorTags,
-        partner_attributes: formData.partnerAttributes,
-        partner_attribute_tags: formData.partnerAttributeTags,
-        min_age: formData.minAge,
-        max_age: formData.maxAge,
+        additional_vaccinations:
+          additionalVaccinations.length > 0
+            ? additionalVaccinations
+            : undefined,
+
+        preferred_breed: formData.preferredBreed || "",
+        partner_behaviors:
+          formData.partnerBehaviors.length > 0
+            ? formData.partnerBehaviors
+            : undefined,
+        partner_behavior_tags: formData.partnerBehaviorTags || "",
+        partner_attributes:
+          formData.partnerAttributes.length > 0
+            ? formData.partnerAttributes
+            : undefined,
+        partner_attribute_tags: formData.partnerAttributeTags || "",
+        min_age: formData.minAge || "",
+        max_age: formData.maxAge || "",
       };
 
       await createPet(petData as any);
       setShowSuccessModal(true);
     } catch (error: any) {
       console.error("Error submitting pet:", error);
-
-      // Handle validation errors from backend
+      const backendErrors: ValidationErrors = {};
       if (error.response?.data?.errors) {
-        const backendErrors: ValidationErrors = {};
         Object.keys(error.response.data.errors).forEach((key) => {
           backendErrors[key] = error.response.data.errors[key][0];
         });
-        setValidationErrors(backendErrors);
       }
-
+      setValidationErrors(backendErrors);
       showAlert({
         title: "Error",
         message:
@@ -448,7 +392,6 @@ export default function AddPetScreen() {
         type: ["image/*", "application/pdf"],
       });
       if (!result.canceled && result.assets && result.assets.length > 0) {
-        // Check if it's a vaccination document field
         if (field.startsWith("vaccination_")) {
           const index = parseInt(field.split("_")[1]);
           updateVaccination(index, "vaccinationRecord", result.assets[0]);
@@ -480,11 +423,12 @@ export default function AddPetScreen() {
     }
   };
 
+  // Functions to manage vaccinations
   const addVaccination = () => {
-    setFormData({
-      ...formData,
+    setFormData((prev) => ({
+      ...prev,
       vaccinations: [
-        ...formData.vaccinations,
+        ...prev.vaccinations,
         {
           vaccinationType: "",
           vaccinationRecord: null,
@@ -494,9 +438,8 @@ export default function AddPetScreen() {
           expirationDate: "",
         },
       ],
-    });
+    }));
   };
-
   const updateVaccination = (index: number, field: string, value: any) => {
     const updatedVaccinations = [...formData.vaccinations];
     updatedVaccinations[index] = {
@@ -505,1681 +448,1103 @@ export default function AddPetScreen() {
     };
     setFormData({ ...formData, vaccinations: updatedVaccinations });
   };
-
   const removeVaccination = (index: number) => {
     const updatedVaccinations = formData.vaccinations.filter(
-      (_, i) => i !== index
+      (_: any, i: number) => i !== index
     );
     setFormData({ ...formData, vaccinations: updatedVaccinations });
   };
 
-  const toggleBehavior = (behavior: string) => {
-    const behaviors = formData.behaviors.includes(behavior)
-      ? formData.behaviors.filter((b) => b !== behavior)
-      : [...formData.behaviors, behavior];
-    setFormData({ ...formData, behaviors });
+  // Toggle selection for tags
+  const toggleTag = (
+    field:
+      | "behaviors"
+      | "attributes"
+      | "partnerBehaviors"
+      | "partnerAttributes",
+    value: string
+  ) => {
+    setFormData((prev) => ({
+      ...prev,
+      [field]: prev[field].includes(value)
+        ? prev[field].filter((item: string) => item !== value)
+        : [...prev[field], value],
+    }));
   };
 
-  const addCustomBehavior = () => {
-    const customTag = formData.behaviorTags.trim().toUpperCase();
-    if (customTag && !availableBehaviors.includes(customTag)) {
-      setAvailableBehaviors([...availableBehaviors, customTag]);
-      setFormData({
-        ...formData,
-        behaviors: [...formData.behaviors, customTag],
-        behaviorTags: "",
-      });
-    } else if (customTag && !formData.behaviors.includes(customTag)) {
-      setFormData({
-        ...formData,
-        behaviors: [...formData.behaviors, customTag],
-        behaviorTags: "",
-      });
+  // Add custom tags
+  const addCustomTag = (
+    formField:
+      | "behaviorTags"
+      | "attributeTags"
+      | "partnerBehaviorTags"
+      | "partnerAttributeTags",
+    availableField:
+      | "availableBehaviors"
+      | "availableAttributes"
+      | "availablePartnerBehaviors"
+      | "availablePartnerAttributes",
+    dataField:
+      | "behaviors"
+      | "attributes"
+      | "partnerBehaviors"
+      | "partnerAttributes"
+  ) => {
+    const newTag = formData[formField].trim().toUpperCase();
+    if (newTag) {
+      if (availableField === "availableBehaviors") {
+        if (!availableBehaviors.includes(newTag))
+          setAvailableBehaviors([...availableBehaviors, newTag]);
+      } else if (availableField === "availableAttributes") {
+        if (!availableAttributes.includes(newTag))
+          setAvailableAttributes([...availableAttributes, newTag]);
+      } else if (availableField === "availablePartnerBehaviors") {
+        if (!availablePartnerBehaviors.includes(newTag))
+          setAvailablePartnerBehaviors([...availablePartnerBehaviors, newTag]);
+      } else {
+        if (!availablePartnerAttributes.includes(newTag))
+          setAvailablePartnerAttributes([
+            ...availablePartnerAttributes,
+            newTag,
+          ]);
+      }
+      if (!formData[dataField].includes(newTag)) {
+        setFormData((prev) => ({
+          ...prev,
+          [dataField]: [...prev[dataField], newTag],
+          [formField]: "",
+        }));
+      }
     }
   };
 
-  const toggleAttribute = (attribute: string) => {
-    const attributes = formData.attributes.includes(attribute)
-      ? formData.attributes.filter((a) => a !== attribute)
-      : [...formData.attributes, attribute];
-    setFormData({ ...formData, attributes });
-  };
-
-  const addCustomAttribute = () => {
-    const customTag = formData.attributeTags.trim().toUpperCase();
-    if (customTag && !availableAttributes.includes(customTag)) {
-      setAvailableAttributes([...availableAttributes, customTag]);
-      setFormData({
-        ...formData,
-        attributes: [...formData.attributes, customTag],
-        attributeTags: "",
-      });
-    } else if (customTag && !formData.attributes.includes(customTag)) {
-      setFormData({
-        ...formData,
-        attributes: [...formData.attributes, customTag],
-        attributeTags: "",
-      });
-    }
-  };
-
-  const togglePartnerBehavior = (behavior: string) => {
-    const partnerBehaviors = formData.partnerBehaviors.includes(behavior)
-      ? formData.partnerBehaviors.filter((b) => b !== behavior)
-      : [...formData.partnerBehaviors, behavior];
-    setFormData({ ...formData, partnerBehaviors });
-  };
-
-  const addCustomPartnerBehavior = () => {
-    const customTag = formData.partnerBehaviorTags.trim().toUpperCase();
-    if (customTag && !availablePartnerBehaviors.includes(customTag)) {
-      setAvailablePartnerBehaviors([...availablePartnerBehaviors, customTag]);
-      setFormData({
-        ...formData,
-        partnerBehaviors: [...formData.partnerBehaviors, customTag],
-        partnerBehaviorTags: "",
-      });
-    } else if (customTag && !formData.partnerBehaviors.includes(customTag)) {
-      setFormData({
-        ...formData,
-        partnerBehaviors: [...formData.partnerBehaviors, customTag],
-        partnerBehaviorTags: "",
-      });
-    }
-  };
-
-  const togglePartnerAttribute = (attribute: string) => {
-    const partnerAttributes = formData.partnerAttributes.includes(attribute)
-      ? formData.partnerAttributes.filter((a) => a !== attribute)
-      : [...formData.partnerAttributes, attribute];
-    setFormData({ ...formData, partnerAttributes });
-  };
-
-  const addCustomPartnerAttribute = () => {
-    const customTag = formData.partnerAttributeTags.trim().toUpperCase();
-    if (customTag && !availablePartnerAttributes.includes(customTag)) {
-      setAvailablePartnerAttributes([...availablePartnerAttributes, customTag]);
-      setFormData({
-        ...formData,
-        partnerAttributes: [...formData.partnerAttributes, customTag],
-        partnerAttributeTags: "",
-      });
-    } else if (customTag && !formData.partnerAttributes.includes(customTag)) {
-      setFormData({
-        ...formData,
-        partnerAttributes: [...formData.partnerAttributes, customTag],
-        partnerAttributeTags: "",
-      });
-    }
-  };
-
+  // Date picker handlers
   const openDatePicker = (field: string) => {
     setDatePickerField(field);
     setShowDatePicker(true);
   };
-
   const handleDateConfirm = (date: Date) => {
     if (datePickerField) {
-      const formattedDate = date.toISOString().split("T")[0]; // YYYY-MM-DD format
-
-      // Check if it's a vaccination date field
+      const formattedDate = date.toISOString().split("T")[0];
       if (datePickerField.startsWith("vaccination_")) {
         const parts = datePickerField.split("_");
-        const index = parseInt(parts[1]);
-        const field = parts[2]; // givenDate or expirationDate
-        updateVaccination(index, field, formattedDate);
+        updateVaccination(
+          parseInt(parts[1]),
+          parts.slice(2).join("_"),
+          formattedDate
+        );
       } else {
         setFormData({ ...formData, [datePickerField]: formattedDate });
-
-        // Clear validation error if exists
-        if (validationErrors[datePickerField]) {
-          setValidationErrors({ ...validationErrors, [datePickerField]: "" });
-        }
       }
     }
     setShowDatePicker(false);
-    setDatePickerField(null);
   };
 
-  const handleDateCancel = () => {
-    setShowDatePicker(false);
-    setDatePickerField(null);
+  // Step titles for progress bar
+  const stepTitles = [
+    "Pet Info",
+    "About",
+    "Vaccines",
+    "Health Cert.",
+    "Photos",
+    "Preferences",
+  ];
+
+  const renderProgressBar = () => (
+    <View style={styles.progressContainer}>
+      <View style={styles.progressTrack}>
+        <LinearGradient
+          colors={["#FF6B4A", "#FF9A8B"]}
+          style={[styles.progressBar, { width: `${(currentStep / 6) * 100}%` }]}
+        />
+      </View>
+      <View style={styles.progressSteps}>
+        {stepTitles.map((title, index) => (
+          <View style={styles.step} key={index}>
+            <View
+              style={[
+                styles.stepCircle,
+                index + 1 < currentStep && styles.stepCircleCompleted,
+                index + 1 === currentStep && styles.stepCircleActive,
+              ]}
+            >
+              {index + 1 < currentStep && (
+                <Ionicons name="checkmark" size={14} color="white" />
+              )}
+            </View>
+            <Text
+              style={[
+                styles.stepLabel,
+                index + 1 === currentStep && styles.stepLabelActive,
+              ]}
+            >
+              {title}
+            </Text>
+          </View>
+        ))}
+      </View>
+    </View>
+  );
+
+  const renderStep = (step: number) => {
+    switch (step) {
+      case 1:
+        return (
+          <View style={styles.stepContainer}>
+            <Text style={styles.stepTitle}>Let's get to know your pet</Text>
+            <Text style={styles.stepSubtitle}>
+              Tell us the basics about your furry friend.
+            </Text>
+
+            {renderInput("name", "Pet's Name", "e.g., Buddy")}
+            {renderDropdown(
+              "species",
+              "Species",
+              () => setShowSpeciesModal(true),
+              "Select Species"
+            )}
+            {renderInput("breed", "Breed", "e.g., Golden Retriever")}
+            <View style={styles.row}>
+              {renderDropdown(
+                "sex",
+                "Sex",
+                () => setShowSexModal(true),
+                "Select Sex"
+              )}
+              {renderDatePicker("birthdate", "Birthdate")}
+            </View>
+            <View style={styles.row}>
+              {renderInput("height", "Height (cm)", "e.g., 58", "numeric")}
+              {renderInput("weight", "Weight (kg)", "e.g., 30", "numeric")}
+            </View>
+            {renderInput(
+              "microchip",
+              "Microchip ID (Optional)",
+              "e.g., 123456789"
+            )}
+          </View>
+        );
+      case 2:
+        return (
+          <View style={styles.stepContainer}>
+            <Text style={styles.stepTitle}>Tell us more</Text>
+            <Text style={styles.stepSubtitle}>
+              Describe your pet's personality and appearance.
+            </Text>
+
+            {renderTagSelection(
+              "behaviors",
+              "Behaviors",
+              availableBehaviors,
+              (b) => toggleTag("behaviors", b),
+              "behaviorTags",
+              () =>
+                addCustomTag("behaviorTags", "availableBehaviors", "behaviors")
+            )}
+            {renderTagSelection(
+              "attributes",
+              "Attributes",
+              availableAttributes,
+              (a) => toggleTag("attributes", a),
+              "attributeTags",
+              () =>
+                addCustomTag(
+                  "attributeTags",
+                  "availableAttributes",
+                  "attributes"
+                )
+            )}
+            {renderInput(
+              "description",
+              "Description",
+              "Tell us about your pet in 200 characters or less.",
+              "default",
+              true
+            )}
+          </View>
+        );
+      case 3:
+        return (
+          <View style={styles.stepContainer}>
+            <Text style={styles.stepTitle}>Vaccination Records</Text>
+            <Text style={styles.stepSubtitle}>
+              Please provide the required vaccination documents.
+            </Text>
+
+            {renderDocumentUpload(
+              "rabiesVaccinationRecord",
+              "Rabies Vaccination",
+              "rabies"
+            )}
+            {renderDocumentUpload(
+              "dhppVaccinationRecord",
+              "DHPP Vaccine",
+              "dhpp"
+            )}
+
+            {formData.vaccinations.map((_: any, index: number) =>
+              renderDocumentUpload(
+                `vaccination_${index}`,
+                `Additional Vaccine ${index + 1}`,
+                `vaccination_${index}`,
+                true,
+                () => removeVaccination(index),
+                `vacc-${index}`
+              )
+            )}
+            <TouchableOpacity style={styles.addButton} onPress={addVaccination}>
+              <Ionicons name="add" size={20} color="white" />
+              <Text style={styles.addButtonText}>Add Another Vaccination</Text>
+            </TouchableOpacity>
+          </View>
+        );
+      case 4:
+        return (
+          <View style={styles.stepContainer}>
+            <Text style={styles.stepTitle}>Health Certificate</Text>
+            <Text style={styles.stepSubtitle}>
+              Upload a valid health certificate for your pet.
+            </Text>
+
+            {renderDocumentUpload(
+              "healthCertificate",
+              "Health Certificate",
+              "health"
+            )}
+          </View>
+        );
+      case 5:
+        return (
+          <View style={styles.stepContainer}>
+            <Text style={styles.stepTitle}>Pet Photos</Text>
+            <Text style={styles.stepSubtitle}>
+              Upload at least 3 photos of your pet.
+            </Text>
+
+            <TouchableOpacity
+              style={styles.photoUploadButton}
+              onPress={pickImages}
+            >
+              <Ionicons name="cloud-upload-outline" size={40} color="#FF6B4A" />
+              <Text style={styles.photoUploadText}>Tap to upload photos</Text>
+            </TouchableOpacity>
+            {validationErrors.petPhotos && (
+              <Text style={styles.errorText}>{validationErrors.petPhotos}</Text>
+            )}
+
+            {formData.petPhotos.length > 0 && (
+              <View style={styles.photoGrid}>
+                {formData.petPhotos.map((photo: any, index: number) => (
+                  <Image
+                    key={index}
+                    source={{ uri: photo.uri }}
+                    style={styles.photoThumbnail}
+                  />
+                ))}
+              </View>
+            )}
+          </View>
+        );
+      case 6:
+        return (
+          <View style={styles.stepContainer}>
+            <Text style={styles.stepTitle}>Partner Preferences</Text>
+            <Text style={styles.stepSubtitle}>
+              What are you looking for in a breeding partner for your pet?
+            </Text>
+
+            {renderDropdown(
+              "preferredBreed",
+              "Preferred Breed",
+              () => setShowPreferredBreedModal(true),
+              "Any Breed"
+            )}
+            <View style={styles.row}>
+              {renderInput("minAge", "Min Partner Age", "e.g., 1", "numeric")}
+              {renderInput("maxAge", "Max Partner Age", "e.g., 5", "numeric")}
+            </View>
+
+            {renderTagSelection(
+              "partnerBehaviors",
+              "Preferred Behaviors",
+              availablePartnerBehaviors,
+              (b) => toggleTag("partnerBehaviors", b),
+              "partnerBehaviorTags",
+              () =>
+                addCustomTag(
+                  "partnerBehaviorTags",
+                  "availablePartnerBehaviors",
+                  "partnerBehaviors"
+                )
+            )}
+            {renderTagSelection(
+              "partnerAttributes",
+              "Preferred Attributes",
+              availablePartnerAttributes,
+              (a) => toggleTag("partnerAttributes", a),
+              "partnerAttributeTags",
+              () =>
+                addCustomTag(
+                  "partnerAttributeTags",
+                  "availablePartnerAttributes",
+                  "partnerAttributes"
+                )
+            )}
+          </View>
+        );
+    }
   };
 
-  const formatDateDisplay = (dateString: string) => {
-    if (!dateString) return "dd/mm/yy";
-    const date = new Date(dateString);
-    const day = String(date.getDate()).padStart(2, "0");
-    const month = String(date.getMonth() + 1).padStart(2, "0");
-    const year = String(date.getFullYear()).slice(-2);
-    return `${day}/${month}/${year}`;
-  };
+  const renderInput = (
+    field: string,
+    label: string,
+    placeholder: string,
+    keyboardType: "default" | "numeric" = "default",
+    multiline = false
+  ) => (
+    <View style={styles.inputContainer}>
+      <Text style={styles.label}>{label}</Text>
+      <TextInput
+        style={[
+          styles.input,
+          validationErrors[field] && styles.inputError,
+          multiline && styles.multilineInput,
+        ]}
+        placeholder={placeholder}
+        placeholderTextColor="#999"
+        value={
+          field.startsWith("vaccination_")
+            ? (() => {
+                const m = field.match(/^vaccination_(\d+)_(.+)$/);
+                if (m) {
+                  const idx = parseInt(m[1], 10);
+                  const key = m[2];
+                  return formData.vaccinations?.[idx]?.[key] ?? "";
+                }
+                return formData[field] ?? "";
+              })()
+            : formData[field]
+        }
+        onChangeText={(text) => {
+          if (field.startsWith("vaccination_")) {
+            const m = field.match(/^vaccination_(\d+)_(.+)$/);
+            if (m) {
+              const idx = parseInt(m[1], 10);
+              const key = m[2];
+              updateVaccination(idx, key, text);
+              return;
+            }
+          }
+          setFormData({ ...formData, [field]: text });
+        }}
+        keyboardType={keyboardType}
+        multiline={multiline}
+        textAlignVertical={multiline ? "top" : "center"}
+      />
+      {validationErrors[field] && (
+        <Text style={styles.errorText}>{validationErrors[field]}</Text>
+      )}
+    </View>
+  );
 
-  const renderProgressBar = () => {
-    const progress = (currentStep / 6) * 100;
-    return (
-      <View className="px-6 mb-6">
-        <Text className="text-gray-600 text-sm mb-2 text-right">
-          {currentStep} of 6
+  const renderDropdown = (
+    field: string,
+    label: string,
+    onPress: () => void,
+    placeholder: string
+  ) => (
+    <View style={styles.inputContainer}>
+      <Text style={styles.label}>{label}</Text>
+      <TouchableOpacity
+        style={[
+          styles.input,
+          styles.dropdown,
+          validationErrors[field] && styles.inputError,
+        ]}
+        onPress={onPress}
+      >
+        <Text
+          style={[
+            styles.dropdownText,
+            !formData[field] && styles.dropdownPlaceholder,
+          ]}
+        >
+          {formData[field] || placeholder}
         </Text>
-        <View className="w-full h-2 bg-gray-300 rounded-full overflow-hidden">
-          <View
-            className="h-full bg-[#FF6B4A]"
-            style={{ width: `${progress}%` }}
-          />
+        <Ionicons name="chevron-down" size={20} color="#666" />
+      </TouchableOpacity>
+      {validationErrors[field] && (
+        <Text style={styles.errorText}>{validationErrors[field]}</Text>
+      )}
+    </View>
+  );
+
+  const renderDatePicker = (field: string, label: string) => (
+    <View style={styles.inputContainer}>
+      <Text style={styles.label}>{label}</Text>
+      <TouchableOpacity
+        style={[
+          styles.input,
+          styles.dropdown,
+          validationErrors[field] && styles.inputError,
+        ]}
+        onPress={() => openDatePicker(field)}
+      >
+        <Text
+          style={[
+            styles.dropdownText,
+            !formData[field] && styles.dropdownPlaceholder,
+          ]}
+        >
+          {field.startsWith("vaccination_")
+            ? (() => {
+                const m = field.match(/^vaccination_(\d+)_(.+)$/);
+                if (m) {
+                  const idx = parseInt(m[1], 10);
+                  const key = m[2];
+                  const val = formData.vaccinations?.[idx]?.[key];
+                  return val
+                    ? new Date(val).toLocaleDateString()
+                    : "Select Date";
+                }
+                return formData[field]
+                  ? new Date(formData[field]).toLocaleDateString()
+                  : "Select Date";
+              })()
+            : formData[field]
+              ? new Date(formData[field]).toLocaleDateString()
+              : "Select Date"}
+        </Text>
+        <Ionicons name="calendar-outline" size={20} color="#666" />
+      </TouchableOpacity>
+      {validationErrors[field] && (
+        <Text style={styles.errorText}>{validationErrors[field]}</Text>
+      )}
+    </View>
+  );
+
+  const renderTagSelection = (
+    field: string,
+    label: string,
+    options: string[],
+    onToggle: (tag: string) => void,
+    customField: string,
+    onAddCustom: () => void
+  ) => (
+    <View style={styles.inputContainer}>
+      <Text style={styles.label}>{label}</Text>
+      <View style={styles.tagContainer}>
+        {options.map((option) => (
+          <TouchableOpacity
+            key={option}
+            style={[
+              styles.tag,
+              formData[field].includes(option) && styles.tagSelected,
+            ]}
+            onPress={() => onToggle(option)}
+          >
+            <Text
+              style={[
+                styles.tagText,
+                formData[field].includes(option) && styles.tagTextSelected,
+              ]}
+            >
+              {option}
+            </Text>
+          </TouchableOpacity>
+        ))}
+      </View>
+      <View style={styles.customTagContainer}>
+        <TextInput
+          style={[styles.input, styles.customTagInput]}
+          placeholder="Add custom tag..."
+          placeholderTextColor="#999"
+          value={formData[customField]}
+          onChangeText={(text) =>
+            setFormData({ ...formData, [customField]: text })
+          }
+          onSubmitEditing={onAddCustom}
+          returnKeyType="done"
+        />
+        <TouchableOpacity style={styles.addTagButton} onPress={onAddCustom}>
+          <Ionicons name="add" size={24} color="white" />
+        </TouchableOpacity>
+      </View>
+      {validationErrors[field] && (
+        <Text style={styles.errorText}>{validationErrors[field]}</Text>
+      )}
+    </View>
+  );
+
+  const renderDocumentUpload = (
+    docField: string,
+    title: string,
+    prefix: string,
+    isAdditional = false,
+    onRemove?: () => void,
+    keyProp?: string | number
+  ) => {
+    // Helper to convert prefix to proper camelCase field names
+    const getFieldName = (fieldSuffix: string) => {
+      if (prefix.startsWith("vaccination_")) {
+        // For dynamic vaccinations: vaccination_0 -> vaccination_0_clinicName
+        return `${prefix}_${fieldSuffix}`;
+      }
+      // For static fields: rabies -> rabiesClinicName, dhpp -> dhppClinicName, health -> healthClinicName
+      return `${prefix}${fieldSuffix.charAt(0).toUpperCase()}${fieldSuffix.slice(1)}`;
+    };
+
+    return (
+      <View key={keyProp} style={styles.documentSection}>
+        <View style={styles.documentHeader}>
+          <Text style={styles.documentTitle}>{title}</Text>
+          {isAdditional && (
+            <TouchableOpacity onPress={onRemove} style={styles.removeButton}>
+              <Ionicons name="trash-outline" size={20} color="#EF4444" />
+            </TouchableOpacity>
+          )}
+        </View>
+
+        {isAdditional &&
+          renderInput(
+            `${prefix}_vaccinationType`,
+            "Vaccine Name",
+            "e.g., Bordetella"
+          )}
+
+        <TouchableOpacity
+          style={[
+            styles.filePicker,
+            validationErrors[docField] && styles.inputError,
+          ]}
+          onPress={() => pickDocument(docField)}
+        >
+          <Ionicons name="document-attach-outline" size={24} color="#666" />
+          <Text style={styles.filePickerText}>
+            {docField.startsWith("vaccination_")
+              ? (() => {
+                  const m = docField.match(/^vaccination_(\d+)$/);
+                  if (m) {
+                    const idx = parseInt(m[1], 10);
+                    return (
+                      formData.vaccinations?.[idx]?.vaccinationRecord?.name ||
+                      "Upload Document"
+                    );
+                  }
+                  return formData[docField]?.name || "Upload Document";
+                })()
+              : formData[docField]?.name || "Upload Document"}
+          </Text>
+        </TouchableOpacity>
+        {validationErrors[docField] && (
+          <Text style={styles.errorText}>{validationErrors[docField]}</Text>
+        )}
+
+        {renderInput(
+          getFieldName("clinicName"),
+          "Clinic Name",
+          "e.g., City Vet Clinic"
+        )}
+        {renderInput(
+          getFieldName("veterinarianName"),
+          "Veterinarian's Name",
+          "e.g., Dr. Smith"
+        )}
+        <View style={styles.row}>
+          {renderDatePicker(getFieldName("givenDate"), "Date Given")}
+          {renderDatePicker(getFieldName("expirationDate"), "Expiry Date")}
         </View>
       </View>
     );
   };
 
-  const renderStep1 = () => (
-    <View className="px-6 pb-6">
-      <Text className="text-lg font-bold text-black mb-2">
-        Breeding History
-      </Text>
-      <Text className="text-sm text-gray-600 mb-4">
-        Help us understand your pet&apos;s breeding background
-      </Text>
-
-      {/* Has Been Bred Checkbox */}
-      <TouchableOpacity
-        className="flex-row items-center mb-4"
-        onPress={() =>
-          setFormData({ ...formData, hasBeenBred: !formData.hasBeenBred })
-        }
-      >
-        <View
-          className={`w-6 h-6 rounded border-2 ${
-            formData.hasBeenBred
-              ? "bg-gray-600 border-gray-600"
-              : "bg-white border-gray-400"
-          } items-center justify-center mr-3`}
-        >
-          {formData.hasBeenBred && (
-            <Feather name="check" size={16} color="white" />
-          )}
-        </View>
-        <Text className="text-base text-black">
-          This pet has been bred before
-        </Text>
-      </TouchableOpacity>
-
-      {/* Breeding Count - Only show if hasBeenBred is true */}
-      {formData.hasBeenBred && (
-        <View className="mb-4">
-          <Text className="text-sm text-gray-700 mb-2">
-            Please enter the number of times the pet has been bred.
-          </Text>
-          <TextInput
-            className={`border ${validationErrors.breedingCount ? "border-red-500" : "border-gray-300"} rounded-lg px-4 py-3 bg-white`}
-            placeholder="Enter"
-            value={formData.breedingCount}
-            onChangeText={(text) => {
-              setFormData({ ...formData, breedingCount: text });
-              if (validationErrors.breedingCount) {
-                setValidationErrors({ ...validationErrors, breedingCount: "" });
-              }
-            }}
-            keyboardType="numeric"
-          />
-          {validationErrors.breedingCount && (
-            <Text className="text-red-500 text-xs mt-1">
-              {validationErrors.breedingCount}
-            </Text>
-          )}
-        </View>
-      )}
-
-      {/* Name */}
-      <View className="mb-4">
-        <Text className="text-base font-semibold text-black mb-2">Name</Text>
-        <TextInput
-          className={`border ${validationErrors.name ? "border-red-500" : "border-gray-300"} rounded-lg px-4 py-3 bg-white`}
-          placeholder="Enter name"
-          value={formData.name}
-          onChangeText={(text) => {
-            setFormData({ ...formData, name: text });
-            if (validationErrors.name) {
-              setValidationErrors({ ...validationErrors, name: "" });
-            }
-          }}
-        />
-        {validationErrors.name && (
-          <Text className="text-red-500 text-xs mt-1">
-            {validationErrors.name}
-          </Text>
-        )}
-      </View>
-
-      {/* Microchip (Optional) */}
-      <View className="mb-4">
-        <Text className="text-base font-semibold text-black mb-2">
-          Microchip (OPTIONAL)
-        </Text>
-        <TextInput
-          className={`border ${validationErrors.microchip ? "border-red-500" : "border-gray-300"} rounded-lg px-4 py-3 bg-white`}
-          placeholder="Enter Microchip"
-          value={formData.microchip}
-          onChangeText={(text) => {
-            setFormData({ ...formData, microchip: text });
-            if (validationErrors.microchip) {
-              setValidationErrors({ ...validationErrors, microchip: "" });
-            }
-          }}
-        />
-        {validationErrors.microchip && (
-          <Text className="text-red-500 text-xs mt-1">
-            {validationErrors.microchip}
-          </Text>
-        )}
-      </View>
-
-      {/* Species and Breed Row */}
-      <View className="flex-row gap-3 mb-4">
-        <View className="flex-1">
-          <Text className="text-base font-semibold text-black mb-2">
-            Species
-          </Text>
-          <TouchableOpacity
-            className={`border ${validationErrors.species ? "border-red-500" : "border-gray-300"} rounded-lg px-4 py-3 bg-white flex-row items-center justify-between`}
-            onPress={() => {
-              setShowSpeciesModal(true);
-              if (validationErrors.species) {
-                setValidationErrors({ ...validationErrors, species: "" });
-              }
-            }}
-          >
-            <Text className={formData.species ? "text-black" : "text-gray-400"}>
-              {formData.species || "choose"}
-            </Text>
-            <Feather name="chevron-down" size={20} color="gray" />
-          </TouchableOpacity>
-          {validationErrors.species && (
-            <Text className="text-red-500 text-xs mt-1">
-              {validationErrors.species}
-            </Text>
-          )}
-        </View>
-        <View className="flex-1">
-          <Text className="text-base font-semibold text-black mb-2">Breed</Text>
-          <TextInput
-            className={`border ${validationErrors.breed ? "border-red-500" : "border-gray-300"} rounded-lg px-4 py-3 bg-white`}
-            placeholder="Enter breed"
-            value={formData.breed}
-            onChangeText={(text) => {
-              setFormData({ ...formData, breed: text });
-              if (validationErrors.breed) {
-                setValidationErrors({ ...validationErrors, breed: "" });
-              }
-            }}
-          />
-          {validationErrors.breed && (
-            <Text className="text-red-500 text-xs mt-1">
-              {validationErrors.breed}
-            </Text>
-          )}
-        </View>
-      </View>
-
-      {/* Sex and Birthdate Row */}
-      <View className="flex-row gap-3 mb-4">
-        <View className="flex-1">
-          <Text className="text-base font-semibold text-black mb-2">Sex</Text>
-          <TouchableOpacity
-            className={`border ${validationErrors.sex ? "border-red-500" : "border-gray-300"} rounded-lg px-4 py-3 bg-white flex-row items-center justify-between`}
-            onPress={() => {
-              setShowSexModal(true);
-              if (validationErrors.sex) {
-                setValidationErrors({ ...validationErrors, sex: "" });
-              }
-            }}
-          >
-            <Text className={formData.sex ? "text-black" : "text-gray-400"}>
-              {formData.sex || "choose"}
-            </Text>
-            <Feather name="chevron-down" size={20} color="gray" />
-          </TouchableOpacity>
-          {validationErrors.sex && (
-            <Text className="text-red-500 text-xs mt-1">
-              {validationErrors.sex}
-            </Text>
-          )}
-        </View>
-        <View className="flex-1">
-          <Text className="text-base font-semibold text-black mb-2">
-            Birthdate
-          </Text>
-          <TouchableOpacity
-            className={`border ${validationErrors.birthdate ? "border-red-500" : "border-gray-300"} rounded-lg px-4 py-3 bg-white flex-row items-center justify-between`}
-            onPress={() => {
-              openDatePicker("birthdate");
-              if (validationErrors.birthdate) {
-                setValidationErrors({ ...validationErrors, birthdate: "" });
-              }
-            }}
-          >
-            <Text
-              className={formData.birthdate ? "text-black" : "text-gray-400"}
-            >
-              {formatDateDisplay(formData.birthdate)}
-            </Text>
-            <Feather name="calendar" size={20} color="gray" />
-          </TouchableOpacity>
-          {validationErrors.birthdate && (
-            <Text className="text-red-500 text-xs mt-1">
-              {validationErrors.birthdate}
-            </Text>
-          )}
-        </View>
-      </View>
-
-      {/* Height and Weight Row */}
-      <View className="flex-row gap-3 mb-4">
-        <View className="flex-1">
-          <Text className="text-base font-semibold text-black mb-2">
-            Height(cm)
-          </Text>
-          <TextInput
-            className={`border ${validationErrors.height ? "border-red-500" : "border-gray-300"} rounded-lg px-4 py-3 bg-white`}
-            placeholder="Enter Height"
-            value={formData.height}
-            onChangeText={(text) => {
-              setFormData({ ...formData, height: text });
-              if (validationErrors.height) {
-                setValidationErrors({ ...validationErrors, height: "" });
-              }
-            }}
-            keyboardType="numeric"
-          />
-          {validationErrors.height && (
-            <Text className="text-red-500 text-xs mt-1">
-              {validationErrors.height}
-            </Text>
-          )}
-        </View>
-        <View className="flex-1">
-          <Text className="text-base font-semibold text-black mb-2">
-            Weight (lbs)
-          </Text>
-          <TextInput
-            className={`border ${validationErrors.weight ? "border-red-500" : "border-gray-300"} rounded-lg px-4 py-3 bg-white`}
-            placeholder="Enter Weight"
-            value={formData.weight}
-            onChangeText={(text) => {
-              setFormData({ ...formData, weight: text });
-              if (validationErrors.weight) {
-                setValidationErrors({ ...validationErrors, weight: "" });
-              }
-            }}
-            keyboardType="numeric"
-          />
-          {validationErrors.weight && (
-            <Text className="text-red-500 text-xs mt-1">
-              {validationErrors.weight}
-            </Text>
-          )}
-        </View>
-      </View>
-    </View>
-  );
-
-  const renderStep2 = () => (
-    <View className="px-6 pb-6">
-      <Text className="text-lg font-bold text-black mb-4">About</Text>
-
-      {/* Behavior */}
-      <View className="mb-4">
-        <Text className="text-base font-semibold text-black mb-2">
-          Behavior:
-        </Text>
-        <View className="flex-row flex-wrap gap-2 mb-3">
-          {availableBehaviors.map((behavior) => (
-            <TouchableOpacity
-              key={behavior}
-              className={`px-4 py-2 rounded-full border ${
-                formData.behaviors.includes(behavior)
-                  ? "bg-[#FF6B4A] border-[#FF6B4A]"
-                  : "bg-white border-gray-300"
-              }`}
-              onPress={() => {
-                toggleBehavior(behavior);
-                if (validationErrors.behaviors) {
-                  setValidationErrors({ ...validationErrors, behaviors: "" });
-                }
-              }}
-            >
-              <Text
-                className={
-                  formData.behaviors.includes(behavior)
-                    ? "text-white text-xs"
-                    : "text-gray-600 text-xs"
-                }
-              >
-                {behavior}
-              </Text>
-            </TouchableOpacity>
-          ))}
-        </View>
-        {validationErrors.behaviors && (
-          <Text className="text-red-500 text-xs mb-2">
-            {validationErrors.behaviors}
-          </Text>
-        )}
-        <Text className="text-xs text-gray-500 mb-2">
-          Add tags to describe your pet (e.g., SMALL, BROWN, FRIENDLY)
-        </Text>
-        <View className="flex-row gap-2">
-          <TextInput
-            className="flex-1 border border-gray-300 rounded-lg px-4 py-3 bg-white"
-            placeholder="Enter custom tag"
-            value={formData.behaviorTags}
-            onChangeText={(text) =>
-              setFormData({ ...formData, behaviorTags: text })
-            }
-            onSubmitEditing={addCustomBehavior}
-            returnKeyType="done"
-          />
-          <TouchableOpacity
-            className="bg-[#FF6B4A] rounded-lg px-4 py-3 justify-center"
-            onPress={addCustomBehavior}
-          >
-            <Text className="text-white font-semibold">Add</Text>
-          </TouchableOpacity>
-        </View>
-      </View>
-
-      {/* Attributes */}
-      <View className="mb-4">
-        <Text className="text-base font-semibold text-black mb-2">
-          Attributes:
-        </Text>
-        <View className="flex-row flex-wrap gap-2 mb-3">
-          {availableAttributes.map((attribute) => (
-            <TouchableOpacity
-              key={attribute}
-              className={`px-4 py-2 rounded-full border ${
-                formData.attributes.includes(attribute)
-                  ? "bg-[#FF6B4A] border-[#FF6B4A]"
-                  : "bg-white border-gray-300"
-              }`}
-              onPress={() => {
-                toggleAttribute(attribute);
-                if (validationErrors.attributes) {
-                  setValidationErrors({ ...validationErrors, attributes: "" });
-                }
-              }}
-            >
-              <Text
-                className={
-                  formData.attributes.includes(attribute)
-                    ? "text-white text-xs"
-                    : "text-gray-600 text-xs"
-                }
-              >
-                {attribute}
-              </Text>
-            </TouchableOpacity>
-          ))}
-        </View>
-        {validationErrors.attributes && (
-          <Text className="text-red-500 text-xs mb-2">
-            {validationErrors.attributes}
-          </Text>
-        )}
-        <Text className="text-xs text-gray-500 mb-2">
-          Add tags to describe your pet (e.g., SMALL, BROWN, FRIENDLY)
-        </Text>
-        <View className="flex-row gap-2">
-          <TextInput
-            className="flex-1 border border-gray-300 rounded-lg px-4 py-3 bg-white"
-            placeholder="Enter custom tag"
-            value={formData.attributeTags}
-            onChangeText={(text) =>
-              setFormData({ ...formData, attributeTags: text })
-            }
-            onSubmitEditing={addCustomAttribute}
-            returnKeyType="done"
-          />
-          <TouchableOpacity
-            className="bg-[#FF6B4A] rounded-lg px-4 py-3 justify-center"
-            onPress={addCustomAttribute}
-          >
-            <Text className="text-white font-semibold">Add</Text>
-          </TouchableOpacity>
-        </View>
-      </View>
-
-      {/* Description */}
-      <View className="mb-4">
-        <Text className="text-base font-semibold text-black mb-2">
-          Description
-        </Text>
-        <TextInput
-          className={`border ${validationErrors.description ? "border-red-500" : "border-gray-300"} rounded-lg px-4 py-3 bg-white h-24`}
-          placeholder="Enter Description"
-          value={formData.description}
-          onChangeText={(text) => {
-            setFormData({ ...formData, description: text });
-            if (validationErrors.description) {
-              setValidationErrors({ ...validationErrors, description: "" });
-            }
-          }}
-          multiline
-          numberOfLines={4}
-          textAlignVertical="top"
-          maxLength={200}
-        />
-        <View className="flex-row justify-between items-center mt-1">
-          {validationErrors.description ? (
-            <Text className="text-red-500 text-xs">
-              {validationErrors.description}
-            </Text>
-          ) : (
-            <View />
-          )}
-          <Text
-            className={`text-xs ${formData.description.length > 200 ? "text-red-500" : "text-gray-400"}`}
-          >
-            {formData.description.length}/200
-          </Text>
-        </View>
-      </View>
-    </View>
-  );
-
-  const renderStep3 = () => (
-    <View className="px-6 pb-6">
-      <Text className="text-lg font-bold text-black mb-2">Documents</Text>
-      <Text className="text-sm text-gray-600 mb-4">
-        Upload certificates and photos to verify your pet
-      </Text>
-
-      {/* Rabies Section */}
-      <View className="mb-6">
-        <Text className="text-base font-bold text-black mb-3">Rabies</Text>
-
-        {/* Vaccination Record */}
-        <View className="mb-4">
-          <TouchableOpacity
-            className={`border ${validationErrors.rabiesVaccinationRecord ? "border-red-500" : "border-gray-300"} rounded-lg px-4 py-6 bg-gray-50`}
-            onPress={() => {
-              pickDocument("rabiesVaccinationRecord");
-              if (validationErrors.rabiesVaccinationRecord) {
-                setValidationErrors({
-                  ...validationErrors,
-                  rabiesVaccinationRecord: "",
-                });
-              }
-            }}
-          >
-            <View className="flex-row items-center">
-              <Feather name="upload" size={20} color="gray" />
-              <Text className="text-gray-600 ml-2">
-                {formData.rabiesVaccinationRecord
-                  ? formData.rabiesVaccinationRecord.name
-                  : "Vaccination Record (Rabis)"}
-              </Text>
-            </View>
-            <Text className="text-gray-500 text-xs mt-2">Choose file</Text>
-          </TouchableOpacity>
-          {validationErrors.rabiesVaccinationRecord && (
-            <Text className="text-red-500 text-xs mt-1">
-              {validationErrors.rabiesVaccinationRecord}
-            </Text>
-          )}
-        </View>
-
-        {/* Clinic Name */}
-        <View className="mb-4">
-          <Text className="text-base font-semibold text-black mb-2">
-            Clinic Name
-          </Text>
-          <TextInput
-            className={`border ${validationErrors.rabiesClinicName ? "border-red-500" : "border-gray-300"} rounded-lg px-4 py-3 bg-white`}
-            placeholder="Enter name"
-            value={formData.rabiesClinicName}
-            onChangeText={(text) => {
-              setFormData({ ...formData, rabiesClinicName: text });
-              if (validationErrors.rabiesClinicName) {
-                setValidationErrors({
-                  ...validationErrors,
-                  rabiesClinicName: "",
-                });
-              }
-            }}
-          />
-          {validationErrors.rabiesClinicName && (
-            <Text className="text-red-500 text-xs mt-1">
-              {validationErrors.rabiesClinicName}
-            </Text>
-          )}
-        </View>
-
-        {/* Veterinarian&apos;s Name */}
-        <View className="mb-4">
-          <Text className="text-base font-semibold text-black mb-2">
-            Veterinarian&apos;s Name
-          </Text>
-          <TextInput
-            className={`border ${validationErrors.rabiesVeterinarianName ? "border-red-500" : "border-gray-300"} rounded-lg px-4 py-3 bg-white`}
-            placeholder="Enter name"
-            value={formData.rabiesVeterinarianName}
-            onChangeText={(text) => {
-              setFormData({ ...formData, rabiesVeterinarianName: text });
-              if (validationErrors.rabiesVeterinarianName) {
-                setValidationErrors({
-                  ...validationErrors,
-                  rabiesVeterinarianName: "",
-                });
-              }
-            }}
-          />
-          {validationErrors.rabiesVeterinarianName && (
-            <Text className="text-red-500 text-xs mt-1">
-              {validationErrors.rabiesVeterinarianName}
-            </Text>
-          )}
-        </View>
-
-        {/* Given Date and Expiration Date */}
-        <View className="flex-row gap-3 mb-4">
-          <View className="flex-1">
-            <Text className="text-base font-semibold text-black mb-2">
-              Given Date
-            </Text>
-            <TouchableOpacity
-              className={`border ${validationErrors.rabiesGivenDate ? "border-red-500" : "border-gray-300"} rounded-lg px-4 py-3 bg-white flex-row items-center justify-between`}
-              onPress={() => openDatePicker("rabiesGivenDate")}
-            >
-              <Text
-                className={
-                  formData.rabiesGivenDate ? "text-black" : "text-gray-400"
-                }
-              >
-                {formatDateDisplay(formData.rabiesGivenDate)}
-              </Text>
-              <Feather name="calendar" size={20} color="gray" />
-            </TouchableOpacity>
-            {validationErrors.rabiesGivenDate && (
-              <Text className="text-red-500 text-xs mt-1">
-                {validationErrors.rabiesGivenDate}
-              </Text>
-            )}
-          </View>
-          <View className="flex-1">
-            <Text className="text-base font-semibold text-black mb-2">
-              Expiration Date
-            </Text>
-            <TouchableOpacity
-              className={`border ${validationErrors.rabiesExpirationDate ? "border-red-500" : "border-gray-300"} rounded-lg px-4 py-3 bg-white flex-row items-center justify-between`}
-              onPress={() => openDatePicker("rabiesExpirationDate")}
-            >
-              <Text
-                className={
-                  formData.rabiesExpirationDate ? "text-black" : "text-gray-400"
-                }
-              >
-                {formatDateDisplay(formData.rabiesExpirationDate)}
-              </Text>
-              <Feather name="calendar" size={20} color="gray" />
-            </TouchableOpacity>
-            {validationErrors.rabiesExpirationDate && (
-              <Text className="text-red-500 text-xs mt-1">
-                {validationErrors.rabiesExpirationDate}
-              </Text>
-            )}
-          </View>
-        </View>
-      </View>
-
-      {/* DHPP Section */}
-      <View className="mb-6">
-        <Text className="text-base font-bold text-black mb-3">
-          DHPP (Distemper, Hepatitis, Parvovirus, Parainfluenza)
-        </Text>
-
-        {/* Vaccination Record */}
-        <View className="mb-4">
-          <TouchableOpacity
-            className={`border ${validationErrors.dhppVaccinationRecord ? "border-red-500" : "border-gray-300"} rounded-lg px-4 py-6 bg-gray-50`}
-            onPress={() => {
-              pickDocument("dhppVaccinationRecord");
-              if (validationErrors.dhppVaccinationRecord) {
-                setValidationErrors({
-                  ...validationErrors,
-                  dhppVaccinationRecord: "",
-                });
-              }
-            }}
-          >
-            <View className="flex-row items-center">
-              <Feather name="upload" size={20} color="gray" />
-              <Text className="text-gray-600 ml-2">
-                {formData.dhppVaccinationRecord
-                  ? formData.dhppVaccinationRecord.name
-                  : "Vaccination Record (DHPP)"}
-              </Text>
-            </View>
-            <Text className="text-gray-500 text-xs mt-2">Choose file</Text>
-          </TouchableOpacity>
-          {validationErrors.dhppVaccinationRecord && (
-            <Text className="text-red-500 text-xs mt-1">
-              {validationErrors.dhppVaccinationRecord}
-            </Text>
-          )}
-        </View>
-
-        {/* Clinic Name */}
-        <View className="mb-4">
-          <Text className="text-base font-semibold text-black mb-2">
-            Clinic Name
-          </Text>
-          <TextInput
-            className={`border ${validationErrors.dhppClinicName ? "border-red-500" : "border-gray-300"} rounded-lg px-4 py-3 bg-white`}
-            placeholder="Enter name"
-            value={formData.dhppClinicName}
-            onChangeText={(text) => {
-              setFormData({ ...formData, dhppClinicName: text });
-              if (validationErrors.dhppClinicName) {
-                setValidationErrors({
-                  ...validationErrors,
-                  dhppClinicName: "",
-                });
-              }
-            }}
-          />
-          {validationErrors.dhppClinicName && (
-            <Text className="text-red-500 text-xs mt-1">
-              {validationErrors.dhppClinicName}
-            </Text>
-          )}
-        </View>
-
-        {/* Veterinarian&apos;s Name */}
-        <View className="mb-4">
-          <Text className="text-base font-semibold text-black mb-2">
-            Veterinarian&apos;s Name
-          </Text>
-          <TextInput
-            className={`border ${validationErrors.dhppVeterinarianName ? "border-red-500" : "border-gray-300"} rounded-lg px-4 py-3 bg-white`}
-            placeholder="Enter name"
-            value={formData.dhppVeterinarianName}
-            onChangeText={(text) => {
-              setFormData({ ...formData, dhppVeterinarianName: text });
-              if (validationErrors.dhppVeterinarianName) {
-                setValidationErrors({
-                  ...validationErrors,
-                  dhppVeterinarianName: "",
-                });
-              }
-            }}
-          />
-          {validationErrors.dhppVeterinarianName && (
-            <Text className="text-red-500 text-xs mt-1">
-              {validationErrors.dhppVeterinarianName}
-            </Text>
-          )}
-        </View>
-
-        {/* Given Date and Expiration Date */}
-        <View className="flex-row gap-3 mb-4">
-          <View className="flex-1">
-            <Text className="text-base font-semibold text-black mb-2">
-              Given Date
-            </Text>
-            <TouchableOpacity
-              className={`border ${validationErrors.dhppGivenDate ? "border-red-500" : "border-gray-300"} rounded-lg px-4 py-3 bg-white flex-row items-center justify-between`}
-              onPress={() => openDatePicker("dhppGivenDate")}
-            >
-              <Text
-                className={
-                  formData.dhppGivenDate ? "text-black" : "text-gray-400"
-                }
-              >
-                {formatDateDisplay(formData.dhppGivenDate)}
-              </Text>
-              <Feather name="calendar" size={20} color="gray" />
-            </TouchableOpacity>
-            {validationErrors.dhppGivenDate && (
-              <Text className="text-red-500 text-xs mt-1">
-                {validationErrors.dhppGivenDate}
-              </Text>
-            )}
-          </View>
-          <View className="flex-1">
-            <Text className="text-base font-semibold text-black mb-2">
-              Expiration Date
-            </Text>
-            <TouchableOpacity
-              className={`border ${validationErrors.dhppExpirationDate ? "border-red-500" : "border-gray-300"} rounded-lg px-4 py-3 bg-white flex-row items-center justify-between`}
-              onPress={() => openDatePicker("dhppExpirationDate")}
-            >
-              <Text
-                className={
-                  formData.dhppExpirationDate ? "text-black" : "text-gray-400"
-                }
-              >
-                {formatDateDisplay(formData.dhppExpirationDate)}
-              </Text>
-              <Feather name="calendar" size={20} color="gray" />
-            </TouchableOpacity>
-            {validationErrors.dhppExpirationDate && (
-              <Text className="text-red-500 text-xs mt-1">
-                {validationErrors.dhppExpirationDate}
-              </Text>
-            )}
-          </View>
-        </View>
-      </View>
-
-      {/* Additional Vaccinations */}
-      {formData.vaccinations.map((vaccination, index) => (
-        <View key={index} className="mb-6 border-t border-gray-300 pt-6">
-          <View className="flex-row items-center justify-between mb-3">
-            <Text className="text-base font-bold text-black">
-              Additional Vaccination {index + 1}
-            </Text>
-            <TouchableOpacity
-              onPress={() => removeVaccination(index)}
-              className="bg-red-500 rounded-full p-2"
-            >
-              <Feather name="trash-2" size={16} color="white" />
-            </TouchableOpacity>
-          </View>
-
-          {/* Vaccination Type */}
-          <View className="mb-4">
-            <Text className="text-base font-semibold text-black mb-2">
-              Vaccination Type/Name
-            </Text>
-            <TextInput
-              className="border border-gray-300 rounded-lg px-4 py-3 bg-white"
-              placeholder="e.g., Bordetella, Leptospirosis, etc."
-              value={vaccination.vaccinationType}
-              onChangeText={(text) =>
-                updateVaccination(index, "vaccinationType", text)
-              }
-            />
-          </View>
-
-          {/* Vaccination Record */}
-          <View className="mb-4">
-            <TouchableOpacity
-              className="border border-gray-300 rounded-lg px-4 py-6 bg-gray-50"
-              onPress={() => {
-                pickDocument(`vaccination_${index}`);
-              }}
-            >
-              <View className="flex-row items-center">
-                <Feather name="upload" size={20} color="gray" />
-                <Text className="text-gray-600 ml-2">
-                  {vaccination.vaccinationRecord
-                    ? vaccination.vaccinationRecord.name
-                    : "Vaccination Record"}
-                </Text>
-              </View>
-              <Text className="text-gray-500 text-xs mt-2">Choose file</Text>
-            </TouchableOpacity>
-          </View>
-
-          {/* Clinic Name */}
-          <View className="mb-4">
-            <Text className="text-base font-semibold text-black mb-2">
-              Clinic Name
-            </Text>
-            <TextInput
-              className="border border-gray-300 rounded-lg px-4 py-3 bg-white"
-              placeholder="Enter name"
-              value={vaccination.clinicName}
-              onChangeText={(text) =>
-                updateVaccination(index, "clinicName", text)
-              }
-            />
-          </View>
-
-          {/* Veterinarian&apos;s Name */}
-          <View className="mb-4">
-            <Text className="text-base font-semibold text-black mb-2">
-              Veterinarian&apos;s Name
-            </Text>
-            <TextInput
-              className="border border-gray-300 rounded-lg px-4 py-3 bg-white"
-              placeholder="Enter name"
-              value={vaccination.veterinarianName}
-              onChangeText={(text) =>
-                updateVaccination(index, "veterinarianName", text)
-              }
-            />
-          </View>
-
-          {/* Given Date and Expiration Date */}
-          <View className="flex-row gap-3 mb-4">
-            <View className="flex-1">
-              <Text className="text-base font-semibold text-black mb-2">
-                Given Date
-              </Text>
-              <TouchableOpacity
-                className="border border-gray-300 rounded-lg px-4 py-3 bg-white flex-row items-center justify-between"
-                onPress={() => openDatePicker(`vaccination_${index}_givenDate`)}
-              >
-                <Text
-                  className={
-                    vaccination.givenDate ? "text-black" : "text-gray-400"
-                  }
-                >
-                  {formatDateDisplay(vaccination.givenDate)}
-                </Text>
-                <Feather name="calendar" size={20} color="gray" />
-              </TouchableOpacity>
-            </View>
-            <View className="flex-1">
-              <Text className="text-base font-semibold text-black mb-2">
-                Expiration Date
-              </Text>
-              <TouchableOpacity
-                className="border border-gray-300 rounded-lg px-4 py-3 bg-white flex-row items-center justify-between"
-                onPress={() =>
-                  openDatePicker(`vaccination_${index}_expirationDate`)
-                }
-              >
-                <Text
-                  className={
-                    vaccination.expirationDate ? "text-black" : "text-gray-400"
-                  }
-                >
-                  {formatDateDisplay(vaccination.expirationDate)}
-                </Text>
-                <Feather name="calendar" size={20} color="gray" />
-              </TouchableOpacity>
-            </View>
-          </View>
-        </View>
-      ))}
-
-      {/* Add Vaccination Button */}
-      <TouchableOpacity
-        className="bg-[#FF6B4A] rounded-lg py-4 mb-4"
-        onPress={addVaccination}
-      >
-        <Text className="text-white text-center font-semibold text-base">
-          + Vaccination
-        </Text>
-      </TouchableOpacity>
-    </View>
-  );
-
-  const renderStep4 = () => (
-    <View className="px-6 pb-6">
-      <Text className="text-lg font-bold text-black mb-2">Documents</Text>
-      <Text className="text-sm text-gray-600 mb-4">
-        Upload certificates and photos to verify your pet
-      </Text>
-
-      {/* Health Certificate Section */}
-      <View className="mb-6">
-        {/* Health Certificate Upload */}
-        <View className="mb-4">
-          <TouchableOpacity
-            className={`border ${validationErrors.healthCertificate ? "border-red-500" : "border-gray-300"} rounded-lg px-4 py-6 bg-gray-50`}
-            onPress={() => {
-              pickDocument("healthCertificate");
-              if (validationErrors.healthCertificate) {
-                setValidationErrors({
-                  ...validationErrors,
-                  healthCertificate: "",
-                });
-              }
-            }}
-          >
-            <View className="flex-row items-center">
-              <Feather name="upload" size={20} color="gray" />
-              <Text className="text-gray-600 ml-2">
-                {formData.healthCertificate
-                  ? formData.healthCertificate.name
-                  : "Health Certificate"}
-              </Text>
-            </View>
-            <Text className="text-gray-500 text-xs mt-2">Choose file</Text>
-          </TouchableOpacity>
-          {validationErrors.healthCertificate && (
-            <Text className="text-red-500 text-xs mt-1">
-              {validationErrors.healthCertificate}
-            </Text>
-          )}
-        </View>
-
-        {/* Clinic Name */}
-        <View className="mb-4">
-          <Text className="text-base font-semibold text-black mb-2">
-            Clinic Name
-          </Text>
-          <TextInput
-            className={`border ${validationErrors.healthClinicName ? "border-red-500" : "border-gray-300"} rounded-lg px-4 py-3 bg-white`}
-            placeholder="Enter name"
-            value={formData.healthClinicName}
-            onChangeText={(text) => {
-              setFormData({ ...formData, healthClinicName: text });
-              if (validationErrors.healthClinicName) {
-                setValidationErrors({
-                  ...validationErrors,
-                  healthClinicName: "",
-                });
-              }
-            }}
-          />
-          {validationErrors.healthClinicName && (
-            <Text className="text-red-500 text-xs mt-1">
-              {validationErrors.healthClinicName}
-            </Text>
-          )}
-        </View>
-
-        {/* Veterinarian&apos;s Name */}
-        <View className="mb-4">
-          <Text className="text-base font-semibold text-black mb-2">
-            Veterinarian&apos;s Name
-          </Text>
-          <TextInput
-            className={`border ${validationErrors.healthVeterinarianName ? "border-red-500" : "border-gray-300"} rounded-lg px-4 py-3 bg-white`}
-            placeholder="Enter name"
-            value={formData.healthVeterinarianName}
-            onChangeText={(text) => {
-              setFormData({ ...formData, healthVeterinarianName: text });
-              if (validationErrors.healthVeterinarianName) {
-                setValidationErrors({
-                  ...validationErrors,
-                  healthVeterinarianName: "",
-                });
-              }
-            }}
-          />
-          {validationErrors.healthVeterinarianName && (
-            <Text className="text-red-500 text-xs mt-1">
-              {validationErrors.healthVeterinarianName}
-            </Text>
-          )}
-        </View>
-
-        {/* Given Date and Expiration Date */}
-        <View className="flex-row gap-3 mb-4">
-          <View className="flex-1">
-            <Text className="text-base font-semibold text-black mb-2">
-              Given Date
-            </Text>
-            <TouchableOpacity
-              className={`border ${validationErrors.healthGivenDate ? "border-red-500" : "border-gray-300"} rounded-lg px-4 py-3 bg-white flex-row items-center justify-between`}
-              onPress={() => openDatePicker("healthGivenDate")}
-            >
-              <Text
-                className={
-                  formData.healthGivenDate ? "text-black" : "text-gray-400"
-                }
-              >
-                {formatDateDisplay(formData.healthGivenDate)}
-              </Text>
-              <Feather name="calendar" size={20} color="gray" />
-            </TouchableOpacity>
-            {validationErrors.healthGivenDate && (
-              <Text className="text-red-500 text-xs mt-1">
-                {validationErrors.healthGivenDate}
-              </Text>
-            )}
-          </View>
-          <View className="flex-1">
-            <Text className="text-base font-semibold text-black mb-2">
-              Expiration Date
-            </Text>
-            <TouchableOpacity
-              className={`border ${validationErrors.healthExpirationDate ? "border-red-500" : "border-gray-300"} rounded-lg px-4 py-3 bg-white flex-row items-center justify-between`}
-              onPress={() => openDatePicker("healthExpirationDate")}
-            >
-              <Text
-                className={
-                  formData.healthExpirationDate ? "text-black" : "text-gray-400"
-                }
-              >
-                {formatDateDisplay(formData.healthExpirationDate)}
-              </Text>
-              <Feather name="calendar" size={20} color="gray" />
-            </TouchableOpacity>
-            {validationErrors.healthExpirationDate && (
-              <Text className="text-red-500 text-xs mt-1">
-                {validationErrors.healthExpirationDate}
-              </Text>
-            )}
-          </View>
-        </View>
-      </View>
-    </View>
-  );
-
-  const renderStep5 = () => (
-    <View className="px-6 pb-6">
-      <Text className="text-lg font-bold text-black mb-2">Pet Photos</Text>
-      <Text className="text-sm text-gray-600 mb-1">
-        Minimum 3 photos required
-      </Text>
-      <Text className="text-sm text-gray-600 mb-4">
-        (Front, side, whole body picture)
-      </Text>
-
-      {/* Upload Photos Area */}
-      <TouchableOpacity
-        className={`border-2 border-dashed ${validationErrors.petPhotos ? "border-red-500" : "border-gray-300"} rounded-lg py-20 bg-gray-50 items-center justify-center mb-4`}
-        onPress={() => {
-          pickImages();
-          if (validationErrors.petPhotos) {
-            setValidationErrors({ ...validationErrors, petPhotos: "" });
-          }
-        }}
-      >
-        <View className="items-center">
-          <View className="bg-gray-200 rounded-full p-6 mb-4">
-            <Feather name="upload" size={40} color="gray" />
-          </View>
-          <Text className="text-gray-500 text-lg font-semibold">
-            Upload Photos
-          </Text>
-        </View>
-      </TouchableOpacity>
-
-      {validationErrors.petPhotos && (
-        <Text className="text-red-500 text-xs mb-2">
-          {validationErrors.petPhotos}
-        </Text>
-      )}
-
-      {/* Display selected photos */}
-      {formData.petPhotos.length > 0 && (
-        <View>
-          <Text className="text-sm text-gray-600 mb-2">
-            {formData.petPhotos.length} photo
-            {formData.petPhotos.length !== 1 ? "s" : ""} selected
-          </Text>
-          <View className="flex-row flex-wrap gap-2">
-            {formData.petPhotos.map((photo, index) => (
-              <View key={index} className="w-20 h-20">
-                <Image
-                  source={{ uri: photo.uri }}
-                  className="w-full h-full rounded-lg"
-                />
-              </View>
-            ))}
-          </View>
-        </View>
-      )}
-    </View>
-  );
-
-  const renderStep6 = () => (
-    <View className="px-6 pb-6">
-      <Text className="text-lg font-bold text-black mb-2">
-        Partner Preferences
-      </Text>
-      <Text className="text-sm text-gray-600 mb-4">
-        Tell us what you&apos;re looking for in a breeding partner
-      </Text>
-
-      {/* Preferred Breed */}
-      <View className="mb-4">
-        <Text className="text-base font-semibold text-black mb-2">
-          Preferred Breed
-        </Text>
-        <TouchableOpacity
-          className="border border-gray-300 rounded-lg px-4 py-3 bg-white flex-row items-center justify-between"
-          onPress={() => setShowPreferredBreedModal(true)}
-        >
-          <Text
-            className={formData.preferredBreed ? "text-black" : "text-gray-400"}
-          >
-            {formData.preferredBreed || "Select"}
-          </Text>
-          <Feather name="chevron-down" size={20} color="gray" />
-        </TouchableOpacity>
-      </View>
-
-      {/* Partner Preferences (Behavior) */}
-      <View className="mb-4">
-        <Text className="text-base font-semibold text-black mb-2">
-          Partner Preferences
-        </Text>
-        <View className="flex-row flex-wrap gap-2 mb-3">
-          {availablePartnerBehaviors.map((behavior) => (
-            <TouchableOpacity
-              key={behavior}
-              className={`px-4 py-2 rounded-full border ${
-                formData.partnerBehaviors.includes(behavior)
-                  ? "bg-[#FF6B4A] border-[#FF6B4A]"
-                  : "bg-white border-gray-300"
-              }`}
-              onPress={() => togglePartnerBehavior(behavior)}
-            >
-              <Text
-                className={
-                  formData.partnerBehaviors.includes(behavior)
-                    ? "text-white text-xs"
-                    : "text-gray-600 text-xs"
-                }
-              >
-                {behavior}
-              </Text>
-            </TouchableOpacity>
-          ))}
-        </View>
-        <Text className="text-xs text-gray-500 mb-2">
-          Add tags to describe partner preferences (e.g., LOYAL, CALM, PLAYFUL)
-        </Text>
-        <View className="flex-row items-center gap-2">
-          <TextInput
-            className="flex-1 border border-gray-300 rounded-lg px-4 py-3 bg-white"
-            placeholder="Enter custom behavior"
-            value={formData.partnerBehaviorTags}
-            onChangeText={(text) =>
-              setFormData({ ...formData, partnerBehaviorTags: text })
-            }
-            onSubmitEditing={addCustomPartnerBehavior}
-          />
-          <TouchableOpacity
-            className="bg-[#FF6B4A] px-4 py-3 rounded-lg"
-            onPress={addCustomPartnerBehavior}
-          >
-            <Text className="text-white font-semibold">Add</Text>
-          </TouchableOpacity>
-        </View>
-      </View>
-
-      {/* Partner Preferences (Attributes) */}
-      <View className="mb-4">
-        <Text className="text-base font-semibold text-black mb-2">
-          Partner Preferences
-        </Text>
-        <View className="flex-row flex-wrap gap-2 mb-3">
-          {availablePartnerAttributes.map((attribute) => (
-            <TouchableOpacity
-              key={attribute}
-              className={`px-4 py-2 rounded-full border ${
-                formData.partnerAttributes.includes(attribute)
-                  ? "bg-[#FF6B4A] border-[#FF6B4A]"
-                  : "bg-white border-gray-300"
-              }`}
-              onPress={() => togglePartnerAttribute(attribute)}
-            >
-              <Text
-                className={
-                  formData.partnerAttributes.includes(attribute)
-                    ? "text-white text-xs"
-                    : "text-gray-600 text-xs"
-                }
-              >
-                {attribute}
-              </Text>
-            </TouchableOpacity>
-          ))}
-        </View>
-        <Text className="text-xs text-gray-500 mb-2">
-          Add tags to describe partner preferences (e.g., BLACK, CURLY, SHORT)
-        </Text>
-        <View className="flex-row items-center gap-2">
-          <TextInput
-            className="flex-1 border border-gray-300 rounded-lg px-4 py-3 bg-white"
-            placeholder="Enter custom attribute"
-            value={formData.partnerAttributeTags}
-            onChangeText={(text) =>
-              setFormData({ ...formData, partnerAttributeTags: text })
-            }
-            onSubmitEditing={addCustomPartnerAttribute}
-          />
-          <TouchableOpacity
-            className="bg-[#FF6B4A] px-4 py-3 rounded-lg"
-            onPress={addCustomPartnerAttribute}
-          >
-            <Text className="text-white font-semibold">Add</Text>
-          </TouchableOpacity>
-        </View>
-      </View>
-
-      {/* Preferred Age Range */}
-      <View className="mb-4">
-        <Text className="text-base font-semibold text-black mb-2">
-          Preferred Age range
-        </Text>
-        <View className="flex-row gap-3">
-          <View className="flex-1">
-            <Text className="text-sm text-gray-600 mb-2">min age</Text>
-            <TextInput
-              className={`border ${validationErrors.minAge ? "border-red-500" : "border-gray-300"} rounded-lg px-4 py-3 bg-white`}
-              value={formData.minAge}
-              onChangeText={(text) => {
-                setFormData({ ...formData, minAge: text });
-                if (validationErrors.minAge) {
-                  setValidationErrors({ ...validationErrors, minAge: "" });
-                }
-              }}
-              keyboardType="numeric"
-            />
-            {validationErrors.minAge && (
-              <Text className="text-red-500 text-xs mt-1">
-                {validationErrors.minAge}
-              </Text>
-            )}
-          </View>
-          <View className="flex-1">
-            <Text className="text-sm text-gray-600 mb-2">max age</Text>
-            <TextInput
-              className={`border ${validationErrors.maxAge ? "border-red-500" : "border-gray-300"} rounded-lg px-4 py-3 bg-white`}
-              value={formData.maxAge}
-              onChangeText={(text) => {
-                setFormData({ ...formData, maxAge: text });
-                if (validationErrors.maxAge) {
-                  setValidationErrors({ ...validationErrors, maxAge: "" });
-                }
-              }}
-              keyboardType="numeric"
-            />
-            {validationErrors.maxAge && (
-              <Text className="text-red-500 text-xs mt-1">
-                {validationErrors.maxAge}
-              </Text>
-            )}
-          </View>
-        </View>
-      </View>
-    </View>
-  );
-
   return (
-    <SafeAreaView className="flex-1 bg-[#FFF5F5]" edges={["top"]}>
-      {/* Header */}
-      <View className="px-6 pt-4 pb-6 bg-white rounded-b-[35] shadow-lg">
-        <View className="flex-row items-center">
-          <TouchableOpacity onPress={() => router.back()}>
-            <Feather name="arrow-left" size={24} color="black" />
-          </TouchableOpacity>
-          <Text className="text-2xl font-bold text-black ml-4">ADD PET</Text>
-        </View>
-      </View>
+    <SafeAreaView style={styles.safeArea} edges={["top"]}>
+      <LinearGradient colors={["#FF9A8B", "#FF6B4A"]} style={styles.header}>
+        <TouchableOpacity
+          onPress={() => router.back()}
+          style={styles.backButton}
+        >
+          <Ionicons name="arrow-back" size={24} color="white" />
+        </TouchableOpacity>
+        <Text style={styles.headerTitle}>Register Your Pet</Text>
+        <View style={{ width: 24 }} />
+      </LinearGradient>
 
-      {/* Progress Bar */}
-      <View className="mt-6">
-        <Text className="text-sm text-gray-600 px-6 mb-2">Basic info</Text>
-        {renderProgressBar()}
-      </View>
+      {renderProgressBar()}
 
-      {/* Form Steps */}
       <ScrollView
-        className="flex-1"
+        style={styles.scrollView}
+        contentContainerStyle={styles.scrollViewContent}
         keyboardShouldPersistTaps="handled"
-        showsVerticalScrollIndicator={false}
       >
-        {currentStep === 1 && renderStep1()}
-        {currentStep === 2 && renderStep2()}
-        {currentStep === 3 && renderStep3()}
-        {currentStep === 4 && renderStep4()}
-        {currentStep === 5 && renderStep5()}
-        {currentStep === 6 && renderStep6()}
+        {renderStep(currentStep)}
       </ScrollView>
 
-      {/* Navigation Buttons */}
-      <View className="px-6 py-4 bg-white border-t border-gray-200">
-        <View className="flex-row gap-3">
+      <View style={styles.footer}>
+        <View style={styles.buttonContainer}>
           {currentStep > 1 && (
             <TouchableOpacity
-              className="flex-1 bg-[#FF6B4A] rounded-lg py-4"
+              style={[styles.navButton, styles.prevButton]}
               onPress={handlePrev}
               disabled={isSubmitting}
             >
-              <Text className="text-white text-center font-semibold text-base">
-                Prev
+              <Text style={[styles.navButtonText, styles.prevButtonText]}>
+                Back
               </Text>
             </TouchableOpacity>
           )}
           <TouchableOpacity
-            className={`flex-1 ${isSubmitting ? "bg-gray-400" : "bg-[#FF6B4A]"} rounded-lg py-4`}
+            style={[
+              styles.navButton,
+              styles.nextButton,
+              isSubmitting && styles.disabledButton,
+            ]}
             onPress={handleNext}
             disabled={isSubmitting}
           >
-            <Text className="text-white text-center font-semibold text-base">
-              {isSubmitting ? "Submitting..." : "Next"}
+            <Text style={styles.navButtonText}>
+              {isSubmitting
+                ? "Submitting..."
+                : currentStep === 6
+                  ? "Finish"
+                  : "Next"}
             </Text>
           </TouchableOpacity>
         </View>
-
-        {/* Skip Option for Step 6 */}
-        {currentStep === 6 && (
-          <View className="mt-4">
-            <View className="flex-row items-center mb-2">
-              <View className="flex-1 h-px bg-gray-300" />
-              <Text className="text-gray-500 text-sm mx-3">Or do it later</Text>
-              <View className="flex-1 h-px bg-gray-300" />
-            </View>
-            <TouchableOpacity onPress={handleSkip} disabled={isSubmitting}>
-              <Text className="text-[#FF6B4A] text-center font-semibold text-base">
-                Skip
-              </Text>
-            </TouchableOpacity>
-          </View>
-        )}
       </View>
 
-      {/* Confirmation Modal */}
-      <Modal
-        visible={showConfirmModal}
-        transparent
-        animationType="fade"
-        onRequestClose={() => setShowConfirmModal(false)}
-      >
-        <View className="flex-1 bg-black/50 items-center justify-center px-6">
-          <View className="bg-white rounded-3xl p-6 w-full max-w-sm">
-            <Text className="text-[#FF6B4A] text-xl font-bold text-center mb-2">
-              PROCEED TO REGISTER
-            </Text>
-            <Text className="text-gray-600 text-sm text-center mb-6">
-              CONFIRMATION
-            </Text>
-            <TouchableOpacity
-              className="bg-[#FF6B4A] rounded-lg py-4 mb-3"
-              onPress={handleSubmit}
-            >
-              <Text className="text-white text-center font-semibold text-base">
-                YES
-              </Text>
-            </TouchableOpacity>
-            <TouchableOpacity onPress={() => setShowConfirmModal(false)}>
-              <Text className="text-gray-500 text-center font-semibold text-base">
-                CLOSE
-              </Text>
-            </TouchableOpacity>
-          </View>
-        </View>
-      </Modal>
-
-      {/* Success Modal */}
-      <Modal
-        visible={showSuccessModal}
-        transparent
-        animationType="fade"
-        onRequestClose={handleSuccessClose}
-      >
-        <View className="flex-1 bg-black/50 items-center justify-center px-6">
-          <View className="bg-white rounded-3xl p-8 w-full max-w-sm items-center">
-            <View className="bg-green-100 rounded-full p-6 mb-4">
-              <Feather name="check" size={48} color="#22C55E" />
-            </View>
-            <Text className="text-[#FF6B4A] text-2xl font-bold text-center mb-2">
-              Registration Complete!
-            </Text>
-            <Text className="text-gray-600 text-sm text-center mb-6">
-              Your pet has been successfully registered
-            </Text>
-            <TouchableOpacity
-              className="bg-[#FF6B4A] rounded-lg py-4 px-8"
-              onPress={handleSuccessClose}
-            >
-              <Text className="text-white text-center font-semibold text-base">
-                OK
-              </Text>
-            </TouchableOpacity>
-          </View>
-        </View>
-      </Modal>
-
-      {/* Species Selection Modal */}
-      <Modal
+      {/* Modals */}
+      <StyledModal
         visible={showSpeciesModal}
-        transparent
-        animationType="fade"
-        onRequestClose={() => setShowSpeciesModal(false)}
-      >
-        <View className="flex-1 bg-black/50 items-center justify-center px-6">
-          <View className="bg-white rounded-3xl p-6 w-full max-w-sm">
-            <Text className="text-[#FF6B4A] text-xl font-bold text-center mb-6">
-              Select Species
-            </Text>
+        onClose={() => setShowSpeciesModal(false)}
+        title="Select Species"
+        content={() => (
+          <>
             {["Dog", "Cat"].map((species) => (
               <TouchableOpacity
                 key={species}
-                className="border-b border-gray-200 py-4"
+                style={modalStyles.option}
                 onPress={() => {
                   setFormData({ ...formData, species });
                   setShowSpeciesModal(false);
                 }}
               >
-                <Text className="text-black text-center text-base font-medium">
-                  {species}
-                </Text>
+                <Text style={modalStyles.optionText}>{species}</Text>
               </TouchableOpacity>
             ))}
-            <TouchableOpacity
-              className="mt-4"
-              onPress={() => setShowSpeciesModal(false)}
-            >
-              <Text className="text-gray-500 text-center font-semibold text-base">
-                Cancel
-              </Text>
-            </TouchableOpacity>
-          </View>
-        </View>
-      </Modal>
+          </>
+        )}
+      />
 
-      {/* Sex Selection Modal */}
-      <Modal
+      <StyledModal
         visible={showSexModal}
-        transparent
-        animationType="fade"
-        onRequestClose={() => setShowSexModal(false)}
-      >
-        <View className="flex-1 bg-black/50 items-center justify-center px-6">
-          <View className="bg-white rounded-3xl p-6 w-full max-w-sm">
-            <Text className="text-[#FF6B4A] text-xl font-bold text-center mb-6">
-              Select Sex
-            </Text>
+        onClose={() => setShowSexModal(false)}
+        title="Select Sex"
+        content={() => (
+          <>
             {["Male", "Female"].map((sex) => (
               <TouchableOpacity
                 key={sex}
-                className="border-b border-gray-200 py-4"
+                style={modalStyles.option}
                 onPress={() => {
                   setFormData({ ...formData, sex });
                   setShowSexModal(false);
                 }}
               >
-                <Text className="text-black text-center text-base font-medium">
-                  {sex}
-                </Text>
+                <Text style={modalStyles.optionText}>{sex}</Text>
               </TouchableOpacity>
             ))}
-            <TouchableOpacity
-              className="mt-4"
-              onPress={() => setShowSexModal(false)}
-            >
-              <Text className="text-gray-500 text-center font-semibold text-base">
-                Cancel
-              </Text>
-            </TouchableOpacity>
-          </View>
-        </View>
-      </Modal>
+          </>
+        )}
+      />
 
-      {/* Date Picker Modal */}
+      <StyledModal
+        visible={showPreferredBreedModal}
+        onClose={() => setShowPreferredBreedModal(false)}
+        title="Select Preferred Breed"
+        content={() => (
+          <>
+            {[
+              "Any Breed",
+              "Labrador Retriever",
+              "German Shepherd",
+              "Golden Retriever",
+              "French Bulldog",
+              "Bulldog",
+              "Poodle",
+              "Beagle",
+              "Rottweiler",
+              "German Shorthaired Pointer",
+              "Siberian Husky",
+              "Dachshund",
+              "Doberman Pinscher",
+              "Shih Tzu",
+              "Boxer",
+              "Siamese",
+              "Persian",
+              "Maine Coon",
+              "Ragdoll",
+              "British Shorthair",
+              "Sphynx",
+              "Scottish Fold",
+              "Bengal",
+            ].map((breed) => (
+              <TouchableOpacity
+                key={breed}
+                style={modalStyles.option}
+                onPress={() => {
+                  setFormData({ ...formData, preferredBreed: breed });
+                  setShowPreferredBreedModal(false);
+                }}
+              >
+                <Text style={modalStyles.optionText}>{breed}</Text>
+              </TouchableOpacity>
+            ))}
+          </>
+        )}
+      />
+      <StyledModal
+        visible={showConfirmModal}
+        onClose={() => setShowConfirmModal(false)}
+        title="Confirm Submission"
+        content={() => (
+          <>
+            <Text style={{ textAlign: "center", marginBottom: 12 }}>
+              Are you sure you want to submit this pet registration?
+            </Text>
+            <View
+              style={{
+                flexDirection: "row",
+                justifyContent: "center",
+                gap: 12,
+              }}
+            >
+              <TouchableOpacity
+                style={{
+                  backgroundColor: "#6C757D",
+                  paddingVertical: 10,
+                  paddingHorizontal: 16,
+                  borderRadius: 8,
+                }}
+                onPress={() => setShowConfirmModal(false)}
+              >
+                <Text style={{ color: "white" }}>Cancel</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={{
+                  backgroundColor: "#FF6B4A",
+                  paddingVertical: 10,
+                  paddingHorizontal: 16,
+                  borderRadius: 8,
+                }}
+                onPress={handleSubmit}
+              >
+                <Text style={{ color: "white" }}>Confirm</Text>
+              </TouchableOpacity>
+            </View>
+          </>
+        )}
+      />
+
+      <StyledModal
+        visible={showSuccessModal}
+        onClose={handleSuccessClose}
+        title="Success"
+        content={() => (
+          <>
+            <Text style={{ textAlign: "center", marginBottom: 12 }}>
+              Your pet has been registered successfully.
+            </Text>
+            <View style={{ alignItems: "center" }}>
+              <TouchableOpacity
+                style={{
+                  backgroundColor: "#FF6B4A",
+                  paddingVertical: 10,
+                  paddingHorizontal: 16,
+                  borderRadius: 8,
+                }}
+                onPress={handleSuccessClose}
+              >
+                <Text style={{ color: "white" }}>OK</Text>
+              </TouchableOpacity>
+            </View>
+          </>
+        )}
+      />
       <DateTimePickerModal
         isVisible={showDatePicker}
         mode="date"
         onConfirm={handleDateConfirm}
-        onCancel={handleDateCancel}
-        maximumDate={datePickerField === "birthdate" ? new Date() : undefined}
+        onCancel={() => setShowDatePicker(false)}
       />
 
-      {/* Preferred Breed Modal */}
-      <Modal
-        visible={showPreferredBreedModal}
-        transparent
-        animationType="fade"
-        onRequestClose={() => setShowPreferredBreedModal(false)}
-      >
-        <View className="flex-1 bg-black/50 items-center justify-center px-6">
-          <View className="bg-white rounded-3xl p-6 w-full max-w-sm">
-            <Text className="text-[#FF6B4A] text-xl font-bold text-center mb-6">
-              Select Preferred Breed
-            </Text>
-            <ScrollView className="max-h-96">
-              {[
-                "Any Breed",
-                "Labrador Retriever",
-                "German Shepherd",
-                "Golden Retriever",
-                "French Bulldog",
-                "Bulldog",
-                "Poodle",
-                "Beagle",
-                "Rottweiler",
-                "German Shorthaired Pointer",
-                "Siberian Husky",
-                "Dachshund",
-                "Doberman Pinscher",
-                "Shih Tzu",
-                "Boxer",
-                "Siamese",
-                "Persian",
-                "Maine Coon",
-                "Ragdoll",
-                "British Shorthair",
-                "Sphynx",
-                "Scottish Fold",
-                "Bengal",
-              ].map((breed) => (
-                <TouchableOpacity
-                  key={breed}
-                  className="border-b border-gray-200 py-4"
-                  onPress={() => {
-                    setFormData({ ...formData, preferredBreed: breed });
-                    setShowPreferredBreedModal(false);
-                  }}
-                >
-                  <Text className="text-black text-center text-base font-medium">
-                    {breed}
-                  </Text>
-                </TouchableOpacity>
-              ))}
-            </ScrollView>
-            <TouchableOpacity
-              className="mt-4"
-              onPress={() => setShowPreferredBreedModal(false)}
-            >
-              <Text className="text-gray-500 text-center font-semibold text-base">
-                Cancel
-              </Text>
-            </TouchableOpacity>
-          </View>
-        </View>
-      </Modal>
-
-      <AlertModal
-        visible={visible}
-        title={alertOptions.title}
-        message={alertOptions.message}
-        type={alertOptions.type}
-        buttons={alertOptions.buttons}
-        onClose={hideAlert}
-      />
+      <AlertModal visible={visible} {...alertOptions} onClose={hideAlert} />
     </SafeAreaView>
   );
 }
+
+const modalStyles = StyleSheet.create({
+  option: {
+    paddingVertical: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: "#E9ECEF",
+  },
+  optionText: {
+    fontSize: 18,
+    color: "#343A40",
+    textAlign: "center",
+  },
+});
+const styles = StyleSheet.create({
+  safeArea: { flex: 1, backgroundColor: "#F8F9FA" },
+  header: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    paddingHorizontal: 16,
+    paddingTop: 16,
+    paddingBottom: 40,
+    borderBottomLeftRadius: 30,
+    borderBottomRightRadius: 30,
+  },
+  backButton: { padding: 8 },
+  headerTitle: {
+    fontSize: 22,
+    fontWeight: "bold",
+    color: "white",
+  },
+  progressContainer: {
+    paddingHorizontal: 20,
+    marginTop: -24,
+    marginBottom: 16,
+  },
+  progressTrack: {
+    height: 8,
+    backgroundColor: "#E9ECEF",
+    borderRadius: 4,
+  },
+  progressBar: { height: "100%", borderRadius: 4 },
+  progressSteps: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    marginTop: 8,
+  },
+  step: { alignItems: "center", flex: 1 },
+  stepCircle: {
+    width: 24,
+    height: 24,
+    borderRadius: 12,
+    backgroundColor: "#DEE2E6",
+    justifyContent: "center",
+    alignItems: "center",
+    marginBottom: 4,
+    borderWidth: 2,
+    borderColor: "#DEE2E6",
+  },
+  stepCircleActive: {
+    borderColor: "#FF6B4A",
+    backgroundColor: "white",
+  },
+  stepCircleCompleted: {
+    backgroundColor: "#FF6B4A",
+    borderColor: "#FF6B4A",
+  },
+  stepLabel: {
+    fontSize: 10,
+    color: "#6C757D",
+    textAlign: "center",
+  },
+  stepLabelActive: { color: "#FF6B4A", fontWeight: "bold" },
+  scrollView: { flex: 1 },
+  scrollViewContent: { paddingBottom: 20 },
+  stepContainer: {
+    paddingHorizontal: 24,
+    paddingVertical: 20,
+  },
+  stepTitle: {
+    fontSize: 26,
+    fontWeight: "bold",
+    color: "#343A40",
+    marginBottom: 4,
+  },
+  stepSubtitle: {
+    fontSize: 16,
+    color: "#6C757D",
+    marginBottom: 24,
+  },
+  inputContainer: { marginBottom: 16 },
+  label: {
+    fontSize: 14,
+    fontWeight: "600",
+    color: "#495057",
+    marginBottom: 8,
+  },
+  input: {
+    backgroundColor: "white",
+    borderRadius: 12,
+    paddingHorizontal: 16,
+    height: 50,
+    fontSize: 16,
+    borderWidth: 1,
+    borderColor: "#CED4DA",
+  },
+  inputError: { borderColor: "#E74C3C" },
+  multilineInput: {
+    height: 100,
+    paddingTop: 12,
+  },
+  row: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    gap: 16,
+  },
+  dropdown: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+  },
+  dropdownText: { fontSize: 16, color: "#343A40" },
+  dropdownPlaceholder: { color: "#999" },
+  tagContainer: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 8,
+    marginBottom: 12,
+  },
+  tag: {
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    borderRadius: 20,
+    backgroundColor: "white",
+    borderWidth: 1,
+    borderColor: "#CED4DA",
+  },
+  tagSelected: {
+    backgroundColor: "#FF6B4A",
+    borderColor: "#FF6B4A",
+  },
+  tagText: { color: "#495057", fontWeight: "500" },
+  tagTextSelected: { color: "white" },
+  customTagContainer: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+  },
+  customTagInput: { flex: 1 },
+  addTagButton: {
+    backgroundColor: "#FF6B4A",
+    borderRadius: 12,
+    height: 50,
+    width: 50,
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  documentSection: {
+    backgroundColor: "white",
+    borderRadius: 16,
+    padding: 16,
+    marginBottom: 20,
+    borderWidth: 1,
+    borderColor: "#E9ECEF",
+  },
+  documentHeader: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    marginBottom: 12,
+  },
+  documentTitle: {
+    fontSize: 18,
+    fontWeight: "bold",
+    color: "#343A40",
+  },
+  removeButton: { padding: 4 },
+  filePicker: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "#F8F9FA",
+    borderRadius: 12,
+    padding: 16,
+    borderWidth: 1,
+    borderColor: "#CED4DA",
+    borderStyle: "dashed",
+    marginBottom: 16,
+  },
+  filePickerText: {
+    marginLeft: 12,
+    color: "#6C757D",
+    fontSize: 16,
+  },
+  addButton: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: "#28A745",
+    paddingVertical: 12,
+    borderRadius: 12,
+    marginTop: 8,
+  },
+  addButtonText: {
+    color: "white",
+    fontWeight: "bold",
+    marginLeft: 8,
+  },
+  photoUploadButton: {
+    height: 150,
+    borderRadius: 16,
+    backgroundColor: "#FFF4F2",
+    justifyContent: "center",
+    alignItems: "center",
+    borderWidth: 2,
+    borderColor: "#FFD1C9",
+    borderStyle: "dashed",
+    marginBottom: 16,
+  },
+  photoUploadText: {
+    marginTop: 8,
+    color: "#FF6B4A",
+    fontWeight: "bold",
+  },
+  photoGrid: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 8,
+  },
+  photoThumbnail: {
+    width: (width - 48 - 16) / 3, // Adjust for padding and gap
+    height: (width - 48 - 16) / 3,
+    borderRadius: 12,
+  },
+  footer: {
+    padding: 24,
+    backgroundColor: "white",
+    borderTopWidth: 1,
+    borderTopColor: "#E9ECEF",
+  },
+  buttonContainer: {
+    flexDirection: "row",
+    gap: 16,
+  },
+  navButton: {
+    flex: 1,
+    height: 50,
+    borderRadius: 12,
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  prevButton: { backgroundColor: "#6C757D" },
+  nextButton: { backgroundColor: "#FF6B4A" },
+  disabledButton: { backgroundColor: "#CED4DA" },
+  navButtonText: {
+    color: "white",
+    fontSize: 16,
+    fontWeight: "bold",
+  },
+  prevButtonText: {},
+  errorText: {
+    color: "#E74C3C",
+    fontSize: 12,
+    marginTop: 4,
+  },
+});
