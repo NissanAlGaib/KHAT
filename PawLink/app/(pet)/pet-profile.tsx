@@ -6,46 +6,37 @@ import {
   TouchableOpacity,
   Image,
   ActivityIndicator,
+  StyleSheet,
+  Dimensions,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { Feather } from "@expo/vector-icons";
+import { Feather, Ionicons } from "@expo/vector-icons";
 import { useAlert } from "@/hooks/useAlert";
 import AlertModal from "@/components/core/AlertModal";
 import { useRouter, useLocalSearchParams } from "expo-router";
 import { getPet } from "@/services/petService";
 import { API_BASE_URL } from "@/config/env";
 import dayjs from "dayjs";
+import { LinearGradient } from "expo-linear-gradient";
 
-type DocumentStatus = "valid" | "expiring_soon" | "expired";
+// Document status type used by rows and helpers in this screen
+type DocumentStatus = "valid" | "expired" | "expiring";
 
-// Helper function to calculate document expiration status
-const getDocumentStatus = (expirationDate: string): DocumentStatus => {
-  const expDate = dayjs(expirationDate);
+// Determine a document status from an expiration date.
+// - returns 'expired' when expiration date is in the past
+// - returns 'expiring' when expiration is within 30 days
+// - returns 'valid' otherwise
+const getDocumentStatus = (expirationDate?: string | null): DocumentStatus => {
+  if (!expirationDate) return "valid";
+  const exp = dayjs(expirationDate);
   const now = dayjs();
-  const daysUntilExpiration = expDate.diff(now, "day");
-
-  if (daysUntilExpiration < 0) {
-    return "expired";
-  } else if (daysUntilExpiration <= 30) {
-    return "expiring_soon";
-  }
+  if (exp.isBefore(now, "day")) return "expired";
+  const daysDiff = exp.diff(now, "day");
+  if (daysDiff <= 30) return "expiring";
   return "valid";
 };
 
-// Helper to get status indicator color
-const getStatusColor = (status: DocumentStatus): string => {
-  switch (status) {
-    case "expired":
-      return "bg-red-500";
-    case "expiring_soon":
-      return "bg-yellow-500";
-    case "valid":
-    default:
-      return "bg-green-500";
-  }
-};
-
-// Helper to count documents by status
+// Count documents by the normalized statuses used in this file
 const countDocumentsByStatus = (
   documents: any[] | undefined,
   expirationDateField: string = "expiration_date"
@@ -56,27 +47,42 @@ const countDocumentsByStatus = (
   if (documents) {
     documents.forEach((doc: any) => {
       const expirationDate = doc[expirationDateField];
-      if (expirationDate) {
-        const status = getDocumentStatus(expirationDate);
-        if (status === "expired") expired++;
-        else if (status === "expiring_soon") expiringSoon++;
-      }
+      const status = getDocumentStatus(expirationDate);
+      if (status === "expired") expired++;
+      else if (status === "expiring") expiringSoon++;
     });
   }
 
   return { expired, expiringSoon };
 };
 
-// Helper to get status badge styles
-const getStatusBadge = (status: DocumentStatus): { bg: string; text: string; label: string } => {
+// Map status to a simple color used for the small status dot
+const getStatusColor = (status: DocumentStatus) => {
   switch (status) {
     case "expired":
-      return { bg: "bg-red-100", text: "text-red-600", label: "Expired" };
-    case "expiring_soon":
-      return { bg: "bg-yellow-100", text: "text-yellow-700", label: "Expiring Soon" };
+      return "#EF4444"; // red-500
+    case "expiring":
+      return "#F59E0B"; // amber-500
     case "valid":
     default:
-      return { bg: "bg-green-100", text: "text-green-600", label: "Valid" };
+      return "#22C55E"; // green-500
+  }
+};
+
+// Return tailwind-like class strings for badge background/text so existing className usage keeps working
+const getStatusBadge = (status: DocumentStatus) => {
+  switch (status) {
+    case "expired":
+      return { label: "Expired", bg: "bg-red-100", text: "text-red-700" };
+    case "expiring":
+      return {
+        label: "Expiring",
+        bg: "bg-yellow-100",
+        text: "text-yellow-800",
+      };
+    case "valid":
+    default:
+      return { label: "Valid", bg: "bg-green-100", text: "text-green-700" };
   }
 };
 
@@ -86,9 +92,11 @@ export default function PetProfileScreen() {
   const petId = params.id as string;
   const { visible, alertOptions, showAlert, hideAlert } = useAlert();
   const [isEnabled, setIsEnabled] = useState(true);
-  const [showDisabledModal, setShowDisabledModal] = useState(false);
   const [petData, setPetData] = useState<any>(null);
   const [loading, setLoading] = useState(true);
+  const [activeTab, setActiveTab] = useState<"about" | "health" | "gallery">(
+    "about"
+  );
 
   const fetchPetData = useCallback(async () => {
     try {
@@ -96,12 +104,11 @@ export default function PetProfileScreen() {
       const data = await getPet(parseInt(petId));
       setPetData(data);
       setIsEnabled(data.status === "active");
-      setShowDisabledModal(data.status === "disabled");
     } catch (error) {
       console.error("Error fetching pet data:", error);
       showAlert({
         title: "Error",
-        message: "Failed to load pet data",
+        message: "Failed to load pet data.",
         type: "error",
       });
     } finally {
@@ -110,60 +117,17 @@ export default function PetProfileScreen() {
   }, [petId, showAlert]);
 
   useEffect(() => {
-    if (petId) {
-      fetchPetData();
-    }
+    if (petId) fetchPetData();
   }, [petId, fetchPetData]);
 
-  const handleToggle = () => {
-    const newState = !isEnabled;
-    setIsEnabled(newState);
-    setShowDisabledModal(!newState);
-    // TODO: Update pet status in backend
-  };
-
-  const handleEditInfo = () => {
-    console.log("Navigate to edit pet info");
-  };
-
-  const handleAddPhoto = () => {
-    console.log("Add photo");
-  };
-
-  const handleVaccinationPress = (vaccinationName: string) => {
-    router.push(
-      `/(pet)/(history)/vaccination-history?vaccine=${vaccinationName}&petId=${petId}`
-    );
-  };
-
-  const handleHealthRecordPress = (recordType: string) => {
-    router.push(
-      `/(pet)/(history)/health-history?type=${recordType}&petId=${petId}`
-    );
-  };
-
-  const handleResubmitVaccination = (vaccination: any) => {
-    router.push(
-      `/(verification)/resubmit-document?type=vaccination&petId=${petId}&petName=${petData.name}&vaccinationId=${vaccination.vaccination_id}&vaccineName=${vaccination.vaccine_name}`
-    );
-  };
-
-  const handleResubmitHealthRecord = (record: any) => {
-    router.push(
-      `/(verification)/resubmit-document?type=health_record&petId=${petId}&petName=${petData.name}&healthRecordId=${record.health_record_id}&recordType=${record.record_type}`
-    );
-  };
-
-  // Calculate document stats
   const documentStats = useMemo(() => {
     if (!petData) return { expiredCount: 0, expiringSoonCount: 0 };
-
     const vaccinationStats = countDocumentsByStatus(petData.vaccinations);
     const healthRecordStats = countDocumentsByStatus(petData.health_records);
-
     return {
       expiredCount: vaccinationStats.expired + healthRecordStats.expired,
-      expiringSoonCount: vaccinationStats.expiringSoon + healthRecordStats.expiringSoon,
+      expiringSoonCount:
+        vaccinationStats.expiringSoon + healthRecordStats.expiringSoon,
     };
   }, [petData]);
 
@@ -172,578 +136,300 @@ export default function PetProfileScreen() {
     const now = dayjs();
     const years = now.diff(birth, "year");
     const months = now.diff(birth, "month") % 12;
+    if (years > 0) return `${years} Year${years > 1 ? "s" : ""}`;
+    return `${months} Month${months > 1 ? "s" : ""}`;
+  };
 
-    if (years > 0) {
-      return `${years} Year${years > 1 ? "s" : ""} old`;
-    } else {
-      return `${months} Month${months > 1 ? "s" : ""} old`;
+  const handleEditInfo = () => console.log("Navigate to edit pet info");
+  const handleVaccinationPress = (vaccinationName: string) => {
+    router.push(
+      `/(pet)/(history)/vaccination-history?vaccine=${vaccinationName}&petId=${petId}`
+    );
+  };
+  const handleHealthRecordPress = (recordType: string) => {
+    router.push(
+      `/(pet)/(history)/health-history?type=${recordType}&petId=${petId}`
+    );
+  };
+  const handleResubmitVaccination = (vaccination: any) => {
+    router.push(
+      `/(verification)/resubmit-document?type=vaccination&petId=${petId}&petName=${petData.name}&vaccinationId=${vaccination.vaccination_id}&vaccineName=${vaccination.vaccine_name}`
+    );
+  };
+  const handleResubmitHealthRecord = (record: any) => {
+    router.push(
+      `/(verification)/resubmit-document?type=health_record&petId=${petId}&petName=${petData.name}&healthRecordId=${record.health_record_id}&recordType=${record.record_type}`
+    );
+  };
+  const handleAddPhoto = () => {
+    console.log("Add photo");
+  };
+
+  if (loading) {
+    return (
+      <SafeAreaView style={styles.flex_1} edges={["top"]}>
+        <View style={styles.center}>
+          <ActivityIndicator size="large" color="#FF6B4A" />
+          <Text style={styles.loadingText}>Loading Profile...</Text>
+        </View>
+      </SafeAreaView>
+    );
+  }
+
+  if (!petData) {
+    return (
+      <SafeAreaView style={styles.flex_1} edges={["top"]}>
+        <View style={styles.center}>
+          <Text style={styles.errorText}>Pet not found.</Text>
+        </View>
+      </SafeAreaView>
+    );
+  }
+
+  const renderAbout = () => (
+    <View style={styles.tabContent}>
+      {/* Description */}
+      <InfoCard icon="information-circle-outline" title="About Me">
+        <Text style={styles.cardText}>
+          {petData.description || "No description available."}
+        </Text>
+      </InfoCard>
+
+      {/* Details */}
+      <InfoCard icon="paw-outline" title="Details">
+        <DetailRow label="Breed" value={petData.breed} />
+        <DetailRow label="Age" value={calculateAge(petData.birthdate)} />
+        <DetailRow label="Sex" value={petData.sex} />
+        <DetailRow label="Weight" value={`${petData.weight} kg`} />
+        <DetailRow label="Height" value={`${petData.height} cm`} />
+        {petData.microchip_id && (
+          <DetailRow label="Microchip ID" value={petData.microchip_id} />
+        )}
+      </InfoCard>
+
+      {/* Behavior */}
+      <InfoCard icon="happy-outline" title="Behavior">
+        {petData.behaviors && petData.behaviors.length > 0 ? (
+          <View style={styles.tagContainer}>
+            {petData.behaviors.map((item: string, index: number) => (
+              <Tag key={`beh-${index}`} label={item} color="blue" />
+            ))}
+          </View>
+        ) : (
+          <Text style={styles.cardText}>No behaviors listed.</Text>
+        )}
+      </InfoCard>
+
+      {/* Attributes */}
+      <InfoCard icon="color-palette-outline" title="Attributes">
+        {petData.attributes && petData.attributes.length > 0 ? (
+          <View style={styles.tagContainer}>
+            {petData.attributes.map((item: string, index: number) => (
+              <Tag key={`attr-${index}`} label={item} color="red" />
+            ))}
+          </View>
+        ) : (
+          <Text style={styles.cardText}>No attributes listed.</Text>
+        )}
+      </InfoCard>
+    </View>
+  );
+
+  const renderHealth = () => (
+    <View style={styles.tabContent}>
+      {/* Health Status Summary */}
+      <InfoCard icon="shield-checkmark-outline" title="Health Overview">
+        <StatusSummaryRow
+          label="Microchipped"
+          status={petData.microchip_id ? "valid" : "missing"}
+        />
+        <StatusSummaryRow
+          label="Expired Documents"
+          count={documentStats.expiredCount}
+          status="expired"
+        />
+        <StatusSummaryRow
+          label="Expiring Soon"
+          count={documentStats.expiringSoonCount}
+          status="expiring"
+        />
+      </InfoCard>
+
+      {/* Vaccinations */}
+      <InfoCard icon="eyedrop-outline" title="Vaccinations">
+        {petData.vaccinations && petData.vaccinations.length > 0 ? (
+          petData.vaccinations.map((v: any, i: number) => {
+            const status = getDocumentStatus(v.expiration_date);
+            return (
+              <DocumentRow
+                key={`vacc-${i}`}
+                item={v}
+                title={v.vaccine_name}
+                expiry={v.expiration_date}
+                status={status}
+                onPress={() => handleVaccinationPress(v.vaccine_name)}
+                onResubmit={() => handleResubmitVaccination(v)}
+              />
+            );
+          })
+        ) : (
+          <Text style={styles.cardText}>No vaccination records.</Text>
+        )}
+      </InfoCard>
+
+      {/* Health Records */}
+      <InfoCard icon="document-text-outline" title="Health Records">
+        {petData.health_records && petData.health_records.length > 0 ? (
+          petData.health_records.map((r: any, i: number) => {
+            const status = r.expiration_date
+              ? getDocumentStatus(r.expiration_date)
+              : "valid";
+            return (
+              <DocumentRow
+                key={`rec-${i}`}
+                item={r}
+                title={r.record_type}
+                expiry={r.expiration_date}
+                status={status}
+                onPress={() => handleHealthRecordPress(r.record_type)}
+                onResubmit={
+                  r.expiration_date
+                    ? () => handleResubmitHealthRecord(r)
+                    : undefined
+                }
+              />
+            );
+          })
+        ) : (
+          <Text style={styles.cardText}>No health records.</Text>
+        )}
+      </InfoCard>
+    </View>
+  );
+
+  const renderGallery = () => (
+    <View style={styles.galleryContainer}>
+      {petData.photos && petData.photos.length > 0 ? (
+        <View style={styles.photoGrid}>
+          {petData.photos.map((photo: any, index: number) => (
+            <View key={`photo-${index}`} style={styles.photoContainer}>
+              <Image
+                source={{ uri: `${API_BASE_URL}/storage/${photo.photo_url}` }}
+                style={styles.photo}
+              />
+            </View>
+          ))}
+          <TouchableOpacity
+            onPress={handleAddPhoto}
+            style={[styles.photoContainer, styles.addPhotoBtn]}
+          >
+            <Feather name="plus" size={40} color="#FF6B4A" />
+            <Text style={styles.addPhotoText}>Add Photo</Text>
+          </TouchableOpacity>
+        </View>
+      ) : (
+        <View style={styles.center}>
+          <TouchableOpacity
+            onPress={handleAddPhoto}
+            style={styles.emptyGalleryBtn}
+          >
+            <Feather name="camera" size={50} color="#999" />
+            <Text style={styles.emptyGalleryText}>
+              No photos yet. Tap to add one!
+            </Text>
+          </TouchableOpacity>
+        </View>
+      )}
+    </View>
+  );
+
+  const renderTabContent = () => {
+    switch (activeTab) {
+      case "about":
+        return renderAbout();
+      case "health":
+        return renderHealth();
+      case "gallery":
+        return renderGallery();
+      default:
+        return null;
     }
   };
 
   return (
-    <SafeAreaView className="flex-1 bg-[#FFF5F5]" edges={["top"]}>
-      {/* Header */}
-      <View className="px-6 py-4 flex-row items-center justify-between bg-white">
-        <View className="flex-row items-center">
-          <TouchableOpacity onPress={() => router.back()} className="mr-3">
-            <Feather name="arrow-left" size={24} color="black" />
-          </TouchableOpacity>
-          <Text className="text-xl font-bold text-black">PET PROFILE</Text>
-        </View>
-        <TouchableOpacity
-          onPress={handleToggle}
-          className={`w-14 h-8 rounded-full flex-row items-center px-1 ${
-            isEnabled ? "bg-green-500 justify-end" : "bg-gray-400 justify-start"
-          }`}
+    <SafeAreaView style={styles.flex_1} edges={["top"]}>
+      <ScrollView showsVerticalScrollIndicator={false} style={styles.flex_1}>
+        {/* Header */}
+        <LinearGradient
+          colors={["#FF6B4A", "#FF9A8B"]}
+          style={styles.headerGradient}
         >
-          <View className="w-6 h-6 rounded-full bg-white items-center justify-center">
-            {isEnabled && <Feather name="check" size={16} color="green" />}
-            {!isEnabled && <Feather name="x" size={16} color="gray" />}
+          <View style={styles.headerContent}>
+            <TouchableOpacity
+              onPress={() => router.back()}
+              style={styles.headerButton}
+            >
+              <Feather name="arrow-left" size={26} color="white" />
+            </TouchableOpacity>
+            <TouchableOpacity
+              onPress={handleEditInfo}
+              style={styles.headerButton}
+            >
+              <Feather name="edit" size={24} color="white" />
+            </TouchableOpacity>
           </View>
-        </TouchableOpacity>
-      </View>
+        </LinearGradient>
 
-      <ScrollView className="flex-1" showsVerticalScrollIndicator={false}>
-        {loading ? (
-          <View className="flex-1 items-center justify-center py-20">
-            <ActivityIndicator size="large" color="#FF6B4A" />
-            <Text className="text-gray-600 mt-4">Loading pet data...</Text>
+        {/* Profile Pic & Name */}
+        <View style={styles.profileHeader}>
+          <View style={styles.profilePicContainer}>
+            <Image
+              source={
+                petData.profile_image
+                  ? { uri: `${API_BASE_URL}/storage/${petData.profile_image}` }
+                  : require("@/assets/images/icon.png")
+              }
+              style={styles.profilePic}
+            />
           </View>
-        ) : !petData ? (
-          <View className="flex-1 items-center justify-center py-20">
-            <Text className="text-gray-600">Pet not found</Text>
+          <Text style={styles.petName}>{petData.name}</Text>
+          <View
+            style={[
+              styles.statusIndicator,
+              !isEnabled && styles.statusDisabled,
+            ]}
+          >
+            <Text
+              style={[
+                styles.statusText,
+                !isEnabled && styles.statusTextDisabled,
+              ]}
+            >
+              {isEnabled ? "Active" : "Disabled"}
+            </Text>
           </View>
-        ) : (
-          <>
-            {showDisabledModal && (
-              <View className="px-6">
-                <View className="bg-white rounded-3xl px-8 py-6 mx-2 mt-4 shadow-md items-center">
-                  <Text className="text-[#FF6B4A] text-xl font-bold text-center">
-                    THIS PET PROFILE IS DISABLED
-                  </Text>
-                </View>
-              </View>
-            )}
+        </View>
 
-            {/* Pet Image and Basic Info */}
-            <View className="items-center py-6 bg-[#FFF5F5]">
-              <View className="relative w-32 h-32 rounded-full bg-gray-300 mb-4 items-center justify-center overflow-hidden">
-                {petData.profile_image ? (
-                  <Image
-                    source={{
-                      uri: `${API_BASE_URL}/storage/${petData.profile_image}`,
-                    }}
-                    className="w-full h-full"
-                  />
-                ) : (
-                  <Image
-                    source={require("@/assets/images/icon.png")}
-                    className="w-full h-full"
-                  />
-                )}
-                <View className="absolute bottom-2 right-2 bg-white rounded-full p-1.5">
-                  <Feather name="camera" size={20} color="black" />
-                </View>
-              </View>
+        {/* Tab Navigation */}
+        <View style={styles.tabContainer}>
+          <TabButton
+            title="About"
+            isActive={activeTab === "about"}
+            onPress={() => setActiveTab("about")}
+          />
+          <TabButton
+            title="Health"
+            isActive={activeTab === "health"}
+            onPress={() => setActiveTab("health")}
+          />
+          <TabButton
+            title="Gallery"
+            isActive={activeTab === "gallery"}
+            onPress={() => setActiveTab("gallery")}
+          />
+        </View>
 
-              <TouchableOpacity
-                className="bg-[#FF6B4A] rounded-full px-8 py-3 mb-6"
-                onPress={handleEditInfo}
-              >
-                <Text className="text-white font-semibold text-sm">
-                  EDIT INFO
-                </Text>
-              </TouchableOpacity>
-            </View>
-
-            {/* Name, Breed and Age in Cards */}
-            <View className="w-full px-6">
-              <View className="flex-row justify-between mb-4">
-                {/* Name and Breed Card */}
-                <View className="bg-white rounded-2xl px-6 py-4 flex-1 mr-2 shadow-sm border border-gray-100">
-                  <View className="mb-2">
-                    <Text className="text-sm text-gray-600">
-                      Name:{" "}
-                      <Text className="font-bold text-black">
-                        {petData.name}
-                      </Text>
-                    </Text>
-                  </View>
-                  <Text className="text-sm text-gray-600">
-                    Breed:{" "}
-                    <Text className="font-bold text-black">
-                      {petData.breed}
-                    </Text>
-                  </Text>
-
-                  {/* Preference */}
-                  {petData.partner_preferences &&
-                    petData.partner_preferences.length > 0 && (
-                      <View className="mt-3">
-                        <View className="flex-row items-center mb-2">
-                          <Text className="text-sm font-semibold text-black">
-                            Preference:
-                          </Text>
-                          <Feather
-                            name="edit-2"
-                            size={14}
-                            color="gray"
-                            className="ml-2"
-                          />
-                        </View>
-
-                        <View className="flex-row flex-wrap gap-2">
-                          {/* Preferred Breed (string) */}
-                          {petData.partner_preferences[0].preferred_breed && (
-                            <View className="bg-gray-100 rounded-full px-3 py-1 border border-gray-300">
-                              <Text className="text-gray-700 text-xs font-medium">
-                                {petData.partner_preferences[0].preferred_breed}
-                              </Text>
-                            </View>
-                          )}
-
-                          {/* Preferred Attributes */}
-                          {petData.partner_preferences[0]
-                            .preferred_attributes &&
-                            (Array.isArray(
-                              petData.partner_preferences[0]
-                                .preferred_attributes
-                            ) ? (
-                              petData.partner_preferences[0].preferred_attributes.map(
-                                (attr: string, i: number) => (
-                                  <View
-                                    key={`pref-attr-${i}`}
-                                    className="bg-gray-100 rounded-full px-3 py-1 border border-gray-300"
-                                  >
-                                    <Text className="text-gray-700 text-xs font-medium">
-                                      {attr}
-                                    </Text>
-                                  </View>
-                                )
-                              )
-                            ) : (
-                              <View className="bg-gray-100 rounded-full px-3 py-1 border border-gray-300">
-                                <Text className="text-gray-700 text-xs font-medium">
-                                  {
-                                    petData.partner_preferences[0]
-                                      .preferred_attributes
-                                  }
-                                </Text>
-                              </View>
-                            ))}
-
-                          {/* Preferred Behaviors (string or array) */}
-                          {petData.partner_preferences[0].preferred_behaviors &&
-                            (Array.isArray(
-                              petData.partner_preferences[0].preferred_behaviors
-                            ) ? (
-                              petData.partner_preferences[0].preferred_behaviors.map(
-                                (beh: string, i: number) => (
-                                  <View
-                                    key={`pref-beh-${i}`}
-                                    className="bg-gray-100 rounded-full px-3 py-1 border border-gray-300"
-                                  >
-                                    <Text className="text-gray-700 text-xs font-medium">
-                                      {beh}
-                                    </Text>
-                                  </View>
-                                )
-                              )
-                            ) : (
-                              <View className="bg-gray-100 rounded-full px-3 py-1 border border-gray-300">
-                                <Text className="text-gray-700 text-xs font-medium">
-                                  {
-                                    petData.partner_preferences[0]
-                                      .preferred_behaviors
-                                  }
-                                </Text>
-                              </View>
-                            ))}
-                        </View>
-                      </View>
-                    )}
-                </View>
-
-                {/* Age and Sex Cards */}
-                <View className="flex-1 ml-2">
-                  {/* Age Card */}
-                  <View className="bg-white rounded-2xl px-4 py-3 mb-3 shadow-sm border border-gray-100">
-                    <Text className="text-xs text-gray-600 mb-1">Age</Text>
-                    <View className="bg-[#FFF9C4] rounded-full px-3 py-1.5 self-start">
-                      <Text className="text-orange-800 font-semibold text-xs">
-                        {calculateAge(petData.birthdate)}
-                      </Text>
-                    </View>
-                  </View>
-
-                  {/* Sex Card */}
-                  <View className="bg-white rounded-2xl px-4 py-3 shadow-sm border border-gray-100">
-                    <Text className="text-xs text-gray-600 mb-1">Sex</Text>
-                    <View className="bg-[#B2EBF2] rounded-full px-3 py-1.5 self-start">
-                      <Text className="text-cyan-800 font-semibold text-xs">
-                        {petData.sex.charAt(0).toUpperCase() +
-                          petData.sex.slice(1)}
-                      </Text>
-                    </View>
-                  </View>
-                </View>
-              </View>
-            </View>
-
-            {/* Behavior and Attributes */}
-            <View className="px-6 py-4 mt-2">
-              <View className="flex-row mb-4">
-                {/* Behavior */}
-                <View className="flex-1 mr-2">
-                  <View className="bg-white rounded-2xl p-4 shadow-sm border border-gray-100">
-                    <Text className="text-sm font-bold text-black mb-2">
-                      Behavior
-                    </Text>
-                    <View className="flex-row flex-wrap gap-1">
-                      {petData.behaviors &&
-                        petData.behaviors.map(
-                          (behavior: string, index: number) => (
-                            <View
-                              key={index}
-                              className="bg-blue-100 rounded-full px-3 py-1 border border-blue-200"
-                            >
-                              <Text className="text-blue-800 text-xs font-medium">
-                                {behavior}
-                              </Text>
-                            </View>
-                          )
-                        )}
-                    </View>
-                  </View>
-                </View>
-
-                {/* Attributes */}
-                <View className="flex-1 ml-2">
-                  <View className="bg-white rounded-2xl p-4 shadow-sm border border-gray-100">
-                    <Text className="text-sm font-bold text-black mb-2">
-                      Attributes
-                    </Text>
-                    <View className="flex-row flex-wrap gap-1">
-                      {petData.attributes &&
-                        petData.attributes.map(
-                          (attribute: string, index: number) => (
-                            <View
-                              key={index}
-                              className="bg-red-100 rounded-full px-3 py-1 border border-red-200"
-                            >
-                              <Text className="text-red-800 text-xs font-medium">
-                                {attribute}
-                              </Text>
-                            </View>
-                          )
-                        )}
-                    </View>
-                  </View>
-                </View>
-              </View>
-
-              {/* Physical Stats Cards */}
-              <View className="flex-row flex-wrap gap-2">
-                <View className="bg-[#FFD4CC] rounded-2xl p-4 flex-1 min-w-[45%] border-2 border-[#FFB5A7]">
-                  <Text className="text-sm font-semibold text-black mb-1">
-                    Weight
-                  </Text>
-                  <Text className="text-2xl font-bold text-black">
-                    {petData.weight}kg
-                  </Text>
-                </View>
-                <View className="bg-[#B2EBF2] rounded-2xl p-4 flex-1 min-w-[45%] border-2 border-[#80DEEA]">
-                  <Text className="text-sm font-semibold text-black mb-1">
-                    Height
-                  </Text>
-                  <Text className="text-2xl font-bold text-black">
-                    {petData.height}cm
-                  </Text>
-                </View>
-                <View className="bg-gray-200 rounded-2xl p-4 flex-1 min-w-[45%] border-2 border-gray-300">
-                  <Text className="text-sm font-semibold text-black mb-1">
-                    Species
-                  </Text>
-                  <Text className="text-xl font-bold text-black">
-                    {petData.species}
-                  </Text>
-                </View>
-                {petData.microchip_id && (
-                  <View className="bg-[#FFF9C4] rounded-2xl p-4 flex-1 min-w-[45%] border-2 border-[#FFF59D]">
-                    <Text className="text-sm font-semibold text-black mb-1">
-                      Microchip
-                    </Text>
-                    <Text className="text-sm font-bold text-black">
-                      {petData.microchip_id}
-                    </Text>
-                  </View>
-                )}
-              </View>
-            </View>
-
-            {/* Health Status */}
-            <View className="px-6 py-4">
-              <Text className="text-base font-bold text-black mb-3">
-                Health Status
-              </Text>
-              <View className="flex-row flex-wrap gap-2">
-                <View className="bg-[#C8E6C9] rounded-full px-4 py-2">
-                  <Text className="text-green-800 font-semibold text-sm">
-                    {petData.microchip_id ? "Microchipped" : "Not Microchipped"}
-                  </Text>
-                </View>
-                {documentStats.expiredCount > 0 && (
-                  <View className="bg-red-100 rounded-full px-4 py-2">
-                    <Text className="text-red-600 font-semibold text-sm">
-                      {documentStats.expiredCount} Expired Document{documentStats.expiredCount > 1 ? "s" : ""}
-                    </Text>
-                  </View>
-                )}
-                {documentStats.expiringSoonCount > 0 && (
-                  <View className="bg-yellow-100 rounded-full px-4 py-2">
-                    <Text className="text-yellow-700 font-semibold text-sm">
-                      {documentStats.expiringSoonCount} Expiring Soon
-                    </Text>
-                  </View>
-                )}
-              </View>
-            </View>
-
-            {/* Document Status Alert */}
-            {(documentStats.expiredCount > 0 || documentStats.expiringSoonCount > 0) && (
-              <View className="mx-4 mb-2">
-                {documentStats.expiredCount > 0 && (
-                  <View className="bg-red-50 border border-red-200 rounded-xl p-4 mb-2">
-                    <View className="flex-row items-center">
-                      <Feather name="alert-circle" size={20} color="#DC2626" />
-                      <Text className="text-red-700 font-semibold ml-2 flex-1">
-                        Action Required
-                      </Text>
-                    </View>
-                    <Text className="text-red-600 text-sm mt-2">
-                      You have {documentStats.expiredCount} expired document{documentStats.expiredCount > 1 ? "s" : ""} that {documentStats.expiredCount === 1 ? "needs" : "need"} to be resubmitted.
-                    </Text>
-                  </View>
-                )}
-                {documentStats.expiringSoonCount > 0 && (
-                  <View className="bg-yellow-50 border border-yellow-200 rounded-xl p-4">
-                    <View className="flex-row items-center">
-                      <Feather name="clock" size={20} color="#B45309" />
-                      <Text className="text-yellow-700 font-semibold ml-2 flex-1">
-                        Expiring Soon
-                      </Text>
-                    </View>
-                    <Text className="text-yellow-600 text-sm mt-2">
-                      You have {documentStats.expiringSoonCount} document{documentStats.expiringSoonCount > 1 ? "s" : ""} expiring within 30 days.
-                    </Text>
-                  </View>
-                )}
-              </View>
-            )}
-
-            {/* Current Vaccinations */}
-            {petData.vaccinations && petData.vaccinations.length > 0 && (
-              <View className="px-6 py-4 bg-white mt-2 rounded-2xl mx-4 shadow-sm">
-                <View className="flex-row items-center justify-between mb-4">
-                  <Text className="text-base font-bold text-black">
-                    Vaccinations
-                  </Text>
-                  <View className="bg-[#FF6B4A] rounded-full px-3 py-1">
-                    <Text className="text-white font-semibold text-xs">
-                      {petData.vaccinations.length} Records
-                    </Text>
-                  </View>
-                </View>
-
-                {petData.vaccinations.map((vaccination: any, index: number) => {
-                  const status = getDocumentStatus(vaccination.expiration_date);
-                  const statusBadge = getStatusBadge(status);
-                  const isExpired = status === "expired";
-                  const isExpiringSoon = status === "expiring_soon";
-
-                  return (
-                    <View
-                      key={vaccination.vaccination_id || index}
-                      className={`py-3 ${index < petData.vaccinations.length - 1 ? "border-b border-gray-100" : ""}`}
-                    >
-                      <TouchableOpacity
-                        className="flex-row items-center justify-between"
-                        onPress={() =>
-                          handleVaccinationPress(vaccination.vaccine_name)
-                        }
-                      >
-                        <View className="flex-row items-center flex-1">
-                          <View className={`w-2 h-2 rounded-full ${getStatusColor(status)} mr-3`} />
-                          <View className="flex-1">
-                            <Text className="text-base text-black">
-                              {vaccination.vaccine_name}
-                            </Text>
-                            <Text className="text-sm text-gray-500">
-                              Expires: {dayjs(vaccination.expiration_date).format("MM/DD/YYYY")}
-                            </Text>
-                          </View>
-                        </View>
-                        <View className={`${statusBadge.bg} rounded-full px-3 py-1`}>
-                          <Text className={`${statusBadge.text} font-semibold text-xs`}>
-                            {statusBadge.label}
-                          </Text>
-                        </View>
-                      </TouchableOpacity>
-
-                      {/* Resubmit button for expired documents */}
-                      {isExpired && (
-                        <TouchableOpacity
-                          className="mt-3 bg-red-500 rounded-lg py-2 px-4 flex-row items-center justify-center"
-                          onPress={() => handleResubmitVaccination(vaccination)}
-                        >
-                          <Feather name="upload" size={16} color="white" />
-                          <Text className="text-white font-semibold text-sm ml-2">
-                            Resubmit Document
-                          </Text>
-                        </TouchableOpacity>
-                      )}
-
-                      {/* Warning for expiring soon */}
-                      {isExpiringSoon && (
-                        <View className="mt-2 bg-yellow-50 rounded-lg py-2 px-3 flex-row items-center">
-                          <Feather name="alert-triangle" size={14} color="#B45309" />
-                          <Text className="text-yellow-700 text-xs ml-2">
-                            This document will expire soon. Consider renewing it.
-                          </Text>
-                        </View>
-                      )}
-                    </View>
-                  );
-                })}
-              </View>
-            )}
-
-            {/* Health Records */}
-            {petData.health_records && petData.health_records.length > 0 && (
-              <View className="px-6 py-4 bg-white mt-4 rounded-2xl mx-4 shadow-sm">
-                <View className="flex-row items-center justify-between mb-4">
-                  <Text className="text-base font-bold text-black">
-                    Health Records
-                  </Text>
-                  <View className="bg-[#FF6B4A] rounded-full px-3 py-1">
-                    <Text className="text-white font-semibold text-xs">
-                      {petData.health_records.length} Records
-                    </Text>
-                  </View>
-                </View>
-
-                {petData.health_records.map((record: any, index: number) => {
-                  const status = record.expiration_date 
-                    ? getDocumentStatus(record.expiration_date)
-                    : "valid";
-                  const statusBadge = getStatusBadge(status);
-                  const isExpired = status === "expired";
-                  const isExpiringSoon = status === "expiring_soon";
-
-                  return (
-                    <View
-                      key={record.health_record_id || index}
-                      className={`py-3 ${index < petData.health_records.length - 1 ? "border-b border-gray-100" : ""}`}
-                    >
-                      <TouchableOpacity
-                        className="flex-row items-center justify-between"
-                        onPress={() => handleHealthRecordPress(record.record_type)}
-                      >
-                        <View className="flex-row items-center flex-1">
-                          <View className={`w-2 h-2 rounded-full ${getStatusColor(status)} mr-3`} />
-                          <View className="flex-1">
-                            <Text className="text-base text-black">
-                              {record.record_type}
-                            </Text>
-                            {record.expiration_date && (
-                              <Text className="text-sm text-gray-500">
-                                Expires: {dayjs(record.expiration_date).format("MM/DD/YYYY")}
-                              </Text>
-                            )}
-                            {!record.expiration_date && record.given_date && (
-                              <Text className="text-sm text-gray-500">
-                                Given: {dayjs(record.given_date).format("MM/DD/YYYY")}
-                              </Text>
-                            )}
-                          </View>
-                        </View>
-                        <View className={`${statusBadge.bg} rounded-full px-3 py-1`}>
-                          <Text className={`${statusBadge.text} font-semibold text-xs`}>
-                            {record.expiration_date ? statusBadge.label : record.status}
-                          </Text>
-                        </View>
-                      </TouchableOpacity>
-
-                      {/* Resubmit button for expired documents */}
-                      {isExpired && record.expiration_date && (
-                        <TouchableOpacity
-                          className="mt-3 bg-red-500 rounded-lg py-2 px-4 flex-row items-center justify-center"
-                          onPress={() => handleResubmitHealthRecord(record)}
-                        >
-                          <Feather name="upload" size={16} color="white" />
-                          <Text className="text-white font-semibold text-sm ml-2">
-                            Resubmit Document
-                          </Text>
-                        </TouchableOpacity>
-                      )}
-
-                      {/* Warning for expiring soon */}
-                      {isExpiringSoon && record.expiration_date && (
-                        <View className="mt-2 bg-yellow-50 rounded-lg py-2 px-3 flex-row items-center">
-                          <Feather name="alert-triangle" size={14} color="#B45309" />
-                          <Text className="text-yellow-700 text-xs ml-2">
-                            This document will expire soon. Consider renewing it.
-                          </Text>
-                        </View>
-                      )}
-                    </View>
-                  );
-                })}
-              </View>
-            )}
-
-            {/* Description */}
-            {petData.description && (
-              <View className="px-6 py-4 bg-white mt-4 rounded-2xl mx-4 shadow-sm">
-                <Text className="text-base font-bold text-black mb-3">
-                  Description:
-                </Text>
-                <Text className="text-sm text-gray-700 leading-5">
-                  {petData.description}
-                </Text>
-              </View>
-            )}
-
-            {/* Photos */}
-            <View className="px-6 py-4 mb-8">
-              <View className="flex-row flex-wrap gap-3">
-                {/* Add Photo Button */}
-                <TouchableOpacity
-                  className="w-24 h-24 bg-gray-300 rounded-xl items-center justify-center"
-                  onPress={handleAddPhoto}
-                >
-                  <Feather name="plus" size={32} color="white" />
-                </TouchableOpacity>
-
-                {/* Existing Photos */}
-                {petData.photos &&
-                  petData.photos.map((photo: any, index: number) => (
-                    <View
-                      key={index}
-                      className="w-24 h-24 bg-gray-200 rounded-xl overflow-hidden"
-                    >
-                      <Image
-                        source={{
-                          uri: `${API_BASE_URL}/storage/${photo.photo_url}`,
-                        }}
-                        className="w-full h-full"
-                      />
-                    </View>
-                  ))}
-              </View>
-            </View>
-          </>
-        )}
+        {renderTabContent()}
       </ScrollView>
 
       <AlertModal
@@ -757,3 +443,403 @@ export default function PetProfileScreen() {
     </SafeAreaView>
   );
 }
+
+const InfoCard = ({
+  icon,
+  title,
+  children,
+}: {
+  icon: any;
+  title: string;
+  children: React.ReactNode;
+}) => (
+  <View style={styles.card}>
+    <View style={styles.cardHeader}>
+      <Ionicons name={icon} size={22} color="#FF6B4A" />
+      <Text style={styles.cardTitle}>{title}</Text>
+    </View>
+    {children}
+  </View>
+);
+
+const DetailRow = ({ label, value }: { label: string; value: string }) => (
+  <View style={styles.detailRow}>
+    <Text style={styles.detailLabel}>{label}</Text>
+    <Text style={styles.detailValue}>{value}</Text>
+  </View>
+);
+
+const TabButton = ({
+  title,
+  isActive,
+  onPress,
+}: {
+  title: string;
+  isActive: boolean;
+  onPress: () => void;
+}) => (
+  <TouchableOpacity
+    onPress={onPress}
+    style={[styles.tabButton, isActive && styles.tabActive]}
+  >
+    <Text style={[styles.tabText, isActive && styles.tabTextActive]}>
+      {title}
+    </Text>
+  </TouchableOpacity>
+);
+
+const Tag = ({ label, color }: { label: string; color: "blue" | "red" }) => {
+  const baseStyle = "rounded-full px-3 py-1.5 border";
+  const colorStyle =
+    color === "blue"
+      ? "bg-blue-100 border-blue-200"
+      : "bg-red-100 border-red-200";
+  const textStyle = color === "blue" ? "text-blue-800" : "text-red-800";
+
+  return (
+    <View className={`${baseStyle} ${colorStyle}`}>
+      <Text className={`${textStyle} text-xs font-medium`}>{label}</Text>
+    </View>
+  );
+};
+
+const StatusSummaryRow = ({
+  label,
+  count,
+  status,
+}: {
+  label: string;
+  count?: number;
+  status: "valid" | "missing" | "expired" | "expiring";
+}) => {
+  const statusInfo: {
+    [key: string]: { icon: any; color: string; text: string };
+  } = {
+    valid: { icon: "checkmark-circle", color: "#22C55E", text: "Yes" },
+    missing: { icon: "close-circle", color: "#6B7280", text: "No" },
+    expired: {
+      icon: "alert-circle",
+      color: "#EF4444",
+      text: `${count} Document${count !== 1 ? "s" : ""}`,
+    },
+    expiring: {
+      icon: "time",
+      color: "#F59E0B",
+      text: `${count} Document${count !== 1 ? "s" : ""}`,
+    },
+  };
+  const current = statusInfo[status];
+
+  return (
+    <View style={styles.summaryRow}>
+      <Text style={styles.detailLabel}>{label}</Text>
+      <View style={styles.summaryStatus}>
+        <Ionicons name={current.icon} size={20} color={current.color} />
+        <Text style={[styles.summaryStatusText, { color: current.color }]}>
+          {current.text}
+        </Text>
+      </View>
+    </View>
+  );
+};
+
+const DocumentRow = ({
+  item,
+  title,
+  expiry,
+  status,
+  onPress,
+  onResubmit,
+}: {
+  item: any;
+  title: string;
+  expiry?: string;
+  status: DocumentStatus;
+  onPress: () => void;
+  onResubmit?: () => void;
+}) => {
+  const isExpired = status === "expired";
+  const badge = getStatusBadge(status);
+  return (
+    <View style={styles.documentRow}>
+      <TouchableOpacity onPress={onPress} style={styles.documentTouchable}>
+        <View
+          style={[
+            styles.statusDot,
+            { backgroundColor: getStatusColor(status) },
+          ]}
+        />
+        <View style={styles.flex_1}>
+          <Text style={styles.documentTitle}>{title}</Text>
+          {expiry && (
+            <Text style={styles.documentSubtitle}>
+              Expires: {dayjs(expiry).format("MMMM D, YYYY")}
+            </Text>
+          )}
+        </View>
+        <View className={`${badge.bg} rounded-full px-3 py-1`}>
+          <Text className={`${badge.text} text-xs font-semibold`}>
+            {badge.label}
+          </Text>
+        </View>
+      </TouchableOpacity>
+      {isExpired && onResubmit && (
+        <TouchableOpacity onPress={onResubmit} style={styles.resubmitButton}>
+          <Feather name="upload" size={16} color="white" />
+          <Text style={styles.resubmitText}>Resubmit</Text>
+        </TouchableOpacity>
+      )}
+    </View>
+  );
+};
+
+const styles = StyleSheet.create({
+  flex_1: { flex: 1, backgroundColor: "#FDF4F4" },
+  center: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
+    paddingTop: 50,
+  },
+  loadingText: { marginTop: 10, color: "#555" },
+  errorText: { color: "#B91C1C" },
+  headerGradient: {
+    height: 160,
+    borderBottomLeftRadius: 30,
+    borderBottomRightRadius: 30,
+  },
+  headerContent: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    paddingTop: 40,
+    paddingHorizontal: 20,
+  },
+  headerButton: { padding: 8 },
+  profileHeader: {
+    alignItems: "center",
+    marginTop: -80, // Overlap with header
+  },
+  profilePicContainer: {
+    width: 140,
+    height: 140,
+    borderRadius: 70,
+    backgroundColor: "white",
+    justifyContent: "center",
+    alignItems: "center",
+    elevation: 10,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 5 },
+    shadowOpacity: 0.3,
+    shadowRadius: 5,
+  },
+  profilePic: { width: 130, height: 130, borderRadius: 65 },
+  petName: {
+    fontSize: 28,
+    fontWeight: "bold",
+    color: "#2C2C2C",
+    marginTop: 12,
+    marginBottom: 4,
+  },
+  statusIndicator: {
+    paddingVertical: 4,
+    paddingHorizontal: 12,
+    borderRadius: 20,
+    backgroundColor: "#D1FAE5", // green-100
+  },
+  statusDisabled: {
+    backgroundColor: "#F3F4F6", // gray-100
+  },
+  statusText: {
+    color: "#065F46", // green-800
+    fontWeight: "600",
+  },
+  statusTextDisabled: {
+    color: "#374151", // gray-700
+  },
+  tabContainer: {
+    flexDirection: "row",
+    justifyContent: "space-around",
+    marginHorizontal: 20,
+    marginTop: 20,
+    backgroundColor: "white",
+    borderRadius: 25,
+    padding: 6,
+    elevation: 2,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.1,
+    shadowRadius: 2,
+  },
+  tabButton: {
+    flex: 1,
+    paddingVertical: 10,
+    alignItems: "center",
+    borderRadius: 20,
+  },
+  tabActive: {
+    backgroundColor: "#FF6B4A",
+  },
+  tabText: {
+    fontSize: 14,
+    fontWeight: "600",
+    color: "#555",
+  },
+  tabTextActive: {
+    color: "white",
+  },
+  tabContent: {
+    padding: 20,
+  },
+  card: {
+    backgroundColor: "white",
+    borderRadius: 20,
+    padding: 20,
+    marginBottom: 16,
+    elevation: 2,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.08,
+    shadowRadius: 5,
+  },
+  cardHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginBottom: 12,
+  },
+  cardTitle: {
+    fontSize: 18,
+    fontWeight: "bold",
+    color: "#333",
+    marginLeft: 8,
+  },
+  cardText: {
+    fontSize: 15,
+    color: "#666",
+    lineHeight: 22,
+  },
+  detailRow: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    paddingVertical: 8,
+    borderBottomWidth: 1,
+    borderBottomColor: "#F3F4F6",
+  },
+  detailLabel: {
+    fontSize: 15,
+    color: "#555",
+  },
+  detailValue: {
+    fontSize: 15,
+    color: "#111",
+    fontWeight: "bold",
+  },
+  tagContainer: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 8,
+  },
+  summaryRow: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    paddingVertical: 10,
+    borderBottomWidth: 1,
+    borderBottomColor: "#F3F4F6",
+  },
+  summaryStatus: {
+    flexDirection: "row",
+    alignItems: "center",
+  },
+  summaryStatusText: {
+    marginLeft: 8,
+    fontWeight: "600",
+  },
+  documentRow: {
+    paddingVertical: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: "#F3F4F6",
+  },
+  documentTouchable: {
+    flexDirection: "row",
+    alignItems: "center",
+  },
+  statusDot: {
+    width: 10,
+    height: 10,
+    borderRadius: 5,
+    marginRight: 12,
+  },
+  documentTitle: {
+    fontSize: 16,
+    fontWeight: "600",
+    color: "#333",
+  },
+  documentSubtitle: {
+    fontSize: 13,
+    color: "#777",
+    marginTop: 2,
+  },
+  resubmitButton: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: "#EF4444",
+    borderRadius: 8,
+    paddingVertical: 10,
+    marginTop: 12,
+  },
+  resubmitText: {
+    color: "white",
+    fontWeight: "bold",
+    marginLeft: 8,
+  },
+  galleryContainer: {
+    padding: 10,
+  },
+  photoGrid: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    justifyContent: "space-between",
+  },
+  photoContainer: {
+    width: "48%",
+    aspectRatio: 1,
+    marginBottom: "4%",
+    borderRadius: 15,
+    backgroundColor: "#fff",
+    elevation: 2,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.1,
+    shadowRadius: 2,
+    overflow: "hidden",
+  },
+  photo: {
+    width: "100%",
+    height: "100%",
+  },
+  addPhotoBtn: {
+    justifyContent: "center",
+    alignItems: "center",
+    borderWidth: 2,
+    borderColor: "#FFD1C9",
+    borderStyle: "dashed",
+  },
+  addPhotoText: {
+    color: "#FF6B4A",
+    marginTop: 8,
+    fontWeight: "bold",
+  },
+  emptyGalleryBtn: {
+    justifyContent: "center",
+    alignItems: "center",
+    padding: 20,
+  },
+  emptyGalleryText: {
+    marginTop: 15,
+    fontSize: 16,
+    color: "#888",
+    textAlign: "center",
+  },
+});

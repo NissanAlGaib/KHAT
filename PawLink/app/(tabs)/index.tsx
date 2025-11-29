@@ -7,6 +7,7 @@ import {
   ScrollView,
   Dimensions,
   ActivityIndicator,
+  StyleSheet,
 } from "react-native";
 import { useSession } from "@/context/AuthContext";
 import { usePet } from "@/context/PetContext";
@@ -25,6 +26,8 @@ import {
 import { API_BASE_URL } from "@/config/env";
 import { useRouter } from "expo-router";
 import dayjs from "dayjs";
+import { LinearGradient } from "expo-linear-gradient";
+import { Ionicons, Feather } from "@expo/vector-icons";
 import ShooterHomepage from "./shooter-index";
 
 const { width: SCREEN_W } = Dimensions.get("window");
@@ -54,10 +57,9 @@ function BannerCarousel({ images }: { images: any[] }) {
     const newIndex = Math.round(x / pageWidth);
     setIndex(newIndex);
   };
-
   return (
     <View
-      className="w-full items-center"
+      style={[styles.carouselContainer, { width: containerWidth }]}
       onLayout={(e) => {
         const w = e.nativeEvent.layout.width;
         if (w && w !== containerWidth) setContainerWidth(w);
@@ -69,32 +71,23 @@ function BannerCarousel({ images }: { images: any[] }) {
         pagingEnabled
         showsHorizontalScrollIndicator={false}
         onMomentumScrollEnd={onMomentum}
-        className="w-full"
+        style={{ width: containerWidth }}
       >
         {images.map((src, i) => (
           <View key={i} style={{ width: containerWidth, alignItems: "center" }}>
-            <Image
-              source={src}
-              style={{
-                width: Math.round(containerWidth * 0.9),
-                height: 192,
-                borderRadius: 16,
-              }}
-              resizeMode="cover"
-            />
+            <Image source={src} style={styles.bannerImage} resizeMode="cover" />
           </View>
         ))}
       </ScrollView>
 
-      <View className="flex-row items-center justify-center mt-2 space-x-2 gap-2">
+      <View style={styles.pagination}>
         {images.map((_, i) => (
           <View
             key={i}
-            className={`rounded-full ${i === index ? "bg-[#ea5b3a]" : "bg-gray-300"}`}
-            style={{
-              width: i === index ? 8 : 6,
-              height: i === index ? 8 : 6,
-            }}
+            style={[
+              styles.dot,
+              i === index ? styles.dotActive : styles.dotInactive,
+            ]}
           />
         ))}
       </View>
@@ -109,19 +102,15 @@ function TopMatches({ matches }: { matches: TopMatch[] }) {
   // Show placeholder if no matches
   if (!matches || matches.length === 0) {
     return (
-      <View className="w-[90%] mt-6 self-center bg-[#F9DCDC] rounded-2xl p-4 border-[2px] border-white">
-        <View className="flex-row items-center">
-          <View className="w-12 h-12 rounded-full items-center justify-center mr-3">
-            <Image
-              source={require("@/assets/images/Heart_Icon.png")}
-              className="w-15 h-15"
-            />
-          </View>
-          <View className="flex-1">
-            <Text className="text-lg font-baloo text-[#ea5b3a]">
-              No Matches Yet
-            </Text>
-            <Text className="text-gray-500 text-sm">
+      <View style={styles.topMatchPlaceholder}>
+        <View style={styles.topMatchContent}>
+          <Image
+            source={require("@/assets/images/Heart_Icon.png")}
+            style={styles.topMatchIcon}
+          />
+          <View style={{ flex: 1 }}>
+            <Text style={styles.topMatchTitle}>No Matches Yet</Text>
+            <Text style={styles.topMatchSubtitle}>
               {selectedPet
                 ? `No matches found for ${selectedPet.name}`
                 : "Select a pet to find perfect matches"}
@@ -131,10 +120,10 @@ function TopMatches({ matches }: { matches: TopMatch[] }) {
 
         {!selectedPet && (
           <TouchableOpacity
-            className="mt-4 bg-[#ea5b3a] rounded-full py-3 px-6"
+            style={styles.topMatchActionButton}
             onPress={() => router.push("/(verification)/add-pet")}
           >
-            <Text className="text-white text-center font-semibold">
+            <Text style={styles.topMatchActionButtonText}>
               Add Your First Pet
             </Text>
           </TouchableOpacity>
@@ -154,19 +143,15 @@ function TopMatches({ matches }: { matches: TopMatch[] }) {
 
   if (filteredMatches.length === 0) {
     return (
-      <View className="w-[90%] mt-6 self-center bg-[#F9DCDC] rounded-2xl p-4 border-[2px] border-white">
-        <View className="flex-row items-center">
-          <View className="w-12 h-12 rounded-full items-center justify-center mr-3">
-            <Image
-              source={require("@/assets/images/Heart_Icon.png")}
-              className="w-15 h-15"
-            />
-          </View>
-          <View className="flex-1">
-            <Text className="text-lg font-baloo text-[#ea5b3a]">
-              No Matches Yet
-            </Text>
-            <Text className="text-gray-500 text-sm">
+      <View style={styles.topMatchPlaceholder}>
+        <View style={styles.topMatchContent}>
+          <Image
+            source={require("@/assets/images/Heart_Icon.png")}
+            style={styles.topMatchIcon}
+          />
+          <View style={{ flex: 1 }}>
+            <Text style={styles.topMatchTitle}>No Matches Yet</Text>
+            <Text style={styles.topMatchSubtitle}>
               No matches found for {selectedPet?.name}
             </Text>
           </View>
@@ -178,32 +163,28 @@ function TopMatches({ matches }: { matches: TopMatch[] }) {
   const topMatch = filteredMatches[0];
 
   return (
-    <View className="w-[90%] mt-6 self-center bg-[#F9DCDC] rounded-2xl p-4 border-[2px] border-white">
-      <View className="flex-row items-center">
-        <View className="w-12 h-12 rounded-full items-center justify-center mr-3">
-          <Image
-            source={require("@/assets/images/Heart_Icon.png")}
-            className="w-15 h-15"
-          />
-        </View>
-        <View className="flex-1">
-          <Text className="text-lg font-baloo text-[#ea5b3a]">
-            Perfect Match Found!
-          </Text>
-          <Text className="text-gray-500 text-sm">
+    <View style={styles.topMatchContainer}>
+      <View style={styles.topMatchContent}>
+        <Image
+          source={require("@/assets/images/Heart_Icon.png")}
+          style={styles.topMatchIcon}
+        />
+        <View style={{ flex: 1 }}>
+          <Text style={styles.topMatchTitle}>Perfect Match Found!</Text>
+          <Text style={styles.topMatchSubtitle}>
             Based on your profile pet and preference
           </Text>
         </View>
       </View>
 
-      <View className="flex-row items-center mt-4">
-        <View className="flex-row -space-x-3">
+      <View style={styles.matchDetails}>
+        <View style={styles.matchAvatars}>
           {topMatch.pet1.photo_url && (
             <Image
               source={{
                 uri: `${API_BASE_URL}/storage/${topMatch.pet1.photo_url}`,
               }}
-              className="w-12 h-12 rounded-full border-4 border-white"
+              style={styles.matchAvatar}
             />
           )}
           {topMatch.pet2.photo_url && (
@@ -211,29 +192,26 @@ function TopMatches({ matches }: { matches: TopMatch[] }) {
               source={{
                 uri: `${API_BASE_URL}/storage/${topMatch.pet2.photo_url}`,
               }}
-              className="w-12 h-12 rounded-full border-4 border-white"
-              style={{ marginLeft: -12 }}
+              style={[styles.matchAvatar, { marginLeft: -12 }]}
             />
           )}
         </View>
 
-        <View className="flex-1 pl-4">
-          <Text className="font-baloo text-base">
+        <View style={{ flex: 1, paddingLeft: 16 }}>
+          <Text style={styles.matchNames}>
             {topMatch.pet1.name} & {topMatch.pet2.name}
           </Text>
-          <Text className="text-sm text-gray-400">
+          <Text style={styles.matchCompatibility}>
             {topMatch.compatibility_score}% compatibility
           </Text>
         </View>
 
-        <View>
-          <TouchableOpacity>
-            <Image
-              source={require("@/assets/images/AI_Rec.png")}
-              className="w-15 h-15"
-            />
-          </TouchableOpacity>
-        </View>
+        <TouchableOpacity>
+          <Image
+            source={require("@/assets/images/AI_Rec.png")}
+            style={styles.aiRecIcon}
+          />
+        </TouchableOpacity>
       </View>
     </View>
   );
@@ -292,88 +270,74 @@ export default function Homepage() {
   }
 
   const PetsGrid = () => (
-    <View className="px-4">
-      <Text className="text-2xl font-baloo text-[#ea5b3a] mb-4">
-        All Available Pets
-      </Text>
+    <View style={styles.sectionPadding}>
+      <Text style={styles.sectionTitle}>All Available Pets</Text>
       {loading ? (
-        <View className="flex-row justify-center py-10">
+        <View style={styles.loadingContainer}>
           <ActivityIndicator size="large" color="#ea5b3a" />
         </View>
       ) : allPets.length === 0 ? (
-        <View className="py-10">
-          <Text className="text-center text-gray-500">
+        <View style={styles.emptyStateContainer}>
+          <Text style={styles.emptyStateText}>
             No pets available at the moment
           </Text>
         </View>
       ) : (
-        <View className="flex-row flex-wrap justify-between">
+        <View style={styles.gridContainer}>
           {allPets.map((pet) => {
             const primaryPhoto =
               pet.photos?.find((p) => p.is_primary) || pet.photos?.[0];
             return (
               <TouchableOpacity
                 key={pet.pet_id}
-                className="w-[48%] mb-4 bg-white rounded-2xl overflow-hidden shadow"
-                style={{ elevation: 4 }}
+                style={styles.gridItem}
                 onPress={() =>
                   router.push(`/(pet)/view-profile?id=${pet.pet_id}`)
                 }
               >
-                <View className="relative">
+                <View style={styles.gridImageContainer}>
                   {primaryPhoto?.photo_url ? (
                     <Image
                       source={{
                         uri: `${API_BASE_URL}/storage/${primaryPhoto.photo_url}`,
                       }}
-                      className="w-full h-36"
+                      style={styles.gridImage}
                       resizeMode="cover"
                     />
                   ) : (
                     <Image
                       source={require("@/assets/images/icon.png")}
-                      className="w-full h-36"
+                      style={styles.gridImage}
                       resizeMode="cover"
                     />
                   )}
                 </View>
-                <View className="p-3">
-                  <Text
-                    className="font-baloo text-lg text-[#111]"
-                    numberOfLines={1}
-                  >
+                <View style={styles.gridContent}>
+                  <Text style={styles.gridTitle} numberOfLines={1}>
                     {pet.name}
                   </Text>
-                  <Text className="text-gray-400 text-sm" numberOfLines={1}>
+                  <Text style={styles.gridSubtitle} numberOfLines={1}>
                     {pet.breed}
                   </Text>
-                  <View className="flex-row flex-wrap gap-2 mt-3">
-                    <View className="bg-yellow-100 px-2 py-1 rounded-full">
-                      <Text
-                        className="text-xs text-yellow-800"
-                        numberOfLines={1}
-                      >
-                        {calculateAge(pet.birthdate)}
-                      </Text>
-                    </View>
-                    <View
-                      className={`px-2 py-1 rounded-full ${
+                  <View style={styles.infoChipContainer}>
+                    <InfoChip
+                      text={calculateAge(pet.birthdate)}
+                      backgroundColor="#FFF4E6"
+                      textColor="#D97706"
+                    />
+                    <InfoChip
+                      text={pet.sex}
+                      backgroundColor={
                         pet.sex?.toLowerCase() === "female"
-                          ? "bg-pink-100"
-                          : "bg-blue-100"
-                      }`}
-                    >
-                      <Text
-                        className={`text-xs ${
-                          pet.sex?.toLowerCase() === "female"
-                            ? "text-pink-700"
-                            : "text-blue-700"
-                        }`}
-                        numberOfLines={1}
-                      >
-                        {pet.sex}
-                      </Text>
-                    </View>
+                          ? "#FFE4E6"
+                          : "#E0F2FE"
+                      }
+                      textColor={
+                        pet.sex?.toLowerCase() === "female"
+                          ? "#BE123C"
+                          : "#0284C7"
+                      }
+                    />
                   </View>
                 </View>
               </TouchableOpacity>
@@ -387,23 +351,21 @@ export default function Homepage() {
   const ShootersList = () => {
     const IMAGE_HEIGHT = 160;
     return (
-      <View className="px-4">
-        <Text className="text-2xl font-baloo text-[#ea5b3a] mb-4">
-          Shooters
-        </Text>
+      <View style={styles.sectionPadding}>
+        <Text style={styles.sectionTitle}>Shooters</Text>
 
         {loading ? (
-          <View className="flex-row justify-center py-10">
+          <View style={styles.loadingContainer}>
             <ActivityIndicator size="large" color="#ea5b3a" />
           </View>
         ) : shooters.length === 0 ? (
-          <View className="py-10">
-            <Text className="text-center text-gray-500">
+          <View style={styles.emptyStateContainer}>
+            <Text style={styles.emptyStateText}>
               No verified shooters available at the moment
             </Text>
           </View>
         ) : (
-          <View className="flex-row flex-wrap justify-between">
+          <View style={styles.gridContainer}>
             {shooters.map((shooter) => {
               const age = Math.ceil(shooter.age || 0);
               const experienceYears = Math.ceil(shooter.experience_years || 0);
@@ -413,8 +375,7 @@ export default function Homepage() {
                   key={shooter.id}
                   onPress={() => router.push(`/(shooter)/${shooter.id}`)}
                   activeOpacity={0.85}
-                  className="w-[48%] mb-4 bg-white rounded-2xl overflow-hidden"
-                  style={{ elevation: 4 }}
+                  style={styles.gridItem}
                 >
                   <View style={{ position: "relative", height: IMAGE_HEIGHT }}>
                     {shooter.profile_image ? (
@@ -424,101 +385,56 @@ export default function Homepage() {
                             ? shooter.profile_image
                             : `${API_BASE_URL}/${shooter.profile_image.startsWith("storage/") ? shooter.profile_image : `storage/${shooter.profile_image}`}`,
                         }}
-                        style={{
-                          width: "100%",
-                          height: IMAGE_HEIGHT,
-                          borderTopLeftRadius: 16,
-                          borderTopRightRadius: 16,
-                        }}
+                        style={styles.gridImage}
                         resizeMode="cover"
-                        onError={(e) =>
-                          console.log(
-                            "Homepage shooter image error:",
-                            shooter.name,
-                            e.nativeEvent.error
-                          )
-                        }
                       />
                     ) : (
                       <Image
                         source={require("@/assets/images/icon.png")}
-                        style={{
-                          width: "100%",
-                          height: IMAGE_HEIGHT,
-                          borderTopLeftRadius: 16,
-                          borderTopRightRadius: 16,
-                        }}
+                        style={styles.gridImage}
                         resizeMode="cover"
                       />
                     )}
 
                     {shooter.is_pet_owner && (
-                      <View
-                        style={{
-                          position: "absolute",
-                          right: 12,
-                          top: IMAGE_HEIGHT - 16,
-                          backgroundColor: "#ea5b3a",
-                          paddingHorizontal: 10,
-                          paddingVertical: 6,
-                          borderRadius: 20,
-                          elevation: 6,
-                        }}
-                      >
-                        <Text
-                          style={{
-                            color: "white",
-                            fontSize: 12,
-                            fontFamily: "Mulish",
-                          }}
-                        >
+                      <View style={styles.shooterOwnerBadge}>
+                        <Text style={styles.shooterOwnerBadgeText}>
                           Pet Owner
                         </Text>
                       </View>
                     )}
                   </View>
 
-                  <View className="p-3 mt-0">
-                    <Text
-                      className="font-baloo text-lg text-[#111]"
-                      numberOfLines={1}
-                    >
+                  <View style={styles.gridContent}>
+                    <Text style={styles.gridTitle} numberOfLines={1}>
                       {shooter.name}
                     </Text>
 
-                    <View className="flex-row flex-wrap gap-2 mt-3">
-                      <View className="bg-yellow-100 px-2 py-1 rounded-full">
-                        <Text
-                          className="text-xs text-yellow-800"
-                          numberOfLines={1}
-                        >
-                          {age} year{age !== 1 ? "s" : ""} old
-                        </Text>
-                      </View>
+                    <View style={styles.infoChipContainer}>
+                      <InfoChip
+                        text={`${age} yrs old`}
+                        backgroundColor="#FFF4E6"
+                        textColor="#D97706"
+                      />
                       {shooter.sex && (
-                        <View
-                          className={`px-2 py-1 rounded-full ${
+                        <InfoChip
+                          text={shooter.sex}
+                          backgroundColor={
                             shooter.sex?.toLowerCase() === "female"
-                              ? "bg-pink-100"
-                              : "bg-blue-100"
-                          }`}
-                        >
-                          <Text
-                            className={`text-xs ${
-                              shooter.sex?.toLowerCase() === "female"
-                                ? "text-pink-700"
-                                : "text-blue-700"
-                            }`}
-                            numberOfLines={1}
-                          >
-                            {shooter.sex}
-                          </Text>
-                        </View>
+                              ? "#FFE4E6"
+                              : "#E0F2FE"
+                          }
+                          textColor={
+                            shooter.sex?.toLowerCase() === "female"
+                              ? "#BE123C"
+                              : "#0284C7"
+                          }
+                        />
                       )}
                     </View>
 
-                    <View className="mt-3">
-                      <Text className="text-sm text-gray-400" numberOfLines={1}>
+                    <View style={{ marginTop: 8 }}>
+                      <Text style={styles.gridSubtitle} numberOfLines={1}>
                         {experienceYears} year{experienceYears !== 1 ? "s" : ""}{" "}
                         experience
                       </Text>
@@ -533,31 +449,33 @@ export default function Homepage() {
     );
   };
 
+  const renderContent = () => {
+    return selectedTab === "pets" ? <PetsGrid /> : <ShootersList />;
+  };
+
   return (
-    <View className="flex-1 items-center bg-[#FFE0D8] relative">
-      <View className="bg-white w-full h-48 shadow-black shadow-2xl rounded-b-[40px] p-8 pt-16 flex-col gap-4 relative">
-        <View className="flex-row items-center justify-between">
-          <Text className="text-[#ea5b3a] opacity-60 text-4xl font-baloo shadow-lg drop-shadow-2xl drop-shadow-black/70">
-            PAWLINK
-          </Text>
-          <View className="flex-row gap-6">
+    <View style={styles.container}>
+      <View style={styles.header}>
+        <View style={styles.headerTopRow}>
+          <Text style={styles.headerTitle}>PAWLINK</Text>
+          <View style={styles.headerIcons}>
             <TouchableOpacity>
               <Image
-                className=""
                 source={require("../../assets/images/Subscription_Icon.png")}
+                style={styles.iconImage}
               />
             </TouchableOpacity>
             <TouchableOpacity
               onPress={() => router.push("/notifications")}
-              className="relative"
+              style={styles.notificationIcon}
             >
               <Image
-                className=""
                 source={require("../../assets/images/Notif_Icon.png")}
+                style={styles.iconImage}
               />
               {badgeCount > 0 && (
-                <View className="absolute -top-1 -right-1 bg-red-500 rounded-full min-w-[18px] h-[18px] items-center justify-center">
-                  <Text className="text-white text-xs font-bold">
+                <View style={styles.badge}>
+                  <Text style={styles.badgeText}>
                     {badgeCount > 9 ? "9+" : badgeCount}
                   </Text>
                 </View>
@@ -565,23 +483,22 @@ export default function Homepage() {
             </TouchableOpacity>
           </View>
         </View>
-        <View className="flex-row items-center justify-between">
+        <View style={styles.headerBottomRow}>
           <AnimatedSearchBar />
-          <View className="relative z-50">
-            <SettingsDropdown />
-          </View>
+          <TouchableOpacity style={styles.filterIconContainer} onPress={() => console.log("Open Filter!")}>
+            <Feather name="filter" size={24} color="#FF6B4A" />
+          </TouchableOpacity>
         </View>
       </View>
 
       <ScrollView
-        className="w-full mt-4 px-2"
-        contentContainerStyle={{ paddingBottom: 100 }}
+        contentContainerStyle={styles.scrollViewContent}
         showsVerticalScrollIndicator={false}
       >
         {/* Selected Pet Indicator */}
         {selectedPet && (
-          <View className="w-[90%] self-center mb-4 bg-white rounded-2xl p-3 flex-row items-center border-2 border-[#ea5b3a]">
-            <View className="mr-3">
+          <View style={styles.selectedPetCard}>
+            <View style={styles.selectedPetInfo}>
               {selectedPet.photos?.find((p) => p.is_primary)?.photo_url ? (
                 <Image
                   source={{
@@ -589,23 +506,26 @@ export default function Homepage() {
                       selectedPet.photos.find((p) => p.is_primary)?.photo_url
                     }`,
                   }}
-                  className="w-12 h-12 rounded-full"
+                  style={styles.selectedPetImage}
                   resizeMode="cover"
                 />
               ) : (
-                <View className="w-12 h-12 rounded-full bg-[#FFE0D8] items-center justify-center">
-                  <Text className="text-2xl">🐾</Text>
+                <View
+                  style={[
+                    styles.selectedPetImage,
+                    styles.selectedPetImagePlaceholder,
+                  ]}
+                >
+                  <Text style={{ fontSize: 22 }}>🐾</Text>
                 </View>
               )}
             </View>
-            <View className="flex-1">
-              <Text className="text-xs text-gray-500">Currently Viewing</Text>
-              <Text className="font-baloo text-base text-[#111111]">
-                {selectedPet.name}
-              </Text>
+            <View style={{ flex: 1, marginLeft: 12 }}>
+              <Text style={styles.selectedPetLabel}>Currently Viewing</Text>
+              <Text style={styles.selectedPetName}>{selectedPet.name}</Text>
             </View>
-            <View className="bg-[#ea5b3a] px-3 py-1 rounded-full">
-              <Text className="text-white text-xs font-semibold">ACTIVE</Text>
+            <View style={styles.selectedPetStatusBadge}>
+              <Text style={styles.selectedPetStatusText}>ACTIVE</Text>
             </View>
           </View>
         )}
@@ -613,43 +533,399 @@ export default function Homepage() {
         <BannerCarousel images={bannerImages} />
         <TopMatches matches={topMatches} />
 
-        <View className="flex-row items-center justify-center my-6 gap-4">
-          <TouchableOpacity
+        <View style={styles.tabSwitcherContainer}>
+          <TabButton
+            title="Pets"
+            isActive={selectedTab === "pets"}
             onPress={() => setSelectedTab("pets")}
-            className={`px-6 py-2 rounded-full ${
-              selectedTab === "pets" ? "bg-[#ea5b3a]" : "bg-white"
-            }`}
-            style={selectedTab === "pets" ? { elevation: 6 } : { elevation: 0 }}
-          >
-            <Text
-              className={`font-mulish ${
-                selectedTab === "pets" ? "text-white" : "text-[#ea5b3a]"
-              }`}
-            >
-              PETS
-            </Text>
-          </TouchableOpacity>
-
-          <TouchableOpacity
+          />
+          <TabButton
+            title="Shooters"
+            isActive={selectedTab === "shooters"}
             onPress={() => setSelectedTab("shooters")}
-            className={`px-6 py-2 rounded-full ${
-              selectedTab === "shooters" ? "bg-[#ea5b3a]" : "bg-white"
-            }`}
-            style={
-              selectedTab === "shooters" ? { elevation: 6 } : { elevation: 0 }
-            }
-          >
-            <Text
-              className={`font-mulish ${
-                selectedTab === "shooters" ? "text-white" : "text-[#ea5b3a]"
-              }`}
-            >
-              SHOOTERS
-            </Text>
-          </TouchableOpacity>
+          />
         </View>
-        {selectedTab === "pets" ? <PetsGrid /> : <ShootersList />}
+
+        {renderContent()}
       </ScrollView>
     </View>
   );
 }
+
+const TabButton = ({
+  title,
+  isActive,
+  onPress,
+}: {
+  title: string;
+  isActive: boolean;
+  onPress: () => void;
+}) => (
+  <TouchableOpacity
+    style={[styles.tabButton, isActive && styles.tabButtonActive]}
+    onPress={onPress}
+  >
+    <Text
+      style={[styles.tabButtonText, isActive && styles.tabButtonTextActive]}
+    >
+      {title}
+    </Text>
+  </TouchableOpacity>
+);
+
+const InfoChip = ({
+  text,
+  backgroundColor,
+  textColor,
+}: {
+  text: string;
+  backgroundColor: string;
+  textColor: string;
+}) => (
+  <View style={[styles.infoChip, { backgroundColor }]}>
+    <Text style={[styles.infoChipText, { color: textColor }]}>{text}</Text>
+  </View>
+);
+
+const styles = StyleSheet.create({
+  container: { flex: 1, backgroundColor: "#FFE0D8" },
+  header: {
+    backgroundColor: "white",
+    borderBottomLeftRadius: 40,
+    borderBottomRightRadius: 40,
+    paddingHorizontal: 24,
+    paddingTop: 50, // For SafeArea
+    paddingBottom: 20,
+    elevation: 8,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.2,
+    shadowRadius: 5,
+    marginBottom: 20, // Space below header
+  },
+  headerTopRow: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    marginBottom: 15,
+  },
+  headerTitle: {
+    color: "#ea5b3a",
+    fontSize: 32,
+    fontWeight: "bold",
+    opacity: 0.7,
+  },
+  headerIcons: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 16,
+  },
+  iconImage: {
+    width: 24,
+    height: 24,
+    resizeMode: "contain",
+  },
+  notificationIcon: {
+    position: "relative",
+  },
+  badge: {
+    position: "absolute",
+    top: -5,
+    right: -10,
+    backgroundColor: "#FF3B30",
+    borderRadius: 10,
+    minWidth: 18,
+    height: 18,
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  badgeText: {
+    color: "white",
+    fontSize: 10,
+    fontWeight: "bold",
+  },
+  headerBottomRow: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    // Added for filter icon
+    gap: 10, 
+  },
+  filterIconContainer: {
+    padding: 8,
+    backgroundColor: 'white',
+    borderRadius: 15,
+    elevation: 2,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.1,
+    shadowRadius: 2,
+  },
+  scrollViewContent: { paddingBottom: 100 },
+  selectedPetCard: {
+    backgroundColor: "white",
+    marginHorizontal: 20,
+    marginTop: 0, // Adjusted from 20 to 0 because header has margin-bottom
+    marginBottom: 20,
+    borderRadius: 15,
+    padding: 12,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    elevation: 3,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.1,
+    shadowRadius: 2,
+    borderLeftWidth: 5,
+    borderColor: "#FF6B4A",
+  },
+  selectedPetInfo: {
+    flexDirection: "row",
+    alignItems: "center",
+  },
+  selectedPetImage: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    backgroundColor: "#F3F4F6", // Lighter gray for placeholder
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  selectedPetImagePlaceholder: {
+    backgroundColor: "#FFE0D8",
+  },
+  selectedPetLabel: {
+    fontSize: 12,
+    color: "#888",
+  },
+  selectedPetName: {
+    fontSize: 16,
+    fontWeight: "bold",
+    color: "#333",
+  },
+  selectedPetStatusBadge: {
+    backgroundColor: "#FF6B4A",
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: 15,
+  },
+  selectedPetStatusText: {
+    color: "white",
+    fontSize: 10,
+    fontWeight: "bold",
+  },
+  carouselContainer: { alignItems: "center", marginVertical: 20 },
+  bannerImage: { width: SCREEN_W * 0.9, height: 192, borderRadius: 16 }, // Adjusted for padding
+  pagination: { flexDirection: "row", justifyContent: "center", marginTop: 12 },
+  dot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    backgroundColor: "rgba(0,0,0,0.2)",
+    marginHorizontal: 4,
+  },
+  dotActive: {
+    backgroundColor: "#FF6B4A",
+    width: 10,
+    height: 10,
+    borderRadius: 5,
+  },
+  dotInactive: {
+    backgroundColor: "rgba(0,0,0,0.2)",
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+  },
+  topMatchContainer: {
+    backgroundColor: "#F9DCDC", // Light red background
+    marginHorizontal: 20,
+    borderRadius: 20,
+    padding: 20,
+    marginBottom: 20,
+    elevation: 5,
+    shadowColor: "#EF4444", // Reddish shadow
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.2,
+    shadowRadius: 4,
+    borderWidth: 1, // Subtle border
+    borderColor: "#FECACA", // Lighter red border
+  },
+  topMatchPlaceholder: {
+    backgroundColor: "#F9DCDC", // Light red background
+    marginHorizontal: 20,
+    borderRadius: 20,
+    padding: 20,
+    marginBottom: 20,
+    elevation: 5,
+    shadowColor: "#EF4444", // Reddish shadow
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.2,
+    shadowRadius: 4,
+    borderWidth: 1, // Subtle border
+    borderColor: "#FECACA", // Lighter red border
+  },
+  topMatchContent: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginBottom: 15,
+  },
+  topMatchIcon: {
+    width: 40,
+    height: 40,
+    marginRight: 15,
+  },
+  topMatchTitle: {
+    fontSize: 20,
+    fontWeight: "bold",
+    color: "#DC2626", // Red color for title
+  },
+  topMatchSubtitle: {
+    fontSize: 14,
+    color: "#B91C1C", // Darker red for subtitle
+  },
+  topMatchActionButton: {
+    backgroundColor: "#ea5b3a",
+    padding: 10,
+    borderRadius: 10,
+    marginTop: 8,
+    alignSelf: "flex-start",
+  },
+  topMatchActionButtonText: {
+    color: "white",
+    fontWeight: "bold",
+  },
+  matchDetails: {
+    flexDirection: "row",
+    alignItems: "center",
+    paddingTop: 15,
+    borderTopWidth: 1,
+    borderColor: "#FCA5A5", // Lighter red for border
+  },
+  matchAvatars: {
+    flexDirection: "row",
+  },
+  matchAvatar: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    borderWidth: 2,
+    borderColor: "white",
+    backgroundColor: "#F3F4F6",
+  },
+  matchNames: {
+    fontSize: 18,
+    fontWeight: "bold",
+    color: "#4B5563", // Dark gray
+  },
+  matchCompatibility: {
+    fontSize: 14,
+    color: "#6B7280", // Medium gray
+  },
+  aiRecIcon: {
+    width: 50,
+    height: 50,
+  },
+  actionButton: {
+    backgroundColor: "#ea5b3a",
+    padding: 10,
+    borderRadius: 10,
+    marginTop: 8,
+  },
+  actionButtonText: { color: "white", fontWeight: "bold" },
+  tabSwitcherContainer: {
+    flexDirection: "row",
+    justifyContent: "center",
+    marginVertical: 20,
+    marginHorizontal: 20,
+    backgroundColor: "white",
+    borderRadius: 30,
+    elevation: 3,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.1,
+    shadowRadius: 2,
+    padding: 4,
+  },
+  tabButton: {
+    flex: 1,
+    paddingVertical: 10,
+    borderRadius: 25,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  tabButtonActive: {
+    backgroundColor: "#FF6B4A",
+  },
+  tabButtonText: {
+    fontSize: 16,
+    fontWeight: "bold",
+    color: "#FF6B4A",
+  },
+  tabButtonTextActive: {
+    color: "white",
+  },
+  sectionPadding: { paddingHorizontal: 20 },
+  sectionTitle: {
+    fontSize: 24,
+    fontWeight: "bold",
+    color: "#333",
+    marginBottom: 15,
+  },
+  loadingContainer: {
+    flexDirection: "row",
+    justifyContent: "center",
+    paddingVertical: 40,
+  },
+  emptyStateContainer: { paddingVertical: 40 },
+  emptyStateText: { textAlign: "center", color: "#888", fontSize: 16 },
+  gridContainer: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    justifyContent: "space-between",
+  },
+  gridItem: {
+    width: "48%",
+    backgroundColor: "white",
+    borderRadius: 18,
+    marginBottom: 16,
+    elevation: 5,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.15,
+    shadowRadius: 4,
+    overflow: "hidden",
+    borderWidth: 1,
+    borderColor: "#F3E5E5", // Light border
+  },
+  gridImageContainer: {
+    width: "100%",
+    height: 150,
+    borderTopLeftRadius: 18,
+    borderTopRightRadius: 18,
+    overflow: "hidden",
+  },
+  gridImage: { width: "100%", height: "100%" },
+  gridContent: { padding: 12 },
+  gridTitle: { fontSize: 18, fontWeight: "bold", color: "#333" },
+  gridSubtitle: { fontSize: 14, color: "#777", marginTop: 2 },
+  infoChipContainer: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 8,
+    marginTop: 8,
+  },
+  infoChip: { paddingVertical: 4, paddingHorizontal: 10, borderRadius: 15 },
+  infoChipText: { fontSize: 12, fontWeight: "bold" },
+  shooterOwnerBadge: {
+    position: "absolute",
+    right: 10,
+    top: 10,
+    backgroundColor: "#FF6B4A",
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 15,
+    elevation: 3,
+  },
+  shooterOwnerBadgeText: { color: "white", fontSize: 12, fontWeight: "bold" },
+});
