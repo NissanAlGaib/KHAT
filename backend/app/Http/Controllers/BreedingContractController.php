@@ -1582,11 +1582,8 @@ class BreedingContractController extends Controller
 
             // Mark the conversation as completed and archive it
             $conversation = $contract->conversation;
-            $conversation->update([
-                'status' => 'completed',
-                'completed_at' => now(),
-                'archived_at' => now(),
-            ]);
+            $conversation->markAsCompleted();
+            $conversation->archive();
 
             // Update match request status to completed
             $conversation->matchRequest->update([
@@ -1595,6 +1592,9 @@ class BreedingContractController extends Controller
 
             DB::commit();
 
+            // Refresh to get updated timestamps
+            $conversation->refresh();
+
             return response()->json([
                 'success' => true,
                 'message' => 'Match completed successfully! The conversation has been archived.',
@@ -1602,7 +1602,7 @@ class BreedingContractController extends Controller
                     'contract_id' => $contract->id,
                     'conversation_id' => $conversation->id,
                     'status' => 'completed',
-                    'archived_at' => $conversation->archived_at->toISOString(),
+                    'archived_at' => $conversation->archived_at?->toIso8601String(),
                 ],
             ]);
         } catch (\Exception $e) {

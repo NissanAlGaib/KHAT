@@ -36,6 +36,9 @@ export interface AcceptedMatch {
 export interface ConversationPreview {
   id: number;
   is_shooter_conversation: boolean;
+  status?: "active" | "completed" | "archived";
+  archived?: boolean;
+  archived_at?: string;
   // For owner conversations
   matched_pet?: MatchRequestPet;
   owner?: MatchRequestOwner;

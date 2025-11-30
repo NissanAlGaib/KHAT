@@ -382,6 +382,7 @@ export interface Offspring {
   name?: string;
   sex: "male" | "female";
   color?: string;
+  photo_url?: string;
   status: "alive" | "died" | "adopted";
   allocation_status: "unassigned" | "assigned" | "transferred";
   assigned_to?: {
@@ -602,18 +603,21 @@ export const autoAllocateOffspring = async (
  */
 export const getOffspringAllocationSummary = async (
   contractId: number
-): Promise<AllocationSummaryData | null> => {
+): Promise<ApiResponse<AllocationSummaryData>> => {
   try {
     const response = await axiosInstance.get(
       `/api/contracts/${contractId}/offspring/allocation-summary`
     );
-    return response.data.data || null;
+    return {
+      success: true,
+      message: "Allocation summary retrieved successfully",
+      data: response.data.data,
+    };
   } catch (error: any) {
-    console.error(
-      "Error getting allocation summary:",
-      error.response?.data || error.message
-    );
-    return null;
+    const errorMessage =
+      error.response?.data?.message || "Failed to get allocation summary";
+    console.error("Error getting allocation summary:", errorMessage);
+    return { success: false, message: errorMessage };
   }
 };
 

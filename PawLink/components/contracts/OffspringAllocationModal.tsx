@@ -14,8 +14,6 @@ import {
   Check,
   Shuffle,
   User,
-  Users,
-  ChevronRight,
   Award,
   RefreshCw,
   Archive,
@@ -59,16 +57,18 @@ export default function OffspringAllocationModal({
   const fetchAllocationData = useCallback(async () => {
     setLoading(true);
     try {
-      const data = await getOffspringAllocationSummary(contract.id);
-      setAllocationData(data);
+      const result = await getOffspringAllocationSummary(contract.id);
+      if (result.success && result.data) {
+        setAllocationData(result.data);
 
-      // Initialize selected allocations from current state
-      if (data?.offspring) {
+        // Initialize selected allocations from current state
         const initial: Record<number, number | null> = {};
-        data.offspring.forEach((o) => {
+        result.data.offspring.forEach((o) => {
           initial[o.offspring_id] = o.assigned_to?.id || null;
         });
         setSelectedAllocations(initial);
+      } else {
+        setAllocationData(null);
       }
     } catch (error) {
       console.error("Error fetching allocation data:", error);

@@ -1012,11 +1012,7 @@ export default function ContractCard({
       {/* Offspring Input Modal */}
       <OffspringInputModal
         visible={showOffspringModal}
-        onClose={() => {
-          setShowOffspringModal(false);
-          // Refresh to check if offspring were recorded
-          setHasOffspringRecorded(false);
-        }}
+        onClose={() => setShowOffspringModal(false)}
         contract={contract}
         onSuccess={(updatedContract) => {
           onContractUpdate(updatedContract);
