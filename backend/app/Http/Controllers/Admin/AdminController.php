@@ -5,9 +5,15 @@ namespace App\Http\Controllers\Admin;
 use App\Http\Controllers\Controller;
 use App\Models\User;
 use App\Models\Pet;
+use App\Models\MatchRequest;
+use App\Models\BreedingContract;
+use App\Models\Litter;
+use App\Models\UserAuth;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
+use Carbon\Carbon;
 
 class AdminController extends Controller
 {
@@ -59,7 +65,124 @@ class AdminController extends Controller
      */
     public function dashboard()
     {
-        return view('admin.dashboard');
+        $stats = $this->getDashboardStats();
+        return view('admin.dashboard', $stats);
+    }
+
+    /**
+     * Get dashboard statistics
+     */
+    private function getDashboardStats()
+    {
+        $now = Carbon::now();
+        $lastMonth = $now->copy()->subMonth();
+        $lastWeek = $now->copy()->subWeek();
+
+        // Total Users
+        $totalUsers = User::count();
+        $usersLastMonth = User::where('created_at', '<', $lastMonth)->count();
+        $usersGrowth = $usersLastMonth > 0 
+            ? round((($totalUsers - $usersLastMonth) / $usersLastMonth) * 100, 1)
+            : 0;
+
+        // Verified Breeders (users with breeder_certificate approved)
+        $verifiedBreeders = User::whereHas('userAuth', function ($q) {
+            $q->where('auth_type', 'breeder_certificate')
+              ->where('status', 'approved');
+        })->count();
+        $breedersLastMonth = User::whereHas('userAuth', function ($q) use ($lastMonth) {
+            $q->where('auth_type', 'breeder_certificate')
+              ->where('status', 'approved')
+              ->where('updated_at', '<', $lastMonth);
+        })->count();
+        $breedersGrowth = $breedersLastMonth > 0 
+            ? round((($verifiedBreeders - $breedersLastMonth) / $breedersLastMonth) * 100, 1)
+            : 0;
+
+        // Verified Shooters (users with shooter_certificate approved)
+        $verifiedShooters = User::whereHas('userAuth', function ($q) {
+            $q->where('auth_type', 'shooter_certificate')
+              ->where('status', 'approved');
+        })->count();
+        $shootersLastWeek = User::whereHas('userAuth', function ($q) use ($lastWeek) {
+            $q->where('auth_type', 'shooter_certificate')
+              ->where('status', 'approved')
+              ->where('updated_at', '<', $lastWeek);
+        })->count();
+        $shootersGrowth = $shootersLastWeek > 0 
+            ? round((($verifiedShooters - $shootersLastWeek) / $shootersLastWeek) * 100, 1)
+            : 0;
+
+        // Pet Statistics
+        $activePets = Pet::where('status', 'active')->count();
+        $activePetsLastWeek = Pet::where('status', 'active')
+            ->where('updated_at', '<', $lastWeek)->count();
+        $activePetsGrowth = $activePetsLastWeek > 0 
+            ? round((($activePets - $activePetsLastWeek) / $activePetsLastWeek) * 100, 1)
+            : 0;
+
+        $disabledPets = Pet::where('status', 'disabled')->count();
+        $disabledPetsLastWeek = Pet::where('status', 'disabled')
+            ->where('updated_at', '<', $lastWeek)->count();
+        $disabledPetsGrowth = $disabledPetsLastWeek > 0 
+            ? round((($disabledPets - $disabledPetsLastWeek) / $disabledPetsLastWeek) * 100, 1)
+            : 0;
+
+        // Pets on cooldown (using cooldown_until timestamp)
+        $cooldownPets = Pet::onCooldown()->count();
+        $cooldownPetsLastMonth = Pet::where('cooldown_until', '>', $lastMonth)
+            ->where('cooldown_until', '<=', $now)
+            ->count();
+        $cooldownPetsGrowth = $cooldownPetsLastMonth > 0 
+            ? round((($cooldownPets - $cooldownPetsLastMonth) / $cooldownPetsLastMonth) * 100, 1)
+            : 0;
+
+        // Subscription Statistics
+        $standardSubscribers = User::where('subscription_tier', 'standard')->count();
+        $standardLastMonth = User::where('subscription_tier', 'standard')
+            ->where('updated_at', '<', $lastMonth)->count();
+        $standardGrowth = $standardLastMonth > 0 
+            ? round((($standardSubscribers - $standardLastMonth) / $standardLastMonth) * 100, 1)
+            : 0;
+
+        $premiumSubscribers = User::where('subscription_tier', 'premium')->count();
+        $premiumLastMonth = User::where('subscription_tier', 'premium')
+            ->where('updated_at', '<', $lastMonth)->count();
+        $premiumGrowth = $premiumLastMonth > 0 
+            ? round((($premiumSubscribers - $premiumLastMonth) / $premiumLastMonth) * 100, 1)
+            : 0;
+
+        // Monthly New Users for Chart (last 12 months)
+        $monthlyUsers = User::select(
+            DB::raw('DATE_FORMAT(created_at, "%Y-%m") as month'),
+            DB::raw('COUNT(*) as count')
+        )
+            ->where('created_at', '>=', $now->copy()->subYear())
+            ->groupBy('month')
+            ->orderBy('month')
+            ->get();
+
+        // Breeding Matches Trend (last 6 months)
+        $matchesTrend = MatchRequest::select(
+            DB::raw('DATE_FORMAT(created_at, "%Y-%m") as month'),
+            DB::raw('COUNT(*) as count')
+        )
+            ->where('created_at', '>=', $now->copy()->subMonths(6))
+            ->groupBy('month')
+            ->orderBy('month')
+            ->get();
+
+        return compact(
+            'totalUsers', 'usersGrowth',
+            'verifiedBreeders', 'breedersGrowth',
+            'verifiedShooters', 'shootersGrowth',
+            'activePets', 'activePetsGrowth',
+            'disabledPets', 'disabledPetsGrowth',
+            'cooldownPets', 'cooldownPetsGrowth',
+            'standardSubscribers', 'standardGrowth',
+            'premiumSubscribers', 'premiumGrowth',
+            'monthlyUsers', 'matchesTrend'
+        );
     }
 
     /**
@@ -309,9 +432,70 @@ class AdminController extends Controller
     /**
      * Display match history page.
      */
-    public function matchHistory()
+    public function matchHistory(Request $request)
     {
-        return view('admin.match-history');
+        $query = MatchRequest::with([
+            'requesterPet.owner',
+            'requesterPet.photos',
+            'targetPet.owner',
+            'targetPet.photos',
+            'conversation.contract'
+        ]);
+
+        // Filter by status
+        if ($request->filled('status')) {
+            $query->where('status', $request->status);
+        }
+
+        // Filter by date range
+        if ($request->filled('date_range')) {
+            switch ($request->date_range) {
+                case '7':
+                    $query->where('created_at', '>=', Carbon::now()->subDays(7));
+                    break;
+                case '30':
+                    $query->where('created_at', '>=', Carbon::now()->subDays(30));
+                    break;
+                case '90':
+                    $query->where('created_at', '>=', Carbon::now()->subDays(90));
+                    break;
+            }
+        }
+
+        // Search by pet name or owner name
+        if ($request->filled('search')) {
+            $search = $request->search;
+            $query->where(function ($q) use ($search) {
+                $q->whereHas('requesterPet', function ($q2) use ($search) {
+                    $q2->where('name', 'like', "%{$search}%");
+                })
+                ->orWhereHas('targetPet', function ($q2) use ($search) {
+                    $q2->where('name', 'like', "%{$search}%");
+                })
+                ->orWhereHas('requesterPet.owner', function ($q2) use ($search) {
+                    $q2->where('name', 'like', "%{$search}%");
+                })
+                ->orWhereHas('targetPet.owner', function ($q2) use ($search) {
+                    $q2->where('name', 'like', "%{$search}%");
+                });
+            });
+        }
+
+        $matches = $query->orderBy('created_at', 'desc')->paginate(15)->appends($request->query());
+
+        // Get statistics
+        $totalMatches = MatchRequest::count();
+        $pendingMatches = MatchRequest::where('status', 'pending')->count();
+        $acceptedMatches = MatchRequest::where('status', 'accepted')->count();
+        $completedMatches = MatchRequest::where('status', 'completed')->count();
+
+        return view('admin.match-history', compact(
+            'matches',
+            'totalMatches',
+            'pendingMatches',
+            'acceptedMatches',
+            'completedMatches'
+        ));
     }
 
     /**
@@ -319,7 +503,86 @@ class AdminController extends Controller
      */
     public function analytics()
     {
-        return view('admin.analytics');
+        $now = Carbon::now();
+        $lastMonth = $now->copy()->subMonth();
+        $twoMonthsAgo = $now->copy()->subMonths(2);
+
+        // Pricing constants
+        $premiumPrice = 999;
+        $standardPrice = 499;
+
+        // Current Revenue (based on current subscriptions)
+        $premiumCount = User::where('subscription_tier', 'premium')->count();
+        $standardCount = User::where('subscription_tier', 'standard')->count();
+        $totalRevenue = ($premiumCount * $premiumPrice) + ($standardCount * $standardPrice);
+
+        // Last month's revenue (based on subscriptions that existed last month)
+        $premiumLastMonth = User::where('subscription_tier', 'premium')
+            ->where('updated_at', '<', $lastMonth)->count();
+        $standardLastMonth = User::where('subscription_tier', 'standard')
+            ->where('updated_at', '<', $lastMonth)->count();
+        $revenueLastMonth = ($premiumLastMonth * $premiumPrice) + ($standardLastMonth * $standardPrice);
+        $revenueGrowth = $revenueLastMonth > 0 
+            ? round((($totalRevenue - $revenueLastMonth) / $revenueLastMonth) * 100, 1)
+            : ($totalRevenue > 0 ? 100 : 0);
+
+        // Active Users (users with activity in last 30 days)
+        $activeUsers = User::where('updated_at', '>=', $lastMonth)->count();
+        $activeUsersLastMonth = User::whereBetween('updated_at', [$twoMonthsAgo, $lastMonth])->count();
+        $activeUsersGrowth = $activeUsersLastMonth > 0 
+            ? round((($activeUsers - $activeUsersLastMonth) / $activeUsersLastMonth) * 100, 1)
+            : 0;
+
+        // Matches Made
+        $matchesMade = MatchRequest::where('status', 'accepted')->count();
+        $matchesLastWeek = MatchRequest::where('status', 'accepted')
+            ->where('updated_at', '<', $now->copy()->subWeek())->count();
+        $matchesGrowth = $matchesLastWeek > 0 
+            ? round((($matchesMade - $matchesLastWeek) / $matchesLastWeek) * 100, 1)
+            : 0;
+
+        // Conversion Rate (accepted matches / total match requests)
+        $totalRequests = MatchRequest::count();
+        $conversionRate = $totalRequests > 0 
+            ? round(($matchesMade / $totalRequests) * 100, 1)
+            : 0;
+        
+        // Calculate last month's conversion rate
+        $totalRequestsLastMonth = MatchRequest::where('created_at', '<', $lastMonth)->count();
+        $acceptedLastMonth = MatchRequest::where('status', 'accepted')
+            ->where('created_at', '<', $lastMonth)->count();
+        $conversionRateLastMonth = $totalRequestsLastMonth > 0 
+            ? round(($acceptedLastMonth / $totalRequestsLastMonth) * 100, 1)
+            : 0;
+        $conversionGrowth = round($conversionRate - $conversionRateLastMonth, 1);
+
+        // Monthly data for charts
+        $monthlyData = User::select(
+            DB::raw('DATE_FORMAT(created_at, "%Y-%m") as month'),
+            DB::raw('COUNT(*) as users')
+        )
+            ->where('created_at', '>=', $now->copy()->subYear())
+            ->groupBy('month')
+            ->orderBy('month')
+            ->get();
+
+        $monthlyMatches = MatchRequest::select(
+            DB::raw('DATE_FORMAT(created_at, "%Y-%m") as month'),
+            DB::raw('COUNT(*) as matches'),
+            DB::raw('SUM(CASE WHEN status = "accepted" THEN 1 ELSE 0 END) as accepted')
+        )
+            ->where('created_at', '>=', $now->copy()->subYear())
+            ->groupBy('month')
+            ->orderBy('month')
+            ->get();
+
+        return view('admin.analytics', compact(
+            'totalRevenue', 'revenueGrowth',
+            'activeUsers', 'activeUsersGrowth',
+            'matchesMade', 'matchesGrowth',
+            'conversionRate', 'conversionGrowth',
+            'monthlyData', 'monthlyMatches'
+        ));
     }
 
     /**
@@ -327,7 +590,46 @@ class AdminController extends Controller
      */
     public function billing()
     {
-        return view('admin.billing');
+        // Subscription statistics
+        $freeUsers = User::where('subscription_tier', 'free')
+            ->orWhereNull('subscription_tier')
+            ->count();
+        $standardUsers = User::where('subscription_tier', 'standard')->count();
+        $premiumUsers = User::where('subscription_tier', 'premium')->count();
+        $totalUsers = $freeUsers + $standardUsers + $premiumUsers;
+
+        // Calculate percentages
+        $freePercentage = $totalUsers > 0 ? round(($freeUsers / $totalUsers) * 100) : 0;
+        $standardPercentage = $totalUsers > 0 ? round(($standardUsers / $totalUsers) * 100) : 0;
+        $premiumPercentage = $totalUsers > 0 ? round(($premiumUsers / $totalUsers) * 100) : 0;
+
+        // Growth calculations
+        $lastMonth = Carbon::now()->subMonth();
+        $standardLastMonth = User::where('subscription_tier', 'standard')
+            ->where('updated_at', '<', $lastMonth)->count();
+        $standardGrowth = $standardLastMonth > 0 
+            ? round((($standardUsers - $standardLastMonth) / $standardLastMonth) * 100, 1)
+            : 0;
+
+        $premiumLastMonth = User::where('subscription_tier', 'premium')
+            ->where('updated_at', '<', $lastMonth)->count();
+        $premiumGrowth = $premiumLastMonth > 0 
+            ? round((($premiumUsers - $premiumLastMonth) / $premiumLastMonth) * 100, 1)
+            : 0;
+
+        // Recent subscription changes
+        $recentSubscriptions = User::whereNotNull('subscription_tier')
+            ->where('subscription_tier', '!=', 'free')
+            ->orderBy('updated_at', 'desc')
+            ->limit(10)
+            ->get(['id', 'name', 'email', 'subscription_tier', 'updated_at']);
+
+        return view('admin.billing', compact(
+            'freeUsers', 'freePercentage',
+            'standardUsers', 'standardPercentage', 'standardGrowth',
+            'premiumUsers', 'premiumPercentage', 'premiumGrowth',
+            'totalUsers', 'recentSubscriptions'
+        ));
     }
 
     /**
@@ -390,8 +692,8 @@ class AdminController extends Controller
                     $daysRemaining = null;
 
                     if ($expiryDate) {
-                        $now = \Carbon\Carbon::now();
-                        $expiry = \Carbon\Carbon::parse($expiryDate);
+                        $now = Carbon::now();
+                        $expiry = Carbon::parse($expiryDate);
                         $daysRemaining = $now->diffInDays($expiry, false);
                     }
 
@@ -400,11 +702,17 @@ class AdminController extends Controller
                         'auth_type' => $auth->auth_type,
                         'document_path' => $auth->document_path ? asset('storage/' . $auth->document_path) : null,
                         'status' => $auth->status,
-                        'date_created' => $auth->date_created->format('M d, Y'),
+                        'date_created' => $auth->date_created ? $auth->date_created->format('M d, Y') : null,
                         'date_submitted' => $auth->created_at->format('M d, Y h:i A'),
                         'updated_at' => $auth->updated_at->format('M d, Y'),
-                        'expiry_date' => $expiryDate ? \Carbon\Carbon::parse($expiryDate)->format('M d, Y') : null,
+                        'expiry_date' => $expiryDate ? Carbon::parse($expiryDate)->format('M d, Y') : null,
                         'days_remaining' => $daysRemaining,
+                        // Document details from form input
+                        'document_number' => $auth->document_number,
+                        'document_name' => $auth->document_name,
+                        'issue_date' => $auth->issue_date ? Carbon::parse($auth->issue_date)->format('M d, Y') : null,
+                        'issuing_authority' => $auth->issuing_authority,
+                        'rejection_reason' => $auth->rejection_reason,
                     ];
                 })
             ]

@@ -402,6 +402,62 @@
             const statusColor = doc.status === 'approved' ? 'green' : (doc.status === 'rejected' ? 'red' : 'yellow');
             const statusIcon = doc.status === 'approved' ? 'check-circle' : (doc.status === 'rejected' ? 'x-circle' : 'clock');
 
+            // Build document details section
+            let detailsHtml = '';
+            if (doc.document_name || doc.document_number || doc.issuing_authority || doc.issue_date || doc.expiry_date) {
+                detailsHtml = `
+                    <div class="bg-white rounded-lg p-4 mb-4 border border-gray-100">
+                        <h5 class="text-sm font-semibold text-gray-700 mb-3 flex items-center gap-2">
+                            <i data-lucide="info" class="w-4 h-4 text-orange-500"></i>
+                            Document Details
+                        </h5>
+                        <div class="grid grid-cols-2 gap-3 text-sm">
+                            ${doc.document_name ? `
+                                <div>
+                                    <p class="text-gray-500 text-xs">Name on Document</p>
+                                    <p class="font-medium text-gray-900">${doc.document_name}</p>
+                                </div>
+                            ` : ''}
+                            ${doc.document_number ? `
+                                <div>
+                                    <p class="text-gray-500 text-xs">Document Number</p>
+                                    <p class="font-medium text-gray-900">${doc.document_number}</p>
+                                </div>
+                            ` : ''}
+                            ${doc.issuing_authority ? `
+                                <div>
+                                    <p class="text-gray-500 text-xs">Issuing Authority</p>
+                                    <p class="font-medium text-gray-900">${doc.issuing_authority}</p>
+                                </div>
+                            ` : ''}
+                            ${doc.issue_date ? `
+                                <div>
+                                    <p class="text-gray-500 text-xs">Issue Date</p>
+                                    <p class="font-medium text-gray-900">${doc.issue_date}</p>
+                                </div>
+                            ` : ''}
+                            ${doc.expiry_date ? `
+                                <div>
+                                    <p class="text-gray-500 text-xs">Expiry Date</p>
+                                    <p class="font-medium text-gray-900">${doc.expiry_date}</p>
+                                </div>
+                            ` : ''}
+                        </div>
+                    </div>
+                `;
+            }
+
+            // Build rejection reason section
+            let rejectionHtml = '';
+            if (doc.status === 'rejected' && doc.rejection_reason) {
+                rejectionHtml = `
+                    <div class="bg-red-50 rounded-lg p-3 mb-4 border border-red-100">
+                        <p class="text-xs text-red-600 font-semibold mb-1">Rejection Reason:</p>
+                        <p class="text-sm text-red-700">${doc.rejection_reason}</p>
+                    </div>
+                `;
+            }
+
             return `
                 <div class="bg-gray-50 rounded-xl p-5 border border-gray-200">
                     <div class="flex items-start justify-between mb-3">
@@ -419,6 +475,9 @@
                             ${doc.status.charAt(0).toUpperCase() + doc.status.slice(1)}
                         </span>
                     </div>
+                    
+                    ${detailsHtml}
+                    ${rejectionHtml}
                     
                     ${doc.document_path ? `
                         <div class="mb-4">
@@ -497,11 +556,12 @@
                     <thead class="bg-gray-50">
                         <tr class="text-left text-sm font-semibold text-gray-700">
                             <th class="px-4 py-3">Document</th>
-                            <th class="px-4 py-3">Submitted</th>
+                            <th class="px-4 py-3">Name / Number</th>
+                            <th class="px-4 py-3">Issuing Authority</th>
+                            <th class="px-4 py-3">Issue Date</th>
                             <th class="px-4 py-3">Expiry Date</th>
                             <th class="px-4 py-3">Days Remaining</th>
                             <th class="px-4 py-3">Status</th>
-                            <th class="px-4 py-3">Action</th>
                         </tr>
                     </thead>
                     <tbody class="divide-y divide-gray-100">
@@ -535,19 +595,20 @@
                             
                             return `
                                 <tr class="text-sm">
-                                    <td class="px-4 py-3 capitalize">${doc.auth_type.replace(/_/g, ' ')}</td>
-                                    <td class="px-4 py-3">${doc.date_submitted}</td>
+                                    <td class="px-4 py-3 capitalize font-medium">${doc.auth_type.replace(/_/g, ' ')}</td>
+                                    <td class="px-4 py-3">
+                                        ${doc.document_name ? `<span class="block text-gray-900">${doc.document_name}</span>` : ''}
+                                        ${doc.document_number ? `<span class="block text-xs text-gray-500">${doc.document_number}</span>` : ''}
+                                        ${!doc.document_name && !doc.document_number ? '<span class="text-gray-400">—</span>' : ''}
+                                    </td>
+                                    <td class="px-4 py-3">${doc.issuing_authority || '—'}</td>
+                                    <td class="px-4 py-3">${doc.issue_date || '—'}</td>
                                     <td class="px-4 py-3">${expiryDate}</td>
                                     <td class="px-4 py-3">${daysText}</td>
                                     <td class="px-4 py-3">
                                         <span class="px-2 py-1 rounded-md text-xs font-semibold ${statusBadge}">
                                             ${statusText}
                                         </span>
-                                    </td>
-                                    <td class="px-4 py-3">
-                                        <button class="text-orange-600 hover:text-orange-700 text-xs font-medium">
-                                            Request Update
-                                        </button>
                                     </td>
                                 </tr>
                             `;

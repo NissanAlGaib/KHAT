@@ -115,7 +115,6 @@ class UserController extends Controller
 
     /**
      * Get user statistics for breeding overview
-     * TODO: Implement actual logic for calculating these statistics
      */
     public function getStatistics(Request $request)
     {
@@ -124,23 +123,25 @@ class UserController extends Controller
         // Get all pet IDs owned by the user
         $petIds = $user->pets()->pluck('pet_id');
 
-        // Current breeding: Count of active litters (birth_date within last 6 months)
-        $currentBreeding = \App\Models\Litter::where(function ($query) use ($petIds) {
-            $query->whereIn('sire_id', $petIds)
-                ->orWhereIn('dam_id', $petIds);
-        })
-            ->where('status', 'active')
-            ->where('birth_date', '>=', now()->subMonths(6))
+        // Current breeding: Count of active breeding contracts (accepted but not fulfilled)
+        // This shows pets that are currently in an active breeding arrangement
+        $currentBreeding = \App\Models\BreedingContract::where('status', 'accepted')
+            ->whereHas('conversation.matchRequest', function ($query) use ($petIds) {
+                $query->whereIn('requester_pet_id', $petIds)
+                    ->orWhereIn('target_pet_id', $petIds);
+            })
             ->count();
 
-        // Total matches: Count of all litters where user's pets are involved
-        $totalMatches = \App\Models\Litter::where(function ($query) use ($petIds) {
-            $query->whereIn('sire_id', $petIds)
-                ->orWhereIn('dam_id', $petIds);
-        })
+        // Total matches: Count of all successful matches (completed or fulfilled contracts)
+        // plus accepted contracts that are still in progress
+        $totalMatches = \App\Models\BreedingContract::whereIn('status', ['accepted', 'fulfilled'])
+            ->whereHas('conversation.matchRequest', function ($query) use ($petIds) {
+                $query->whereIn('requester_pet_id', $petIds)
+                    ->orWhereIn('target_pet_id', $petIds);
+            })
             ->count();
 
-        // Success rate: Percentage of litters with alive offspring
+        // Success rate: Percentage of completed litters with alive offspring
         $littersWithData = \App\Models\Litter::where(function ($query) use ($petIds) {
             $query->whereIn('sire_id', $petIds)
                 ->orWhereIn('dam_id', $petIds);
@@ -156,16 +157,21 @@ class UserController extends Controller
             $successRate = round(($successfulLitters / $littersWithData->count()) * 100);
         }
 
-        // Income: Calculate based on breeding services
-        // For now, we'll use a placeholder calculation
-        // In a real system, this would come from a transactions or payments table
-        $income = $totalMatches * 500.00; // Example: 500 per match
+        // Income: Calculate based on breeding contracts
+        // Sum monetary amounts from fulfilled contracts where user received payment
+        $income = \App\Models\BreedingContract::where('status', 'fulfilled')
+            ->where('include_monetary_amount', true)
+            ->whereHas('conversation.matchRequest', function ($query) use ($petIds) {
+                // User gets payment when their pet is the dam (female) in most cases
+                $query->whereIn('target_pet_id', $petIds);
+            })
+            ->sum('monetary_amount');
 
         return response()->json([
             'current_breeding' => $currentBreeding,
             'total_matches' => $totalMatches,
             'success_rate' => $successRate,
-            'income' => $income,
+            'income' => (float) $income,
         ]);
     }
 }

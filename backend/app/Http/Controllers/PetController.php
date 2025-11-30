@@ -437,6 +437,10 @@ class PetController extends Controller
             'has_been_bred' => $pet->has_been_bred,
             'breeding_count' => $pet->breeding_count,
             'status' => $pet->status,
+            'is_on_cooldown' => $pet->isOnCooldown(),
+            'cooldown_until' => $pet->cooldown_until?->format('Y-m-d'),
+            'cooldown_days_remaining' => $pet->cooldown_days_remaining,
+            'is_available_for_matching' => $pet->isAvailableForMatching(),
             'owner' => [
                 'id' => $pet->owner->id,
                 'name' => $pet->owner->name,
@@ -476,13 +480,14 @@ class PetController extends Controller
 
     /**
      * Get all available pets (not owned by current user)
+     * Excludes pets on cooldown after successful breeding
      */
     public function getAvailablePets(Request $request)
     {
         $user = $request->user();
 
         $pets = Pet::where('user_id', '!=', $user->id)
-            ->where('status', 'active')
+            ->availableForMatching() // Uses scope to exclude pets on cooldown
             ->with(['owner:id,name,profile_image', 'photos'])
             ->get();
 

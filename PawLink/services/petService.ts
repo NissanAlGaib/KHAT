@@ -251,6 +251,10 @@ export interface PetPublicProfile {
   has_been_bred: boolean;
   breeding_count: number;
   status: string;
+  is_on_cooldown: boolean;
+  cooldown_until?: string;
+  cooldown_days_remaining?: number;
+  is_available_for_matching: boolean;
   owner: {
     id: number;
     name: string;

@@ -1144,14 +1144,30 @@ class BreedingContractController extends Controller
             $dam->increment('breeding_count');
             $dam->update(['has_been_bred' => true]);
 
+            // Put both parent pets on cooldown after successful breeding with offspring
+            $sire->startCooldown();
+            $dam->startCooldown();
+
             DB::commit();
 
             return response()->json([
                 'success' => true,
-                'message' => 'Offspring recorded successfully',
+                'message' => 'Offspring recorded successfully. Both pets are now on a ' . Pet::DEFAULT_COOLDOWN_DAYS . '-day breeding cooldown.',
                 'data' => [
                     'litter' => $litter->load('offspring'),
                     'contract' => $this->formatContract($contract->fresh(), $user),
+                    'cooldown_info' => [
+                        'sire' => [
+                            'pet_id' => $sire->pet_id,
+                            'name' => $sire->name,
+                            'cooldown_until' => $sire->cooldown_until?->toIso8601String(),
+                        ],
+                        'dam' => [
+                            'pet_id' => $dam->pet_id,
+                            'name' => $dam->name,
+                            'cooldown_until' => $dam->cooldown_until?->toIso8601String(),
+                        ],
+                    ],
                 ],
             ], 201);
         } catch (\Exception $e) {
