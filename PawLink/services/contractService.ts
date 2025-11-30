@@ -5,7 +5,7 @@ export interface BreedingContract {
   conversation_id: number;
   created_by: number;
   last_edited_by?: number;
-  status: "draft" | "pending_review" | "accepted" | "rejected";
+  status: "draft" | "pending_review" | "accepted" | "rejected" | "fulfilled";
 
   // Shooter Agreement
   shooter_name?: string;
@@ -425,6 +425,57 @@ export interface AllocationSummary {
   selection_method: string;
 }
 
+export interface OwnerAllocationInfo {
+  id: number;
+  name: string;
+  expected_count: number;
+  current_count: number;
+}
+
+export interface ParentInfo {
+  pet_id: number;
+  name: string;
+  owner_id: number;
+  owner_name: string;
+}
+
+export interface AllocationSummaryData {
+  contract_id: number;
+  litter_id: number;
+  share_offspring: boolean;
+  allocation_method: {
+    split_type: "percentage" | "specific_number";
+    split_value: number;
+    selection_method: "first_pick" | "randomized";
+    selection_method_label: string;
+  };
+  statistics: {
+    total_alive: number;
+    total_died: number;
+    male_count: number;
+    female_count: number;
+  };
+  expected_allocation: {
+    dam_owner: OwnerAllocationInfo;
+    sire_owner: OwnerAllocationInfo;
+  };
+  unallocated_count: number;
+  is_fully_allocated: boolean;
+  can_complete_match: boolean;
+  parents: {
+    sire: ParentInfo;
+    dam: ParentInfo;
+  };
+  offspring: Offspring[];
+}
+
+export interface CompleteMatchResponse {
+  contract_id: number;
+  conversation_id: number;
+  status: string;
+  archived_at: string;
+}
+
 // ==================== BREEDING COMPLETION FUNCTIONS ====================
 
 /**
@@ -541,6 +592,50 @@ export const autoAllocateOffspring = async (
   } catch (error: any) {
     const errorMessage =
       error.response?.data?.message || "Failed to auto-allocate offspring";
+    return { success: false, message: errorMessage };
+  }
+};
+
+/**
+ * Get offspring allocation summary for a contract
+ * Shows allocation breakdown based on contract terms
+ */
+export const getOffspringAllocationSummary = async (
+  contractId: number
+): Promise<AllocationSummaryData | null> => {
+  try {
+    const response = await axiosInstance.get(
+      `/api/contracts/${contractId}/offspring/allocation-summary`
+    );
+    return response.data.data || null;
+  } catch (error: any) {
+    console.error(
+      "Error getting allocation summary:",
+      error.response?.data || error.message
+    );
+    return null;
+  }
+};
+
+/**
+ * Complete the match after offspring allocation
+ * Archives the conversation and marks the contract as fulfilled
+ */
+export const completeMatch = async (
+  contractId: number
+): Promise<ApiResponse<CompleteMatchResponse>> => {
+  try {
+    const response = await axiosInstance.post(
+      `/api/contracts/${contractId}/complete-match`
+    );
+    return {
+      success: true,
+      message: response.data.message,
+      data: response.data.data,
+    };
+  } catch (error: any) {
+    const errorMessage =
+      error.response?.data?.message || "Failed to complete match";
     return { success: false, message: errorMessage };
   }
 };

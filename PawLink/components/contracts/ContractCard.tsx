@@ -22,6 +22,8 @@ import {
   CheckCircle,
   XCircle,
   Baby,
+  Archive,
+  Award,
 } from "lucide-react-native";
 import dayjs from "dayjs";
 import {
@@ -32,16 +34,19 @@ import {
   declineShooterRequest,
   updateShooterTerms,
   completeBreeding,
+  getOffspring,
 } from "@/services/contractService";
 import {
   ShooterContractEditModal,
   OffspringInputModal,
+  OffspringAllocationModal,
 } from "@/components/contracts";
 
 interface ContractCardProps {
   contract: BreedingContract;
   onContractUpdate: (contract: BreedingContract) => void;
   onEdit: () => void;
+  onMatchCompleted?: () => void;
 }
 
 interface CollapsibleSectionProps {
@@ -81,7 +86,7 @@ const CollapsibleSection = ({
 };
 
 const StatusBadge = ({ status }: { status: BreedingContract["status"] }) => {
-  const statusStyles = {
+  const statusStyles: Record<string, { bg: string; text: string; label: string }> = {
     draft: { bg: "bg-gray-200", text: "text-gray-700", label: "Draft" },
     pending_review: {
       bg: "bg-yellow-100",
@@ -94,9 +99,14 @@ const StatusBadge = ({ status }: { status: BreedingContract["status"] }) => {
       label: "Accepted",
     },
     rejected: { bg: "bg-red-100", text: "text-red-800", label: "Rejected" },
+    fulfilled: {
+      bg: "bg-purple-100",
+      text: "text-purple-800",
+      label: "Fulfilled",
+    },
   };
 
-  const style = statusStyles[status];
+  const style = statusStyles[status] || statusStyles.draft;
 
   return (
     <View className={`${style.bg} px-3 py-1 rounded-full`}>
@@ -111,6 +121,7 @@ export default function ContractCard({
   contract,
   onContractUpdate,
   onEdit,
+  onMatchCompleted,
 }: ContractCardProps) {
   const [isAccepting, setIsAccepting] = useState(false);
   const [isRejecting, setIsRejecting] = useState(false);
@@ -121,6 +132,19 @@ export default function ContractCard({
   const [showBreedingNotes, setShowBreedingNotes] = useState(false);
   const [breedingNotes, setBreedingNotes] = useState("");
   const [showOffspringModal, setShowOffspringModal] = useState(false);
+  const [showAllocationModal, setShowAllocationModal] = useState(false);
+  const [hasOffspringRecorded, setHasOffspringRecorded] = useState(false);
+
+  // Check if offspring have been recorded
+  React.useEffect(() => {
+    const checkOffspring = async () => {
+      if (contract.breeding_status === "completed" && contract.has_offspring) {
+        const offspring = await getOffspring(contract.id);
+        setHasOffspringRecorded(offspring !== null && offspring.offspring.length > 0);
+      }
+    };
+    checkOffspring();
+  }, [contract.id, contract.breeding_status, contract.has_offspring]);
 
   const handleAccept = async () => {
     setIsAccepting(true);
@@ -806,8 +830,8 @@ export default function ContractCard({
                   </Text>
                 )}
 
-                {/* Add Offspring Button */}
-                {contract.has_offspring && contract.can_input_offspring && (
+                {/* Add Offspring Button - show when offspring not yet recorded */}
+                {contract.has_offspring && contract.can_input_offspring && !hasOffspringRecorded && (
                   <TouchableOpacity
                     onPress={() => setShowOffspringModal(true)}
                     style={{ backgroundColor: "#16a34a" }}
@@ -816,6 +840,34 @@ export default function ContractCard({
                     <Baby size={16} color="white" />
                     <Text className="text-white font-semibold ml-1">
                       Add Offspring Details
+                    </Text>
+                  </TouchableOpacity>
+                )}
+
+                {/* View/Manage Offspring Allocation - show when offspring are recorded and share_offspring is enabled */}
+                {contract.has_offspring && hasOffspringRecorded && contract.share_offspring && (
+                  <TouchableOpacity
+                    onPress={() => setShowAllocationModal(true)}
+                    style={{ backgroundColor: "#8b5cf6" }}
+                    className="mt-3 py-2 rounded-full flex-row items-center justify-center"
+                  >
+                    <Award size={16} color="white" />
+                    <Text className="text-white font-semibold ml-1">
+                      Manage Offspring Allocation
+                    </Text>
+                  </TouchableOpacity>
+                )}
+
+                {/* Complete Match Button - show when offspring are recorded but no sharing needed */}
+                {contract.has_offspring && hasOffspringRecorded && !contract.share_offspring && (
+                  <TouchableOpacity
+                    onPress={() => setShowAllocationModal(true)}
+                    style={{ backgroundColor: "#059669" }}
+                    className="mt-3 py-2 rounded-full flex-row items-center justify-center"
+                  >
+                    <Archive size={16} color="white" />
+                    <Text className="text-white font-semibold ml-1">
+                      Complete Match
                     </Text>
                   </TouchableOpacity>
                 )}
@@ -919,6 +971,22 @@ export default function ContractCard({
             )}
           </View>
         )}
+
+        {/* Contract Fulfilled Status */}
+        {contract.status === "fulfilled" && (
+          <View className="mt-3">
+            <View className="bg-purple-50 rounded-xl p-3 flex-row items-center">
+              <Archive size={18} color="#8b5cf6" />
+              <Text className="text-purple-800 text-sm ml-2">
+                Match completed and archived
+                {contract.breeding_completed_at &&
+                  ` on ${dayjs(contract.breeding_completed_at).format(
+                    "MMMM D, YYYY"
+                  )}`}
+              </Text>
+            </View>
+          </View>
+        )}
       </View>
 
       {/* Footer */}
@@ -944,9 +1012,25 @@ export default function ContractCard({
       {/* Offspring Input Modal */}
       <OffspringInputModal
         visible={showOffspringModal}
-        onClose={() => setShowOffspringModal(false)}
+        onClose={() => {
+          setShowOffspringModal(false);
+          // Refresh to check if offspring were recorded
+          setHasOffspringRecorded(false);
+        }}
+        contract={contract}
+        onSuccess={(updatedContract) => {
+          onContractUpdate(updatedContract);
+          setHasOffspringRecorded(true);
+        }}
+      />
+
+      {/* Offspring Allocation Modal */}
+      <OffspringAllocationModal
+        visible={showAllocationModal}
+        onClose={() => setShowAllocationModal(false)}
         contract={contract}
         onSuccess={onContractUpdate}
+        onMatchCompleted={onMatchCompleted}
       />
     </View>
   );

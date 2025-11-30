@@ -1512,4 +1512,237 @@ class BreedingContractController extends Controller
             ], 500);
         }
     }
+
+    /**
+     * Complete the match after offspring allocation
+     * Marks the contract as fulfilled and archives the conversation
+     */
+    public function completeMatch(Request $request, $contractId)
+    {
+        $user = $request->user();
+        $userPetIds = Pet::where('user_id', $user->id)->pluck('pet_id');
+
+        // Get the contract with litter
+        $contract = BreedingContract::where('id', $contractId)
+            ->where('status', 'accepted')
+            ->where('breeding_status', 'completed')
+            ->where(function ($query) use ($userPetIds, $user) {
+                $query->whereHas('conversation.matchRequest', function ($q) use ($userPetIds) {
+                    $q->whereIn('requester_pet_id', $userPetIds)
+                        ->orWhereIn('target_pet_id', $userPetIds);
+                })
+                    ->orWhere('shooter_user_id', $user->id);
+            })
+            ->with(['litter.offspring', 'conversation'])
+            ->first();
+
+        if (!$contract) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Contract not found or breeding not completed',
+            ], 404);
+        }
+
+        // Check if contract has offspring and they are allocated
+        if ($contract->has_offspring && $contract->share_offspring) {
+            if (!$contract->litter) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Offspring have not been recorded yet',
+                ], 400);
+            }
+
+            // Check if all alive offspring are allocated
+            $unallocatedCount = $contract->litter->offspring
+                ->filter(fn($o) => $o->status === 'alive' && $o->allocation_status === 'unassigned')
+                ->count();
+
+            if ($unallocatedCount > 0) {
+                return response()->json([
+                    'success' => false,
+                    'message' => "There are {$unallocatedCount} offspring that have not been allocated yet",
+                ], 400);
+            }
+        }
+
+        try {
+            DB::beginTransaction();
+
+            // Update contract status to fulfilled
+            $contract->update([
+                'status' => 'fulfilled',
+            ]);
+
+            // Update litter status to completed if exists
+            if ($contract->litter) {
+                $contract->litter->update([
+                    'status' => 'completed',
+                ]);
+            }
+
+            // Mark the conversation as completed and archive it
+            $conversation = $contract->conversation;
+            $conversation->update([
+                'status' => 'completed',
+                'completed_at' => now(),
+                'archived_at' => now(),
+            ]);
+
+            // Update match request status to completed
+            $conversation->matchRequest->update([
+                'status' => 'completed',
+            ]);
+
+            DB::commit();
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Match completed successfully! The conversation has been archived.',
+                'data' => [
+                    'contract_id' => $contract->id,
+                    'conversation_id' => $conversation->id,
+                    'status' => 'completed',
+                    'archived_at' => $conversation->archived_at->toISOString(),
+                ],
+            ]);
+        } catch (\Exception $e) {
+            DB::rollBack();
+            \Log::error('Failed to complete match: ' . $e->getMessage());
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to complete match',
+            ], 500);
+        }
+    }
+
+    /**
+     * Get offspring allocation summary based on contract terms
+     * Shows how many offspring each owner should receive
+     */
+    public function getOffspringAllocationSummary(Request $request, $contractId)
+    {
+        $user = $request->user();
+        $userPetIds = Pet::where('user_id', $user->id)->pluck('pet_id');
+
+        // Get the contract with litter
+        $contract = BreedingContract::where('id', $contractId)
+            ->where('status', 'accepted')
+            ->where('breeding_status', 'completed')
+            ->where(function ($query) use ($userPetIds, $user) {
+                $query->whereHas('conversation.matchRequest', function ($q) use ($userPetIds) {
+                    $q->whereIn('requester_pet_id', $userPetIds)
+                        ->orWhereIn('target_pet_id', $userPetIds);
+                })
+                    ->orWhere('shooter_user_id', $user->id);
+            })
+            ->with(['litter.offspring.assignedTo', 'litter.sire', 'litter.dam', 'litter.sireOwner', 'litter.damOwner'])
+            ->first();
+
+        if (!$contract) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Contract not found or breeding not completed',
+            ], 404);
+        }
+
+        if (!$contract->litter) {
+            return response()->json([
+                'success' => false,
+                'message' => 'No offspring recorded for this contract',
+            ], 404);
+        }
+
+        $litter = $contract->litter;
+
+        // Get alive offspring for allocation
+        $aliveOffspring = $litter->offspring->filter(fn($o) => $o->status === 'alive');
+        $totalAlive = $aliveOffspring->count();
+
+        // Calculate allocation based on contract terms
+        $splitType = $contract->offspring_split_type;
+        $splitValue = $contract->offspring_split_value;
+        $selectionMethod = $contract->offspring_selection_method;
+
+        // Dam owner receives the contract specified share
+        $damOwnerCount = 0;
+        if ($splitType === 'percentage') {
+            $damOwnerCount = (int) ceil(($splitValue / 100) * $totalAlive);
+        } elseif ($splitType === 'specific_number') {
+            $damOwnerCount = min($splitValue, $totalAlive);
+        }
+        $sireOwnerCount = $totalAlive - $damOwnerCount;
+
+        // Count current allocations
+        $allocatedToDamOwner = $aliveOffspring->filter(fn($o) => $o->assigned_to === $litter->dam_owner_id)->count();
+        $allocatedToSireOwner = $aliveOffspring->filter(fn($o) => $o->assigned_to === $litter->sire_owner_id)->count();
+        $unallocatedCount = $aliveOffspring->filter(fn($o) => $o->allocation_status === 'unassigned')->count();
+
+        return response()->json([
+            'success' => true,
+            'data' => [
+                'contract_id' => $contract->id,
+                'litter_id' => $litter->litter_id,
+                'share_offspring' => $contract->share_offspring,
+                'allocation_method' => [
+                    'split_type' => $splitType,
+                    'split_value' => $splitValue,
+                    'selection_method' => $selectionMethod,
+                    'selection_method_label' => $selectionMethod === 'first_pick' ? 'First Pick (Dam Owner)' : 'Randomized',
+                ],
+                'statistics' => [
+                    'total_alive' => $totalAlive,
+                    'total_died' => $litter->died_offspring,
+                    'male_count' => $litter->male_count,
+                    'female_count' => $litter->female_count,
+                ],
+                'expected_allocation' => [
+                    'dam_owner' => [
+                        'id' => $litter->dam_owner_id,
+                        'name' => $litter->damOwner->name,
+                        'expected_count' => $damOwnerCount,
+                        'current_count' => $allocatedToDamOwner,
+                    ],
+                    'sire_owner' => [
+                        'id' => $litter->sire_owner_id,
+                        'name' => $litter->sireOwner->name,
+                        'expected_count' => $sireOwnerCount,
+                        'current_count' => $allocatedToSireOwner,
+                    ],
+                ],
+                'unallocated_count' => $unallocatedCount,
+                'is_fully_allocated' => $unallocatedCount === 0,
+                'can_complete_match' => $unallocatedCount === 0 || !$contract->share_offspring,
+                'parents' => [
+                    'sire' => [
+                        'pet_id' => $litter->sire->pet_id,
+                        'name' => $litter->sire->name,
+                        'owner_id' => $litter->sire_owner_id,
+                        'owner_name' => $litter->sireOwner->name,
+                    ],
+                    'dam' => [
+                        'pet_id' => $litter->dam->pet_id,
+                        'name' => $litter->dam->name,
+                        'owner_id' => $litter->dam_owner_id,
+                        'owner_name' => $litter->damOwner->name,
+                    ],
+                ],
+                'offspring' => $litter->offspring->map(function ($offspring) {
+                    return [
+                        'offspring_id' => $offspring->offspring_id,
+                        'name' => $offspring->name,
+                        'sex' => $offspring->sex,
+                        'color' => $offspring->color,
+                        'photo_url' => $offspring->photo_url,
+                        'status' => $offspring->status,
+                        'allocation_status' => $offspring->allocation_status,
+                        'assigned_to' => $offspring->assignedTo ? [
+                            'id' => $offspring->assignedTo->id,
+                            'name' => $offspring->assignedTo->name,
+                        ] : null,
+                        'selection_order' => $offspring->selection_order,
+                    ];
+                }),
+            ],
+        ]);
+    }
 }
