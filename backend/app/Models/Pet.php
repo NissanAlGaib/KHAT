@@ -6,12 +6,18 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
+use Carbon\Carbon;
 
 class Pet extends Model
 {
     use SoftDeletes;
 
     protected $primaryKey = 'pet_id';
+
+    /**
+     * Default cooldown period in days after successful breeding
+     */
+    const DEFAULT_COOLDOWN_DAYS = 90; // 3 months
 
     protected $fillable = [
         'user_id',
@@ -28,6 +34,7 @@ class Pet extends Model
         'description',
         'has_been_bred',
         'breeding_count',
+        'cooldown_until',
         'behaviors',
         'attributes',
         'profile_image',
@@ -39,6 +46,7 @@ class Pet extends Model
         'date_added' => 'datetime',
         'has_been_bred' => 'boolean',
         'breeding_count' => 'integer',
+        'cooldown_until' => 'datetime',
         'height' => 'decimal:2',
         'weight' => 'decimal:2',
         'behaviors' => 'array',
@@ -159,5 +167,78 @@ class Pet extends Model
         } else {
             return $months . ' Month' . ($months > 1 ? 's' : '') . ' old';
         }
+    }
+
+    /**
+     * Check if the pet is currently on cooldown
+     */
+    public function isOnCooldown(): bool
+    {
+        if (!$this->cooldown_until) {
+            return false;
+        }
+
+        return Carbon::now()->isBefore($this->cooldown_until);
+    }
+
+    /**
+     * Get the remaining cooldown days
+     */
+    public function getCooldownDaysRemainingAttribute(): ?int
+    {
+        if (!$this->cooldown_until || !$this->isOnCooldown()) {
+            return null;
+        }
+
+        return Carbon::now()->diffInDays($this->cooldown_until, false);
+    }
+
+    /**
+     * Start cooldown period for the pet
+     * @param int|null $days Number of days for cooldown, defaults to DEFAULT_COOLDOWN_DAYS
+     */
+    public function startCooldown(?int $days = null): void
+    {
+        $cooldownDays = $days ?? self::DEFAULT_COOLDOWN_DAYS;
+        $this->cooldown_until = Carbon::now()->addDays($cooldownDays);
+        $this->save();
+    }
+
+    /**
+     * Clear the cooldown period for the pet
+     */
+    public function clearCooldown(): void
+    {
+        $this->cooldown_until = null;
+        $this->save();
+    }
+
+    /**
+     * Check if the pet is available for matching
+     * Pet must be active and not on cooldown
+     */
+    public function isAvailableForMatching(): bool
+    {
+        return $this->status === 'active' && !$this->isOnCooldown();
+    }
+
+    /**
+     * Scope for pets that are available for matching
+     */
+    public function scopeAvailableForMatching($query)
+    {
+        return $query->where('status', 'active')
+            ->where(function ($q) {
+                $q->whereNull('cooldown_until')
+                    ->orWhere('cooldown_until', '<=', Carbon::now());
+            });
+    }
+
+    /**
+     * Scope for pets that are on cooldown
+     */
+    public function scopeOnCooldown($query)
+    {
+        return $query->where('cooldown_until', '>', Carbon::now());
     }
 }

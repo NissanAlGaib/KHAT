@@ -128,9 +128,11 @@ class AdminController extends Controller
             ? round((($disabledPets - $disabledPetsLastWeek) / $disabledPetsLastWeek) * 100, 1)
             : 0;
 
-        $cooldownPets = Pet::where('status', 'cooldown')->count();
-        $cooldownPetsLastMonth = Pet::where('status', 'cooldown')
-            ->where('updated_at', '<', $lastMonth)->count();
+        // Pets on cooldown (using cooldown_until timestamp)
+        $cooldownPets = Pet::onCooldown()->count();
+        $cooldownPetsLastMonth = Pet::where('cooldown_until', '>', $lastMonth)
+            ->where('cooldown_until', '<=', $now)
+            ->count();
         $cooldownPetsGrowth = $cooldownPetsLastMonth > 0 
             ? round((($cooldownPets - $cooldownPetsLastMonth) / $cooldownPetsLastMonth) * 100, 1)
             : 0;
