@@ -190,7 +190,7 @@ class Pet extends Model
             return null;
         }
 
-        return Carbon::now()->diffInDays($this->cooldown_until, false);
+        return Carbon::now()->diffInDays($this->cooldown_until);
     }
 
     /**
