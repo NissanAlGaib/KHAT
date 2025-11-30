@@ -16,12 +16,15 @@ import {
   Edit,
   DollarSign,
   Users,
+  User,
   Shield,
   UserCheck,
   Clock,
   CheckCircle,
   XCircle,
   Baby,
+  Archive,
+  Award,
 } from "lucide-react-native";
 import dayjs from "dayjs";
 import {
@@ -32,16 +35,21 @@ import {
   declineShooterRequest,
   updateShooterTerms,
   completeBreeding,
+  getOffspring,
+  getOffspringAllocationSummary,
+  AllocationSummaryData,
 } from "@/services/contractService";
 import {
   ShooterContractEditModal,
   OffspringInputModal,
+  OffspringAllocationModal,
 } from "@/components/contracts";
 
 interface ContractCardProps {
   contract: BreedingContract;
   onContractUpdate: (contract: BreedingContract) => void;
   onEdit: () => void;
+  onMatchCompleted?: () => void;
 }
 
 interface CollapsibleSectionProps {
@@ -81,7 +89,7 @@ const CollapsibleSection = ({
 };
 
 const StatusBadge = ({ status }: { status: BreedingContract["status"] }) => {
-  const statusStyles = {
+  const statusStyles: Record<string, { bg: string; text: string; label: string }> = {
     draft: { bg: "bg-gray-200", text: "text-gray-700", label: "Draft" },
     pending_review: {
       bg: "bg-yellow-100",
@@ -94,9 +102,14 @@ const StatusBadge = ({ status }: { status: BreedingContract["status"] }) => {
       label: "Accepted",
     },
     rejected: { bg: "bg-red-100", text: "text-red-800", label: "Rejected" },
+    fulfilled: {
+      bg: "bg-purple-100",
+      text: "text-purple-800",
+      label: "Fulfilled",
+    },
   };
 
-  const style = statusStyles[status];
+  const style = statusStyles[status] || statusStyles.draft;
 
   return (
     <View className={`${style.bg} px-3 py-1 rounded-full`}>
@@ -111,6 +124,7 @@ export default function ContractCard({
   contract,
   onContractUpdate,
   onEdit,
+  onMatchCompleted,
 }: ContractCardProps) {
   const [isAccepting, setIsAccepting] = useState(false);
   const [isRejecting, setIsRejecting] = useState(false);
@@ -121,6 +135,37 @@ export default function ContractCard({
   const [showBreedingNotes, setShowBreedingNotes] = useState(false);
   const [breedingNotes, setBreedingNotes] = useState("");
   const [showOffspringModal, setShowOffspringModal] = useState(false);
+  const [showAllocationModal, setShowAllocationModal] = useState(false);
+  const [hasOffspringRecorded, setHasOffspringRecorded] = useState(false);
+  const [allocationSummary, setAllocationSummary] = useState<AllocationSummaryData | null>(null);
+
+  // Check if offspring have been recorded
+  React.useEffect(() => {
+    const checkOffspring = async () => {
+      if (contract.breeding_status === "completed" && contract.has_offspring) {
+        const offspring = await getOffspring(contract.id);
+        setHasOffspringRecorded(offspring !== null && offspring.offspring.length > 0);
+      }
+    };
+    checkOffspring();
+  }, [contract.id, contract.breeding_status, contract.has_offspring]);
+
+  // Fetch allocation summary when contract is fulfilled
+  React.useEffect(() => {
+    const fetchAllocationSummary = async () => {
+      if (contract.status === "fulfilled" && contract.has_offspring === true && contract.share_offspring === true) {
+        try {
+          const result = await getOffspringAllocationSummary(contract.id);
+          if (result.success && result.data) {
+            setAllocationSummary(result.data);
+          }
+        } catch (error) {
+          console.error("Error fetching allocation summary:", error);
+        }
+      }
+    };
+    fetchAllocationSummary();
+  }, [contract.id, contract.status, contract.has_offspring, contract.share_offspring]);
 
   const handleAccept = async () => {
     setIsAccepting(true);
@@ -806,8 +851,8 @@ export default function ContractCard({
                   </Text>
                 )}
 
-                {/* Add Offspring Button */}
-                {contract.has_offspring && contract.can_input_offspring && (
+                {/* Add Offspring Button - show when offspring not yet recorded */}
+                {contract.has_offspring && contract.can_input_offspring && !hasOffspringRecorded && (
                   <TouchableOpacity
                     onPress={() => setShowOffspringModal(true)}
                     style={{ backgroundColor: "#16a34a" }}
@@ -816,6 +861,34 @@ export default function ContractCard({
                     <Baby size={16} color="white" />
                     <Text className="text-white font-semibold ml-1">
                       Add Offspring Details
+                    </Text>
+                  </TouchableOpacity>
+                )}
+
+                {/* View/Manage Offspring Allocation - show when offspring are recorded and share_offspring is enabled */}
+                {contract.has_offspring && hasOffspringRecorded && contract.share_offspring && (
+                  <TouchableOpacity
+                    onPress={() => setShowAllocationModal(true)}
+                    style={{ backgroundColor: "#8b5cf6" }}
+                    className="mt-3 py-2 rounded-full flex-row items-center justify-center"
+                  >
+                    <Award size={16} color="white" />
+                    <Text className="text-white font-semibold ml-1">
+                      Manage Offspring Allocation
+                    </Text>
+                  </TouchableOpacity>
+                )}
+
+                {/* Complete Match Button - show when offspring are recorded but no sharing needed */}
+                {contract.has_offspring && hasOffspringRecorded && !contract.share_offspring && (
+                  <TouchableOpacity
+                    onPress={() => setShowAllocationModal(true)}
+                    style={{ backgroundColor: "#059669" }}
+                    className="mt-3 py-2 rounded-full flex-row items-center justify-center"
+                  >
+                    <Archive size={16} color="white" />
+                    <Text className="text-white font-semibold ml-1">
+                      Complete Match
                     </Text>
                   </TouchableOpacity>
                 )}
@@ -919,6 +992,151 @@ export default function ContractCard({
             )}
           </View>
         )}
+
+        {/* Contract Fulfilled Status */}
+        {contract.status === "fulfilled" && (
+          <View className="mt-3">
+            <View className="bg-purple-50 rounded-xl p-3 flex-row items-center">
+              <Archive size={18} color="#8b5cf6" />
+              <Text className="text-purple-800 text-sm ml-2">
+                Match completed and archived
+                {contract.breeding_completed_at &&
+                  ` on ${dayjs(contract.breeding_completed_at).format(
+                    "MMMM D, YYYY"
+                  )}`}
+              </Text>
+            </View>
+
+            {/* Offspring Allocation Summary */}
+            {allocationSummary && (
+              <View className="mt-3 bg-white border border-gray-200 rounded-xl p-4">
+                <Text className="text-gray-800 font-semibold mb-3">
+                  Offspring Allocation Results
+                </Text>
+
+                {/* Litter Statistics */}
+                <View className="bg-gray-50 rounded-lg p-3 mb-3">
+                  <View className="flex-row justify-between mb-1">
+                    <Text className="text-gray-600 text-sm">Total Offspring:</Text>
+                    <Text className="text-gray-800 font-medium text-sm">
+                      {allocationSummary.statistics.total_alive} alive
+                      {allocationSummary.statistics.total_died > 0 && 
+                        `, ${allocationSummary.statistics.total_died} died`}
+                    </Text>
+                  </View>
+                  <View className="flex-row justify-between">
+                    <Text className="text-gray-600 text-sm">Gender Split:</Text>
+                    <Text className="text-gray-800 font-medium text-sm">
+                      {allocationSummary.statistics.male_count} ♂ / {allocationSummary.statistics.female_count} ♀
+                    </Text>
+                  </View>
+                </View>
+
+                {/* Allocation Breakdown */}
+                <View className="mb-3">
+                  {/* Dam Owner */}
+                  <View className="flex-row items-center justify-between mb-2 pb-2 border-b border-gray-100">
+                    <View className="flex-row items-center">
+                      <View className="w-8 h-8 rounded-full bg-pink-100 items-center justify-center">
+                        <User size={16} color="#ec4899" />
+                      </View>
+                      <View className="ml-2">
+                        <Text className="text-gray-800 font-medium text-sm">
+                          {allocationSummary.expected_allocation.dam_owner.name}
+                        </Text>
+                        <Text className="text-gray-500 text-xs">
+                          Dam ({allocationSummary.parents.dam.name}) Owner
+                        </Text>
+                      </View>
+                    </View>
+                    <View className="bg-pink-100 px-3 py-1 rounded-full">
+                      <Text className="text-pink-700 font-bold">
+                        {allocationSummary.expected_allocation.dam_owner.current_count} offspring
+                      </Text>
+                    </View>
+                  </View>
+
+                  {/* Sire Owner */}
+                  <View className="flex-row items-center justify-between">
+                    <View className="flex-row items-center">
+                      <View className="w-8 h-8 rounded-full bg-blue-100 items-center justify-center">
+                        <User size={16} color="#3b82f6" />
+                      </View>
+                      <View className="ml-2">
+                        <Text className="text-gray-800 font-medium text-sm">
+                          {allocationSummary.expected_allocation.sire_owner.name}
+                        </Text>
+                        <Text className="text-gray-500 text-xs">
+                          Sire ({allocationSummary.parents.sire.name}) Owner
+                        </Text>
+                      </View>
+                    </View>
+                    <View className="bg-blue-100 px-3 py-1 rounded-full">
+                      <Text className="text-blue-700 font-bold">
+                        {allocationSummary.expected_allocation.sire_owner.current_count} offspring
+                      </Text>
+                    </View>
+                  </View>
+                </View>
+
+                {/* Individual Offspring Allocation Details */}
+                <View className="mb-3">
+                  <Text className="text-gray-700 font-medium text-sm mb-2">
+                    Individual Allocations:
+                  </Text>
+                  {allocationSummary.offspring
+                    .filter((o) => o.status === "alive" && o.assigned_to)
+                    .map((offspring) => {
+                      const isDamOwner = offspring.assigned_to?.id === allocationSummary.expected_allocation.dam_owner.id;
+                      return (
+                        <View 
+                          key={offspring.offspring_id} 
+                          className="flex-row items-center justify-between py-2 border-b border-gray-50"
+                        >
+                          <View className="flex-row items-center flex-1">
+                            <View className={`w-6 h-6 rounded-full items-center justify-center mr-2 ${
+                              offspring.sex === "male" ? "bg-blue-100" : "bg-pink-100"
+                            }`}>
+                              <Text className={`text-xs font-bold ${
+                                offspring.sex === "male" ? "text-blue-600" : "text-pink-600"
+                              }`}>
+                                {offspring.sex === "male" ? "♂" : "♀"}
+                              </Text>
+                            </View>
+                            <View className="flex-1">
+                              <Text className="text-gray-800 text-sm">
+                                {offspring.name || `Offspring #${offspring.offspring_id}`}
+                              </Text>
+                              {offspring.color && (
+                                <Text className="text-gray-500 text-xs">{offspring.color}</Text>
+                              )}
+                            </View>
+                          </View>
+                          <View className={`px-2 py-1 rounded-full ${
+                            isDamOwner ? "bg-pink-100" : "bg-blue-100"
+                          }`}>
+                            <Text className={`text-xs font-medium ${
+                              isDamOwner ? "text-pink-700" : "text-blue-700"
+                            }`}>
+                              → {(offspring.assigned_to?.name?.trim().split(' ')[0]) || 'Unknown'}
+                            </Text>
+                          </View>
+                        </View>
+                      );
+                    })}
+                </View>
+
+                {/* Allocation Method */}
+                <View className="bg-blue-50 rounded-lg p-2 flex-row items-center">
+                  <Award size={14} color="#3b82f6" />
+                  <Text className="text-blue-700 text-xs ml-1">
+                    Allocated using {allocationSummary.allocation_method.selection_method_label} method
+                  </Text>
+                </View>
+              </View>
+            )}
+          </View>
+        )}
       </View>
 
       {/* Footer */}
@@ -946,7 +1164,19 @@ export default function ContractCard({
         visible={showOffspringModal}
         onClose={() => setShowOffspringModal(false)}
         contract={contract}
+        onSuccess={(updatedContract) => {
+          onContractUpdate(updatedContract);
+          setHasOffspringRecorded(true);
+        }}
+      />
+
+      {/* Offspring Allocation Modal */}
+      <OffspringAllocationModal
+        visible={showAllocationModal}
+        onClose={() => setShowAllocationModal(false)}
+        contract={contract}
         onSuccess={onContractUpdate}
+        onMatchCompleted={onMatchCompleted}
       />
     </View>
   );

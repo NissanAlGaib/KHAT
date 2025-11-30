@@ -353,6 +353,10 @@ export default function ConversationScreen() {
               contract={contract}
               onContractUpdate={handleContractSuccess}
               onEdit={handleEditContract}
+              onMatchCompleted={() => {
+                // Navigate back to matches/conversations list after match is completed
+                router.back();
+              }}
             />
           )}
 

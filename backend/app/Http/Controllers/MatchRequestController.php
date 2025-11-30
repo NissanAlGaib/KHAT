@@ -450,6 +450,10 @@ class MatchRequestController extends Controller
             $isTarget = $userPetIds->contains($matchRequest->target_pet_id);
             $isShooter = $conversation->shooter_user_id === $user->id;
 
+            // Determine status and archived flag
+            $status = $conversation->status ?? 'active';
+            $isArchived = in_array($status, ['archived', 'completed']);
+
             // For shooter, show both pets and owners
             if ($isShooter && !$isRequester && !$isTarget) {
                 $pet1 = $matchRequest->requesterPet;
@@ -466,6 +470,9 @@ class MatchRequestController extends Controller
                 return [
                     'id' => $conversation->id,
                     'is_shooter_conversation' => true,
+                    'status' => $status,
+                    'archived' => $isArchived,
+                    'archived_at' => $conversation->archived_at?->toIso8601String(),
                     'pet1' => [
                         'pet_id' => $pet1->pet_id,
                         'name' => $pet1->name,
@@ -514,6 +521,9 @@ class MatchRequestController extends Controller
             return [
                 'id' => $conversation->id,
                 'is_shooter_conversation' => false,
+                'status' => $status,
+                'archived' => $isArchived,
+                'archived_at' => $conversation->archived_at?->toIso8601String(),
                 'matched_pet' => [
                     'pet_id' => $otherPet->pet_id,
                     'name' => $otherPet->name,
