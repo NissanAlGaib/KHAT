@@ -503,17 +503,30 @@ class AdminController extends Controller
     {
         $now = Carbon::now();
         $lastMonth = $now->copy()->subMonth();
+        $twoMonthsAgo = $now->copy()->subMonths(2);
 
-        // Total Revenue (simulated based on subscriptions)
+        // Pricing constants
+        $premiumPrice = 999;
+        $standardPrice = 499;
+
+        // Current Revenue (based on current subscriptions)
         $premiumCount = User::where('subscription_tier', 'premium')->count();
         $standardCount = User::where('subscription_tier', 'standard')->count();
-        $totalRevenue = ($premiumCount * 999) + ($standardCount * 499); // Example pricing
-        $revenueLastMonth = $totalRevenue * 0.83; // Simulate 20% growth
-        $revenueGrowth = round((($totalRevenue - $revenueLastMonth) / max($revenueLastMonth, 1)) * 100, 1);
+        $totalRevenue = ($premiumCount * $premiumPrice) + ($standardCount * $standardPrice);
+
+        // Last month's revenue (based on subscriptions that existed last month)
+        $premiumLastMonth = User::where('subscription_tier', 'premium')
+            ->where('updated_at', '<', $lastMonth)->count();
+        $standardLastMonth = User::where('subscription_tier', 'standard')
+            ->where('updated_at', '<', $lastMonth)->count();
+        $revenueLastMonth = ($premiumLastMonth * $premiumPrice) + ($standardLastMonth * $standardPrice);
+        $revenueGrowth = $revenueLastMonth > 0 
+            ? round((($totalRevenue - $revenueLastMonth) / $revenueLastMonth) * 100, 1)
+            : ($totalRevenue > 0 ? 100 : 0);
 
         // Active Users (users with activity in last 30 days)
         $activeUsers = User::where('updated_at', '>=', $lastMonth)->count();
-        $activeUsersLastMonth = User::whereBetween('updated_at', [$now->copy()->subMonths(2), $lastMonth])->count();
+        $activeUsersLastMonth = User::whereBetween('updated_at', [$twoMonthsAgo, $lastMonth])->count();
         $activeUsersGrowth = $activeUsersLastMonth > 0 
             ? round((($activeUsers - $activeUsersLastMonth) / $activeUsersLastMonth) * 100, 1)
             : 0;
@@ -531,7 +544,14 @@ class AdminController extends Controller
         $conversionRate = $totalRequests > 0 
             ? round(($matchesMade / $totalRequests) * 100, 1)
             : 0;
-        $conversionRateLastMonth = 18.1; // Simulated
+        
+        // Calculate last month's conversion rate
+        $totalRequestsLastMonth = MatchRequest::where('created_at', '<', $lastMonth)->count();
+        $acceptedLastMonth = MatchRequest::where('status', 'accepted')
+            ->where('created_at', '<', $lastMonth)->count();
+        $conversionRateLastMonth = $totalRequestsLastMonth > 0 
+            ? round(($acceptedLastMonth / $totalRequestsLastMonth) * 100, 1)
+            : 0;
         $conversionGrowth = round($conversionRate - $conversionRateLastMonth, 1);
 
         // Monthly data for charts

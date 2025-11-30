@@ -73,6 +73,10 @@
 <div class="bg-white p-6 rounded-xl shadow-sm border border-gray-100">
     <h3 class="font-semibold text-gray-800 mb-4">Monthly Summary</h3>
     <div class="overflow-x-auto">
+        @php
+            // Create a lookup array for O(1) access
+            $monthlyUserLookup = $monthlyData->keyBy('month');
+        @endphp
         <table class="w-full text-left">
             <thead>
                 <tr class="border-b border-gray-200">
@@ -88,7 +92,7 @@
                 <tr class="hover:bg-gray-50">
                     <td class="px-4 py-3 text-sm text-gray-900">{{ $data->month }}</td>
                     <td class="px-4 py-3 text-sm text-gray-600">
-                        {{ $monthlyData->firstWhere('month', $data->month)->users ?? 0 }}
+                        {{ $monthlyUserLookup->get($data->month)->users ?? 0 }}
                     </td>
                     <td class="px-4 py-3 text-sm text-gray-600">{{ $data->matches }}</td>
                     <td class="px-4 py-3 text-sm text-gray-600">{{ $data->accepted }}</td>
