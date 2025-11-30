@@ -1079,6 +1079,53 @@ export default function ContractCard({
                   </View>
                 </View>
 
+                {/* Individual Offspring Allocation Details */}
+                <View className="mb-3">
+                  <Text className="text-gray-700 font-medium text-sm mb-2">
+                    Individual Allocations:
+                  </Text>
+                  {allocationSummary.offspring
+                    .filter((o) => o.status === "alive" && o.assigned_to)
+                    .map((offspring) => {
+                      const isDamOwner = offspring.assigned_to?.id === allocationSummary.expected_allocation.dam_owner.id;
+                      return (
+                        <View 
+                          key={offspring.offspring_id} 
+                          className="flex-row items-center justify-between py-2 border-b border-gray-50"
+                        >
+                          <View className="flex-row items-center flex-1">
+                            <View className={`w-6 h-6 rounded-full items-center justify-center mr-2 ${
+                              offspring.sex === "male" ? "bg-blue-100" : "bg-pink-100"
+                            }`}>
+                              <Text className={`text-xs font-bold ${
+                                offspring.sex === "male" ? "text-blue-600" : "text-pink-600"
+                              }`}>
+                                {offspring.sex === "male" ? "♂" : "♀"}
+                              </Text>
+                            </View>
+                            <View className="flex-1">
+                              <Text className="text-gray-800 text-sm">
+                                {offspring.name || `Offspring #${offspring.offspring_id}`}
+                              </Text>
+                              {offspring.color && (
+                                <Text className="text-gray-500 text-xs">{offspring.color}</Text>
+                              )}
+                            </View>
+                          </View>
+                          <View className={`px-2 py-1 rounded-full ${
+                            isDamOwner ? "bg-pink-100" : "bg-blue-100"
+                          }`}>
+                            <Text className={`text-xs font-medium ${
+                              isDamOwner ? "text-pink-700" : "text-blue-700"
+                            }`}>
+                              → {(offspring.assigned_to?.name?.trim().split(' ')[0]) || 'Unknown'}
+                            </Text>
+                          </View>
+                        </View>
+                      );
+                    })}
+                </View>
+
                 {/* Allocation Method */}
                 <View className="bg-blue-50 rounded-lg p-2 flex-row items-center">
                   <Award size={14} color="#3b82f6" />
