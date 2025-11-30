@@ -16,6 +16,7 @@ import {
   Edit,
   DollarSign,
   Users,
+  User,
   Shield,
   UserCheck,
   Clock,
@@ -35,6 +36,8 @@ import {
   updateShooterTerms,
   completeBreeding,
   getOffspring,
+  getOffspringAllocationSummary,
+  AllocationSummaryData,
 } from "@/services/contractService";
 import {
   ShooterContractEditModal,
@@ -134,6 +137,7 @@ export default function ContractCard({
   const [showOffspringModal, setShowOffspringModal] = useState(false);
   const [showAllocationModal, setShowAllocationModal] = useState(false);
   const [hasOffspringRecorded, setHasOffspringRecorded] = useState(false);
+  const [allocationSummary, setAllocationSummary] = useState<AllocationSummaryData | null>(null);
 
   // Check if offspring have been recorded
   React.useEffect(() => {
@@ -145,6 +149,23 @@ export default function ContractCard({
     };
     checkOffspring();
   }, [contract.id, contract.breeding_status, contract.has_offspring]);
+
+  // Fetch allocation summary when contract is fulfilled
+  React.useEffect(() => {
+    const fetchAllocationSummary = async () => {
+      if (contract.status === "fulfilled" && contract.has_offspring === true && contract.share_offspring === true) {
+        try {
+          const result = await getOffspringAllocationSummary(contract.id);
+          if (result.success && result.data) {
+            setAllocationSummary(result.data);
+          }
+        } catch (error) {
+          console.error("Error fetching allocation summary:", error);
+        }
+      }
+    };
+    fetchAllocationSummary();
+  }, [contract.id, contract.status, contract.has_offspring, contract.share_offspring]);
 
   const handleAccept = async () => {
     setIsAccepting(true);
@@ -985,6 +1006,88 @@ export default function ContractCard({
                   )}`}
               </Text>
             </View>
+
+            {/* Offspring Allocation Summary */}
+            {allocationSummary && (
+              <View className="mt-3 bg-white border border-gray-200 rounded-xl p-4">
+                <Text className="text-gray-800 font-semibold mb-3">
+                  Offspring Allocation Results
+                </Text>
+
+                {/* Litter Statistics */}
+                <View className="bg-gray-50 rounded-lg p-3 mb-3">
+                  <View className="flex-row justify-between mb-1">
+                    <Text className="text-gray-600 text-sm">Total Offspring:</Text>
+                    <Text className="text-gray-800 font-medium text-sm">
+                      {allocationSummary.statistics.total_alive} alive
+                      {allocationSummary.statistics.total_died > 0 && 
+                        `, ${allocationSummary.statistics.total_died} died`}
+                    </Text>
+                  </View>
+                  <View className="flex-row justify-between">
+                    <Text className="text-gray-600 text-sm">Gender Split:</Text>
+                    <Text className="text-gray-800 font-medium text-sm">
+                      {allocationSummary.statistics.male_count} ♂ / {allocationSummary.statistics.female_count} ♀
+                    </Text>
+                  </View>
+                </View>
+
+                {/* Allocation Breakdown */}
+                <View className="mb-3">
+                  {/* Dam Owner */}
+                  <View className="flex-row items-center justify-between mb-2 pb-2 border-b border-gray-100">
+                    <View className="flex-row items-center">
+                      <View className="w-8 h-8 rounded-full bg-pink-100 items-center justify-center">
+                        <User size={16} color="#ec4899" />
+                      </View>
+                      <View className="ml-2">
+                        <Text className="text-gray-800 font-medium text-sm">
+                          {allocationSummary.expected_allocation.dam_owner.name}
+                        </Text>
+                        <Text className="text-gray-500 text-xs">
+                          Dam ({allocationSummary.parents.dam.name}) Owner
+                        </Text>
+                      </View>
+                    </View>
+                    <View className="bg-pink-100 px-3 py-1 rounded-full">
+                      <Text className="text-pink-700 font-bold">
+                        {allocationSummary.expected_allocation.dam_owner.current_count} offspring
+                      </Text>
+                    </View>
+                  </View>
+
+                  {/* Sire Owner */}
+                  <View className="flex-row items-center justify-between">
+                    <View className="flex-row items-center">
+                      <View className="w-8 h-8 rounded-full bg-blue-100 items-center justify-center">
+                        <User size={16} color="#3b82f6" />
+                      </View>
+                      <View className="ml-2">
+                        <Text className="text-gray-800 font-medium text-sm">
+                          {allocationSummary.expected_allocation.sire_owner.name}
+                        </Text>
+                        <Text className="text-gray-500 text-xs">
+                          Sire ({allocationSummary.parents.sire.name}) Owner
+                        </Text>
+                      </View>
+                    </View>
+                    <View className="bg-blue-100 px-3 py-1 rounded-full">
+                      <Text className="text-blue-700 font-bold">
+                        {allocationSummary.expected_allocation.sire_owner.current_count} offspring
+                      </Text>
+                    </View>
+                  </View>
+                </View>
+
+                {/* Allocation Method */}
+                <View className="bg-blue-50 rounded-lg p-2 flex-row items-center">
+                  <Award size={14} color="#3b82f6" />
+                  <Text className="text-blue-700 text-xs ml-1">
+                    Allocated using {allocationSummary.allocation_method.selection_method_label} method
+                  </Text>
+                </View>
+              </View>
+            )}
           </View>
         )}
       </View>
