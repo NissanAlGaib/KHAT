@@ -1625,8 +1625,9 @@ class BreedingContractController extends Controller
         $userPetIds = Pet::where('user_id', $user->id)->pluck('pet_id');
 
         // Get the contract with litter
+        // Include both 'accepted' and 'fulfilled' status to show allocation summary for completed matches
         $contract = BreedingContract::where('id', $contractId)
-            ->where('status', 'accepted')
+            ->whereIn('status', ['accepted', 'fulfilled'])
             ->where('breeding_status', 'completed')
             ->where(function ($query) use ($userPetIds, $user) {
                 $query->whereHas('conversation.matchRequest', function ($q) use ($userPetIds) {
