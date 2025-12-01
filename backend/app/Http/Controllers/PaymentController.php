@@ -19,6 +19,14 @@ class PaymentController extends Controller
     }
 
     /**
+     * Get user's pet IDs
+     */
+    private function getUserPetIds($user): array
+    {
+        return Pet::where('user_id', $user->id)->pluck('pet_id')->toArray();
+    }
+
+    /**
      * Create a checkout session for a payment
      */
     public function createCheckout(Request $request)
@@ -165,10 +173,12 @@ class PaymentController extends Controller
             if ($result['success']) {
                 $checkoutStatus = $result['data']['status'];
 
-                if ($checkoutStatus === 'active') {
+                // PayMongo checkout statuses: 'active' (pending), 'paid' (completed), 'expired'
+                if ($checkoutStatus === 'paid') {
                     // Payment completed
-                    $paymentIds = collect($result['data']['payments'] ?? [])->pluck('id')->first();
-                    $payment->markAsPaid($paymentIds);
+                    $payments = $result['data']['payments'] ?? [];
+                    $paymentId = ! empty($payments) ? $payments[0]['id'] ?? null : null;
+                    $payment->markAsPaid($paymentId);
 
                     // Update contract if applicable
                     $this->updateContractPaymentStatus($payment);
@@ -222,7 +232,7 @@ class PaymentController extends Controller
     public function getContractPayments(Request $request, $contractId)
     {
         $user = $request->user();
-        $userPetIds = Pet::where('user_id', $user->id)->pluck('pet_id');
+        $userPetIds = $this->getUserPetIds($user);
 
         // Verify user has access to this contract
         $contract = BreedingContract::whereHas('conversation.matchRequest', function ($query) use ($userPetIds) {
@@ -306,7 +316,8 @@ class PaymentController extends Controller
             return;
         }
 
-        $paymentId = $data['attributes']['payments'][0]['id'] ?? null;
+        $payments = $data['attributes']['payments'] ?? [];
+        $paymentId = ! empty($payments) ? $payments[0]['id'] ?? null : null;
         $payment->markAsPaid($paymentId);
 
         // Update contract payment status
@@ -393,7 +404,7 @@ class PaymentController extends Controller
      */
     private function userHasAccessToContract($user, BreedingContract $contract): bool
     {
-        $userPetIds = Pet::where('user_id', $user->id)->pluck('pet_id')->toArray();
+        $userPetIds = $this->getUserPetIds($user);
         $matchRequest = $contract->conversation->matchRequest;
 
         // Check if user is an owner
