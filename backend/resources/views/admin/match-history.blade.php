@@ -5,35 +5,166 @@
 @section('content')
 <h1 class="text-3xl font-bold text-gray-900 mb-6">Match History</h1>
 
-<div class="bg-white p-6 rounded-xl shadow-sm border border-gray-100 mb-6">
-    <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
-        <div class="relative">
-            <input type="text" placeholder="Search matches..." class="w-full bg-white border border-gray-300 text-gray-700 py-2.5 px-4 pl-10 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#E75234]">
-            <div class="pointer-events-none absolute inset-y-0 left-0 flex items-center px-3 text-gray-400">
-                <i data-lucide="search" class="w-4 h-4"></i>
-            </div>
-        </div>
-        <select class="w-full bg-white border border-gray-300 text-gray-700 py-2.5 px-4 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#E75234]">
-            <option>All Statuses</option>
-            <option>Pending</option>
-            <option>Accepted</option>
-            <option>Rejected</option>
-            <option>Completed</option>
-        </select>
-        <select class="w-full bg-white border border-gray-300 text-gray-700 py-2.5 px-4 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#E75234]">
-            <option>Last 30 Days</option>
-            <option>Last 7 Days</option>
-            <option>Last 90 Days</option>
-            <option>All Time</option>
-        </select>
+<!-- Stats Cards -->
+<div class="grid grid-cols-1 md:grid-cols-4 gap-6 mb-6">
+    <div class="bg-white p-5 rounded-xl shadow-sm border border-gray-50">
+        <span class="text-sm font-semibold text-gray-500">Total Matches</span>
+        <p class="text-2xl font-bold text-gray-900 mt-2">{{ number_format($totalMatches) }}</p>
+    </div>
+    <div class="bg-white p-5 rounded-xl shadow-sm border border-gray-50">
+        <span class="text-sm font-semibold text-gray-500">Pending</span>
+        <p class="text-2xl font-bold text-yellow-600 mt-2">{{ number_format($pendingMatches) }}</p>
+    </div>
+    <div class="bg-white p-5 rounded-xl shadow-sm border border-gray-50">
+        <span class="text-sm font-semibold text-gray-500">Accepted</span>
+        <p class="text-2xl font-bold text-green-600 mt-2">{{ number_format($acceptedMatches) }}</p>
+    </div>
+    <div class="bg-white p-5 rounded-xl shadow-sm border border-gray-50">
+        <span class="text-sm font-semibold text-gray-500">Completed</span>
+        <p class="text-2xl font-bold text-blue-600 mt-2">{{ number_format($completedMatches) }}</p>
     </div>
 </div>
 
-<div class="bg-white rounded-xl shadow-sm border border-gray-100">
-    <div class="p-6 text-center text-gray-500">
-        <i data-lucide="history" class="w-12 h-12 text-gray-300 mx-auto mb-3"></i>
-        <p>Match history data will be displayed here</p>
-        <p class="text-sm mt-2">Connect to your backend match service to view detailed match records</p>
+<!-- Filters -->
+<div class="bg-white p-6 rounded-xl shadow-sm border border-gray-100 mb-6">
+    <form action="{{ route('admin.matches') }}" method="GET">
+        <div class="grid grid-cols-1 md:grid-cols-4 gap-4 mb-4">
+            <div class="relative">
+                <input type="text" name="search" value="{{ request('search') }}" placeholder="Search by pet or owner name..." class="w-full bg-white border border-gray-300 text-gray-700 py-2.5 px-4 pl-10 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#E75234]">
+                <div class="pointer-events-none absolute inset-y-0 left-0 flex items-center px-3 text-gray-400">
+                    <i data-lucide="search" class="w-4 h-4"></i>
+                </div>
+            </div>
+            <select name="status" class="w-full bg-white border border-gray-300 text-gray-700 py-2.5 px-4 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#E75234]">
+                <option value="">All Statuses</option>
+                <option value="pending" {{ request('status') == 'pending' ? 'selected' : '' }}>Pending</option>
+                <option value="accepted" {{ request('status') == 'accepted' ? 'selected' : '' }}>Accepted</option>
+                <option value="declined" {{ request('status') == 'declined' ? 'selected' : '' }}>Declined</option>
+                <option value="completed" {{ request('status') == 'completed' ? 'selected' : '' }}>Completed</option>
+            </select>
+            <select name="date_range" class="w-full bg-white border border-gray-300 text-gray-700 py-2.5 px-4 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#E75234]">
+                <option value="">All Time</option>
+                <option value="7" {{ request('date_range') == '7' ? 'selected' : '' }}>Last 7 Days</option>
+                <option value="30" {{ request('date_range') == '30' ? 'selected' : '' }}>Last 30 Days</option>
+                <option value="90" {{ request('date_range') == '90' ? 'selected' : '' }}>Last 90 Days</option>
+            </select>
+            <div class="flex gap-2">
+                <button type="submit" class="flex-1 px-4 py-2.5 bg-[#E75234] text-white rounded-lg text-sm font-semibold hover:bg-[#d14024]">
+                    Apply
+                </button>
+                <a href="{{ route('admin.matches') }}" class="px-4 py-2.5 bg-gray-100 text-gray-700 rounded-lg text-sm font-semibold hover:bg-gray-200">
+                    Reset
+                </a>
+            </div>
+        </div>
+    </form>
+</div>
+
+<!-- Match List -->
+<div class="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
+    @if($matches->count() > 0)
+    <div class="overflow-x-auto">
+        <table class="w-full text-left border-collapse min-w-[900px]">
+            <thead>
+                <tr class="bg-[#E75234] text-white text-sm">
+                    <th class="px-6 py-4 font-semibold">Match ID</th>
+                    <th class="px-6 py-4 font-semibold">Requester Pet</th>
+                    <th class="px-6 py-4 font-semibold">Target Pet</th>
+                    <th class="px-6 py-4 font-semibold">Status</th>
+                    <th class="px-6 py-4 font-semibold">Contract</th>
+                    <th class="px-6 py-4 font-semibold">Date</th>
+                </tr>
+            </thead>
+            <tbody class="divide-y divide-gray-100 text-sm">
+                @foreach($matches as $match)
+                <tr class="hover:bg-orange-50/50 transition-colors">
+                    <td class="px-6 py-4 font-mono text-xs text-gray-600">
+                        MTH-{{ str_pad($match->id, 5, '0', STR_PAD_LEFT) }}
+                    </td>
+                    <td class="px-6 py-4">
+                        <div class="flex items-center gap-3">
+                            @if($match->requesterPet->photos->first())
+                            <img src="{{ asset('storage/' . $match->requesterPet->photos->first()->photo_url) }}" 
+                                 class="w-10 h-10 rounded-full object-cover" alt="">
+                            @else
+                            <div class="w-10 h-10 rounded-full bg-orange-100 flex items-center justify-center">
+                                <i data-lucide="paw-print" class="w-5 h-5 text-orange-500"></i>
+                            </div>
+                            @endif
+                            <div>
+                                <p class="font-medium text-gray-900">{{ $match->requesterPet->name }}</p>
+                                <p class="text-xs text-gray-500">{{ $match->requesterPet->owner->name ?? 'Unknown' }}</p>
+                            </div>
+                        </div>
+                    </td>
+                    <td class="px-6 py-4">
+                        <div class="flex items-center gap-3">
+                            @if($match->targetPet->photos->first())
+                            <img src="{{ asset('storage/' . $match->targetPet->photos->first()->photo_url) }}" 
+                                 class="w-10 h-10 rounded-full object-cover" alt="">
+                            @else
+                            <div class="w-10 h-10 rounded-full bg-orange-100 flex items-center justify-center">
+                                <i data-lucide="paw-print" class="w-5 h-5 text-orange-500"></i>
+                            </div>
+                            @endif
+                            <div>
+                                <p class="font-medium text-gray-900">{{ $match->targetPet->name }}</p>
+                                <p class="text-xs text-gray-500">{{ $match->targetPet->owner->name ?? 'Unknown' }}</p>
+                            </div>
+                        </div>
+                    </td>
+                    <td class="px-6 py-4">
+                        @php
+                            $statusColors = [
+                                'pending' => 'bg-yellow-100 text-yellow-700',
+                                'accepted' => 'bg-green-100 text-green-700',
+                                'declined' => 'bg-red-100 text-red-700',
+                                'completed' => 'bg-blue-100 text-blue-700',
+                            ];
+                            $statusColor = $statusColors[$match->status] ?? 'bg-gray-100 text-gray-700';
+                        @endphp
+                        <span class="inline-flex items-center px-2.5 py-1 rounded-md text-xs font-semibold {{ $statusColor }}">
+                            {{ ucfirst($match->status) }}
+                        </span>
+                    </td>
+                    <td class="px-6 py-4">
+                        @if($match->conversation && $match->conversation->contract)
+                            @php
+                                $contractStatus = $match->conversation->contract->status;
+                                $contractColors = [
+                                    'draft' => 'bg-gray-100 text-gray-700',
+                                    'pending_review' => 'bg-yellow-100 text-yellow-700',
+                                    'accepted' => 'bg-green-100 text-green-700',
+                                    'rejected' => 'bg-red-100 text-red-700',
+                                ];
+                                $contractColor = $contractColors[$contractStatus] ?? 'bg-gray-100 text-gray-700';
+                            @endphp
+                            <span class="inline-flex items-center px-2.5 py-1 rounded-md text-xs font-semibold {{ $contractColor }}">
+                                {{ ucfirst(str_replace('_', ' ', $contractStatus)) }}
+                            </span>
+                        @else
+                            <span class="text-gray-400 text-xs">No contract</span>
+                        @endif
+                    </td>
+                    <td class="px-6 py-4 text-gray-500">
+                        {{ $match->created_at->format('M d, Y') }}
+                    </td>
+                </tr>
+                @endforeach
+            </tbody>
+        </table>
     </div>
+    
+    <!-- Pagination -->
+    <div class="px-6 py-4 border-t border-gray-100">
+        {{ $matches->links() }}
+    </div>
+    @else
+    <div class="p-12 text-center text-gray-500">
+        <i data-lucide="history" class="w-16 h-16 text-gray-300 mx-auto mb-4"></i>
+        <p class="text-lg font-medium">No matches found</p>
+        <p class="text-sm mt-2">Try adjusting your filters or check back later</p>
+    </div>
+    @endif
 </div>
 @endsection
