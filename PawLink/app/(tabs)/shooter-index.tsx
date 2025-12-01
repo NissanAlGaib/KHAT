@@ -29,7 +29,13 @@ dayjs.extend(relativeTime);
 const PET_NAME_MAX_WIDTH = 70;
 
 // Completed breeding statuses that mark a breeding assignment as finished
-const COMPLETED_STATUSES = ["completed", "offspring_added", "offspring_allocated", "breeding_completed"];
+const COMPLETED_STATUSES = [
+  "completed",
+  "offspring_added",
+  "offspring_allocated",
+  "breeding_completed",
+  "match_completed"
+];
 
 // Helper function to check if a status is a completed status
 const isCompletedStatus = (status?: string): boolean => {
@@ -260,6 +266,9 @@ export default function ShooterHomepage() {
     const isFinished = isCompletedStatus(offer.shooter_status);
 
     const getStatusConfig = () => {
+      if (offer.shooter_status === "match_completed") {
+        return { color: "#10B981", bg: "#D1FAE5", text: "Match Completed", icon: "check-circle" as const };
+      }
       if (offer.shooter_status === "offspring_allocated") {
         return { color: "#10B981", bg: "#D1FAE5", text: "Offspring Allocated", icon: "check-circle" as const };
       }
