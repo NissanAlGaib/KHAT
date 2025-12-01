@@ -267,7 +267,7 @@ export default function ShooterProfileScreen() {
         <View style={styles.quickStatsBanner}>
           <View style={styles.quickStatItem}>
             <Text style={styles.quickStatValue}>{stats.breeders_handled}</Text>
-            <Text style={styles.quickStatLabel}>Sessions</Text>
+            <Text style={styles.quickStatLabel}>Contracts</Text>
           </View>
           <View style={styles.quickStatDivider} />
           <View style={styles.quickStatItem}>
@@ -277,7 +277,7 @@ export default function ShooterProfileScreen() {
           <View style={styles.quickStatDivider} />
           <View style={styles.quickStatItem}>
             <Text style={styles.quickStatValue}>{stats.total_pets}</Text>
-            <Text style={styles.quickStatLabel}>Pets</Text>
+            <Text style={styles.quickStatLabel}>Pets Handled</Text>
           </View>
         </View>
 
@@ -285,6 +285,7 @@ export default function ShooterProfileScreen() {
         {(shooterData.id_verified || shooterData.breeder_verified || shooterData.shooter_verified) && (
           <View style={styles.verificationSection}>
             <Text style={styles.sectionTitle}>Verification</Text>
+            <Text style={styles.sectionSubtitle}>Verified credentials</Text>
             <View style={styles.badgesContainer}>
               {shooterData.id_verified && (
                 <View style={styles.verificationBadge}>
@@ -314,41 +315,43 @@ export default function ShooterProfileScreen() {
           </View>
         )}
 
-        {/* Statistics Grid */}
+        {/* Breeding Statistics Grid */}
         <View style={styles.statsSection}>
-          <Text style={styles.sectionTitle}>Statistics</Text>
+          <Text style={styles.sectionTitle}>Breeding Statistics</Text>
+          <Text style={styles.sectionSubtitle}>Performance from breeding contracts</Text>
           <View style={styles.statsGrid}>
             <StatCard 
               value={stats.breeders_handled} 
-              label="Breeding Sessions" 
+              label="Total Sessions" 
               icon="heart"
               colors={["#F472B6", "#EC4899"] as const}
             />
             <StatCard 
               value={stats.successful_shoots} 
-              label="Successful" 
+              label="Completed" 
               icon="check-circle"
               colors={["#34D399", "#10B981"] as const}
             />
             <StatCard 
               value={stats.dog_count} 
-              label="Dogs Handled" 
+              label="Dogs (Contracts)" 
               icon="gitlab"
               colors={["#FB923C", "#F97316"] as const}
             />
             <StatCard 
               value={stats.cat_count} 
-              label="Cats Handled" 
+              label="Cats (Contracts)" 
               icon="github"
               colors={["#A78BFA", "#8B5CF6"] as const}
             />
           </View>
         </View>
 
-        {/* Breeds Handled */}
+        {/* Breeds Handled from Contracts */}
         {displayedBreeds.length > 0 && (
           <View style={styles.breedsSection}>
-            <Text style={styles.sectionTitle}>Breeds Expertise</Text>
+            <Text style={styles.sectionTitle}>Breeds Handled</Text>
+            <Text style={styles.sectionSubtitle}>Experience from breeding contracts</Text>
             <View style={styles.breedsContainer}>
               {displayedBreeds.map((breed, index) => (
                 <View key={breed + index} style={styles.breedChip}>
@@ -360,15 +363,16 @@ export default function ShooterProfileScreen() {
           </View>
         )}
 
-        {/* Shooter&apos;s Pets */}
+        {/* Shooter&apos;s Own Pets (if they are also a pet owner) */}
         {shooterData.is_pet_owner && shooterData.pets && shooterData.pets.length > 0 && (
           <View style={styles.petsSection}>
             <View style={styles.sectionHeaderRow}>
-              <Text style={styles.sectionTitle}>{shooterData.name}&apos;s Pets</Text>
+              <Text style={styles.sectionTitle}>{shooterData.name}&apos;s Own Pets</Text>
               <View style={styles.petCountBadge}>
                 <Text style={styles.petCountText}>{shooterData.pets.length}</Text>
               </View>
             </View>
+            <Text style={styles.ownPetsSubtitle}>Personal pets (not from contracts)</Text>
             <ScrollView 
               horizontal 
               showsHorizontalScrollIndicator={false}
@@ -607,12 +611,23 @@ const styles = StyleSheet.create({
     fontSize: 18,
     fontWeight: "700",
     color: "#1F2937",
+    marginBottom: 4,
+  },
+  sectionSubtitle: {
+    fontSize: 12,
+    color: "#6B7280",
     marginBottom: 12,
   },
   sectionHeaderRow: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
+  },
+  ownPetsSubtitle: {
+    fontSize: 12,
+    color: "#6B7280",
+    marginBottom: 12,
+    marginTop: -8,
   },
 
   // Verification Section

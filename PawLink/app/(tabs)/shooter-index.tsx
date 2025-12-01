@@ -38,15 +38,19 @@ export default function ShooterHomepage() {
   const [myOffers, setMyOffers] = useState<ShooterOffer[]>([]);
   const [activeTab, setActiveTab] = useState<TabType>("available");
 
-  // Separate offers into current (active) and finished (completed)
+  // Separate offers into current (active), pending, and finished (completed/offspring_allocated)
   const currentAssignments = myOffers.filter(
     (o) => o.shooter_status === "accepted_by_owners"
   );
   const pendingAssignments = myOffers.filter(
     (o) => o.shooter_status === "accepted_by_shooter"
   );
+  // Include all completed statuses: completed, offspring_added, offspring_allocated
   const finishedAssignments = myOffers.filter(
-    (o) => o.shooter_status === "completed"
+    (o) => o.shooter_status === "completed" || 
+           o.shooter_status === "offspring_added" ||
+           o.shooter_status === "offspring_allocated" ||
+           o.shooter_status === "breeding_completed"
   );
 
   const fetchOffers = useCallback(async () => {
@@ -192,9 +196,22 @@ export default function ShooterHomepage() {
   }) => {
     const isConfirmed = offer.shooter_status === "accepted_by_owners";
     const isPending = offer.shooter_status === "accepted_by_shooter";
-    const isFinished = offer.shooter_status === "completed";
+    // Check for all completed statuses
+    const isFinished = offer.shooter_status === "completed" || 
+                       offer.shooter_status === "offspring_added" ||
+                       offer.shooter_status === "offspring_allocated" ||
+                       offer.shooter_status === "breeding_completed";
 
     const getStatusConfig = () => {
+      if (offer.shooter_status === "offspring_allocated") {
+        return { color: "#10B981", bg: "#D1FAE5", text: "Offspring Allocated", icon: "check-circle" as const };
+      }
+      if (offer.shooter_status === "offspring_added") {
+        return { color: "#10B981", bg: "#D1FAE5", text: "Offspring Added", icon: "check-circle" as const };
+      }
+      if (offer.shooter_status === "breeding_completed") {
+        return { color: "#10B981", bg: "#D1FAE5", text: "Breeding Completed", icon: "check-circle" as const };
+      }
       if (isFinished) return { color: "#10B981", bg: "#D1FAE5", text: "Completed", icon: "check-circle" as const };
       if (isConfirmed) return { color: "#10B981", bg: "#D1FAE5", text: "Active", icon: "play-circle" as const };
       if (isPending) return { color: "#F59E0B", bg: "#FEF3C7", text: "Awaiting Owners", icon: "clock" as const };
