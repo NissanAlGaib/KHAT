@@ -693,8 +693,16 @@ export default function ContractCard({
                     </View>
                   )}
 
-                  {!hasCurrentUserAcceptedShooter ? (
-                    // Show action buttons if current user hasn't accepted yet
+                  {contract.is_shooter ? (
+                    // Shooter cannot accept their own agreement - show waiting message
+                    <View className="bg-blue-50 rounded-lg p-3 flex-row items-center">
+                      <Clock size={18} color="#3b82f6" />
+                      <Text className="text-blue-800 text-sm ml-2">
+                        Waiting for both owners to confirm your terms.
+                      </Text>
+                    </View>
+                  ) : !hasCurrentUserAcceptedShooter ? (
+                    // Show action buttons if current user (owner) hasn't accepted yet
                     <View className="flex-row space-x-2">
                       <TouchableOpacity
                         onPress={handleAcceptShooter}
@@ -735,7 +743,7 @@ export default function ContractCard({
                     <View className="bg-blue-50 rounded-lg p-3 flex-row items-center">
                       <Clock size={18} color="#3b82f6" />
                       <Text className="text-blue-800 text-sm ml-2">
-                        You've accepted the shooter. Waiting for the other owner
+                        You&apos;ve accepted the shooter. Waiting for the other owner
                         to confirm.
                       </Text>
                     </View>

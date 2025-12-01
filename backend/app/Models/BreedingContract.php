@@ -212,7 +212,7 @@ class BreedingContract extends Model
     /**
      * Check if the given user can mark breeding as complete
      * - Shooter if assigned and accepted by owners
-     * - Male pet owner if no shooter
+     * - Male pet owner if no shooter OR if shooter is fully confirmed
      */
     public function canMarkBreedingComplete(User $user): bool
     {
@@ -221,12 +221,21 @@ class BreedingContract extends Model
             return false;
         }
 
-        // If shooter is assigned and accepted by both owners, only shooter can complete
-        if ($this->shooter_user_id && $this->shooter_status === 'accepted_by_owners') {
-            return $this->shooter_user_id === $user->id;
+        // If there's a shooter assigned, check the shooter status
+        if ($this->shooter_user_id) {
+            // If shooter is waiting for owner approval, no one can mark complete yet
+            if ($this->shooter_status === 'accepted_by_shooter') {
+                return false;
+            }
+            // If shooter is fully accepted by both owners, only shooter can complete
+            if ($this->shooter_status === 'accepted_by_owners') {
+                return $this->shooter_user_id === $user->id;
+            }
         }
 
-        // Otherwise, the male pet owner can complete
+        // No shooter assigned, or shooter_status is 'pending' (offer available but no shooter accepted yet),
+        // or any other status that doesn't restrict completion.
+        // In these cases, the male pet owner can complete.
         $this->load('conversation.matchRequest.requesterPet', 'conversation.matchRequest.targetPet');
         $matchRequest = $this->conversation->matchRequest;
         
@@ -253,12 +262,21 @@ class BreedingContract extends Model
             return false;
         }
 
-        // If shooter is assigned and accepted by both owners, only shooter can input
-        if ($this->shooter_user_id && $this->shooter_status === 'accepted_by_owners') {
-            return $this->shooter_user_id === $user->id;
+        // If there's a shooter assigned, check the shooter status
+        if ($this->shooter_user_id) {
+            // If shooter is waiting for owner approval, no one can input yet
+            if ($this->shooter_status === 'accepted_by_shooter') {
+                return false;
+            }
+            // If shooter is fully accepted by both owners, only shooter can input
+            if ($this->shooter_status === 'accepted_by_owners') {
+                return $this->shooter_user_id === $user->id;
+            }
         }
 
-        // Otherwise, the male pet owner can input
+        // No shooter assigned, or shooter_status is 'pending' (offer available but no shooter accepted yet),
+        // or any other status that doesn't restrict input.
+        // In these cases, the male pet owner can input.
         $this->load('conversation.matchRequest.requesterPet', 'conversation.matchRequest.targetPet');
         $matchRequest = $this->conversation->matchRequest;
         
