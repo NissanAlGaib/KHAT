@@ -587,6 +587,18 @@ class ShooterController extends Controller
                 return $contract->breeding_status === 'completed' || $contract->offsprings_allocated;
             })->count();
 
+            // Count failed contracts
+            $failedContracts = $shooterContracts->filter(function ($contract) {
+                return $contract->breeding_status === 'failed';
+            })->count();
+
+            // Count active contracts (not completed and not failed)
+            $activeContracts = $shooterContracts->filter(function ($contract) {
+                return $contract->breeding_status !== 'completed' 
+                    && $contract->breeding_status !== 'failed'
+                    && !$contract->offsprings_allocated;
+            })->count();
+
             $totalContracts = $shooterContracts->count();
 
             // Get formatted pets data if user is a breeder (their own pets)
@@ -658,6 +670,8 @@ class ShooterController extends Controller
                     'cat_count' => $contractCatCount,
                     'breeders_handled' => $totalContracts,
                     'successful_shoots' => $completedContracts,
+                    'active_contracts' => $activeContracts,
+                    'failed_contracts' => $failedContracts,
                 ],
             ];
 

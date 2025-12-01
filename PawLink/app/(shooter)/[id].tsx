@@ -116,15 +116,18 @@ export default function ShooterProfileScreen() {
     cat_count: 0,
     breeders_handled: 0,
     successful_shoots: 0,
+    active_contracts: 0,
+    failed_contracts: 0,
   };
   const displayedBreeds = shooterData.breeds_handled || [];
   const ageText = shooterData.age ? `${shooterData.age} yrs` : null;
   const genderText = shooterData.sex || null;
   const rating = shooterData.rating || 0;
 
-  // Calculate success rate
-  const successRate = stats.breeders_handled > 0 
-    ? Math.round((stats.successful_shoots / stats.breeders_handled) * 100) 
+  // Calculate success rate (only from completed contracts, not active ones)
+  const completedTotal = stats.successful_shoots + (stats.failed_contracts || 0);
+  const successRate = completedTotal > 0 
+    ? Math.round((stats.successful_shoots / completedTotal) * 100) 
     : 0;
 
   // Pet Card Component
@@ -329,16 +332,22 @@ export default function ShooterProfileScreen() {
           <Text style={styles.sectionSubtitle}>{SECTION_SUBTITLES.BREEDING_STATS}</Text>
           <View style={styles.statsGrid}>
             <StatCard 
-              value={stats.breeders_handled} 
-              label="Total Contracts" 
-              icon="heart"
-              colors={["#F472B6", "#EC4899"] as const}
+              value={stats.active_contracts || 0} 
+              label="Active" 
+              icon="activity"
+              colors={["#60A5FA", "#3B82F6"] as const}
             />
             <StatCard 
               value={stats.successful_shoots} 
               label="Successful" 
               icon="check-circle"
               colors={["#34D399", "#10B981"] as const}
+            />
+            <StatCard 
+              value={stats.failed_contracts || 0} 
+              label="Failed" 
+              icon="x-circle"
+              colors={["#F87171", "#EF4444"] as const}
             />
             <StatCard 
               value={stats.dog_count} 
@@ -351,6 +360,12 @@ export default function ShooterProfileScreen() {
               label="Cats Handled" 
               icon="github"
               colors={["#A78BFA", "#8B5CF6"] as const}
+            />
+            <StatCard 
+              value={stats.breeders_handled} 
+              label="Total Contracts" 
+              icon="heart"
+              colors={["#F472B6", "#EC4899"] as const}
             />
           </View>
         </View>
