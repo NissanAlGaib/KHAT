@@ -233,8 +233,9 @@ class BreedingContract extends Model
             }
         }
 
-        // No shooter assigned or shooter_status is pending (not yet accepted by anyone)
-        // The male pet owner can complete
+        // No shooter assigned, or shooter_status is 'pending' (offer available but no shooter accepted yet),
+        // or any other status that doesn't restrict completion.
+        // In these cases, the male pet owner can complete.
         $this->load('conversation.matchRequest.requesterPet', 'conversation.matchRequest.targetPet');
         $matchRequest = $this->conversation->matchRequest;
         
@@ -273,8 +274,9 @@ class BreedingContract extends Model
             }
         }
 
-        // No shooter assigned or shooter_status is pending (not yet accepted by anyone)
-        // The male pet owner can input
+        // No shooter assigned, or shooter_status is 'pending' (offer available but no shooter accepted yet),
+        // or any other status that doesn't restrict input.
+        // In these cases, the male pet owner can input.
         $this->load('conversation.matchRequest.requesterPet', 'conversation.matchRequest.targetPet');
         $matchRequest = $this->conversation->matchRequest;
         
