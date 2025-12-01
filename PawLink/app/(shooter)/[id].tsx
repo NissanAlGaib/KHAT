@@ -330,25 +330,25 @@ export default function ShooterProfileScreen() {
           <View style={styles.statsGrid}>
             <StatCard 
               value={stats.breeders_handled} 
-              label="Total Sessions" 
+              label="Total Contracts" 
               icon="heart"
               colors={["#F472B6", "#EC4899"] as const}
             />
             <StatCard 
               value={stats.successful_shoots} 
-              label="Completed" 
+              label="Successful" 
               icon="check-circle"
               colors={["#34D399", "#10B981"] as const}
             />
             <StatCard 
               value={stats.dog_count} 
-              label="Dogs (Contracts)" 
+              label="Dogs Handled" 
               icon="gitlab"
               colors={["#FB923C", "#F97316"] as const}
             />
             <StatCard 
               value={stats.cat_count} 
-              label="Cats (Contracts)" 
+              label="Cats Handled" 
               icon="github"
               colors={["#A78BFA", "#8B5CF6"] as const}
             />
