@@ -22,7 +22,11 @@ import { Feather } from "@expo/vector-icons";
 import dayjs from "dayjs";
 import relativeTime from "dayjs/plugin/relativeTime";
 
+// Enable relative time formatting for dayjs (e.g., "2 hours ago", "3 days ago")
 dayjs.extend(relativeTime);
+
+// Constants for styling
+const PET_NAME_MAX_WIDTH = 70;
 
 type TabType = "current" | "available" | "finished";
 
@@ -91,7 +95,10 @@ export default function ShooterHomepage() {
 
   const formatDate = (dateString?: string) => {
     if (!dateString) return "";
-    return dayjs(dateString).fromNow();
+    const date = dayjs(dateString);
+    // Return empty string if the date is invalid
+    if (!date.isValid()) return "";
+    return date.fromNow();
   };
 
   // Stats Banner Component
@@ -295,7 +302,7 @@ export default function ShooterHomepage() {
                 </View>
               </View>
               <Text style={styles.infoText} numberOfLines={1}>
-                {offer.owner1.name?.split(" ")[0]} & {offer.owner2.name?.split(" ")[0]}
+                {(offer.owner1.name || "Owner 1").split(" ")[0]} & {(offer.owner2.name || "Owner 2").split(" ")[0]}
               </Text>
             </View>
 
@@ -326,7 +333,11 @@ export default function ShooterHomepage() {
 
           {/* Pending status details */}
           {isPending && (
-            <View style={styles.pendingDetails}>
+            <View 
+              style={styles.pendingDetails}
+              accessible={true}
+              accessibilityLabel={`Owner 1 ${offer.owner1_accepted ? "accepted" : "pending"}, Owner 2 ${offer.owner2_accepted ? "accepted" : "pending"}`}
+            >
               <Text style={styles.pendingText}>
                 {offer.owner1_accepted ? "✓" : "○"} Owner 1 • {offer.owner2_accepted ? "✓" : "○"} Owner 2
               </Text>
@@ -738,7 +749,7 @@ const styles = StyleSheet.create({
     color: "#fff",
     fontSize: 11,
     fontWeight: "600",
-    maxWidth: 70,
+    maxWidth: PET_NAME_MAX_WIDTH,
   },
   heartConnector: {
     marginHorizontal: 12,
