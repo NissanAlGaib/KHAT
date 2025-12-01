@@ -110,6 +110,39 @@ export default function ShooterHomepage() {
     return date.fromNow();
   };
 
+  // Calculate pet statistics from contracts where this user is the shooter
+  const calculatePetStats = () => {
+    // Get all pets from contracts where the shooter was assigned
+    const allHandledPets: { pet: ShooterOffer['pet1'] | ShooterOffer['pet2']; fromContract: number }[] = [];
+    
+    // Include pets from all contracts (current, pending, and completed)
+    [...currentAssignments, ...pendingAssignments, ...finishedAssignments].forEach(offer => {
+      if (offer.pet1) {
+        allHandledPets.push({ pet: offer.pet1, fromContract: offer.id });
+      }
+      if (offer.pet2) {
+        allHandledPets.push({ pet: offer.pet2, fromContract: offer.id });
+      }
+    });
+
+    // Count by species
+    const dogCount = allHandledPets.filter(p => p.pet.species?.toLowerCase() === 'dog').length;
+    const catCount = allHandledPets.filter(p => p.pet.species?.toLowerCase() === 'cat').length;
+    
+    // Get unique breeds handled
+    const breedsHandled = [...new Set(allHandledPets.map(p => p.pet.breed).filter(Boolean))];
+    
+    return {
+      totalPets: allHandledPets.length,
+      dogCount,
+      catCount,
+      breedsHandled,
+      totalContracts: currentAssignments.length + pendingAssignments.length + finishedAssignments.length,
+    };
+  };
+
+  const petStats = calculatePetStats();
+
   // Stats Banner Component
   const StatsBanner = () => (
     <View style={styles.statsBanner}>
@@ -122,6 +155,7 @@ export default function ShooterHomepage() {
           <Text style={styles.statsSubtitle}>Your breeding activity overview</Text>
         </View>
       </View>
+      {/* Contract Stats Row */}
       <View style={styles.statsGrid}>
         <View style={styles.statItem}>
           <Text style={styles.statNumber}>{currentAssignments.length}</Text>
@@ -141,6 +175,27 @@ export default function ShooterHomepage() {
         <View style={styles.statItem}>
           <Text style={styles.statNumber}>{availableOffers.length}</Text>
           <Text style={styles.statLabel}>Available</Text>
+        </View>
+      </View>
+      {/* Pets Handled Stats Row */}
+      <View style={styles.petsStatsContainer}>
+        <Text style={styles.petsStatsTitle}>Pets Handled from Contracts</Text>
+        <View style={styles.petsStatsRow}>
+          <View style={styles.petStatItem}>
+            <Feather name="heart" size={16} color="rgba(255,255,255,0.9)" />
+            <Text style={styles.petStatNumber}>{petStats.totalPets}</Text>
+            <Text style={styles.petStatLabel}>Total</Text>
+          </View>
+          <View style={styles.petStatItem}>
+            <Feather name="gitlab" size={16} color="rgba(255,255,255,0.9)" />
+            <Text style={styles.petStatNumber}>{petStats.dogCount}</Text>
+            <Text style={styles.petStatLabel}>Dogs</Text>
+          </View>
+          <View style={styles.petStatItem}>
+            <Feather name="github" size={16} color="rgba(255,255,255,0.9)" />
+            <Text style={styles.petStatNumber}>{petStats.catCount}</Text>
+            <Text style={styles.petStatLabel}>Cats</Text>
+          </View>
         </View>
       </View>
     </View>
@@ -647,6 +702,43 @@ const styles = StyleSheet.create({
     width: 1,
     height: 32,
     backgroundColor: "rgba(255,255,255,0.2)",
+  },
+  // Pets Stats Section (within Stats Banner)
+  petsStatsContainer: {
+    marginTop: 16,
+    paddingTop: 16,
+    borderTopWidth: 1,
+    borderTopColor: "rgba(255,255,255,0.2)",
+  },
+  petsStatsTitle: {
+    color: "rgba(255,255,255,0.9)",
+    fontSize: 12,
+    fontWeight: "600",
+    textAlign: "center",
+    marginBottom: 12,
+    textTransform: "uppercase",
+    letterSpacing: 0.5,
+  },
+  petsStatsRow: {
+    flexDirection: "row",
+    justifyContent: "space-around",
+    alignItems: "center",
+  },
+  petStatItem: {
+    alignItems: "center",
+    flex: 1,
+  },
+  petStatNumber: {
+    color: "#fff",
+    fontSize: 20,
+    fontWeight: "bold",
+    marginTop: 4,
+  },
+  petStatLabel: {
+    color: "rgba(255,255,255,0.75)",
+    fontSize: 10,
+    marginTop: 2,
+    textTransform: "uppercase",
   },
 
   // Tab Switcher
