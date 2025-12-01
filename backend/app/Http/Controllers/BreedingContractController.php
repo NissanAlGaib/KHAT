@@ -905,7 +905,8 @@ class BreedingContractController extends Controller
             'has_offspring' => $contract->has_offspring,
             'breeding_notes' => $contract->breeding_notes,
             // User-specific fields
-            'can_edit' => $contract->canBeEditedBy($user),
+            // Shooters should only edit their terms via can_shooter_edit, not the full contract
+            'can_edit' => !$isShooter && $contract->canBeEditedBy($user),
             'can_accept' => $contract->canBeAcceptedBy($user),
             'is_creator' => $contract->isCreator($user),
             'is_owner1' => $isOwner1,
