@@ -61,6 +61,9 @@ export interface ShooterOffer {
   conditions?: string;
   shooter_name?: string;
   shooter_status?: string;
+  breeding_status?: string;
+  has_offspring?: boolean;
+  offsprings_allocated?: boolean;
   owner1_accepted?: boolean;
   owner2_accepted?: boolean;
   end_contract_date?: string;

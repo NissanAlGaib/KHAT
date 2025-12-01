@@ -29,17 +29,19 @@ dayjs.extend(relativeTime);
 const PET_NAME_MAX_WIDTH = 70;
 
 // Completed breeding statuses that mark a breeding assignment as finished
-const COMPLETED_STATUSES = [
-  "completed",
-  "offspring_added",
-  "offspring_allocated",
-  "breeding_completed",
-  "match_completed"
-];
+const COMPLETED_BREEDING_STATUSES = ["completed", "failed"];
 
-// Helper function to check if a status is a completed status
-const isCompletedStatus = (status?: string): boolean => {
-  return status ? COMPLETED_STATUSES.includes(status) : false;
+// Helper function to check if a breeding is completed (breeding_status or has offspring allocated)
+const isBreedingCompleted = (offer: ShooterOffer): boolean => {
+  // Check breeding_status
+  if (offer.breeding_status && COMPLETED_BREEDING_STATUSES.includes(offer.breeding_status)) {
+    return true;
+  }
+  // Also check if offsprings have been allocated
+  if (offer.offsprings_allocated) {
+    return true;
+  }
+  return false;
 };
 
 type TabType = "current" | "available" | "finished";
@@ -52,16 +54,18 @@ export default function ShooterHomepage() {
   const [myOffers, setMyOffers] = useState<ShooterOffer[]>([]);
   const [activeTab, setActiveTab] = useState<TabType>("available");
 
-  // Separate offers into current (active), pending, and finished (completed/offspring_allocated)
+  // Separate offers into current (active), pending, and finished (breeding completed or offspring allocated)
+  // Finished assignments: breeding_status is 'completed' or 'failed', or offsprings_allocated is true
+  const finishedAssignments = myOffers.filter((o) => isBreedingCompleted(o));
+  
+  // Current assignments: shooter_status is 'accepted_by_owners' AND not finished
   const currentAssignments = myOffers.filter(
-    (o) => o.shooter_status === "accepted_by_owners"
+    (o) => o.shooter_status === "accepted_by_owners" && !isBreedingCompleted(o)
   );
+  
+  // Pending assignments: shooter_status is 'accepted_by_shooter' (waiting for owner confirmation)
   const pendingAssignments = myOffers.filter(
     (o) => o.shooter_status === "accepted_by_shooter"
-  );
-  // Include all completed statuses
-  const finishedAssignments = myOffers.filter(
-    (o) => isCompletedStatus(o.shooter_status)
   );
 
   const fetchOffers = useCallback(async () => {
@@ -262,22 +266,24 @@ export default function ShooterHomepage() {
   }) => {
     const isConfirmed = offer.shooter_status === "accepted_by_owners";
     const isPending = offer.shooter_status === "accepted_by_shooter";
-    // Use the helper function to check for completed statuses
-    const isFinished = isCompletedStatus(offer.shooter_status);
+    // Use the helper function to check for completed breeding status
+    const isFinished = isBreedingCompleted(offer);
 
     const getStatusConfig = () => {
-      if (offer.shooter_status === "match_completed") {
-        return { color: "#10B981", bg: "#D1FAE5", text: "Match Completed", icon: "check-circle" as const };
-      }
-      if (offer.shooter_status === "offspring_allocated") {
+      // Check breeding_status first
+      if (offer.offsprings_allocated) {
         return { color: "#10B981", bg: "#D1FAE5", text: "Offspring Allocated", icon: "check-circle" as const };
       }
-      if (offer.shooter_status === "offspring_added") {
-        return { color: "#10B981", bg: "#D1FAE5", text: "Offspring Added", icon: "check-circle" as const };
-      }
-      if (offer.shooter_status === "breeding_completed") {
+      if (offer.breeding_status === "completed" && offer.has_offspring) {
         return { color: "#10B981", bg: "#D1FAE5", text: "Breeding Completed", icon: "check-circle" as const };
       }
+      if (offer.breeding_status === "completed") {
+        return { color: "#10B981", bg: "#D1FAE5", text: "Completed", icon: "check-circle" as const };
+      }
+      if (offer.breeding_status === "failed") {
+        return { color: "#EF4444", bg: "#FEE2E2", text: "Failed", icon: "x-circle" as const };
+      }
+      // Fallback to shooter_status based checks for backward compatibility
       if (isFinished) return { color: "#10B981", bg: "#D1FAE5", text: "Completed", icon: "check-circle" as const };
       if (isConfirmed) return { color: "#10B981", bg: "#D1FAE5", text: "Active", icon: "play-circle" as const };
       if (isPending) return { color: "#F59E0B", bg: "#FEF3C7", text: "Awaiting Owners", icon: "clock" as const };
