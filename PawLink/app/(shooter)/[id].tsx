@@ -6,6 +6,8 @@ import {
   TouchableOpacity,
   Image,
   ActivityIndicator,
+  StyleSheet,
+  RefreshControl,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Feather } from "@expo/vector-icons";
@@ -15,8 +17,18 @@ import { useRouter, useLocalSearchParams } from "expo-router";
 import {
   getShooterProfile,
   type ShooterProfile,
+  type ShooterPet,
 } from "@/services/matchService";
 import { API_BASE_URL } from "@/config/env";
+import { LinearGradient } from "expo-linear-gradient";
+
+// Section subtitle text constants
+const SECTION_SUBTITLES = {
+  BREEDING_STATS: "Performance from breeding contracts",
+  BREEDS_HANDLED: "Experience from breeding contracts",
+  VERIFICATION: "Verified credentials",
+  OWN_PETS: "Personal pets (not from contracts)",
+};
 
 export default function ShooterProfileScreen() {
   const router = useRouter();
@@ -26,17 +38,19 @@ export default function ShooterProfileScreen() {
 
   const [shooterData, setShooterData] = useState<ShooterProfile | null>(null);
   const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
 
   const fetchShooterData = useCallback(async () => {
     try {
       setLoading(true);
       const profile = await getShooterProfile(parseInt(shooterId));
       setShooterData(profile);
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error("Error fetching shooter data:", error);
+      const err = error as { response?: { data?: { message?: string } }; message?: string };
       const errorMessage =
-        error.response?.data?.message ||
-        error.message ||
+        err.response?.data?.message ||
+        err.message ||
         "Failed to load shooter profile";
       showAlert({
         title: "Error",
@@ -49,6 +63,12 @@ export default function ShooterProfileScreen() {
     }
   }, [shooterId, showAlert, router]);
 
+  const onRefresh = useCallback(async () => {
+    setRefreshing(true);
+    await fetchShooterData();
+    setRefreshing(false);
+  }, [fetchShooterData]);
+
   useEffect(() => {
     if (shooterId) {
       fetchShooterData();
@@ -57,32 +77,33 @@ export default function ShooterProfileScreen() {
 
   const getImageUrl = (path: string | null | undefined) => {
     if (!path) return null;
-    // If path already contains full URL, return as is
     if (path.startsWith("http://") || path.startsWith("https://")) {
       return path;
     }
-    // Remove leading slash if present to avoid double slashes
     const cleanPath = path.startsWith("/") ? path.substring(1) : path;
-    // Remove 'storage/' if already included in path
     const finalPath = cleanPath.startsWith("storage/")
       ? cleanPath
       : `storage/${cleanPath}`;
-    const fullUrl = `${API_BASE_URL}/${finalPath}`;
-    return fullUrl;
+    return `${API_BASE_URL}/${finalPath}`;
   };
 
   if (loading) {
     return (
-      <SafeAreaView className="flex-1 bg-[#E8F4F8] items-center justify-center">
+      <SafeAreaView style={styles.loadingContainer}>
         <ActivityIndicator size="large" color="#ea5b3a" />
+        <Text style={styles.loadingText}>Loading profile...</Text>
       </SafeAreaView>
     );
   }
 
   if (!shooterData) {
     return (
-      <SafeAreaView className="flex-1 bg-[#E8F4F8] items-center justify-center">
-        <Text className="text-gray-500">Shooter profile not found</Text>
+      <SafeAreaView style={styles.loadingContainer}>
+        <Feather name="user-x" size={48} color="#CBD5E1" />
+        <Text style={styles.errorText}>Shooter profile not found</Text>
+        <TouchableOpacity style={styles.backButton} onPress={() => router.back()}>
+          <Text style={styles.backButtonText}>Go Back</Text>
+        </TouchableOpacity>
       </SafeAreaView>
     );
   }
@@ -95,302 +116,316 @@ export default function ShooterProfileScreen() {
     cat_count: 0,
     breeders_handled: 0,
     successful_shoots: 0,
+    active_contracts: 0,
+    failed_contracts: 0,
   };
   const displayedBreeds = shooterData.breeds_handled || [];
-  const heroThumbnail =
-    shooterData.pets?.[0]?.profile_image || shooterData.profile_image;
-  const ageText = shooterData.age ? `${shooterData.age} years old` : null;
-  const genderText = shooterData.sex ? shooterData.sex : null;
+  const ageText = shooterData.age ? `${shooterData.age} yrs` : null;
+  const genderText = shooterData.sex || null;
+  const rating = shooterData.rating || 0;
+
+  // Calculate success rate (only from completed contracts, not active ones)
+  const completedTotal = stats.successful_shoots + (stats.failed_contracts || 0);
+  const successRate = completedTotal > 0 
+    ? Math.round((stats.successful_shoots / completedTotal) * 100) 
+    : 0;
+
+  // Pet Card Component
+  const PetCard = ({ pet }: { pet: ShooterPet }) => (
+    <View style={styles.petCard}>
+      <View style={styles.petImageContainer}>
+        {pet.profile_image ? (
+          <Image
+            source={{ uri: getImageUrl(pet.profile_image) || undefined }}
+            style={styles.petImage}
+            resizeMode="cover"
+          />
+        ) : (
+          <View style={[styles.petImage, styles.petImagePlaceholder]}>
+            <Feather name="image" size={20} color="#CBD5E1" />
+          </View>
+        )}
+        <View style={[
+          styles.petStatusBadge,
+          { backgroundColor: pet.status === "Breeding" ? "#FEE2E2" : "#D1FAE5" }
+        ]}>
+          <View style={[
+            styles.petStatusDot,
+            { backgroundColor: pet.status === "Breeding" ? "#EF4444" : "#10B981" }
+          ]} />
+        </View>
+      </View>
+      <Text style={styles.petName} numberOfLines={1}>{pet.name}</Text>
+      <Text style={styles.petBreed} numberOfLines={1}>{pet.breed}</Text>
+      <View style={[
+        styles.petStatusTag,
+        { backgroundColor: pet.status === "Breeding" ? "#FEF2F2" : "#F0FDF4" }
+      ]}>
+        <Text style={[
+          styles.petStatusText,
+          { color: pet.status === "Breeding" ? "#DC2626" : "#16A34A" }
+        ]}>
+          {pet.status}
+        </Text>
+      </View>
+    </View>
+  );
+
+  // Stat Card Component
+  const StatCard = ({ 
+    value, 
+    label, 
+    icon, 
+    colors 
+  }: { 
+    value: number | string; 
+    label: string; 
+    icon: keyof typeof Feather.glyphMap;
+    colors: readonly [string, string];
+  }) => (
+    <LinearGradient colors={colors} style={styles.statCard} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }}>
+      <View style={styles.statIconContainer}>
+        <Feather name={icon} size={20} color="#fff" />
+      </View>
+      <Text style={styles.statValue}>{value}</Text>
+      <Text style={styles.statLabel}>{label}</Text>
+    </LinearGradient>
+  );
 
   return (
-    <SafeAreaView className="flex-1 bg-[#FFFDF7]" edges={["top"]}>
+    <SafeAreaView style={styles.container} edges={["top"]}>
       {/* Header */}
-      <View className="px-5 py-3 flex-row items-center justify-between bg-white shadow-sm">
-        <TouchableOpacity
-          onPress={() => router.back()}
-          className="w-10 h-10 rounded-full bg-[#F5F5F5] items-center justify-center"
-        >
-          <Feather name="arrow-left" size={20} color="#111111" />
+      <View style={styles.header}>
+        <TouchableOpacity onPress={() => router.back()} style={styles.headerButton}>
+          <Feather name="arrow-left" size={20} color="#1F2937" />
         </TouchableOpacity>
-        <Text className="text-base font-extrabold tracking-wide uppercase text-black">
-          {shooterData.name}
-        </Text>
-        <TouchableOpacity className="w-10 h-10 rounded-full bg-[#F5F5F5] items-center justify-center">
-          <Feather name="more-horizontal" size={20} color="#111111" />
+        <Text style={styles.headerTitle}>Shooter Profile</Text>
+        <TouchableOpacity style={styles.headerButton}>
+          <Feather name="share-2" size={20} color="#1F2937" />
         </TouchableOpacity>
       </View>
 
-      <ScrollView className="flex-1" showsVerticalScrollIndicator={false}>
-        {/* Hero Section */}
-
-        <View className="relative rounded-b-[36px] px-5 pt-5 pb-8">
-          {/* Photo card */}
-          <View className="rounded-[32px] overflow-hidden shadow-xl">
+      <ScrollView 
+        style={styles.scrollView}
+        contentContainerStyle={styles.scrollContent}
+        showsVerticalScrollIndicator={false}
+        refreshControl={
+          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={["#ea5b3a"]} />
+        }
+      >
+        {/* Profile Hero Section */}
+        <View style={styles.heroSection}>
+          <View style={styles.profileImageContainer}>
             {shooterData.profile_image ? (
               <Image
-                source={{
-                  uri: getImageUrl(shooterData.profile_image) || undefined,
-                }}
-                className="w-full h-[420px]"
+                source={{ uri: getImageUrl(shooterData.profile_image) || undefined }}
+                style={styles.profileImage}
                 resizeMode="cover"
-                onError={(e) =>
-                  console.log("Image load error:", e.nativeEvent.error)
-                }
               />
             ) : (
-              <View className="w-full h-[420px] bg-[#F2F2F2] items-center justify-center">
-                <Feather name="user" size={72} color="#D1D1D1" />
+              <View style={[styles.profileImage, styles.profileImagePlaceholder]}>
+                <Feather name="user" size={48} color="#CBD5E1" />
+              </View>
+            )}
+            {shooterData.shooter_verified && (
+              <View style={styles.verifiedBadge}>
+                <Feather name="check" size={14} color="#fff" />
               </View>
             )}
           </View>
-          {/* Info card overlay */}
-          <View className=" -mt-12 bg-white rounded-[28px] px-6 py-5 flex-row items-start justify-between shadow-xl">
-            <View className="flex-1 pr-3">
-              <Text className="text-3xl font-extrabold text-[#111111] mb-1">
-                {shooterData.name}
-              </Text>
-              {/* <Text className="text-base text-[#6B6B6B] font-medium mb-3">
-                {shooterData.location || "Baliwasan"}
-              </Text> */}
-              <View className="flex-row gap-2 flex-wrap">
-                {ageText && (
-                  <View className="bg-[#FFF0D6] px-4 py-2 rounded-full">
-                    <Text className="text-[#D9932B] text-xs font-semibold">
-                      {ageText}
-                    </Text>
-                  </View>
-                )}
-                {genderText && (
-                  <View className="bg-[#D5F0F5] px-4 py-2 rounded-full">
-                    <Text className="text-[#2F7FD3] text-xs font-semibold capitalize">
-                      {genderText}
-                    </Text>
-                  </View>
-                )}
-              </View>
-            </View>
 
-            <View className="w-24 h-24 rounded-[20px] bg-[#FFD54F] items-center justify-center overflow-hidden shadow-md">
-              {heroThumbnail ? (
-                <Image
-                  source={{ uri: getImageUrl(heroThumbnail) || undefined }}
-                  className="w-full h-full"
-                  resizeMode="cover"
-                  onError={(e) =>
-                    console.log("Thumbnail load error:", e.nativeEvent.error)
-                  }
-                />
-              ) : (
-                <Feather name="image" size={32} color="#B58200" />
+          <Text style={styles.shooterName}>{shooterData.name}</Text>
+          
+          {/* Tags Row */}
+          <View style={styles.tagsRow}>
+            {ageText && (
+              <View style={[styles.tag, styles.ageTag]}>
+                <Feather name="calendar" size={12} color="#D97706" />
+                <Text style={styles.ageTagText}>{ageText}</Text>
+              </View>
+            )}
+            {genderText && (
+              <View style={[styles.tag, styles.genderTag]}>
+                <Feather name="user" size={12} color="#0284C7" />
+                <Text style={styles.genderTagText}>{genderText}</Text>
+              </View>
+            )}
+            <View style={[styles.tag, styles.experienceTag]}>
+              <Feather name="award" size={12} color="#7C3AED" />
+              <Text style={styles.experienceTagText}>{experienceYears} yr{experienceYears !== 1 ? "s" : ""} exp</Text>
+            </View>
+          </View>
+
+          {/* Rating */}
+          {rating > 0 && (
+            <View style={styles.ratingContainer}>
+              <View style={styles.starsContainer}>
+                {[1, 2, 3, 4, 5].map((star) => (
+                  <Feather 
+                    key={star} 
+                    name="star" 
+                    size={16} 
+                    color={star <= Math.round(rating) ? "#F59E0B" : "#E5E7EB"} 
+                  />
+                ))}
+              </View>
+              <Text style={styles.ratingText}>{rating.toFixed(1)}</Text>
+            </View>
+          )}
+        </View>
+
+        {/* Quick Stats Banner */}
+        <View style={styles.quickStatsBanner}>
+          <View style={styles.quickStatItem}>
+            <Text style={styles.quickStatValue}>{stats.breeders_handled}</Text>
+            <Text style={styles.quickStatLabel}>Contracts</Text>
+          </View>
+          <View style={styles.quickStatDivider} />
+          <View style={styles.quickStatItem}>
+            <Text style={styles.quickStatValue}>{successRate}%</Text>
+            <Text style={styles.quickStatLabel}>Success</Text>
+          </View>
+          <View style={styles.quickStatDivider} />
+          <View style={styles.quickStatItem}>
+            <Text style={styles.quickStatValue}>{stats.total_pets}</Text>
+            <Text style={styles.quickStatLabel}>Pets Handled</Text>
+          </View>
+        </View>
+
+        {/* Verification Badges */}
+        {(shooterData.id_verified || shooterData.breeder_verified || shooterData.shooter_verified) && (
+          <View style={styles.verificationSection}>
+            <Text style={styles.sectionTitle}>Verification</Text>
+            <Text style={styles.sectionSubtitle}>{SECTION_SUBTITLES.VERIFICATION}</Text>
+            <View style={styles.badgesContainer}>
+              {shooterData.id_verified && (
+                <View style={styles.verificationBadge}>
+                  <View style={[styles.badgeIcon, { backgroundColor: "#D1FAE5" }]}>
+                    <Feather name="user-check" size={16} color="#059669" />
+                  </View>
+                  <Text style={styles.badgeText}>ID Verified</Text>
+                </View>
+              )}
+              {shooterData.breeder_verified && (
+                <View style={styles.verificationBadge}>
+                  <View style={[styles.badgeIcon, { backgroundColor: "#DBEAFE" }]}>
+                    <Feather name="award" size={16} color="#2563EB" />
+                  </View>
+                  <Text style={styles.badgeText}>Licensed Breeder</Text>
+                </View>
+              )}
+              {shooterData.shooter_verified && (
+                <View style={styles.verificationBadge}>
+                  <View style={[styles.badgeIcon, { backgroundColor: "#FEE2E2" }]}>
+                    <Feather name="shield" size={16} color="#DC2626" />
+                  </View>
+                  <Text style={styles.badgeText}>Licensed Shooter</Text>
+                </View>
               )}
             </View>
           </View>
-          {/* Notch */}
-          <View className="absolute bottom-0 left-0 right-0 items-center -z-10">
-            <Image source={require("../../assets/images/notch.png")}></Image>
+        )}
+
+        {/* Breeding Statistics Grid */}
+        <View style={styles.statsSection}>
+          <Text style={styles.sectionTitle}>Breeding Statistics</Text>
+          <Text style={styles.sectionSubtitle}>{SECTION_SUBTITLES.BREEDING_STATS}</Text>
+          <View style={styles.statsGrid}>
+            <StatCard 
+              value={stats.active_contracts || 0} 
+              label="Active" 
+              icon="activity"
+              colors={["#60A5FA", "#3B82F6"] as const}
+            />
+            <StatCard 
+              value={stats.successful_shoots} 
+              label="Successful" 
+              icon="check-circle"
+              colors={["#34D399", "#10B981"] as const}
+            />
+            <StatCard 
+              value={stats.failed_contracts || 0} 
+              label="Failed" 
+              icon="x-circle"
+              colors={["#F87171", "#EF4444"] as const}
+            />
+            <StatCard 
+              value={stats.dog_count} 
+              label="Dogs Handled" 
+              icon="gitlab"
+              colors={["#FB923C", "#F97316"] as const}
+            />
+            <StatCard 
+              value={stats.cat_count} 
+              label="Cats Handled" 
+              icon="github"
+              colors={["#A78BFA", "#8B5CF6"] as const}
+            />
+            <StatCard 
+              value={stats.breeders_handled} 
+              label="Total Contracts" 
+              icon="heart"
+              colors={["#F472B6", "#EC4899"] as const}
+            />
           </View>
         </View>
 
-        {/* Common Breeds */}
+        {/* Breeds Handled from Contracts */}
         {displayedBreeds.length > 0 && (
-          <View className="px-5 mt-6">
-            <Text className="text-lg font-extrabold text-[#111111] mb-3">
-              Common Breeds Handled
-            </Text>
-            <View className="bg-white rounded-[26px] px-4 py-4 shadow-md border border-[#F0F0F0]">
-              <View className="flex-row justify-between">
-                {displayedBreeds.slice(0, 3).map((breed, index) => (
-                  <View key={breed + index} className="items-center w-1/3">
-                    <View className="w-16 h-16 rounded-full bg-[#F6F6F6] border-2 border-white shadow items-center justify-center mb-2">
-                      <Feather name="camera" size={20} color="#B5B5B5" />
-                    </View>
-                    <Text className="text-xs font-semibold text-[#333333]">
-                      {breed}
-                    </Text>
-                    <Text className="text-[10px] text-[#9A9A9A]">Handled</Text>
-                  </View>
-                ))}
-              </View>
+          <View style={styles.breedsSection}>
+            <Text style={styles.sectionTitle}>Breeds Handled</Text>
+            <Text style={styles.sectionSubtitle}>{SECTION_SUBTITLES.BREEDS_HANDLED}</Text>
+            <View style={styles.breedsContainer}>
+              {displayedBreeds.map((breed, index) => (
+                <View key={breed + index} style={styles.breedChip}>
+                  <Feather name="check" size={12} color="#ea5b3a" />
+                  <Text style={styles.breedChipText}>{breed}</Text>
+                </View>
+              ))}
             </View>
           </View>
         )}
 
-        {/* Shooter pets */}
-        {shooterData.is_pet_owner &&
-          shooterData.pets &&
-          shooterData.pets.length > 0 && (
-            <View className="px-5 mt-6">
-              <Text className="text-lg font-extrabold text-[#111111] mb-3">
-                {shooterData.name}&apos;s Pets
-              </Text>
-              <View className="bg-white rounded-[26px] px-4 py-4 shadow-md border border-[#F0F0F0]">
-                <View className="flex-row justify-between">
-                  {shooterData.pets.slice(0, 3).map((pet) => (
-                    <View key={pet.pet_id} className="items-center w-1/3">
-                      <View className="relative w-16 h-16 rounded-full border-2 border-white shadow overflow-hidden mb-2">
-                        {pet.profile_image ? (
-                          <Image
-                            source={{
-                              uri: getImageUrl(pet.profile_image) || undefined,
-                            }}
-                            className="w-full h-full"
-                            resizeMode="cover"
-                            onError={(e) =>
-                              console.log(
-                                "Pet image load error:",
-                                e.nativeEvent.error
-                              )
-                            }
-                          />
-                        ) : (
-                          <View className="flex-1 bg-[#F6F6F6] items-center justify-center">
-                            <Feather name="image" size={20} color="#B5B5B5" />
-                          </View>
-                        )}
-                        <View
-                          className={`absolute -top-1 -right-1 w-5 h-5 rounded-full items-center justify-center border border-white ${
-                            pet.status === "Breeding"
-                              ? "bg-[#F2654B]"
-                              : "bg-[#4CAF50]"
-                          }`}
-                        >
-                          <Feather
-                            name={pet.status === "Breeding" ? "x" : "check"}
-                            size={12}
-                            color="white"
-                          />
-                        </View>
-                      </View>
-                      <Text className="text-xs font-semibold text-[#333333]">
-                        {pet.name}
-                      </Text>
-                      <View
-                        className={`px-3 py-0.5 rounded-full mt-1 ${
-                          pet.status === "Breeding"
-                            ? "bg-[#FFE3DF]"
-                            : "bg-[#DEF5E7]"
-                        }`}
-                      >
-                        <Text
-                          className={`text-[10px] font-semibold ${
-                            pet.status === "Breeding"
-                              ? "text-[#E0553A]"
-                              : "text-[#2E8B57]"
-                          }`}
-                        >
-                          {pet.status}
-                        </Text>
-                      </View>
-                    </View>
-                  ))}
-                </View>
+        {/* Shooter&apos;s Own Pets (if they are also a pet owner) */}
+        {shooterData.is_pet_owner && shooterData.pets && shooterData.pets.length > 0 && (
+          <View style={styles.petsSection}>
+            <View style={styles.sectionHeaderRow}>
+              <Text style={styles.sectionTitle}>{shooterData.name}&apos;s Own Pets</Text>
+              <View style={styles.petCountBadge}>
+                <Text style={styles.petCountText}>{shooterData.pets.length}</Text>
               </View>
             </View>
-          )}
-
-        {/* Stats cards */}
-        <View className="px-5 mt-6">
-          <View className="flex-row gap-4">
-            <View className="flex-1 rounded-3xl bg-[#DCD3FF] px-4 py-5 items-center shadow">
-              <Text className="text-3xl font-extrabold text-[#4F3FB6]">
-                {stats.breeders_handled}
-              </Text>
-              <Text className="text-sm text-[#4F3FB6] mt-2">
-                Breeding Handled
-              </Text>
-            </View>
-            <View className="flex-1 rounded-3xl bg-[#FFD7D9] px-4 py-5 items-center shadow">
-              <Text className="text-3xl font-extrabold text-[#C74B4B]">
-                {stats.successful_shoots}
-              </Text>
-              <Text className="text-sm text-[#C74B4B] mt-2">Successful</Text>
-            </View>
+            <Text style={styles.ownPetsSubtitle}>{SECTION_SUBTITLES.OWN_PETS}</Text>
+            <ScrollView 
+              horizontal 
+              showsHorizontalScrollIndicator={false}
+              contentContainerStyle={styles.petsScrollContent}
+            >
+              {shooterData.pets.map((pet) => (
+                <PetCard key={pet.pet_id} pet={pet} />
+              ))}
+            </ScrollView>
           </View>
+        )}
 
-          <View className="flex-row gap-4 mt-4">
-            <View className="flex-1 rounded-3xl bg-[#FFE0DB] px-4 py-5 items-center shadow">
-              <Text className="text-3xl font-extrabold text-[#C85945]">
-                {stats.total_pets}
-              </Text>
-              <Text className="text-sm text-[#C85945] mt-2">Total pets</Text>
-            </View>
-            <View className="flex-1 rounded-3xl bg-[#DDF4EC] px-4 py-5 items-center shadow">
-              <Text className="text-3xl font-extrabold text-[#3B8B6C]">
-                {stats.matched}
-              </Text>
-              <Text className="text-sm text-[#3B8B6C] mt-2">Matched</Text>
-            </View>
-          </View>
-
-          <View className="flex-row gap-4 mt-4">
-            <View className="flex-1 rounded-3xl bg-[#FFF1E6] px-4 py-5 items-center shadow">
-              <Text className="text-3xl font-extrabold text-[#D07A00]">
-                {stats.dog_count}
-              </Text>
-              <Text className="text-sm text-[#D07A00] mt-2">Dog</Text>
-            </View>
-            <View className="flex-1 rounded-3xl bg-[#FFF9D7] px-4 py-5 items-center shadow">
-              <Text className="text-3xl font-extrabold text-[#C4A300]">
-                {stats.cat_count}
-              </Text>
-              <Text className="text-sm text-[#C4A300] mt-2">Cat</Text>
-            </View>
+        {/* About Section */}
+        <View style={styles.aboutSection}>
+          <Text style={styles.sectionTitle}>About</Text>
+          <View style={styles.aboutCard}>
+            <Text style={styles.aboutText}>
+              Professional pet breeding specialist with {experienceYears} year{experienceYears !== 1 ? "s" : ""} of experience. 
+              Specializing in handling breeding sessions with care and expertise.
+              {shooterData.is_pet_owner && " As a fellow pet owner, I understand the importance of proper breeding practices and animal welfare."}
+            </Text>
           </View>
         </View>
 
-        {/* Verification details */}
-        {(shooterData.id_verified ||
-          shooterData.breeder_verified ||
-          shooterData.shooter_verified) && (
-          <View className="px-5 mt-6">
-            <View className="bg-white rounded-[28px] border border-[#E6E6E6] px-5 py-4 shadow-sm">
-              <Text className="text-base font-extrabold text-[#111111] mb-3">
-                Verification Status:
-              </Text>
-              <View className="gap-2">
-                {shooterData.id_verified && (
-                  <View className="flex-row items-center">
-                    <Feather name="check-circle" size={18} color="#2D9E62" />
-                    <Text className="ml-2 text-[#2D2D2D] font-medium">
-                      Verified User
-                    </Text>
-                  </View>
-                )}
-                {shooterData.breeder_verified && (
-                  <View className="flex-row items-center">
-                    <Feather name="check-circle" size={18} color="#2D9E62" />
-                    <Text className="ml-2 text-[#2D2D2D] font-medium">
-                      Licensed Breeder
-                    </Text>
-                  </View>
-                )}
-                {shooterData.shooter_verified && (
-                  <View className="flex-row items-center">
-                    <Feather name="check-circle" size={18} color="#2D9E62" />
-                    <Text className="ml-2 text-[#2D2D2D] font-medium">
-                      Licensed Shooter
-                    </Text>
-                  </View>
-                )}
-              </View>
-            </View>
-          </View>
-        )}
-
-        {/* Description */}
-        <View className="px-5 mt-6 mb-10">
-          <View className="bg-white rounded-[28px] border border-[#F1F1F1] px-5 py-5 shadow-sm">
-            <Text className="text-base font-extrabold text-[#111111] mb-2">
-              Description:
-            </Text>
-            <Text className="text-[#6B6B6B] leading-6 text-sm">
-              Professional pet photographer with {experienceYears} year
-              {experienceYears !== 1 ? "s" : ""} of experience. Specializing in
-              capturing the unique personality and charm of your beloved pets.
-              {shooterData.is_pet_owner &&
-                " As a fellow pet owner, I understand the importance of preserving precious moments with your furry friends."}
-            </Text>
-          </View>
+        {/* Contact Button */}
+        <View style={styles.contactSection}>
+          <TouchableOpacity style={styles.contactButton}>
+            <Feather name="message-circle" size={20} color="#fff" />
+            <Text style={styles.contactButtonText}>Contact Shooter</Text>
+          </TouchableOpacity>
         </View>
       </ScrollView>
 
@@ -405,3 +440,442 @@ export default function ShooterProfileScreen() {
     </SafeAreaView>
   );
 }
+
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+    backgroundColor: "#FFF7F5",
+  },
+  loadingContainer: {
+    flex: 1,
+    backgroundColor: "#FFF7F5",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  loadingText: {
+    marginTop: 12,
+    color: "#6B7280",
+    fontSize: 14,
+  },
+  errorText: {
+    marginTop: 16,
+    color: "#6B7280",
+    fontSize: 16,
+  },
+  backButton: {
+    marginTop: 16,
+    backgroundColor: "#ea5b3a",
+    paddingHorizontal: 24,
+    paddingVertical: 12,
+    borderRadius: 24,
+  },
+  backButtonText: {
+    color: "#fff",
+    fontWeight: "600",
+  },
+  header: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    backgroundColor: "#fff",
+    borderBottomWidth: 1,
+    borderBottomColor: "#F3F4F6",
+  },
+  headerButton: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: "#F9FAFB",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  headerTitle: {
+    fontSize: 16,
+    fontWeight: "700",
+    color: "#1F2937",
+  },
+  scrollView: {
+    flex: 1,
+  },
+  scrollContent: {
+    paddingBottom: 32,
+  },
+
+  // Hero Section
+  heroSection: {
+    alignItems: "center",
+    paddingVertical: 24,
+    paddingHorizontal: 16,
+    backgroundColor: "#fff",
+  },
+  profileImageContainer: {
+    position: "relative",
+    marginBottom: 16,
+  },
+  profileImage: {
+    width: 120,
+    height: 120,
+    borderRadius: 60,
+    borderWidth: 4,
+    borderColor: "#fff",
+  },
+  profileImagePlaceholder: {
+    backgroundColor: "#F3F4F6",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  verifiedBadge: {
+    position: "absolute",
+    bottom: 4,
+    right: 4,
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    backgroundColor: "#10B981",
+    alignItems: "center",
+    justifyContent: "center",
+    borderWidth: 3,
+    borderColor: "#fff",
+  },
+  shooterName: {
+    fontSize: 24,
+    fontWeight: "800",
+    color: "#1F2937",
+    marginBottom: 12,
+  },
+  tagsRow: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    justifyContent: "center",
+    gap: 8,
+    marginBottom: 12,
+  },
+  tag: {
+    flexDirection: "row",
+    alignItems: "center",
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 20,
+    gap: 4,
+  },
+  ageTag: {
+    backgroundColor: "#FEF3C7",
+  },
+  ageTagText: {
+    fontSize: 12,
+    fontWeight: "600",
+    color: "#D97706",
+  },
+  genderTag: {
+    backgroundColor: "#DBEAFE",
+  },
+  genderTagText: {
+    fontSize: 12,
+    fontWeight: "600",
+    color: "#0284C7",
+    textTransform: "capitalize",
+  },
+  experienceTag: {
+    backgroundColor: "#EDE9FE",
+  },
+  experienceTagText: {
+    fontSize: 12,
+    fontWeight: "600",
+    color: "#7C3AED",
+  },
+  ratingContainer: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+  },
+  starsContainer: {
+    flexDirection: "row",
+    gap: 2,
+  },
+  ratingText: {
+    fontSize: 14,
+    fontWeight: "600",
+    color: "#1F2937",
+  },
+
+  // Quick Stats Banner
+  quickStatsBanner: {
+    flexDirection: "row",
+    backgroundColor: "#ea5b3a",
+    marginHorizontal: 16,
+    marginTop: 16,
+    borderRadius: 20,
+    padding: 20,
+  },
+  quickStatItem: {
+    flex: 1,
+    alignItems: "center",
+  },
+  quickStatValue: {
+    fontSize: 24,
+    fontWeight: "800",
+    color: "#fff",
+  },
+  quickStatLabel: {
+    fontSize: 12,
+    color: "rgba(255,255,255,0.85)",
+    marginTop: 4,
+  },
+  quickStatDivider: {
+    width: 1,
+    backgroundColor: "rgba(255,255,255,0.2)",
+    marginVertical: 4,
+  },
+
+  // Section Styles
+  sectionTitle: {
+    fontSize: 18,
+    fontWeight: "700",
+    color: "#1F2937",
+    marginBottom: 4,
+  },
+  sectionSubtitle: {
+    fontSize: 12,
+    color: "#6B7280",
+    marginBottom: 12,
+  },
+  sectionHeaderRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+  },
+  ownPetsSubtitle: {
+    fontSize: 12,
+    color: "#6B7280",
+    marginBottom: 12,
+    marginTop: -8,
+  },
+
+  // Verification Section
+  verificationSection: {
+    paddingHorizontal: 16,
+    marginTop: 24,
+  },
+  badgesContainer: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 12,
+  },
+  verificationBadge: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "#fff",
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    borderRadius: 12,
+    gap: 10,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.05,
+    shadowRadius: 2,
+    elevation: 1,
+  },
+  badgeIcon: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  badgeText: {
+    fontSize: 13,
+    fontWeight: "600",
+    color: "#374151",
+  },
+
+  // Stats Section
+  statsSection: {
+    paddingHorizontal: 16,
+    marginTop: 24,
+  },
+  statsGrid: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 12,
+  },
+  statCard: {
+    width: "47%",
+    padding: 16,
+    borderRadius: 16,
+    alignItems: "center",
+  },
+  statIconContainer: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: "rgba(255,255,255,0.25)",
+    alignItems: "center",
+    justifyContent: "center",
+    marginBottom: 8,
+  },
+  statValue: {
+    fontSize: 28,
+    fontWeight: "800",
+    color: "#fff",
+  },
+  statLabel: {
+    fontSize: 12,
+    color: "rgba(255,255,255,0.9)",
+    marginTop: 4,
+  },
+
+  // Breeds Section
+  breedsSection: {
+    paddingHorizontal: 16,
+    marginTop: 24,
+  },
+  breedsContainer: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 8,
+  },
+  breedChip: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "#fff",
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 20,
+    gap: 6,
+    borderWidth: 1,
+    borderColor: "#FEE2E2",
+  },
+  breedChipText: {
+    fontSize: 13,
+    fontWeight: "500",
+    color: "#374151",
+  },
+
+  // Pets Section
+  petsSection: {
+    marginTop: 24,
+    paddingLeft: 16,
+  },
+  petCountBadge: {
+    backgroundColor: "#ea5b3a",
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 12,
+    marginRight: 16,
+  },
+  petCountText: {
+    fontSize: 12,
+    fontWeight: "700",
+    color: "#fff",
+  },
+  petsScrollContent: {
+    paddingRight: 16,
+    gap: 12,
+  },
+  petCard: {
+    backgroundColor: "#fff",
+    borderRadius: 16,
+    padding: 12,
+    alignItems: "center",
+    width: 120,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.05,
+    shadowRadius: 4,
+    elevation: 2,
+  },
+  petImageContainer: {
+    position: "relative",
+    marginBottom: 8,
+  },
+  petImage: {
+    width: 64,
+    height: 64,
+    borderRadius: 32,
+  },
+  petImagePlaceholder: {
+    backgroundColor: "#F3F4F6",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  petStatusBadge: {
+    position: "absolute",
+    top: -2,
+    right: -2,
+    width: 18,
+    height: 18,
+    borderRadius: 9,
+    alignItems: "center",
+    justifyContent: "center",
+    borderWidth: 2,
+    borderColor: "#fff",
+  },
+  petStatusDot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+  },
+  petName: {
+    fontSize: 14,
+    fontWeight: "600",
+    color: "#1F2937",
+    marginBottom: 2,
+  },
+  petBreed: {
+    fontSize: 11,
+    color: "#6B7280",
+    marginBottom: 6,
+  },
+  petStatusTag: {
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 10,
+  },
+  petStatusText: {
+    fontSize: 10,
+    fontWeight: "600",
+  },
+
+  // About Section
+  aboutSection: {
+    paddingHorizontal: 16,
+    marginTop: 24,
+  },
+  aboutCard: {
+    backgroundColor: "#fff",
+    borderRadius: 16,
+    padding: 16,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.05,
+    shadowRadius: 2,
+    elevation: 1,
+  },
+  aboutText: {
+    fontSize: 14,
+    lineHeight: 22,
+    color: "#4B5563",
+  },
+
+  // Contact Section
+  contactSection: {
+    paddingHorizontal: 16,
+    marginTop: 24,
+  },
+  contactButton: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: "#ea5b3a",
+    paddingVertical: 16,
+    borderRadius: 16,
+    gap: 8,
+  },
+  contactButtonText: {
+    fontSize: 16,
+    fontWeight: "700",
+    color: "#fff",
+  },
+});

@@ -6,6 +6,8 @@ import {
   TouchableOpacity,
   ScrollView,
   ActivityIndicator,
+  RefreshControl,
+  StyleSheet,
 } from "react-native";
 import { useRouter } from "expo-router";
 import { AnimatedSearchBar } from "@/components/app/AnimatedSearchBar";
@@ -17,13 +19,54 @@ import {
   ShooterOffer,
 } from "@/services/shooterService";
 import { Feather } from "@expo/vector-icons";
+import dayjs from "dayjs";
+import relativeTime from "dayjs/plugin/relativeTime";
+
+// Enable relative time formatting for dayjs (e.g., "2 hours ago", "3 days ago")
+dayjs.extend(relativeTime);
+
+// Constants for styling
+const PET_NAME_MAX_WIDTH = 70;
+
+// Completed breeding statuses that mark a breeding assignment as finished
+const COMPLETED_BREEDING_STATUSES = ["completed", "failed"];
+
+// Helper function to check if a breeding is completed (breeding_status or has offspring allocated)
+const isBreedingCompleted = (offer: ShooterOffer): boolean => {
+  // Check breeding_status
+  if (offer.breeding_status && COMPLETED_BREEDING_STATUSES.includes(offer.breeding_status)) {
+    return true;
+  }
+  // Also check if offsprings have been allocated
+  if (offer.offsprings_allocated) {
+    return true;
+  }
+  return false;
+};
+
+type TabType = "current" | "available" | "finished";
 
 export default function ShooterHomepage() {
   const router = useRouter();
   const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
   const [availableOffers, setAvailableOffers] = useState<ShooterOffer[]>([]);
   const [myOffers, setMyOffers] = useState<ShooterOffer[]>([]);
-  const [currentHandling, setCurrentHandling] = useState<number>(0);
+  const [activeTab, setActiveTab] = useState<TabType>("available");
+
+  // Separate offers into current (active), pending, and finished (breeding completed or offspring allocated)
+  // Finished assignments: breeding_status is 'completed' or 'failed', or offsprings_allocated is true
+  const finishedAssignments = myOffers.filter((o) => isBreedingCompleted(o));
+  
+  // Current assignments: shooter_status is 'accepted_by_owners' AND not finished
+  const currentAssignments = myOffers.filter(
+    (o) => o.shooter_status === "accepted_by_owners" && !isBreedingCompleted(o)
+  );
+  
+  // Pending assignments: shooter_status is 'accepted_by_shooter' (waiting for owner confirmation)
+  const pendingAssignments = myOffers.filter(
+    (o) => o.shooter_status === "accepted_by_shooter"
+  );
 
   const fetchOffers = useCallback(async () => {
     try {
@@ -35,9 +78,6 @@ export default function ShooterHomepage() {
 
       setAvailableOffers(available);
       setMyOffers(my);
-      setCurrentHandling(
-        my.filter((o) => o.shooter_status === "accepted_by_owners").length
-      );
     } catch (error) {
       console.error("Error fetching offers:", error);
     } finally {
@@ -45,19 +85,23 @@ export default function ShooterHomepage() {
     }
   }, []);
 
+  const onRefresh = useCallback(async () => {
+    setRefreshing(true);
+    await fetchOffers();
+    setRefreshing(false);
+  }, [fetchOffers]);
+
   useEffect(() => {
     fetchOffers();
   }, [fetchOffers]);
 
   const handleOfferPress = (offer: ShooterOffer) => {
-    // If both owners have accepted, navigate to the conversation
     if (
       offer.shooter_status === "accepted_by_owners" &&
       offer.conversation_id
     ) {
       router.push(`/(chat)/conversation?id=${offer.conversation_id}`);
     } else {
-      // Otherwise, show offer details
       router.push(`/(shooter)/offer-details?id=${offer.id}`);
     }
   };
@@ -68,126 +112,322 @@ export default function ShooterHomepage() {
     return `${API_BASE_URL}/storage/${path}`;
   };
 
-  const OfferCard = ({
+  const formatDate = (dateString?: string) => {
+    if (!dateString) return "";
+    const date = dayjs(dateString);
+    // Return empty string if the date is invalid
+    if (!date.isValid()) return "";
+    return date.fromNow();
+  };
+
+  // Calculate pet statistics from contracts where this user is the shooter
+  const calculatePetStats = () => {
+    // Get all pets from contracts where the shooter was assigned
+    const allHandledPets: { pet: ShooterOffer['pet1'] | ShooterOffer['pet2']; fromContract: number }[] = [];
+    
+    // Include pets from all contracts (current, pending, and completed)
+    [...currentAssignments, ...pendingAssignments, ...finishedAssignments].forEach(offer => {
+      if (offer.pet1) {
+        allHandledPets.push({ pet: offer.pet1, fromContract: offer.id });
+      }
+      if (offer.pet2) {
+        allHandledPets.push({ pet: offer.pet2, fromContract: offer.id });
+      }
+    });
+
+    // Count by species
+    const dogCount = allHandledPets.filter(p => p.pet.species?.toLowerCase() === 'dog').length;
+    const catCount = allHandledPets.filter(p => p.pet.species?.toLowerCase() === 'cat').length;
+    
+    // Get unique breeds handled
+    const breedsHandled = [...new Set(allHandledPets.map(p => p.pet.breed).filter(Boolean))];
+    
+    return {
+      totalPets: allHandledPets.length,
+      dogCount,
+      catCount,
+      breedsHandled,
+      totalContracts: currentAssignments.length + pendingAssignments.length + finishedAssignments.length,
+    };
+  };
+
+  const petStats = calculatePetStats();
+
+  // Stats Banner Component
+  const StatsBanner = () => (
+    <View style={styles.statsBanner}>
+      <View style={styles.statsHeader}>
+        <View style={styles.statsIconContainer}>
+          <Feather name="activity" size={24} color="#fff" />
+        </View>
+        <View style={styles.statsHeaderText}>
+          <Text style={styles.statsTitle}>Shooter Dashboard</Text>
+          <Text style={styles.statsSubtitle}>Your breeding activity overview</Text>
+        </View>
+      </View>
+      {/* Contract Stats Row */}
+      <View style={styles.statsGrid}>
+        <View style={styles.statItem}>
+          <Text style={styles.statNumber}>{currentAssignments.length}</Text>
+          <Text style={styles.statLabel}>Active</Text>
+        </View>
+        <View style={styles.statDivider} />
+        <View style={styles.statItem}>
+          <Text style={styles.statNumber}>{pendingAssignments.length}</Text>
+          <Text style={styles.statLabel}>Pending</Text>
+        </View>
+        <View style={styles.statDivider} />
+        <View style={styles.statItem}>
+          <Text style={styles.statNumber}>{finishedAssignments.length}</Text>
+          <Text style={styles.statLabel}>Completed</Text>
+        </View>
+        <View style={styles.statDivider} />
+        <View style={styles.statItem}>
+          <Text style={styles.statNumber}>{availableOffers.length}</Text>
+          <Text style={styles.statLabel}>Available</Text>
+        </View>
+      </View>
+      {/* Pets Handled Stats Row */}
+      <View style={styles.petsStatsContainer}>
+        <Text style={styles.petsStatsTitle}>Pets Handled from Contracts</Text>
+        <View style={styles.petsStatsRow}>
+          <View style={styles.petStatItem}>
+            <Feather name="heart" size={16} color="rgba(255,255,255,0.9)" />
+            <Text style={styles.petStatNumber}>{petStats.totalPets}</Text>
+            <Text style={styles.petStatLabel}>Total</Text>
+          </View>
+          <View style={styles.petStatItem}>
+            <Feather name="gitlab" size={16} color="rgba(255,255,255,0.9)" />
+            <Text style={styles.petStatNumber}>{petStats.dogCount}</Text>
+            <Text style={styles.petStatLabel}>Dogs</Text>
+          </View>
+          <View style={styles.petStatItem}>
+            <Feather name="github" size={16} color="rgba(255,255,255,0.9)" />
+            <Text style={styles.petStatNumber}>{petStats.catCount}</Text>
+            <Text style={styles.petStatLabel}>Cats</Text>
+          </View>
+        </View>
+      </View>
+    </View>
+  );
+
+  // Tab Switcher Component
+  const TabSwitcher = () => (
+    <View style={styles.tabContainer}>
+      <TouchableOpacity
+        style={[styles.tab, activeTab === "current" && styles.activeTab]}
+        onPress={() => setActiveTab("current")}
+      >
+        <Feather 
+          name="play-circle" 
+          size={16} 
+          color={activeTab === "current" ? "#fff" : "#ea5b3a"} 
+        />
+        <Text style={[styles.tabText, activeTab === "current" && styles.activeTabText]}>
+          Current ({currentAssignments.length + pendingAssignments.length})
+        </Text>
+      </TouchableOpacity>
+      <TouchableOpacity
+        style={[styles.tab, activeTab === "available" && styles.activeTab]}
+        onPress={() => setActiveTab("available")}
+      >
+        <Feather 
+          name="inbox" 
+          size={16} 
+          color={activeTab === "available" ? "#fff" : "#ea5b3a"} 
+        />
+        <Text style={[styles.tabText, activeTab === "available" && styles.activeTabText]}>
+          Available ({availableOffers.length})
+        </Text>
+      </TouchableOpacity>
+      <TouchableOpacity
+        style={[styles.tab, activeTab === "finished" && styles.activeTab]}
+        onPress={() => setActiveTab("finished")}
+      >
+        <Feather 
+          name="check-circle" 
+          size={16} 
+          color={activeTab === "finished" ? "#fff" : "#ea5b3a"} 
+        />
+        <Text style={[styles.tabText, activeTab === "finished" && styles.activeTabText]}>
+          Finished ({finishedAssignments.length})
+        </Text>
+      </TouchableOpacity>
+    </View>
+  );
+
+  // Modern Offer Card Component
+  const ModernOfferCard = ({
     offer,
-    showStatus = false,
+    variant = "available",
   }: {
     offer: ShooterOffer;
-    showStatus?: boolean;
+    variant?: "available" | "current" | "pending" | "finished";
   }) => {
     const isConfirmed = offer.shooter_status === "accepted_by_owners";
+    const isPending = offer.shooter_status === "accepted_by_shooter";
+    // Use the helper function to check for completed breeding status
+    const isFinished = isBreedingCompleted(offer);
+
+    const getStatusConfig = () => {
+      // Check breeding_status first
+      if (offer.offsprings_allocated) {
+        return { color: "#10B981", bg: "#D1FAE5", text: "Offspring Allocated", icon: "check-circle" as const };
+      }
+      if (offer.breeding_status === "completed" && offer.has_offspring) {
+        return { color: "#10B981", bg: "#D1FAE5", text: "Breeding Completed", icon: "check-circle" as const };
+      }
+      if (offer.breeding_status === "completed") {
+        return { color: "#10B981", bg: "#D1FAE5", text: "Completed", icon: "check-circle" as const };
+      }
+      if (offer.breeding_status === "failed") {
+        return { color: "#EF4444", bg: "#FEE2E2", text: "Failed", icon: "x-circle" as const };
+      }
+      // Fallback to shooter_status based checks for backward compatibility
+      if (isFinished) return { color: "#10B981", bg: "#D1FAE5", text: "Completed", icon: "check-circle" as const };
+      if (isConfirmed) return { color: "#10B981", bg: "#D1FAE5", text: "Active", icon: "play-circle" as const };
+      if (isPending) return { color: "#F59E0B", bg: "#FEF3C7", text: "Awaiting Owners", icon: "clock" as const };
+      return { color: "#6B7280", bg: "#F3F4F6", text: "New", icon: "star" as const };
+    };
+
+    const status = getStatusConfig();
 
     return (
       <TouchableOpacity
-        key={offer.id}
-        className="w-[48%] mb-4 bg-white rounded-2xl overflow-hidden shadow-md"
-        style={{ elevation: 4 }}
+        style={styles.modernCard}
         onPress={() => handleOfferPress(offer)}
-        activeOpacity={0.85}
+        activeOpacity={0.9}
       >
-        {/* Pet Images */}
-        <View className="relative">
-          <View className="flex-row">
-            {/* Pet 1 */}
-            <View className="w-1/2 h-24 bg-gray-200">
+        {/* Card Header with Images */}
+        <View style={styles.cardImageSection}>
+          <View style={styles.petImagesContainer}>
+            <View style={styles.petImageWrapper}>
               {offer.pet1.photo_url ? (
                 <Image
-                  source={{
-                    uri: getImageUrl(offer.pet1.photo_url) || undefined,
-                  }}
-                  className="w-full h-full"
+                  source={{ uri: getImageUrl(offer.pet1.photo_url) || undefined }}
+                  style={styles.petImage}
                   resizeMode="cover"
                 />
               ) : (
-                <View className="w-full h-full items-center justify-center bg-[#FFE0D8]">
-                  <Image
-                    source={require("@/assets/images/icon.png")}
-                    className="w-12 h-12 rounded-full"
-                    resizeMode="cover"
-                  />
+                <View style={[styles.petImage, styles.petImagePlaceholder]}>
+                  <Feather name="image" size={20} color="#CBD5E1" />
                 </View>
               )}
+              <View style={styles.petNameBadge}>
+                <Text style={styles.petNameText} numberOfLines={1}>{offer.pet1.name}</Text>
+              </View>
             </View>
-            {/* Pet 2 */}
-            <View className="w-1/2 h-24 bg-gray-200">
+            <View style={styles.heartConnector}>
+              <Feather name="heart" size={16} color="#ea5b3a" />
+            </View>
+            <View style={styles.petImageWrapper}>
               {offer.pet2.photo_url ? (
                 <Image
-                  source={{
-                    uri: getImageUrl(offer.pet2.photo_url) || undefined,
-                  }}
-                  className="w-full h-full"
+                  source={{ uri: getImageUrl(offer.pet2.photo_url) || undefined }}
+                  style={styles.petImage}
                   resizeMode="cover"
                 />
               ) : (
-                <View className="w-full h-full items-center justify-center bg-[#FFE0D8]">
-                  <Image
-                    source={require("@/assets/images/icon.png")}
-                    className="w-12 h-12 rounded-full"
-                    resizeMode="cover"
-                  />
+                <View style={[styles.petImage, styles.petImagePlaceholder]}>
+                  <Feather name="image" size={20} color="#CBD5E1" />
                 </View>
               )}
+              <View style={styles.petNameBadge}>
+                <Text style={styles.petNameText} numberOfLines={1}>{offer.pet2.name}</Text>
+              </View>
             </View>
           </View>
+          
           {/* Status Badge */}
-          {showStatus && offer.shooter_status && (
-            <View
-              className={`absolute top-2 right-2 px-2 py-1 rounded-full ${
-                isConfirmed ? "bg-green-500" : "bg-yellow-500"
-              }`}
-            >
-              <Text className="text-white text-xs font-semibold">
-                {isConfirmed ? "Confirmed" : "Pending"}
-              </Text>
-            </View>
-          )}
-          {/* Chat indicator for confirmed offers */}
-          {showStatus && isConfirmed && (
-            <View className="absolute bottom-2 left-2 bg-[#FF6B6B] px-2 py-1 rounded-full flex-row items-center">
-              <Feather name="message-circle" size={12} color="white" />
-              <Text className="text-white text-xs font-semibold ml-1">
-                Chat Open
-              </Text>
-            </View>
-          )}
+          <View style={[styles.statusBadge, { backgroundColor: status.bg }]}>
+            <Feather name={status.icon} size={12} color={status.color} />
+            <Text style={[styles.statusText, { color: status.color }]}>{status.text}</Text>
+          </View>
         </View>
 
         {/* Card Content */}
-        <View className="p-3">
-          {/* Pet Names with icon */}
-          <View className="flex-row items-center mb-2">
-            <Text className="text-[#ea5b3a] mr-1">🐾</Text>
-            <Text className="font-baloo text-sm text-[#111]" numberOfLines={1}>
-              {offer.pet1.name} & {offer.pet2.name}
+        <View style={styles.cardContent}>
+          {/* Breed Info */}
+          <View style={styles.breedSection}>
+            <Text style={styles.breedText} numberOfLines={1}>
+              {offer.pet1.breed || offer.pet1.species}
+            </Text>
+            <Text style={styles.breedSeparator}>×</Text>
+            <Text style={styles.breedText} numberOfLines={1}>
+              {offer.pet2.breed || offer.pet2.species}
             </Text>
           </View>
 
-          {/* Owner Names with icon */}
-          <View className="flex-row items-center mb-2">
-            <Image
-              source={require("@/assets/images/Heart_Icon.png")}
-              className="w-4 h-4 mr-2"
-              resizeMode="contain"
-            />
-            <Text className="text-xs text-gray-600" numberOfLines={1}>
-              {offer.owner1.name} & {offer.owner2.name}
-            </Text>
+          {/* Payment Highlight */}
+          <View style={styles.paymentContainer}>
+            <Text style={styles.paymentAmount}>₱{offer.payment?.toLocaleString() || 0}</Text>
           </View>
 
-          {/* Fee */}
-          <View className="flex-row items-center mb-2">
-            <Text className="text-[#ea5b3a] mr-1">💰</Text>
-            <Text className="text-xs font-semibold text-[#ea5b3a]">
-              ₱{offer.payment?.toLocaleString() || 0}
-            </Text>
+          {/* Info Grid */}
+          <View style={styles.infoGrid}>
+            {/* Owners */}
+            <View style={styles.infoItem}>
+              <View style={styles.ownersAvatars}>
+                <View style={styles.ownerAvatar}>
+                  {offer.owner1.profile_image ? (
+                    <Image
+                      source={{ uri: getImageUrl(offer.owner1.profile_image) || undefined }}
+                      style={styles.ownerAvatarImage}
+                    />
+                  ) : (
+                    <Feather name="user" size={12} color="#9CA3AF" />
+                  )}
+                </View>
+                <View style={[styles.ownerAvatar, styles.ownerAvatarSecond]}>
+                  {offer.owner2.profile_image ? (
+                    <Image
+                      source={{ uri: getImageUrl(offer.owner2.profile_image) || undefined }}
+                      style={styles.ownerAvatarImage}
+                    />
+                  ) : (
+                    <Feather name="user" size={12} color="#9CA3AF" />
+                  )}
+                </View>
+              </View>
+              <Text style={styles.infoText} numberOfLines={1}>
+                {(offer.owner1.name || "Owner 1").split(" ")[0]} & {(offer.owner2.name || "Owner 2").split(" ")[0]}
+              </Text>
+            </View>
+
+            {/* Location */}
+            {offer.location && (
+              <View style={styles.infoItem}>
+                <Feather name="map-pin" size={14} color="#6B7280" />
+                <Text style={styles.infoText} numberOfLines={1}>{offer.location}</Text>
+              </View>
+            )}
+
+            {/* Date */}
+            {offer.created_at && (
+              <View style={styles.infoItem}>
+                <Feather name="clock" size={14} color="#6B7280" />
+                <Text style={styles.infoText}>{formatDate(offer.created_at)}</Text>
+              </View>
+            )}
           </View>
 
-          {/* Location */}
-          {offer.location && (
-            <View className="flex-row items-center">
-              <Text className="text-gray-500 mr-1">📍</Text>
-              <Text className="text-xs text-gray-500" numberOfLines={1}>
-                {offer.location}
+          {/* Action indicator for confirmed */}
+          {isConfirmed && (
+            <View style={styles.chatIndicator}>
+              <Feather name="message-circle" size={14} color="#fff" />
+              <Text style={styles.chatIndicatorText}>Tap to open chat</Text>
+            </View>
+          )}
+
+          {/* Pending status details */}
+          {isPending && (
+            <View 
+              style={styles.pendingDetails}
+              accessible={true}
+              accessibilityLabel={`Owner 1 ${offer.owner1_accepted ? "accepted" : "pending"}, Owner 2 ${offer.owner2_accepted ? "accepted" : "pending"}`}
+            >
+              <Text style={styles.pendingText}>
+                {offer.owner1_accepted ? "✓" : "○"} Owner 1 • {offer.owner2_accepted ? "✓" : "○"} Owner 2
               </Text>
             </View>
           )}
@@ -196,108 +436,613 @@ export default function ShooterHomepage() {
     );
   };
 
+  // Empty State Component
+  const EmptyState = ({ type }: { type: TabType }) => {
+    const configs = {
+      current: {
+        icon: "play-circle" as const,
+        title: "No Active Assignments",
+        subtitle: "Accept offers to start breeding assignments",
+      },
+      available: {
+        icon: "inbox" as const,
+        title: "No Available Offers",
+        subtitle: "New breeding offers will appear here",
+      },
+      finished: {
+        icon: "check-circle" as const,
+        title: "No Completed Assignments",
+        subtitle: "Your completed breeding sessions will show here",
+      },
+    };
+
+    const config = configs[type];
+
+    return (
+      <View style={styles.emptyState}>
+        <View style={styles.emptyIconContainer}>
+          <Feather name={config.icon} size={48} color="#CBD5E1" />
+        </View>
+        <Text style={styles.emptyTitle}>{config.title}</Text>
+        <Text style={styles.emptySubtitle}>{config.subtitle}</Text>
+      </View>
+    );
+  };
+
+  // Section Header Component
+  const SectionHeader = ({ title, count }: { title: string; count: number }) => (
+    <View style={styles.sectionHeader}>
+      <Text style={styles.sectionTitle}>{title}</Text>
+      <View style={styles.countBadge}>
+        <Text style={styles.countText}>{count}</Text>
+      </View>
+    </View>
+  );
+
+  // Render content based on active tab
+  const renderContent = () => {
+    if (loading) {
+      return (
+        <View style={styles.loadingContainer}>
+          <ActivityIndicator size="large" color="#ea5b3a" />
+          <Text style={styles.loadingText}>Loading offers...</Text>
+        </View>
+      );
+    }
+
+    switch (activeTab) {
+      case "current":
+        const allCurrentOffers = [...currentAssignments, ...pendingAssignments];
+        if (allCurrentOffers.length === 0) {
+          return <EmptyState type="current" />;
+        }
+        return (
+          <View style={styles.contentContainer}>
+            {currentAssignments.length > 0 && (
+              <>
+                <SectionHeader title="Active Assignments" count={currentAssignments.length} />
+                <Text style={styles.sectionSubtitle}>Tap to open chat with pet owners</Text>
+                {currentAssignments.map((offer) => (
+                  <ModernOfferCard key={offer.id} offer={offer} variant="current" />
+                ))}
+              </>
+            )}
+            {pendingAssignments.length > 0 && (
+              <>
+                <SectionHeader title="Pending Confirmation" count={pendingAssignments.length} />
+                <Text style={styles.sectionSubtitle}>Waiting for owners to confirm</Text>
+                {pendingAssignments.map((offer) => (
+                  <ModernOfferCard key={offer.id} offer={offer} variant="pending" />
+                ))}
+              </>
+            )}
+          </View>
+        );
+
+      case "available":
+        if (availableOffers.length === 0) {
+          return <EmptyState type="available" />;
+        }
+        return (
+          <View style={styles.contentContainer}>
+            <SectionHeader title="Available Offers" count={availableOffers.length} />
+            <Text style={styles.sectionSubtitle}>Tap to view details and accept</Text>
+            {availableOffers.map((offer) => (
+              <ModernOfferCard key={offer.id} offer={offer} variant="available" />
+            ))}
+          </View>
+        );
+
+      case "finished":
+        if (finishedAssignments.length === 0) {
+          return <EmptyState type="finished" />;
+        }
+        return (
+          <View style={styles.contentContainer}>
+            <SectionHeader title="Completed Assignments" count={finishedAssignments.length} />
+            <Text style={styles.sectionSubtitle}>Your breeding history</Text>
+            {finishedAssignments.map((offer) => (
+              <ModernOfferCard key={offer.id} offer={offer} variant="finished" />
+            ))}
+          </View>
+        );
+
+      default:
+        return null;
+    }
+  };
+
   return (
-    <View className="flex-1 items-center bg-[#FFE0D8] relative">
+    <View style={styles.container}>
       {/* Header */}
-      <View className="bg-white w-full h-48 shadow-black shadow-2xl rounded-b-[40px] p-8 pt-16 flex-col gap-4 relative">
-        <View className="flex-row items-center justify-between">
-          <Text className="text-[#ea5b3a] opacity-60 text-4xl font-baloo shadow-lg drop-shadow-2xl drop-shadow-black/70">
-            PAWLINK
-          </Text>
-          <View className="flex-row gap-6">
-            <TouchableOpacity>
-              <Image
-                className=""
-                source={require("../../assets/images/Subscription_Icon.png")}
-              />
+      <View style={styles.header}>
+        <View style={styles.headerTopRow}>
+          <Text style={styles.headerTitle}>PAWLINK</Text>
+          <View style={styles.headerIcons}>
+            <TouchableOpacity style={styles.headerIconButton}>
+              <Image source={require("../../assets/images/Subscription_Icon.png")} style={styles.headerIcon} />
             </TouchableOpacity>
-            <TouchableOpacity>
-              <Image
-                className=""
-                source={require("../../assets/images/Notif_Icon.png")}
-              />
+            <TouchableOpacity style={styles.headerIconButton}>
+              <Image source={require("../../assets/images/Notif_Icon.png")} style={styles.headerIcon} />
             </TouchableOpacity>
           </View>
         </View>
-        <View className="flex-row items-center justify-between">
+        <View style={styles.headerBottomRow}>
           <AnimatedSearchBar />
-          <View className="relative z-50">
+          <View style={styles.settingsContainer}>
             <SettingsDropdown />
           </View>
         </View>
       </View>
 
       <ScrollView
-        className="w-full mt-4 px-2"
-        contentContainerStyle={{ paddingBottom: 100 }}
+        style={styles.scrollView}
+        contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
+        refreshControl={
+          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={["#ea5b3a"]} />
+        }
       >
-        {/* Currently Breeding Handling Banner */}
-        <View className="w-[90%] self-center mb-4 bg-[#F9DCDC] rounded-2xl p-4 border-2 border-white">
-          <View className="flex-row items-center">
-            <View className="w-12 h-12 rounded-full items-center justify-center mr-3 bg-white">
-              <Text className="text-3xl">🐾</Text>
-            </View>
-            <View className="flex-1">
-              <Text className="text-lg font-baloo text-[#ea5b3a]">
-                Currently breeding handling
-              </Text>
-              <Text className="text-gray-500 text-sm">
-                You have {currentHandling} active breeding pair
-                {currentHandling !== 1 ? "s" : ""}
-              </Text>
-            </View>
-          </View>
-        </View>
-
-        {/* My Accepted Offers (pending owner confirmation or confirmed) */}
-        {myOffers.length > 0 && (
-          <View className="px-4 mb-4">
-            <Text className="text-2xl font-baloo text-[#ea5b3a] mb-2">
-              My Breeding Assignments
-            </Text>
-            <Text className="text-gray-600 text-sm mb-4">
-              Tap confirmed assignments to open chat with both owners
-            </Text>
-            <View className="flex-row flex-wrap justify-between">
-              {myOffers.map((offer) => (
-                <OfferCard key={offer.id} offer={offer} showStatus={true} />
-              ))}
-            </View>
-          </View>
-        )}
-
-        {/* Available Offers */}
-        <View className="px-4">
-          <Text className="text-2xl font-baloo text-[#ea5b3a] mb-4">
-            Available Offers
-          </Text>
-
-          {loading ? (
-            <View className="flex-row justify-center py-10">
-              <ActivityIndicator size="large" color="#ea5b3a" />
-            </View>
-          ) : availableOffers.length === 0 ? (
-            <View className="py-10 bg-white rounded-2xl">
-              <Text className="text-center text-gray-500 mb-2">
-                No available offers at the moment
-              </Text>
-              <Text className="text-center text-gray-400 text-sm">
-                New breeding offers will appear here
-              </Text>
-            </View>
-          ) : (
-            <View className="flex-row flex-wrap justify-between">
-              {availableOffers.map((offer) => (
-                <OfferCard key={offer.id} offer={offer} />
-              ))}
-            </View>
-          )}
-        </View>
-
-        {/* Bottom spacing */}
-        <View className="h-20" />
+        <StatsBanner />
+        <TabSwitcher />
+        {renderContent()}
+        <View style={styles.bottomSpacing} />
       </ScrollView>
     </View>
   );
 }
+
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+    backgroundColor: "#FFF5F3",
+  },
+  header: {
+    backgroundColor: "white",
+    borderBottomLeftRadius: 32,
+    borderBottomRightRadius: 32,
+    paddingHorizontal: 20,
+    paddingTop: 50,
+    paddingBottom: 20,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.1,
+    shadowRadius: 12,
+    elevation: 8,
+  },
+  headerTopRow: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    marginBottom: 16,
+  },
+  headerTitle: {
+    color: "#ea5b3a",
+    fontSize: 28,
+    fontWeight: "bold",
+    opacity: 0.8,
+  },
+  headerIcons: {
+    flexDirection: "row",
+    gap: 16,
+  },
+  headerIconButton: {
+    padding: 4,
+  },
+  headerIcon: {
+    width: 24,
+    height: 24,
+  },
+  headerBottomRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+  },
+  settingsContainer: {
+    zIndex: 50,
+  },
+  scrollView: {
+    flex: 1,
+  },
+  scrollContent: {
+    paddingHorizontal: 16,
+    paddingTop: 20,
+  },
+
+  // Stats Banner
+  statsBanner: {
+    backgroundColor: "#ea5b3a",
+    borderRadius: 24,
+    padding: 20,
+    marginBottom: 20,
+    shadowColor: "#ea5b3a",
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 6,
+  },
+  statsHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginBottom: 20,
+  },
+  statsIconContainer: {
+    width: 48,
+    height: 48,
+    borderRadius: 16,
+    backgroundColor: "rgba(255,255,255,0.2)",
+    alignItems: "center",
+    justifyContent: "center",
+    marginRight: 14,
+  },
+  statsHeaderText: {
+    flex: 1,
+  },
+  statsTitle: {
+    color: "#fff",
+    fontSize: 20,
+    fontWeight: "bold",
+  },
+  statsSubtitle: {
+    color: "rgba(255,255,255,0.8)",
+    fontSize: 13,
+    marginTop: 2,
+  },
+  statsGrid: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    backgroundColor: "rgba(255,255,255,0.15)",
+    borderRadius: 16,
+    paddingVertical: 16,
+    paddingHorizontal: 8,
+  },
+  statItem: {
+    flex: 1,
+    alignItems: "center",
+  },
+  statNumber: {
+    color: "#fff",
+    fontSize: 24,
+    fontWeight: "bold",
+  },
+  statLabel: {
+    color: "rgba(255,255,255,0.85)",
+    fontSize: 11,
+    marginTop: 4,
+    textTransform: "uppercase",
+    letterSpacing: 0.5,
+  },
+  statDivider: {
+    width: 1,
+    height: 32,
+    backgroundColor: "rgba(255,255,255,0.2)",
+  },
+  // Pets Stats Section (within Stats Banner)
+  petsStatsContainer: {
+    marginTop: 16,
+    paddingTop: 16,
+    borderTopWidth: 1,
+    borderTopColor: "rgba(255,255,255,0.2)",
+  },
+  petsStatsTitle: {
+    color: "rgba(255,255,255,0.9)",
+    fontSize: 12,
+    fontWeight: "600",
+    textAlign: "center",
+    marginBottom: 12,
+    textTransform: "uppercase",
+    letterSpacing: 0.5,
+  },
+  petsStatsRow: {
+    flexDirection: "row",
+    justifyContent: "space-around",
+    alignItems: "center",
+  },
+  petStatItem: {
+    alignItems: "center",
+    flex: 1,
+  },
+  petStatNumber: {
+    color: "#fff",
+    fontSize: 20,
+    fontWeight: "bold",
+    marginTop: 4,
+  },
+  petStatLabel: {
+    color: "rgba(255,255,255,0.75)",
+    fontSize: 10,
+    marginTop: 2,
+    textTransform: "uppercase",
+  },
+
+  // Tab Switcher
+  tabContainer: {
+    flexDirection: "row",
+    backgroundColor: "#fff",
+    borderRadius: 16,
+    padding: 4,
+    marginBottom: 20,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.05,
+    shadowRadius: 4,
+    elevation: 2,
+  },
+  tab: {
+    flex: 1,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    paddingVertical: 12,
+    paddingHorizontal: 8,
+    borderRadius: 12,
+    gap: 6,
+  },
+  activeTab: {
+    backgroundColor: "#ea5b3a",
+  },
+  tabText: {
+    color: "#ea5b3a",
+    fontSize: 12,
+    fontWeight: "600",
+  },
+  activeTabText: {
+    color: "#fff",
+  },
+
+  // Content Container
+  contentContainer: {
+    paddingBottom: 20,
+  },
+
+  // Section Header
+  sectionHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginBottom: 4,
+  },
+  sectionTitle: {
+    fontSize: 20,
+    fontWeight: "bold",
+    color: "#1F2937",
+  },
+  countBadge: {
+    backgroundColor: "#ea5b3a",
+    borderRadius: 12,
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    marginLeft: 10,
+  },
+  countText: {
+    color: "#fff",
+    fontSize: 12,
+    fontWeight: "bold",
+  },
+  sectionSubtitle: {
+    color: "#6B7280",
+    fontSize: 13,
+    marginBottom: 16,
+  },
+
+  // Modern Card
+  modernCard: {
+    backgroundColor: "#fff",
+    borderRadius: 20,
+    marginBottom: 16,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.08,
+    shadowRadius: 8,
+    elevation: 4,
+    overflow: "hidden",
+  },
+  cardImageSection: {
+    padding: 16,
+    paddingBottom: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: "#F3F4F6",
+  },
+  petImagesContainer: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  petImageWrapper: {
+    alignItems: "center",
+  },
+  petImage: {
+    width: 80,
+    height: 80,
+    borderRadius: 40,
+    borderWidth: 3,
+    borderColor: "#fff",
+    backgroundColor: "#F9FAFB",
+  },
+  petImagePlaceholder: {
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  petNameBadge: {
+    backgroundColor: "#1F2937",
+    borderRadius: 12,
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    marginTop: -10,
+  },
+  petNameText: {
+    color: "#fff",
+    fontSize: 11,
+    fontWeight: "600",
+    maxWidth: PET_NAME_MAX_WIDTH,
+  },
+  heartConnector: {
+    marginHorizontal: 12,
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: "#FEE2E2",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  statusBadge: {
+    position: "absolute",
+    top: 12,
+    right: 12,
+    flexDirection: "row",
+    alignItems: "center",
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 20,
+    gap: 4,
+  },
+  statusText: {
+    fontSize: 11,
+    fontWeight: "600",
+  },
+  cardContent: {
+    padding: 16,
+  },
+  breedSection: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    marginBottom: 12,
+  },
+  breedText: {
+    fontSize: 13,
+    color: "#6B7280",
+    maxWidth: 120,
+  },
+  breedSeparator: {
+    marginHorizontal: 8,
+    color: "#D1D5DB",
+    fontSize: 13,
+  },
+  paymentContainer: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: "#FEF2F2",
+    borderRadius: 12,
+    paddingVertical: 10,
+    paddingHorizontal: 16,
+    marginBottom: 16,
+  },
+  paymentAmount: {
+    fontSize: 22,
+    fontWeight: "bold",
+    color: "#ea5b3a",
+    marginLeft: 4,
+  },
+  infoGrid: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 12,
+  },
+  infoItem: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+  },
+  infoText: {
+    fontSize: 12,
+    color: "#6B7280",
+    maxWidth: 100,
+  },
+  ownersAvatars: {
+    flexDirection: "row",
+  },
+  ownerAvatar: {
+    width: 24,
+    height: 24,
+    borderRadius: 12,
+    backgroundColor: "#F3F4F6",
+    alignItems: "center",
+    justifyContent: "center",
+    borderWidth: 2,
+    borderColor: "#fff",
+  },
+  ownerAvatarSecond: {
+    marginLeft: -8,
+  },
+  ownerAvatarImage: {
+    width: "100%",
+    height: "100%",
+    borderRadius: 12,
+  },
+  chatIndicator: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: "#10B981",
+    borderRadius: 12,
+    paddingVertical: 10,
+    paddingHorizontal: 16,
+    marginTop: 12,
+    gap: 8,
+  },
+  chatIndicatorText: {
+    color: "#fff",
+    fontSize: 13,
+    fontWeight: "600",
+  },
+  pendingDetails: {
+    alignItems: "center",
+    marginTop: 12,
+    paddingTop: 12,
+    borderTopWidth: 1,
+    borderTopColor: "#F3F4F6",
+  },
+  pendingText: {
+    fontSize: 12,
+    color: "#F59E0B",
+    fontWeight: "500",
+  },
+
+  // Loading
+  loadingContainer: {
+    alignItems: "center",
+    justifyContent: "center",
+    paddingVertical: 60,
+  },
+  loadingText: {
+    color: "#6B7280",
+    marginTop: 12,
+    fontSize: 14,
+  },
+
+  // Empty State
+  emptyState: {
+    alignItems: "center",
+    justifyContent: "center",
+    paddingVertical: 60,
+    backgroundColor: "#fff",
+    borderRadius: 20,
+  },
+  emptyIconContainer: {
+    width: 96,
+    height: 96,
+    borderRadius: 48,
+    backgroundColor: "#F9FAFB",
+    alignItems: "center",
+    justifyContent: "center",
+    marginBottom: 16,
+  },
+  emptyTitle: {
+    fontSize: 18,
+    fontWeight: "bold",
+    color: "#1F2937",
+    marginBottom: 8,
+  },
+  emptySubtitle: {
+    fontSize: 14,
+    color: "#9CA3AF",
+    textAlign: "center",
+    paddingHorizontal: 40,
+  },
+
+  bottomSpacing: {
+    height: 100,
+  },
+});

@@ -485,6 +485,9 @@ class ShooterController extends Controller
                     'payment' => $contract->shooter_payment,
                     'location' => $contract->shooter_location,
                     'shooter_status' => $contract->shooter_status,
+                    'breeding_status' => $contract->breeding_status,
+                    'has_offspring' => $contract->has_offspring,
+                    'offsprings_allocated' => $contract->offsprings_allocated ?? false,
                     'owner1_accepted' => $contract->owner1_accepted_shooter,
                     'owner2_accepted' => $contract->owner2_accepted_shooter,
                     'created_at' => $contract->created_at->toISOString(),
@@ -537,17 +540,68 @@ class ShooterController extends Controller
                 return $role->role_type === 'Breeder';
             });
 
-            // Collect unique breeds handled (from preferences or pets owned)
-            $breedsHandled = collect();
+            // Get all breeding contracts where this user is the shooter
+            $shooterContracts = BreedingContract::where('shooter_user_id', $id)
+                ->whereIn('shooter_status', ['accepted_by_shooter', 'accepted_by_owners'])
+                ->with(['conversation.matchRequest.requesterPet', 'conversation.matchRequest.targetPet'])
+                ->get();
 
-            // Get breeds from owned pets
-            if ($isPetOwner && $shooter->pets->isNotEmpty()) {
-                $shooter->pets->each(function ($pet) use ($breedsHandled) {
-                    $breedsHandled->push($pet->breed);
-                });
+            // Collect unique breeds handled from breeding contracts
+            $breedsHandled = collect();
+            $contractDogCount = 0;
+            $contractCatCount = 0;
+            $totalPetsHandled = 0;
+
+            foreach ($shooterContracts as $contract) {
+                if ($contract->conversation && $contract->conversation->matchRequest) {
+                    $matchRequest = $contract->conversation->matchRequest;
+                    
+                    // Count pet1
+                    if ($matchRequest->requesterPet) {
+                        $pet = $matchRequest->requesterPet;
+                        $breedsHandled->push($pet->breed);
+                        $totalPetsHandled++;
+                        if (strtolower($pet->species) === 'dog') {
+                            $contractDogCount++;
+                        } elseif (strtolower($pet->species) === 'cat') {
+                            $contractCatCount++;
+                        }
+                    }
+                    
+                    // Count pet2
+                    if ($matchRequest->targetPet) {
+                        $pet = $matchRequest->targetPet;
+                        $breedsHandled->push($pet->breed);
+                        $totalPetsHandled++;
+                        if (strtolower($pet->species) === 'dog') {
+                            $contractDogCount++;
+                        } elseif (strtolower($pet->species) === 'cat') {
+                            $contractCatCount++;
+                        }
+                    }
+                }
             }
 
-            // Get formatted pets data if user is a breeder
+            // Count completed/successful contracts
+            $completedContracts = $shooterContracts->filter(function ($contract) {
+                return $contract->breeding_status === 'completed' || $contract->offsprings_allocated;
+            })->count();
+
+            // Count failed contracts
+            $failedContracts = $shooterContracts->filter(function ($contract) {
+                return $contract->breeding_status === 'failed';
+            })->count();
+
+            // Count active contracts (not completed and not failed)
+            $activeContracts = $shooterContracts->filter(function ($contract) {
+                return $contract->breeding_status !== 'completed' 
+                    && $contract->breeding_status !== 'failed'
+                    && !$contract->offsprings_allocated;
+            })->count();
+
+            $totalContracts = $shooterContracts->count();
+
+            // Get formatted pets data if user is a breeder (their own pets)
             $petsData = [];
             if ($isPetOwner && $shooter->pets->isNotEmpty()) {
                 $petsData = $shooter->pets->map(function ($pet) {
@@ -572,14 +626,6 @@ class ShooterController extends Controller
                     ];
                 })->values()->toArray();
             }
-
-            // Calculate statistics
-            $totalPets = $shooter->pets->count();
-            $dogCount = $shooter->pets->where('species', 'Dog')->count();
-            $catCount = $shooter->pets->where('species', 'Cat')->count();
-
-            // Count pets that have been matched/bred
-            $matchedCount = $shooter->pets->where('has_been_bred', true)->count();
 
             // Check verification statuses
             $idVerified = $shooter->userAuth->where('auth_type', 'id')
@@ -607,23 +653,25 @@ class ShooterController extends Controller
                 'experience_years' => $experienceYears,
                 'specialization' => null,
                 'is_pet_owner' => $isPetOwner,
-                'breeds_handled' => $breedsHandled->unique()->values()->toArray(),
+                'breeds_handled' => $breedsHandled->unique()->filter()->values()->toArray(),
                 'pets' => $petsData,
                 'rating' => null, // TODO: Implement rating system
-                'completed_sessions' => null, // TODO: Implement session tracking
-                'breeders_handled' => 0, // TODO: Implement breeder tracking
-                'successful_shoots' => 0, // TODO: Implement shoot tracking
+                'completed_sessions' => $completedContracts,
+                'breeders_handled' => $totalContracts,
+                'successful_shoots' => $completedContracts,
                 'verification_status' => $shooter->userAuth->where('auth_type', 'shooter_certificate')->first()?->status ?? 'pending',
                 'id_verified' => $idVerified,
                 'breeder_verified' => $breederVerified,
                 'shooter_verified' => $shooterVerified,
                 'statistics' => [
-                    'total_pets' => $totalPets,
-                    'matched' => $matchedCount,
-                    'dog_count' => $dogCount,
-                    'cat_count' => $catCount,
-                    'breeders_handled' => 0, // TODO: Implement
-                    'successful_shoots' => 0, // TODO: Implement
+                    'total_pets' => $totalPetsHandled,
+                    'matched' => $completedContracts,
+                    'dog_count' => $contractDogCount,
+                    'cat_count' => $contractCatCount,
+                    'breeders_handled' => $totalContracts,
+                    'successful_shoots' => $completedContracts,
+                    'active_contracts' => $activeContracts,
+                    'failed_contracts' => $failedContracts,
                 ],
             ];
 
