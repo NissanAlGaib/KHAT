@@ -7,6 +7,7 @@ use App\Http\Controllers\LitterController;
 use App\Http\Controllers\MatchController;
 use App\Http\Controllers\MatchRequestController;
 use App\Http\Controllers\NotificationController;
+use App\Http\Controllers\PaymentController;
 use App\Http\Controllers\PetController;
 use App\Http\Controllers\ShooterController;
 use App\Http\Controllers\UserController;
@@ -23,6 +24,9 @@ Route::middleware("guest")->group(function () {
         ->middleware('guest')
         ->name('login');
 });
+
+// PayMongo webhook (no auth required)
+Route::post('/webhooks/paymongo', [PaymentController::class, 'handleWebhook']);
 
 Route::middleware(['auth:sanctum'])
     ->group(function () {
@@ -121,4 +125,10 @@ Route::middleware(['auth:sanctum'])
         Route::get('/shooter/contracts/{id}', [BreedingContractController::class, 'getShooterContract']);
         Route::put('/shooter/contracts/{id}/terms', [BreedingContractController::class, 'shooterUpdateTerms']);
         Route::post('/shooter/contracts/{id}/collateral', [BreedingContractController::class, 'submitShooterCollateral']);
+
+        // Payment routes
+        Route::post('/payments/checkout', [PaymentController::class, 'createCheckout']);
+        Route::get('/payments/{id}/verify', [PaymentController::class, 'verifyPayment']);
+        Route::get('/payments', [PaymentController::class, 'getPayments']);
+        Route::get('/contracts/{id}/payments', [PaymentController::class, 'getContractPayments']);
     });
