@@ -40,6 +40,12 @@ export default function ShooterContractEditModal({
   const [error, setError] = useState("");
   const scaleAnim = React.useRef(new Animated.Value(0)).current;
 
+  // Track the contract id to detect when we switch to a different contract
+  const [lastContractId, setLastContractId] = React.useState<number | null>(null);
+
+  // Initialize shooter_payment value for when we open with a new contract
+  const initialShooterPayment = contract.shooter_payment?.toString() || "";
+
   React.useEffect(() => {
     if (visible) {
       Animated.spring(scaleAnim, {
@@ -48,14 +54,19 @@ export default function ShooterContractEditModal({
         tension: 50,
         friction: 7,
       }).start();
-      // Reset form when modal opens
-      setShooterPayment(contract.shooter_payment?.toString() || "");
-      setShooterCollateral("");
-      setError("");
+      // Reset form only when modal opens with a different contract
+      if (contract.id !== lastContractId) {
+        setShooterPayment(initialShooterPayment);
+        setShooterCollateral("");
+        setError("");
+        setLastContractId(contract.id);
+      }
     } else {
       scaleAnim.setValue(0);
+      // Reset tracked contract id when modal closes
+      setLastContractId(null);
     }
-  }, [visible, scaleAnim, contract]);
+  }, [visible, scaleAnim, contract.id, lastContractId, initialShooterPayment]);
 
   const handleSubmit = async () => {
     setError("");
