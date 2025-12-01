@@ -290,7 +290,6 @@ export default function ShooterHomepage() {
 
           {/* Payment Highlight */}
           <View style={styles.paymentContainer}>
-            <Feather name="dollar-sign" size={18} color="#ea5b3a" />
             <Text style={styles.paymentAmount}>₱{offer.payment?.toLocaleString() || 0}</Text>
           </View>
 
