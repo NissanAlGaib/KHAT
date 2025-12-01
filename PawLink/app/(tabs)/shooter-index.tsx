@@ -28,6 +28,14 @@ dayjs.extend(relativeTime);
 // Constants for styling
 const PET_NAME_MAX_WIDTH = 70;
 
+// Completed breeding statuses that mark a breeding assignment as finished
+const COMPLETED_STATUSES = ["completed", "offspring_added", "offspring_allocated", "breeding_completed"];
+
+// Helper function to check if a status is a completed status
+const isCompletedStatus = (status?: string): boolean => {
+  return status ? COMPLETED_STATUSES.includes(status) : false;
+};
+
 type TabType = "current" | "available" | "finished";
 
 export default function ShooterHomepage() {
@@ -45,12 +53,9 @@ export default function ShooterHomepage() {
   const pendingAssignments = myOffers.filter(
     (o) => o.shooter_status === "accepted_by_shooter"
   );
-  // Include all completed statuses: completed, offspring_added, offspring_allocated
+  // Include all completed statuses
   const finishedAssignments = myOffers.filter(
-    (o) => o.shooter_status === "completed" || 
-           o.shooter_status === "offspring_added" ||
-           o.shooter_status === "offspring_allocated" ||
-           o.shooter_status === "breeding_completed"
+    (o) => isCompletedStatus(o.shooter_status)
   );
 
   const fetchOffers = useCallback(async () => {
@@ -196,11 +201,8 @@ export default function ShooterHomepage() {
   }) => {
     const isConfirmed = offer.shooter_status === "accepted_by_owners";
     const isPending = offer.shooter_status === "accepted_by_shooter";
-    // Check for all completed statuses
-    const isFinished = offer.shooter_status === "completed" || 
-                       offer.shooter_status === "offspring_added" ||
-                       offer.shooter_status === "offspring_allocated" ||
-                       offer.shooter_status === "breeding_completed";
+    // Use the helper function to check for completed statuses
+    const isFinished = isCompletedStatus(offer.shooter_status);
 
     const getStatusConfig = () => {
       if (offer.shooter_status === "offspring_allocated") {

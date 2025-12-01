@@ -22,6 +22,14 @@ import {
 import { API_BASE_URL } from "@/config/env";
 import { LinearGradient } from "expo-linear-gradient";
 
+// Section subtitle text constants
+const SECTION_SUBTITLES = {
+  BREEDING_STATS: "Performance from breeding contracts",
+  BREEDS_HANDLED: "Experience from breeding contracts",
+  VERIFICATION: "Verified credentials",
+  OWN_PETS: "Personal pets (not from contracts)",
+};
+
 export default function ShooterProfileScreen() {
   const router = useRouter();
   const params = useLocalSearchParams();
@@ -285,7 +293,7 @@ export default function ShooterProfileScreen() {
         {(shooterData.id_verified || shooterData.breeder_verified || shooterData.shooter_verified) && (
           <View style={styles.verificationSection}>
             <Text style={styles.sectionTitle}>Verification</Text>
-            <Text style={styles.sectionSubtitle}>Verified credentials</Text>
+            <Text style={styles.sectionSubtitle}>{SECTION_SUBTITLES.VERIFICATION}</Text>
             <View style={styles.badgesContainer}>
               {shooterData.id_verified && (
                 <View style={styles.verificationBadge}>
@@ -318,7 +326,7 @@ export default function ShooterProfileScreen() {
         {/* Breeding Statistics Grid */}
         <View style={styles.statsSection}>
           <Text style={styles.sectionTitle}>Breeding Statistics</Text>
-          <Text style={styles.sectionSubtitle}>Performance from breeding contracts</Text>
+          <Text style={styles.sectionSubtitle}>{SECTION_SUBTITLES.BREEDING_STATS}</Text>
           <View style={styles.statsGrid}>
             <StatCard 
               value={stats.breeders_handled} 
@@ -351,7 +359,7 @@ export default function ShooterProfileScreen() {
         {displayedBreeds.length > 0 && (
           <View style={styles.breedsSection}>
             <Text style={styles.sectionTitle}>Breeds Handled</Text>
-            <Text style={styles.sectionSubtitle}>Experience from breeding contracts</Text>
+            <Text style={styles.sectionSubtitle}>{SECTION_SUBTITLES.BREEDS_HANDLED}</Text>
             <View style={styles.breedsContainer}>
               {displayedBreeds.map((breed, index) => (
                 <View key={breed + index} style={styles.breedChip}>
@@ -372,7 +380,7 @@ export default function ShooterProfileScreen() {
                 <Text style={styles.petCountText}>{shooterData.pets.length}</Text>
               </View>
             </View>
-            <Text style={styles.ownPetsSubtitle}>Personal pets (not from contracts)</Text>
+            <Text style={styles.ownPetsSubtitle}>{SECTION_SUBTITLES.OWN_PETS}</Text>
             <ScrollView 
               horizontal 
               showsHorizontalScrollIndicator={false}
