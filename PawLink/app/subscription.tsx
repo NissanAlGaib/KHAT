@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect, useRef, useCallback } from "react";
 import {
   View,
   Text,
@@ -7,6 +7,8 @@ import {
   ActivityIndicator,
   Linking,
   StyleSheet,
+  AppState,
+  AppStateStatus,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useRouter } from "expo-router";
@@ -64,6 +66,77 @@ export default function SubscriptionScreen() {
     "monthly"
   );
   const [loadingPlan, setLoadingPlan] = useState<string | null>(null);
+  const [pendingPaymentId, setPendingPaymentId] = useState<number | null>(null);
+  const [checkingPayment, setCheckingPayment] = useState(false);
+  const appState = useRef(AppState.currentState);
+
+  const checkPaymentStatus = useCallback(async (paymentId: number) => {
+    setCheckingPayment(true);
+    try {
+      const response = await axiosInstance.get(`/api/payments/${paymentId}/verify`);
+      
+      if (response.data.success && response.data.data?.status === "paid") {
+        setPendingPaymentId(null);
+        showAlert({
+          title: "Payment Successful! 🎉",
+          message: "Your subscription has been activated. Enjoy your premium features!",
+          type: "success",
+          buttons: [{ 
+            text: "OK", 
+            onPress: () => router.back() 
+          }],
+        });
+      } else if (response.data.data?.status === "expired") {
+        setPendingPaymentId(null);
+        showAlert({
+          title: "Payment Expired",
+          message: "The payment session has expired. Please try again.",
+          type: "error",
+          buttons: [{ text: "OK" }],
+        });
+      } else {
+        showAlert({
+          title: "Payment Pending",
+          message: "We haven't received your payment yet. If you completed the payment, it may take a moment to process.",
+          type: "info",
+          buttons: [
+            { text: "Check Again" },
+            { text: "Cancel", onPress: () => setPendingPaymentId(null) },
+          ],
+        });
+      }
+    } catch (error) {
+      console.error("Error checking payment status:", error);
+      showAlert({
+        title: "Error",
+        message: "Unable to verify payment status. Please try again.",
+        type: "error",
+        buttons: [{ text: "OK" }],
+      });
+    } finally {
+      setCheckingPayment(false);
+    }
+  }, [router, showAlert]);
+
+  // Check payment status when app comes back to foreground
+  useEffect(() => {
+    const handleAppStateChange = async (nextAppState: AppStateStatus) => {
+      if (
+        appState.current.match(/inactive|background/) &&
+        nextAppState === "active" &&
+        pendingPaymentId
+      ) {
+        // App has come to the foreground, check payment status
+        await checkPaymentStatus(pendingPaymentId);
+      }
+      appState.current = nextAppState;
+    };
+
+    const subscription = AppState.addEventListener("change", handleAppStateChange);
+    return () => {
+      subscription.remove();
+    };
+  }, [pendingPaymentId, checkPaymentStatus]);
 
   const formatPrice = (price: number) => {
     return new Intl.NumberFormat("en-PH", {
@@ -120,13 +193,23 @@ export default function SubscriptionScreen() {
           response.data.data.checkout_url
         );
         if (canOpen) {
+          // Store the payment ID for status checking
+          const paymentId = response.data.data.payment_id;
+          setPendingPaymentId(paymentId);
+          
           await Linking.openURL(response.data.data.checkout_url);
           showAlert({
-            title: "Redirecting to Payment",
+            title: "Complete Your Payment",
             message:
-              "You will be redirected to the payment page. Please complete your payment there.",
+              "You've been redirected to PayMongo to complete your payment. After paying, return to the app and we'll verify your subscription.",
             type: "info",
-            buttons: [{ text: "OK" }],
+            buttons: [
+              { 
+                text: "I've Completed Payment", 
+                onPress: () => checkPaymentStatus(paymentId) 
+              },
+              { text: "Cancel" },
+            ],
           });
         } else {
           throw new Error("Cannot open payment URL");
@@ -153,6 +236,29 @@ export default function SubscriptionScreen() {
 
   return (
     <SafeAreaView style={styles.container} edges={["top"]}>
+      {/* Pending Payment Banner */}
+      {pendingPaymentId && (
+        <View style={styles.pendingBanner}>
+          <View style={styles.pendingBannerContent}>
+            <Feather name="clock" size={20} color="#fff" />
+            <Text style={styles.pendingBannerText}>
+              Payment pending verification
+            </Text>
+          </View>
+          <TouchableOpacity 
+            style={styles.verifyButton}
+            onPress={() => checkPaymentStatus(pendingPaymentId)}
+            disabled={checkingPayment}
+          >
+            {checkingPayment ? (
+              <ActivityIndicator color="#ea5b3a" size="small" />
+            ) : (
+              <Text style={styles.verifyButtonText}>Verify Payment</Text>
+            )}
+          </TouchableOpacity>
+        </View>
+      )}
+      
       {/* Header */}
       <View style={styles.header}>
         <TouchableOpacity
@@ -482,5 +588,37 @@ const styles = StyleSheet.create({
     color: "#666",
     marginLeft: 12,
     lineHeight: 20,
+  },
+  pendingBanner: {
+    backgroundColor: "#ea5b3a",
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+  },
+  pendingBannerContent: {
+    flexDirection: "row",
+    alignItems: "center",
+    flex: 1,
+  },
+  pendingBannerText: {
+    color: "white",
+    fontSize: 14,
+    fontWeight: "600",
+    marginLeft: 8,
+  },
+  verifyButton: {
+    backgroundColor: "white",
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    borderRadius: 8,
+    minWidth: 100,
+    alignItems: "center",
+  },
+  verifyButtonText: {
+    color: "#ea5b3a",
+    fontSize: 14,
+    fontWeight: "bold",
   },
 });
