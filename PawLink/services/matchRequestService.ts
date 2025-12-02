@@ -130,13 +130,33 @@ export interface ConversationDetail {
   messages: Message[];
 }
 
+export interface MatchRequestResult {
+  success: boolean;
+  message: string;
+  data?: MatchRequest;
+  requires_payment?: boolean;
+  payment_amount?: number;
+  target_pet_id?: number;
+  requester_pet_id?: number;
+}
+
+export interface MatchPaymentResult {
+  success: boolean;
+  message?: string;
+  data?: {
+    payment_id: number;
+    checkout_url: string;
+    expires_at: string;
+  };
+}
+
 /**
  * Send a match request from one pet to another
  */
 export const sendMatchRequest = async (
   requesterPetId: number,
   targetPetId: number
-): Promise<{ success: boolean; message: string; data?: MatchRequest }> => {
+): Promise<MatchRequestResult> => {
   try {
     const response = await axiosInstance.post("/api/match-requests", {
       requester_pet_id: requesterPetId,
@@ -144,8 +164,44 @@ export const sendMatchRequest = async (
     });
     return response.data;
   } catch (error: any) {
+    // Check if this is a payment required response (402)
+    if (error.response?.status === 402 && error.response?.data?.requires_payment) {
+      return {
+        success: false,
+        message: error.response.data.message,
+        requires_payment: true,
+        payment_amount: error.response.data.payment_amount,
+        target_pet_id: error.response.data.target_pet_id,
+        requester_pet_id: error.response.data.requester_pet_id,
+      };
+    }
+    
     const errorMessage =
       error.response?.data?.message || "Failed to send match request";
+    return { success: false, message: errorMessage };
+  }
+};
+
+/**
+ * Create a payment for match request (free tier users)
+ */
+export const createMatchPayment = async (
+  requesterPetId: number,
+  targetPetId: number,
+  successUrl: string,
+  cancelUrl: string
+): Promise<MatchPaymentResult> => {
+  try {
+    const response = await axiosInstance.post("/api/match-requests/payment", {
+      requester_pet_id: requesterPetId,
+      target_pet_id: targetPetId,
+      success_url: successUrl,
+      cancel_url: cancelUrl,
+    });
+    return response.data;
+  } catch (error: any) {
+    const errorMessage =
+      error.response?.data?.message || "Failed to create payment";
     return { success: false, message: errorMessage };
   }
 };

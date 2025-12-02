@@ -7,8 +7,10 @@ use App\Http\Controllers\LitterController;
 use App\Http\Controllers\MatchController;
 use App\Http\Controllers\MatchRequestController;
 use App\Http\Controllers\NotificationController;
+use App\Http\Controllers\PaymentController;
 use App\Http\Controllers\PetController;
 use App\Http\Controllers\ShooterController;
+use App\Http\Controllers\SubscriptionController;
 use App\Http\Controllers\UserController;
 use App\Http\Controllers\VerificationController;
 use Illuminate\Http\Request;
@@ -23,6 +25,9 @@ Route::middleware("guest")->group(function () {
         ->middleware('guest')
         ->name('login');
 });
+
+// PayMongo webhook (no auth required)
+Route::post('/webhooks/paymongo', [PaymentController::class, 'handleWebhook']);
 
 Route::middleware(['auth:sanctum'])
     ->group(function () {
@@ -84,6 +89,7 @@ Route::middleware(['auth:sanctum'])
 
         // Match request routes
         Route::post('/match-requests', [MatchRequestController::class, 'store']);
+        Route::post('/match-requests/payment', [MatchRequestController::class, 'createMatchPayment']);
         Route::get('/match-requests/incoming', [MatchRequestController::class, 'incoming']);
         Route::get('/match-requests/outgoing', [MatchRequestController::class, 'outgoing']);
         Route::get('/match-requests/matches', [MatchRequestController::class, 'matches']);
@@ -121,4 +127,14 @@ Route::middleware(['auth:sanctum'])
         Route::get('/shooter/contracts/{id}', [BreedingContractController::class, 'getShooterContract']);
         Route::put('/shooter/contracts/{id}/terms', [BreedingContractController::class, 'shooterUpdateTerms']);
         Route::post('/shooter/contracts/{id}/collateral', [BreedingContractController::class, 'submitShooterCollateral']);
+
+        // Payment routes
+        Route::post('/payments/checkout', [PaymentController::class, 'createCheckout']);
+        Route::get('/payments/{id}/verify', [PaymentController::class, 'verifyPayment']);
+        Route::get('/payments', [PaymentController::class, 'getPayments']);
+        Route::get('/contracts/{id}/payments', [PaymentController::class, 'getContractPayments']);
+
+        // Subscription routes
+        Route::get('/subscriptions/plans', [SubscriptionController::class, 'getPlans']);
+        Route::post('/subscriptions/checkout', [SubscriptionController::class, 'createCheckout']);
     });

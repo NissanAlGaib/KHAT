@@ -13,6 +13,7 @@ import {
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Feather, Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
+import { useFocusEffect } from "@react-navigation/native";
 import {
   getConversations,
   type ConversationPreview,
@@ -44,9 +45,11 @@ export default function ChatScreen() {
     }
   }, []);
 
-  useEffect(() => {
-    fetchConversations();
-  }, [fetchConversations]);
+  useFocusEffect(
+    useCallback(() => {
+      fetchConversations();
+    }, [fetchConversations])
+  );
 
   const onRefresh = useCallback(() => {
     setRefreshing(true);

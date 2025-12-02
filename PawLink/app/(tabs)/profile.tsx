@@ -12,6 +12,7 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { Feather, Ionicons } from "@expo/vector-icons";
 import { useRole } from "@/context/RoleContext";
 import { useRouter } from "expo-router";
+import { useFocusEffect } from "@react-navigation/native";
 import { useSession } from "@/context/AuthContext";
 import { getPets } from "@/services/petService";
 import {
@@ -76,9 +77,11 @@ export default function ProfileScreen() {
     }
   }, [user?.id]);
 
-  useEffect(() => {
-    fetchAllData();
-  }, [fetchAllData]);
+  useFocusEffect(
+    useCallback(() => {
+      fetchAllData();
+    }, [fetchAllData])
+  );
 
   const getVerificationDisplay = () => {
     if (!verificationStatus || verificationStatus.length === 0)
@@ -109,6 +112,35 @@ export default function ProfileScreen() {
 
   const handleLogout = async () => {
     signOut?.();
+  };
+
+  // Check if user has approved ID verification
+  const isIdVerified = () => {
+    if (!verificationStatus || verificationStatus.length === 0) return false;
+    const idVerification = verificationStatus.find((v) => v.auth_type === "id");
+    return idVerification?.status === "approved";
+  };
+
+  // Handle add pet button - check verification first
+  const handleAddPetPress = () => {
+    if (!isIdVerified()) {
+      showAlert({
+        title: "Verification Required",
+        message: "You must complete identity verification before adding a pet",
+        type: "warning",
+        buttons: [
+          {
+            text: "Verify Now",
+            onPress: () => {
+              router.push("/(verification)/verify");
+            },
+          },
+          { text: "Later" },
+        ],
+      });
+      return;
+    }
+    router.push("/(verification)/add-pet");
   };
 
   const calculateAge = (birthdate: string) => {
@@ -357,7 +389,7 @@ export default function ProfileScreen() {
       {activeTab === "pets" && (
         <TouchableOpacity
           style={styles.fab}
-          onPress={() => router.push("/(verification)/add-pet")}
+          onPress={handleAddPetPress}
         >
           <Feather name="plus" size={30} color="white" />
         </TouchableOpacity>

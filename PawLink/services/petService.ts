@@ -187,13 +187,25 @@ export const createPet = async (petData: PetFormData) => {
     formData.append("max_age", petData.max_age);
   }
 
-  const response = await axiosInstance.post("/api/pets", formData, {
-    headers: {
-      "Content-Type": "multipart/form-data",
-    },
-  });
+  try {
+    const response = await axiosInstance.post("/api/pets", formData, {
+      headers: {
+        "Content-Type": "multipart/form-data",
+      },
+    });
 
-  return response.data;
+    return response.data;
+  } catch (error: any) {
+    // Check if this is a verification required response (403)
+    if (error.response?.status === 403 && error.response?.data?.requires_verification) {
+      return {
+        success: false,
+        message: error.response.data.message,
+        requires_verification: true,
+      };
+    }
+    throw error;
+  }
 };
 
 export const getPets = async () => {

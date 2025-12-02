@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, useMemo } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import {
   View,
   Text,
@@ -8,6 +8,7 @@ import {
   ActivityIndicator,
   StyleSheet,
   Dimensions,
+  Linking,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Feather, Ionicons } from "@expo/vector-icons";
@@ -20,7 +21,8 @@ import {
   type PetPublicProfile,
   type Litter,
 } from "@/services/petService";
-import { sendMatchRequest } from "@/services/matchRequestService";
+import { sendMatchRequest, createMatchPayment } from "@/services/matchRequestService";
+import { verifyPayment } from "@/services/paymentService";
 import { usePet } from "@/context/PetContext";
 import { API_BASE_URL } from "@/config/env";
 import dayjs from "dayjs";
@@ -60,6 +62,8 @@ export default function ViewPetProfileScreen() {
   const [loading, setLoading] = useState(true);
   const [sendingRequest, setSendingRequest] = useState(false);
   const [activeTab, setActiveTab] = useState<"about" | "health" | "gallery" | "litters">("about");
+  const [pendingPaymentId, setPendingPaymentId] = useState<number | null>(null);
+  const [pendingMatchData, setPendingMatchData] = useState<{requesterPetId: number, targetPetId: number} | null>(null);
 
   const fetchPetData = useCallback(async () => {
     try {
@@ -103,6 +107,175 @@ export default function ViewPetProfileScreen() {
     return `${months} Month${months > 1 ? "s" : ""}`;
   };
 
+  const handlePaymentForMatch = async (requesterPetId: number, targetPetId: number, amount: number) => {
+    try {
+      // Show payment confirmation dialog
+      showAlert({
+        title: "Payment Required",
+        message: `As a free tier user, you need to pay ₱${amount} to send a match request. This helps ensure quality matches.`,
+        type: "info",
+        buttons: [
+          { 
+            text: "Pay Now", 
+            onPress: async () => {
+              await initiateMatchPayment(requesterPetId, targetPetId);
+            }
+          },
+          { 
+            text: "Upgrade", 
+            onPress: () => {
+              router.push("/subscription");
+            }
+          },
+          { text: "Cancel" },
+        ],
+      });
+    } catch (error) {
+      console.error("Payment error:", error);
+      showAlert({
+        title: "Error",
+        message: "Failed to process payment. Please try again.",
+        type: "error",
+      });
+    }
+  };
+
+  const initiateMatchPayment = async (requesterPetId: number, targetPetId: number) => {
+    try {
+      const successUrl = "https://pawlink.app/match/payment/success";
+      const cancelUrl = "https://pawlink.app/match/payment/cancel";
+
+      const paymentResult = await createMatchPayment(
+        requesterPetId,
+        targetPetId,
+        successUrl,
+        cancelUrl
+      );
+
+      if (paymentResult.success && paymentResult.data?.checkout_url) {
+        setPendingPaymentId(paymentResult.data.payment_id);
+        setPendingMatchData({ requesterPetId, targetPetId });
+        
+        const canOpen = await Linking.canOpenURL(paymentResult.data.checkout_url);
+        if (canOpen) {
+          await Linking.openURL(paymentResult.data.checkout_url);
+          showAlert({
+            title: "Complete Your Payment",
+            message: "After completing payment, tap 'Verify Payment' to send your match request.",
+            type: "info",
+            buttons: [
+              { 
+                text: "Verify Payment", 
+                onPress: () => verifyMatchPayment()
+              },
+              { text: "Cancel", onPress: () => {
+                setPendingPaymentId(null);
+                setPendingMatchData(null);
+              }},
+            ],
+          });
+        } else {
+          throw new Error("Cannot open payment URL");
+        }
+      } else {
+        showAlert({
+          title: "Payment Error",
+          message: paymentResult.message || "Failed to create payment session",
+          type: "error",
+        });
+      }
+    } catch (error) {
+      console.error("Payment initiation error:", error);
+      showAlert({
+        title: "Error",
+        message: "Failed to initiate payment. Please try again.",
+        type: "error",
+      });
+    }
+  };
+
+  const verifyMatchPayment = async (retryCount = 0) => {
+    if (!pendingPaymentId || !pendingMatchData) return;
+
+    try {
+      const verifyResult = await verifyPayment(pendingPaymentId);
+      
+      console.log("Payment verification result:", verifyResult);
+      
+      if (verifyResult.success && verifyResult.data?.status === "paid") {
+        // Payment successful, now send the match request
+        console.log("Payment verified as paid, sending match request:", pendingMatchData);
+        
+        const matchResult = await sendMatchRequest(
+          pendingMatchData.requesterPetId,
+          pendingMatchData.targetPetId
+        );
+
+        console.log("Match request result:", matchResult);
+
+        setPendingPaymentId(null);
+        setPendingMatchData(null);
+
+        showAlert({
+          title: matchResult.success ? "Request Sent!" : "Request Failed",
+          message: matchResult.success 
+            ? "Payment verified and match request sent successfully!" 
+            : matchResult.message,
+          type: matchResult.success ? "success" : "error",
+        });
+      } else if (verifyResult.data?.status === "expired") {
+        setPendingPaymentId(null);
+        setPendingMatchData(null);
+        showAlert({
+          title: "Payment Expired",
+          message: "The payment session has expired. Please try again.",
+          type: "error",
+        });
+      } else {
+        // Payment not yet confirmed - may need to wait for PayMongo to process
+        if (retryCount < 3) {
+          // Auto-retry after a short delay (PayMongo may take a few seconds to process)
+          showAlert({
+            title: "Verifying Payment...",
+            message: "Please wait while we verify your payment.",
+            type: "info",
+          });
+          
+          setTimeout(() => {
+            verifyMatchPayment(retryCount + 1);
+          }, 2000);
+        } else {
+          showAlert({
+            title: "Payment Pending",
+            message: "We haven't received your payment confirmation yet. Please wait a moment and try again.",
+            type: "info",
+            buttons: [
+              { text: "Check Again", onPress: () => verifyMatchPayment(0) },
+              { text: "Cancel", onPress: () => {
+                setPendingPaymentId(null);
+                setPendingMatchData(null);
+              }},
+            ],
+          });
+        }
+      }
+    } catch (error) {
+      console.error("Payment verification error:", error);
+      showAlert({
+        title: "Error",
+        message: "Failed to verify payment. Please try again.",
+        type: "error",
+        buttons: [
+          { text: "Retry", onPress: () => verifyMatchPayment(0) },
+          { text: "Cancel", onPress: () => {
+            setPendingPaymentId(null);
+            setPendingMatchData(null);
+          }},
+        ],
+      });
+    }
+  };
+
   const handleMatchRequest = async () => {
     if (!selectedPet) {
       showAlert({
@@ -116,12 +289,22 @@ export default function ViewPetProfileScreen() {
     setSendingRequest(true);
     try {
       const result = await sendMatchRequest(selectedPet.pet_id, parseInt(petId));
-      showAlert({
-        title: result.success ? "Request Sent!" : "Request Failed",
-        message: result.message,
-        type: result.success ? "success" : "error",
-      });
-    } catch (error) {
+      
+      // Check if payment is required (free tier user)
+      if (result.requires_payment && result.payment_amount) {
+        await handlePaymentForMatch(
+          result.requester_pet_id!,
+          result.target_pet_id!,
+          result.payment_amount
+        );
+      } else {
+        showAlert({
+          title: result.success ? "Request Sent!" : "Request Failed",
+          message: result.message,
+          type: result.success ? "success" : "error",
+        });
+      }
+    } catch {
       showAlert({
         title: "Error",
         message: "Failed to send match request. Please try again.",
@@ -167,7 +350,7 @@ export default function ViewPetProfileScreen() {
           />
           <View>
             <Text style={styles.ownerName}>{petData.owner.name}</Text>
-            <Text style={styles.cardText}>{petData.name}'s Owner</Text>
+            <Text style={styles.cardText}>{petData.name}&apos;s Owner</Text>
           </View>
         </View>
       </InfoCard>
