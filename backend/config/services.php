@@ -40,6 +40,9 @@ return [
         'public_key' => env('PAYMONGO_PUBLIC_KEY'),
         'webhook_secret' => env('PAYMONGO_WEBHOOK_SECRET'),
         'base_url' => env('PAYMONGO_BASE_URL', 'https://api.paymongo.com/v1'),
+        // Set to false in local development to bypass SSL verification issues
+        // WARNING: Never set to false in production!
+        'verify_ssl' => env('PAYMONGO_VERIFY_SSL', true),
     ],
 
 ];

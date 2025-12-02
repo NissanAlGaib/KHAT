@@ -193,6 +193,32 @@ When using test mode:
 
 ## Troubleshooting
 
+### SSL Certificate Error (cURL error 60)
+This error occurs when PHP cannot verify the SSL certificate. Common on Windows development environments.
+
+**Quick Fix for Local Development:**
+Add this to your `.env` file:
+```env
+PAYMONGO_VERIFY_SSL=false
+```
+Then clear the cache:
+```bash
+cd backend
+php artisan config:clear
+```
+
+**⚠️ WARNING:** Never set `PAYMONGO_VERIFY_SSL=false` in production! This is only for local development.
+
+**Permanent Fix (Recommended):**
+1. Download the CA certificate bundle from https://curl.se/ca/cacert.pem
+2. Save it to your PHP installation folder (e.g., `C:\php\extras\ssl\cacert.pem`)
+3. Update your `php.ini` file:
+   ```ini
+   curl.cainfo = "C:\php\extras\ssl\cacert.pem"
+   openssl.cafile = "C:\php\extras\ssl\cacert.pem"
+   ```
+4. Restart your web server
+
 ### "Payment service not configured" Error
 This means the API keys are not being read correctly. Follow these steps:
 1. Verify the `.env` file is in the `backend` directory (not the root)

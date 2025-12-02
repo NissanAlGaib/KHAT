@@ -2,6 +2,7 @@
 
 namespace App\Services;
 
+use Illuminate\Http\Client\PendingRequest;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
 
@@ -13,11 +14,32 @@ class PayMongoService
 
     private string $baseUrl;
 
+    private bool $verifySsl;
+
     public function __construct()
     {
         $this->secretKey = config('services.paymongo.secret_key');
         $this->publicKey = config('services.paymongo.public_key');
         $this->baseUrl = config('services.paymongo.base_url') ?? 'https://api.paymongo.com/v1';
+        // In local development, SSL verification can be disabled if needed
+        // Set PAYMONGO_VERIFY_SSL=false in .env to disable (NOT recommended for production)
+        $this->verifySsl = config('services.paymongo.verify_ssl', true);
+    }
+
+    /**
+     * Get a configured HTTP client for PayMongo API calls
+     */
+    private function getHttpClient(): PendingRequest
+    {
+        $client = Http::withBasicAuth($this->secretKey, '');
+
+        // Disable SSL verification for local development if configured
+        if (! $this->verifySsl) {
+            $client = $client->withOptions(['verify' => false]);
+            Log::warning('PayMongo SSL verification is disabled. This should only be used in local development.');
+        }
+
+        return $client;
     }
 
     /**
@@ -89,7 +111,7 @@ class PayMongoService
         }
 
         try {
-            $response = Http::withBasicAuth($this->secretKey, '')
+            $response = $this->getHttpClient()
                 ->post("{$this->baseUrl}/checkout_sessions", $payload);
 
             if ($response->successful()) {
@@ -121,6 +143,14 @@ class PayMongoService
         } catch (\Exception $e) {
             Log::error('PayMongo exception', ['message' => $e->getMessage()]);
 
+            // Provide more specific error message for SSL issues
+            if (str_contains($e->getMessage(), 'SSL certificate')) {
+                return [
+                    'success' => false,
+                    'error' => 'SSL certificate error. For local development, add PAYMONGO_VERIFY_SSL=false to your .env file.',
+                ];
+            }
+
             return [
                 'success' => false,
                 'error' => 'Payment service temporarily unavailable. Please try again later.',
@@ -134,7 +164,7 @@ class PayMongoService
     public function getCheckoutSession(string $checkoutId): array
     {
         try {
-            $response = Http::withBasicAuth($this->secretKey, '')
+            $response = $this->getHttpClient()
                 ->get("{$this->baseUrl}/checkout_sessions/{$checkoutId}");
 
             if ($response->successful()) {
@@ -172,7 +202,7 @@ class PayMongoService
     public function getPayment(string $paymentId): array
     {
         try {
-            $response = Http::withBasicAuth($this->secretKey, '')
+            $response = $this->getHttpClient()
                 ->get("{$this->baseUrl}/payments/{$paymentId}");
 
             if ($response->successful()) {
