@@ -9,6 +9,7 @@ use App\Models\MatchRequest;
 use App\Models\BreedingContract;
 use App\Models\Litter;
 use App\Models\UserAuth;
+use App\Models\AuditLog;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
@@ -45,6 +46,16 @@ class AdminController extends Controller
             // Check if user has admin role
             if ($user->roles()->where('role_type', 'admin')->exists()) {
                 $request->session()->regenerate();
+                
+                // Log admin login
+                AuditLog::log(
+                    'admin.login',
+                    AuditLog::TYPE_LOGIN,
+                    "Admin {$user->name} logged in",
+                    User::class,
+                    $user->id
+                );
+                
                 return redirect()->intended('/admin/dashboard');
             }
 
@@ -190,6 +201,19 @@ class AdminController extends Controller
      */
     public function logout(Request $request)
     {
+        $user = Auth::user();
+        
+        // Log admin logout before actually logging out
+        if ($user) {
+            AuditLog::log(
+                'admin.logout',
+                AuditLog::TYPE_LOGOUT,
+                "Admin {$user->name} logged out",
+                User::class,
+                $user->id
+            );
+        }
+        
         Auth::logout();
 
         $request->session()->invalidate();
@@ -342,8 +366,20 @@ class AdminController extends Controller
         ]);
 
         $pet = Pet::findOrFail($petId);
+        $oldStatus = $pet->status;
         $pet->status = $request->status;
         $pet->save();
+
+        // Log pet status update
+        AuditLog::log(
+            'pet.status_updated',
+            AuditLog::TYPE_UPDATE,
+            "Pet {$pet->name} status changed from {$oldStatus} to {$request->status}",
+            Pet::class,
+            $petId,
+            ['status' => $oldStatus],
+            ['status' => $request->status]
+        );
 
         return redirect()->route('admin.pets.details', $petId)
             ->with('success', 'Pet status updated successfully.');
@@ -355,7 +391,17 @@ class AdminController extends Controller
     public function deletePet($petId)
     {
         $pet = Pet::findOrFail($petId);
+        $petName = $pet->name;
         $pet->delete();
+
+        // Log pet deletion
+        AuditLog::log(
+            'pet.deleted',
+            AuditLog::TYPE_DELETE,
+            "Pet {$petName} was deleted",
+            Pet::class,
+            $petId
+        );
 
         return redirect()->route('admin.pets.index')
             ->with('success', 'Pet deleted successfully.');
@@ -688,9 +734,33 @@ class AdminController extends Controller
     /**
      * Display audit logs page.
      */
-    public function auditLogs()
+    public function auditLogs(Request $request)
     {
-        return view('admin.audit-logs');
+        $query = AuditLog::with('user')->orderBy('created_at', 'desc');
+
+        // Filter by action type
+        if ($request->filled('action_type')) {
+            $query->where('action_type', $request->action_type);
+        }
+
+        // Filter by user type (admins only)
+        if ($request->filled('user_type') && $request->user_type === 'admins') {
+            $query->whereHas('user.roles', function ($q) {
+                $q->where('role_type', 'admin');
+            });
+        }
+
+        // Filter by date range
+        if ($request->filled('date_from')) {
+            $query->whereDate('created_at', '>=', $request->date_from);
+        }
+        if ($request->filled('date_to')) {
+            $query->whereDate('created_at', '<=', $request->date_to);
+        }
+
+        $logs = $query->paginate(20)->appends($request->query());
+
+        return view('admin.audit-logs', compact('logs'));
     }
 
     /**
@@ -706,7 +776,96 @@ class AdminController extends Controller
      */
     public function notifications()
     {
-        return view('admin.notifications');
+        // Get recent user registrations (last 7 days)
+        $newUsers = User::where('created_at', '>=', Carbon::now()->subDays(7))
+            ->orderBy('created_at', 'desc')
+            ->limit(10)
+            ->get(['id', 'name', 'email', 'created_at']);
+
+        // Get pending verifications
+        $pendingVerifications = UserAuth::where('status', 'pending')
+            ->with('user:id,name,email')
+            ->orderBy('created_at', 'desc')
+            ->limit(10)
+            ->get();
+
+        // Get recent match requests (last 7 days)
+        $recentMatches = MatchRequest::where('created_at', '>=', Carbon::now()->subDays(7))
+            ->with(['requesterPet:pet_id,name', 'targetPet:pet_id,name'])
+            ->orderBy('created_at', 'desc')
+            ->limit(10)
+            ->get();
+
+        // Get recent payments (last 7 days)
+        $recentPayments = \App\Models\Payment::where('status', \App\Models\Payment::STATUS_PAID)
+            ->where('paid_at', '>=', Carbon::now()->subDays(7))
+            ->with('user:id,name')
+            ->orderBy('paid_at', 'desc')
+            ->limit(10)
+            ->get();
+
+        // Build notifications array
+        $notifications = collect();
+
+        // Add new user notifications
+        foreach ($newUsers as $user) {
+            $notifications->push([
+                'type' => 'user_registered',
+                'icon' => 'user-plus',
+                'color' => 'blue',
+                'title' => 'New user registered',
+                'message' => "{$user->name} just created an account",
+                'created_at' => $user->created_at,
+                'is_unread' => $user->created_at >= Carbon::now()->subHours(24),
+            ]);
+        }
+
+        // Add pending verification notifications
+        foreach ($pendingVerifications as $verification) {
+            $notifications->push([
+                'type' => 'verification_pending',
+                'icon' => 'file-text',
+                'color' => 'yellow',
+                'title' => 'Pending verification',
+                'message' => "{$verification->user->name}'s {$verification->auth_type} awaiting review",
+                'created_at' => $verification->created_at,
+                'is_unread' => true,
+            ]);
+        }
+
+        // Add recent match notifications
+        foreach ($recentMatches as $match) {
+            $notifications->push([
+                'type' => 'match_request',
+                'icon' => 'heart',
+                'color' => 'pink',
+                'title' => 'New match request',
+                'message' => "{$match->requesterPet->name} requested to match with {$match->targetPet->name}",
+                'created_at' => $match->created_at,
+                'is_unread' => $match->created_at >= Carbon::now()->subHours(24),
+            ]);
+        }
+
+        // Add payment notifications
+        foreach ($recentPayments as $payment) {
+            $notifications->push([
+                'type' => 'payment_received',
+                'icon' => 'credit-card',
+                'color' => 'green',
+                'title' => 'Payment received',
+                'message' => "₱{$payment->amount} received from {$payment->user->name}",
+                'created_at' => $payment->paid_at,
+                'is_unread' => $payment->paid_at >= Carbon::now()->subHours(24),
+            ]);
+        }
+
+        // Sort by created_at descending
+        $notifications = $notifications->sortByDesc('created_at')->take(20)->values();
+
+        // Count unread
+        $unreadCount = $notifications->where('is_unread', true)->count();
+
+        return view('admin.notifications', compact('notifications', 'unreadCount'));
     }
 
     /**
@@ -775,8 +934,21 @@ class AdminController extends Controller
         ]);
 
         $userAuth = \App\Models\UserAuth::findOrFail($authId);
+        $oldStatus = $userAuth->status;
         $userAuth->status = $request->status;
         $userAuth->save();
+
+        // Log verification action
+        $actionType = $request->status === 'approved' ? AuditLog::TYPE_VERIFY : AuditLog::TYPE_REJECT;
+        AuditLog::log(
+            "verification.{$request->status}",
+            $actionType,
+            "Verification {$request->status} for {$userAuth->auth_type}",
+            UserAuth::class,
+            $authId,
+            ['status' => $oldStatus],
+            ['status' => $request->status]
+        );
 
         return response()->json([
             'success' => true,
@@ -790,7 +962,18 @@ class AdminController extends Controller
     public function deleteUser($userId)
     {
         $user = User::findOrFail($userId);
+        $userName = $user->name;
+        $userEmail = $user->email;
         $user->delete();
+
+        // Log user deletion
+        AuditLog::log(
+            'user.deleted',
+            AuditLog::TYPE_DELETE,
+            "User {$userName} ({$userEmail}) was deleted",
+            User::class,
+            $userId
+        );
 
         return response()->json([
             'success' => true,
