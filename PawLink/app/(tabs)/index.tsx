@@ -8,6 +8,7 @@ import {
   Dimensions,
   ActivityIndicator,
   StyleSheet,
+  Alert,
 } from "react-native";
 import { useSession } from "@/context/AuthContext";
 import { usePet } from "@/context/PetContext";
@@ -23,6 +24,7 @@ import {
   type TopMatch,
   type ShooterProfile,
 } from "@/services/matchService";
+import { getVerificationStatus, type VerificationStatus } from "@/services/verificationService";
 import { API_BASE_URL } from "@/config/env";
 import { useRouter } from "expo-router";
 import dayjs from "dayjs";
@@ -95,7 +97,7 @@ function BannerCarousel({ images }: { images: any[] }) {
   );
 }
 
-function TopMatches({ matches }: { matches: TopMatch[] }) {
+function TopMatches({ matches, onAddPetPress }: { matches: TopMatch[], onAddPetPress: () => void }) {
   const router = useRouter();
   const { selectedPet } = usePet();
 
@@ -121,7 +123,7 @@ function TopMatches({ matches }: { matches: TopMatch[] }) {
         {!selectedPet && (
           <TouchableOpacity
             style={styles.topMatchActionButton}
-            onPress={() => router.push("/(verification)/add-pet")}
+            onPress={onAddPetPress}
           >
             <Text style={styles.topMatchActionButtonText}>
               Add Your First Pet
@@ -225,6 +227,7 @@ export default function Homepage() {
   const [allPets, setAllPets] = useState<PetMatch[]>([]);
   const [topMatches, setTopMatches] = useState<TopMatch[]>([]);
   const [shooters, setShooters] = useState<ShooterProfile[]>([]);
+  const [verificationStatus, setVerificationStatus] = useState<VerificationStatus[]>([]);
   const router = useRouter();
   const { user } = useSession();
   const { selectedPet } = usePet();
@@ -238,13 +241,15 @@ export default function Homepage() {
   const fetchData = useCallback(async () => {
     try {
       setLoading(true);
-      const [pets, tops, shootersList] = await Promise.all([
+      const [pets, tops, shootersList, verification] = await Promise.all([
         getAllAvailablePets(),
         getTopMatches(),
         getShooters(),
+        user?.id ? getVerificationStatus(Number(user.id)) : Promise.resolve([]),
       ]);
       setAllPets(pets);
       setTopMatches(tops);
+      setVerificationStatus(verification);
 
       const filteredShooters = shootersList.filter(
         (shooter) => shooter.id !== Number(user?.id)
@@ -263,6 +268,34 @@ export default function Homepage() {
     // Refresh notification badge count when homepage loads
     refreshBadgeCount();
   }, [selectedPet, fetchData, refreshBadgeCount]); // Refetch when selected pet changes
+
+  // Check if user has approved ID verification
+  const isIdVerified = () => {
+    if (!verificationStatus || verificationStatus.length === 0) return false;
+    const idVerification = verificationStatus.find((v) => v.auth_type === "id");
+    return idVerification?.status === "approved";
+  };
+
+  // Handle add pet button - check verification first
+  const handleAddPetPress = () => {
+    if (!isIdVerified()) {
+      Alert.alert(
+        "Verification Required",
+        "You must complete identity verification before adding a pet",
+        [
+          {
+            text: "Verify Now",
+            onPress: () => {
+              router.push("/(verification)/verify");
+            },
+          },
+          { text: "Later", style: "cancel" },
+        ]
+      );
+      return;
+    }
+    router.push("/(verification)/add-pet");
+  };
 
   // If role is Shooter, show ShooterHomepage
   if (role === "Shooter") {
@@ -531,7 +564,7 @@ export default function Homepage() {
         )}
 
         <BannerCarousel images={bannerImages} />
-        <TopMatches matches={topMatches} />
+        <TopMatches matches={topMatches} onAddPetPress={handleAddPetPress} />
 
         <View style={styles.tabSwitcherContainer}>
           <TabButton
