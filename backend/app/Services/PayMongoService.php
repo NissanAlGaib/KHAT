@@ -170,14 +170,30 @@ class PayMongoService
             if ($response->successful()) {
                 $data = $response->json()['data'];
                 $attributes = $data['attributes'];
+                $payments = $attributes['payments'] ?? [];
 
                 // Log the raw response for debugging
                 Log::info('PayMongo checkout session retrieved', [
                     'checkout_id' => $checkoutId,
                     'status' => $attributes['status'],
-                    'has_payments' => !empty($attributes['payments'] ?? []),
-                    'payment_count' => count($attributes['payments'] ?? []),
+                    'has_payments' => !empty($payments),
+                    'payment_count' => count($payments),
+                    'raw_payments' => $payments,
                 ]);
+
+                // Parse payments - PayMongo returns payments as nested objects with 'data' key
+                $parsedPayments = [];
+                foreach ($payments as $payment) {
+                    // Handle both direct format and nested 'data' format
+                    if (isset($payment['data'])) {
+                        $parsedPayments[] = $payment['data'];
+                    } elseif (isset($payment['id']) && isset($payment['attributes'])) {
+                        $parsedPayments[] = $payment;
+                    } elseif (isset($payment['id']) && isset($payment['type'])) {
+                        // Nested format: {id, type, attributes}
+                        $parsedPayments[] = $payment;
+                    }
+                }
 
                 return [
                     'success' => true,
@@ -185,7 +201,7 @@ class PayMongoService
                         'id' => $data['id'],
                         'status' => $attributes['status'],
                         'payment_intent_id' => $attributes['payment_intent']['id'] ?? null,
-                        'payments' => $attributes['payments'] ?? [],
+                        'payments' => $parsedPayments,
                         'checkout_url' => $attributes['checkout_url'],
                     ],
                 ];

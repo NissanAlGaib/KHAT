@@ -48,16 +48,27 @@ class MatchRequestController extends Controller
     {
         // Convert to string for JSON comparison as MySQL JSON functions are type-sensitive
         $targetPetIdStr = (string) $targetPetId;
+        $targetPetIdInt = (int) $targetPetId;
 
-        return Payment::where('user_id', $userId)
+        $payment = Payment::where('user_id', $userId)
             ->where('payment_type', Payment::TYPE_MATCH_REQUEST)
             ->where('status', Payment::STATUS_PAID)
-            ->where(function ($query) use ($targetPetId, $targetPetIdStr) {
+            ->where(function ($query) use ($targetPetIdInt, $targetPetIdStr) {
                 // Check both integer and string representations in metadata
-                $query->whereJsonContains('metadata->target_pet_id', $targetPetId)
-                    ->orWhereJsonContains('metadata->target_pet_id', $targetPetIdStr);
+                $query->whereJsonContains('metadata->target_pet_id', $targetPetIdInt)
+                    ->orWhereJsonContains('metadata->target_pet_id', $targetPetIdStr)
+                    ->orWhereRaw("JSON_UNQUOTE(JSON_EXTRACT(metadata, '$.target_pet_id')) = ?", [$targetPetIdStr]);
             })
-            ->exists();
+            ->first();
+
+        Log::info('hasValidMatchPayment check', [
+            'user_id' => $userId,
+            'target_pet_id' => $targetPetId,
+            'found_payment' => $payment ? $payment->id : null,
+            'payment_status' => $payment?->status,
+        ]);
+
+        return $payment !== null;
     }
 
     /**

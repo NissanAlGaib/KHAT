@@ -176,6 +176,7 @@ class PaymentController extends Controller
                 'result_success' => $result['success'] ?? false,
                 'checkout_status' => $result['data']['status'] ?? null,
                 'has_payments' => !empty($result['data']['payments'] ?? []),
+                'payments_count' => count($result['data']['payments'] ?? []),
             ]);
 
             if ($result['success']) {
@@ -190,10 +191,20 @@ class PaymentController extends Controller
                 if (!empty($payments)) {
                     // Check if any payment in the array has status 'paid'
                     foreach ($payments as $paymentData) {
-                        $paymentStatus = $paymentData['attributes']['status'] ?? null;
+                        // Handle different PayMongo response formats
+                        $paymentStatus = $paymentData['attributes']['status'] 
+                            ?? $paymentData['status'] 
+                            ?? null;
+                        
+                        Log::info('Checking payment in checkout', [
+                            'payment_data_id' => $paymentData['id'] ?? 'unknown',
+                            'payment_status' => $paymentStatus,
+                            'payment_data' => $paymentData,
+                        ]);
+                        
                         if ($paymentStatus === 'paid') {
                             $hasSuccessfulPayment = true;
-                            $paymongoPaymentId = $paymentData['id'];
+                            $paymongoPaymentId = $paymentData['id'] ?? null;
                             break;
                         }
                     }
@@ -205,6 +216,7 @@ class PaymentController extends Controller
                     Log::info('Payment verified as paid', [
                         'payment_id' => $payment->id,
                         'checkout_status' => $checkoutStatus,
+                        'has_successful_payment' => $hasSuccessfulPayment,
                         'paymongo_payment_id' => $paymongoPaymentId,
                     ]);
 

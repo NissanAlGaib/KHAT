@@ -194,18 +194,24 @@ export default function ViewPetProfileScreen() {
     }
   };
 
-  const verifyMatchPayment = async () => {
+  const verifyMatchPayment = async (retryCount = 0) => {
     if (!pendingPaymentId || !pendingMatchData) return;
 
     try {
       const verifyResult = await verifyPayment(pendingPaymentId);
       
+      console.log("Payment verification result:", verifyResult);
+      
       if (verifyResult.success && verifyResult.data?.status === "paid") {
         // Payment successful, now send the match request
+        console.log("Payment verified as paid, sending match request:", pendingMatchData);
+        
         const matchResult = await sendMatchRequest(
           pendingMatchData.requesterPetId,
           pendingMatchData.targetPetId
         );
+
+        console.log("Match request result:", matchResult);
 
         setPendingPaymentId(null);
         setPendingMatchData(null);
@@ -226,18 +232,32 @@ export default function ViewPetProfileScreen() {
           type: "error",
         });
       } else {
-        showAlert({
-          title: "Payment Pending",
-          message: "We haven't received your payment yet. Please complete the payment or try again.",
-          type: "info",
-          buttons: [
-            { text: "Check Again", onPress: () => verifyMatchPayment() },
-            { text: "Cancel", onPress: () => {
-              setPendingPaymentId(null);
-              setPendingMatchData(null);
-            }},
-          ],
-        });
+        // Payment not yet confirmed - may need to wait for PayMongo to process
+        if (retryCount < 3) {
+          // Auto-retry after a short delay (PayMongo may take a few seconds to process)
+          showAlert({
+            title: "Verifying Payment...",
+            message: "Please wait while we verify your payment.",
+            type: "info",
+          });
+          
+          setTimeout(() => {
+            verifyMatchPayment(retryCount + 1);
+          }, 2000);
+        } else {
+          showAlert({
+            title: "Payment Pending",
+            message: "We haven't received your payment confirmation yet. Please wait a moment and try again.",
+            type: "info",
+            buttons: [
+              { text: "Check Again", onPress: () => verifyMatchPayment(0) },
+              { text: "Cancel", onPress: () => {
+                setPendingPaymentId(null);
+                setPendingMatchData(null);
+              }},
+            ],
+          });
+        }
       }
     } catch (error) {
       console.error("Payment verification error:", error);
@@ -245,6 +265,13 @@ export default function ViewPetProfileScreen() {
         title: "Error",
         message: "Failed to verify payment. Please try again.",
         type: "error",
+        buttons: [
+          { text: "Retry", onPress: () => verifyMatchPayment(0) },
+          { text: "Cancel", onPress: () => {
+            setPendingPaymentId(null);
+            setPendingMatchData(null);
+          }},
+        ],
       });
     }
   };
