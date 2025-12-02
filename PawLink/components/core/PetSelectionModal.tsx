@@ -104,7 +104,46 @@ export default function PetSelectionModal({
                 </Text>
               </View>
             ) : (
-              sortedPets.map((pet) => {
+              <>
+                {/* None option to deselect pet */}
+                <TouchableOpacity
+                  onPress={async () => {
+                    await setSelectedPet(null);
+                    onClose();
+                  }}
+                  className={`flex-row items-center p-4 rounded-2xl mb-3 ${
+                    selectedPet === null
+                      ? "bg-[#FFF5F3] border-2 border-[#ea5b3a]"
+                      : "bg-gray-50"
+                  }`}
+                >
+                  <View className="mr-3">
+                    <View className="w-16 h-16 rounded-full bg-gray-200 items-center justify-center">
+                      <Text className="text-2xl">🔍</Text>
+                    </View>
+                  </View>
+                  <View className="flex-1">
+                    <Text className="font-baloo text-lg text-[#111111]">
+                      None
+                    </Text>
+                    <Text className="text-sm text-gray-500">
+                      Browse all available pets
+                    </Text>
+                  </View>
+                  {selectedPet === null ? (
+                    <View className="w-12 h-12 rounded-full bg-[#ea5b3a] items-center justify-center">
+                      <Text className="text-white text-xl font-bold">✓</Text>
+                    </View>
+                  ) : (
+                    <View className="w-12 h-12 rounded-full bg-[#ea5b3a] items-center justify-center">
+                      <Text className="text-white text-sm font-semibold">
+                        SELECT
+                      </Text>
+                    </View>
+                  )}
+                </TouchableOpacity>
+
+                {sortedPets.map((pet) => {
                 const isSelected = selectedPet?.pet_id === pet.pet_id;
                 const primaryPhoto = pet.photos?.find((p) => p.is_primary);
                 const photoUrl = primaryPhoto?.photo_url;
@@ -186,7 +225,8 @@ export default function PetSelectionModal({
                     )}
                   </TouchableOpacity>
                 );
-              })
+              })}
+              </>
             )}
           </ScrollView>
         </View>
