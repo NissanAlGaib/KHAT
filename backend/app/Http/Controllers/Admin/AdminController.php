@@ -511,17 +511,30 @@ class AdminController extends Controller
         $standardPrice = 199;
         $premiumPrice = 499;
 
-        // Current Revenue (based on current subscriptions)
+        // Match request revenue from free tier users
+        $matchRequestRevenue = \App\Models\Payment::where('payment_type', \App\Models\Payment::TYPE_MATCH_REQUEST)
+            ->where('status', \App\Models\Payment::STATUS_PAID)
+            ->sum('amount');
+
+        // Current Revenue (based on current subscriptions + match request payments)
         $premiumCount = User::where('subscription_tier', 'premium')->count();
         $standardCount = User::where('subscription_tier', 'standard')->count();
-        $totalRevenue = ($premiumCount * $premiumPrice) + ($standardCount * $standardPrice);
+        $subscriptionRevenue = ($premiumCount * $premiumPrice) + ($standardCount * $standardPrice);
+        $totalRevenue = $subscriptionRevenue + $matchRequestRevenue;
 
-        // Last month's revenue (based on subscriptions that existed last month)
+        // Match request revenue last month
+        $matchRequestRevenueLastMonth = \App\Models\Payment::where('payment_type', \App\Models\Payment::TYPE_MATCH_REQUEST)
+            ->where('status', \App\Models\Payment::STATUS_PAID)
+            ->where('paid_at', '<', $lastMonth)
+            ->sum('amount');
+
+        // Last month's revenue (based on subscriptions that existed last month + match payments)
         $premiumLastMonth = User::where('subscription_tier', 'premium')
             ->where('updated_at', '<', $lastMonth)->count();
         $standardLastMonth = User::where('subscription_tier', 'standard')
             ->where('updated_at', '<', $lastMonth)->count();
-        $revenueLastMonth = ($premiumLastMonth * $premiumPrice) + ($standardLastMonth * $standardPrice);
+        $subscriptionRevenueLastMonth = ($premiumLastMonth * $premiumPrice) + ($standardLastMonth * $standardPrice);
+        $revenueLastMonth = $subscriptionRevenueLastMonth + $matchRequestRevenueLastMonth;
         $revenueGrowth = $revenueLastMonth > 0 
             ? round((($totalRevenue - $revenueLastMonth) / $revenueLastMonth) * 100, 1)
             : ($totalRevenue > 0 ? 100 : 0);
