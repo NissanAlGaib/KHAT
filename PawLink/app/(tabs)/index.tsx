@@ -27,6 +27,7 @@ import {
 import { getVerificationStatus, type VerificationStatus } from "@/services/verificationService";
 import { API_BASE_URL } from "@/config/env";
 import { useRouter } from "expo-router";
+import { useFocusEffect } from "@react-navigation/native";
 import dayjs from "dayjs";
 import { LinearGradient } from "expo-linear-gradient";
 import { Ionicons, Feather } from "@expo/vector-icons";
@@ -263,11 +264,13 @@ export default function Homepage() {
     }
   }, [user?.id]);
 
-  useEffect(() => {
-    fetchData();
-    // Refresh notification badge count when homepage loads
-    refreshBadgeCount();
-  }, [selectedPet, fetchData, refreshBadgeCount]); // Refetch when selected pet changes
+  useFocusEffect(
+    useCallback(() => {
+      fetchData();
+      // Refresh notification badge count when homepage loads
+      refreshBadgeCount();
+    }, [selectedPet, fetchData, refreshBadgeCount])
+  ); // Refetch when selected pet changes or screen gains focus
 
   // Check if user has approved ID verification
   const isIdVerified = () => {

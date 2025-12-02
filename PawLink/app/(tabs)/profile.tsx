@@ -12,6 +12,7 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { Feather, Ionicons } from "@expo/vector-icons";
 import { useRole } from "@/context/RoleContext";
 import { useRouter } from "expo-router";
+import { useFocusEffect } from "@react-navigation/native";
 import { useSession } from "@/context/AuthContext";
 import { getPets } from "@/services/petService";
 import {
@@ -76,9 +77,11 @@ export default function ProfileScreen() {
     }
   }, [user?.id]);
 
-  useEffect(() => {
-    fetchAllData();
-  }, [fetchAllData]);
+  useFocusEffect(
+    useCallback(() => {
+      fetchAllData();
+    }, [fetchAllData])
+  );
 
   const getVerificationDisplay = () => {
     if (!verificationStatus || verificationStatus.length === 0)
