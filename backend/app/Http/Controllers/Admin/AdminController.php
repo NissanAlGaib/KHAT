@@ -617,6 +617,23 @@ class AdminController extends Controller
             ? round((($premiumUsers - $premiumLastMonth) / $premiumLastMonth) * 100, 1)
             : 0;
 
+        // Match request payment statistics for free tier users
+        $matchRequestPayments = \App\Models\Payment::where('payment_type', \App\Models\Payment::TYPE_MATCH_REQUEST)
+            ->where('status', \App\Models\Payment::STATUS_PAID)
+            ->count();
+        $matchRequestRevenue = \App\Models\Payment::where('payment_type', \App\Models\Payment::TYPE_MATCH_REQUEST)
+            ->where('status', \App\Models\Payment::STATUS_PAID)
+            ->sum('amount');
+
+        // Growth calculations for match request payments
+        $matchRequestPaymentsLastMonth = \App\Models\Payment::where('payment_type', \App\Models\Payment::TYPE_MATCH_REQUEST)
+            ->where('status', \App\Models\Payment::STATUS_PAID)
+            ->where('paid_at', '<', $lastMonth)
+            ->count();
+        $matchRequestGrowth = $matchRequestPaymentsLastMonth > 0 
+            ? round((($matchRequestPayments - $matchRequestPaymentsLastMonth) / $matchRequestPaymentsLastMonth) * 100, 1)
+            : 0;
+
         // Recent subscription changes
         $recentSubscriptions = User::whereNotNull('subscription_tier')
             ->where('subscription_tier', '!=', 'free')
@@ -628,7 +645,8 @@ class AdminController extends Controller
             'freeUsers', 'freePercentage',
             'standardUsers', 'standardPercentage', 'standardGrowth',
             'premiumUsers', 'premiumPercentage', 'premiumGrowth',
-            'totalUsers', 'recentSubscriptions'
+            'totalUsers', 'recentSubscriptions',
+            'matchRequestPayments', 'matchRequestRevenue', 'matchRequestGrowth'
         ));
     }
 
