@@ -507,9 +507,9 @@ class AdminController extends Controller
         $lastMonth = $now->copy()->subMonth();
         $twoMonthsAgo = $now->copy()->subMonths(2);
 
-        // Pricing constants
-        $premiumPrice = 999;
-        $standardPrice = 499;
+        // Pricing constants (matching SubscriptionController)
+        $standardPrice = 199;
+        $premiumPrice = 499;
 
         // Current Revenue (based on current subscriptions)
         $premiumCount = User::where('subscription_tier', 'premium')->count();
