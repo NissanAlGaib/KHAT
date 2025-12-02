@@ -44,6 +44,8 @@ class Payment extends Model
 
     const TYPE_SUBSCRIPTION = 'subscription';
 
+    const TYPE_MATCH_REQUEST = 'match_request';
+
     /**
      * Status constants
      */

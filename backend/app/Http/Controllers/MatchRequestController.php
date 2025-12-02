@@ -5,12 +5,54 @@ namespace App\Http\Controllers;
 use App\Models\Conversation;
 use App\Models\MatchRequest;
 use App\Models\Message;
+use App\Models\Payment;
 use App\Models\Pet;
+use App\Services\PayMongoService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 
 class MatchRequestController extends Controller
 {
+    private PayMongoService $payMongoService;
+
+    public function __construct(PayMongoService $payMongoService)
+    {
+        $this->payMongoService = $payMongoService;
+    }
+
+    /**
+     * Check if user is on free tier and needs to pay for match requests
+     */
+    private function requiresPayment($user): bool
+    {
+        // Free tier or null subscription requires payment
+        $tier = $user->subscription_tier ?? 'free';
+
+        return $tier === 'free';
+    }
+
+    /**
+     * Get the match request fee for free tier users
+     */
+    private function getMatchRequestFee(): float
+    {
+        // Fee of 50 PHP per match request for free tier users
+        return 50.00;
+    }
+
+    /**
+     * Check if user has a valid paid match request payment for a specific target pet
+     */
+    private function hasValidMatchPayment($userId, $targetPetId): bool
+    {
+        return Payment::where('user_id', $userId)
+            ->where('payment_type', Payment::TYPE_MATCH_REQUEST)
+            ->where('status', Payment::STATUS_PAID)
+            ->whereJsonContains('metadata->target_pet_id', $targetPetId)
+            ->exists();
+    }
+
     /**
      * Send a match request
      */
@@ -28,7 +70,7 @@ class MatchRequestController extends Controller
             ->where('user_id', $user->id)
             ->first();
 
-        if (!$requesterPet) {
+        if (! $requesterPet) {
             return response()->json([
                 'success' => false,
                 'message' => 'You can only send match requests from your own pets',
@@ -38,7 +80,7 @@ class MatchRequestController extends Controller
         // Verify the target pet exists and doesn't belong to the authenticated user
         $targetPet = Pet::where('pet_id', $validated['target_pet_id'])->first();
 
-        if (!$targetPet) {
+        if (! $targetPet) {
             return response()->json([
                 'success' => false,
                 'message' => 'Target pet not found',
@@ -69,6 +111,21 @@ class MatchRequestController extends Controller
             ], 409);
         }
 
+        // Check if free tier user needs to pay
+        if ($this->requiresPayment($user)) {
+            // Check if they have a valid payment for this match
+            if (! $this->hasValidMatchPayment($user->id, $validated['target_pet_id'])) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Payment required for match request',
+                    'requires_payment' => true,
+                    'payment_amount' => $this->getMatchRequestFee(),
+                    'target_pet_id' => $validated['target_pet_id'],
+                    'requester_pet_id' => $validated['requester_pet_id'],
+                ], 402); // 402 Payment Required
+            }
+        }
+
         try {
             $matchRequest = MatchRequest::create([
                 'requester_pet_id' => $validated['requester_pet_id'],
@@ -86,6 +143,161 @@ class MatchRequestController extends Controller
                 'success' => false,
                 'message' => 'Failed to send match request',
                 'error' => $e->getMessage(),
+            ], 500);
+        }
+    }
+
+    /**
+     * Create a payment checkout for match request (free tier users)
+     */
+    public function createMatchPayment(Request $request)
+    {
+        $validated = $request->validate([
+            'requester_pet_id' => 'required|integer|exists:pets,pet_id',
+            'target_pet_id' => 'required|integer|exists:pets,pet_id',
+            'success_url' => 'required|url',
+            'cancel_url' => 'required|url',
+        ]);
+
+        $user = $request->user();
+
+        // Verify user is on free tier
+        if (! $this->requiresPayment($user)) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Payment not required for your subscription tier',
+            ], 400);
+        }
+
+        // Verify the requester pet belongs to the user
+        $requesterPet = Pet::where('pet_id', $validated['requester_pet_id'])
+            ->where('user_id', $user->id)
+            ->first();
+
+        if (! $requesterPet) {
+            return response()->json([
+                'success' => false,
+                'message' => 'You can only pay for match requests from your own pets',
+            ], 403);
+        }
+
+        // Verify target pet exists
+        $targetPet = Pet::where('pet_id', $validated['target_pet_id'])->first();
+        if (! $targetPet) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Target pet not found',
+            ], 404);
+        }
+
+        // Check if they already have a valid payment
+        if ($this->hasValidMatchPayment($user->id, $validated['target_pet_id'])) {
+            return response()->json([
+                'success' => false,
+                'message' => 'You already have a valid payment for this match request',
+            ], 400);
+        }
+
+        // Check if PayMongo is configured
+        if (! $this->payMongoService->isConfigured()) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Payment service not configured',
+            ], 503);
+        }
+
+        // Check for existing pending payment
+        $existingPayment = Payment::where('user_id', $user->id)
+            ->where('payment_type', Payment::TYPE_MATCH_REQUEST)
+            ->whereIn('status', [Payment::STATUS_PENDING, Payment::STATUS_AWAITING_PAYMENT])
+            ->whereJsonContains('metadata->target_pet_id', $validated['target_pet_id'])
+            ->first();
+
+        if ($existingPayment) {
+            // Return existing checkout URL if still valid
+            if ($existingPayment->expires_at && $existingPayment->expires_at > now()) {
+                return response()->json([
+                    'success' => true,
+                    'data' => [
+                        'payment_id' => $existingPayment->id,
+                        'checkout_url' => $existingPayment->paymongo_checkout_url,
+                        'expires_at' => $existingPayment->expires_at->toISOString(),
+                    ],
+                ]);
+            }
+            // Mark expired payment as expired
+            $existingPayment->update(['status' => Payment::STATUS_EXPIRED]);
+        }
+
+        try {
+            $amount = $this->getMatchRequestFee();
+            $description = "Match Request Fee - {$requesterPet->name} → {$targetPet->name}";
+
+            // Create PayMongo checkout session
+            $result = $this->payMongoService->createCheckoutSession([
+                'amount' => $amount,
+                'currency' => 'PHP',
+                'name' => $description,
+                'description' => $description,
+                'success_url' => $validated['success_url'],
+                'cancel_url' => $validated['cancel_url'],
+                'reference_number' => "MATCH-{$user->id}-{$validated['requester_pet_id']}-{$validated['target_pet_id']}",
+                'metadata' => [
+                    'user_id' => $user->id,
+                    'requester_pet_id' => $validated['requester_pet_id'],
+                    'target_pet_id' => $validated['target_pet_id'],
+                    'type' => 'match_request',
+                ],
+            ]);
+
+            if (! $result['success']) {
+                Log::error('Match payment checkout failed', [
+                    'user_id' => $user->id,
+                    'error' => $result['error'] ?? 'Unknown error',
+                ]);
+
+                return response()->json([
+                    'success' => false,
+                    'message' => $result['error'] ?? 'Failed to create payment session',
+                ], 400);
+            }
+
+            // Create payment record
+            $payment = Payment::create([
+                'user_id' => $user->id,
+                'contract_id' => null,
+                'payment_type' => Payment::TYPE_MATCH_REQUEST,
+                'amount' => $amount,
+                'currency' => 'PHP',
+                'description' => $description,
+                'paymongo_checkout_id' => $result['checkout_id'],
+                'paymongo_checkout_url' => $result['checkout_url'],
+                'status' => Payment::STATUS_AWAITING_PAYMENT,
+                'expires_at' => $result['expires_at'] ? \Carbon\Carbon::parse($result['expires_at']) : now()->addHour(),
+                'metadata' => [
+                    'requester_pet_id' => $validated['requester_pet_id'],
+                    'target_pet_id' => $validated['target_pet_id'],
+                ],
+            ]);
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Payment checkout created successfully',
+                'data' => [
+                    'payment_id' => $payment->id,
+                    'checkout_url' => $result['checkout_url'],
+                    'expires_at' => $payment->expires_at->toISOString(),
+                ],
+            ]);
+        } catch (\Exception $e) {
+            Log::error('Match payment exception', [
+                'user_id' => $user->id,
+                'error' => $e->getMessage(),
+            ]);
+
+            return response()->json([
+                'success' => false,
+                'message' => 'An error occurred while processing your request',
             ], 500);
         }
     }
@@ -231,7 +443,7 @@ class MatchRequestController extends Controller
             ->orderBy('updated_at', 'desc')
             ->get();
 
-        $formattedRequests = $requests->map(function ($request) use ($userPetIds, $user) {
+        $formattedRequests = $requests->map(function ($request) use ($userPetIds) {
             // Determine which pet is the user's and which is the other
             $isRequester = $userPetIds->contains($request->requester_pet_id);
             $userPet = $isRequester ? $request->requesterPet : $request->targetPet;
@@ -250,9 +462,9 @@ class MatchRequestController extends Controller
                     $contract->shooter_status === 'accepted_by_shooter'
                 ) {
                     // Check if current user hasn't accepted the shooter yet
-                    if ($isRequester && !$contract->owner1_accepted_shooter) {
+                    if ($isRequester && ! $contract->owner1_accepted_shooter) {
                         $hasPendingShooterRequest = true;
-                    } elseif (!$isRequester && !$contract->owner2_accepted_shooter) {
+                    } elseif (! $isRequester && ! $contract->owner2_accepted_shooter) {
                         $hasPendingShooterRequest = true;
                     }
                 }
@@ -303,7 +515,7 @@ class MatchRequestController extends Controller
             ->where('user_id', $user->id)
             ->first();
 
-        if (!$targetPet) {
+        if (! $targetPet) {
             return response()->json([
                 'success' => false,
                 'message' => 'You can only accept match requests for your own pets',
@@ -340,6 +552,7 @@ class MatchRequestController extends Controller
             ]);
         } catch (\Exception $e) {
             DB::rollBack();
+
             return response()->json([
                 'success' => false,
                 'message' => 'Failed to accept match request',
@@ -363,7 +576,7 @@ class MatchRequestController extends Controller
             ->where('user_id', $user->id)
             ->first();
 
-        if (!$targetPet) {
+        if (! $targetPet) {
             return response()->json([
                 'success' => false,
                 'message' => 'You can only decline match requests for your own pets',
@@ -411,7 +624,7 @@ class MatchRequestController extends Controller
         ]);
 
         // Get conversations where user is part of the match OR is the assigned shooter
-        $conversations = Conversation::where(function ($query) use ($userPetIds, $user) {
+        $conversations = Conversation::where(function ($query) use ($userPetIds) {
             // User is an owner (has a pet in the match request)
             $query->whereHas('matchRequest', function ($q) use ($userPetIds) {
                 $q->whereIn('requester_pet_id', $userPetIds)
@@ -455,7 +668,7 @@ class MatchRequestController extends Controller
             $isArchived = in_array($status, ['archived', 'completed']);
 
             // For shooter, show both pets and owners
-            if ($isShooter && !$isRequester && !$isTarget) {
+            if ($isShooter && ! $isRequester && ! $isTarget) {
                 $pet1 = $matchRequest->requesterPet;
                 $pet2 = $matchRequest->targetPet;
                 $pet1Photo = $pet1->photos->firstWhere('is_primary', true) ?? $pet1->photos->first();
@@ -619,7 +832,7 @@ class MatchRequestController extends Controller
         $isShooter = $conversation->shooter_user_id === $user->id;
 
         // For shooter view, show both pets
-        if ($isShooter && !$isRequester && !$isTarget) {
+        if ($isShooter && ! $isRequester && ! $isTarget) {
             $pet1 = $matchRequest->requesterPet;
             $pet2 = $matchRequest->targetPet;
             $pet1Photo = $pet1->photos->firstWhere('is_primary', true) ?? $pet1->photos->first();

@@ -22,7 +22,9 @@ export type PaymentType =
   | "collateral"
   | "shooter_payment"
   | "monetary_compensation"
-  | "shooter_collateral";
+  | "shooter_collateral"
+  | "subscription"
+  | "match_request";
 
 export type PaymentStatus =
   | "pending"
@@ -160,6 +162,8 @@ export const getPaymentTypeLabel = (type: PaymentType): string => {
     shooter_payment: "Shooter Payment",
     monetary_compensation: "Monetary Compensation",
     shooter_collateral: "Shooter Collateral",
+    subscription: "Subscription",
+    match_request: "Match Request Fee",
   };
   return labels[type] || type;
 };

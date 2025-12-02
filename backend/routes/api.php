@@ -89,6 +89,7 @@ Route::middleware(['auth:sanctum'])
 
         // Match request routes
         Route::post('/match-requests', [MatchRequestController::class, 'store']);
+        Route::post('/match-requests/payment', [MatchRequestController::class, 'createMatchPayment']);
         Route::get('/match-requests/incoming', [MatchRequestController::class, 'incoming']);
         Route::get('/match-requests/outgoing', [MatchRequestController::class, 'outgoing']);
         Route::get('/match-requests/matches', [MatchRequestController::class, 'matches']);
