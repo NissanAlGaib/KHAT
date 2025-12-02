@@ -35,7 +35,24 @@ PAYMONGO_WEBHOOK_SECRET=whsk_your_webhook_secret_here
 - Switch to **live keys** only when going to production
 - Never commit your actual API keys to version control
 
-### 4. Set Up Webhooks (Optional but Recommended)
+### 4. Clear Configuration Cache (IMPORTANT!)
+
+After adding or modifying `.env` values, you **must** clear the Laravel configuration cache:
+
+```bash
+cd backend
+php artisan config:clear
+php artisan cache:clear
+```
+
+If you're running the server, restart it after clearing the cache.
+
+**Note:** If you're using `php artisan config:cache` for production optimization, run it again after modifying `.env`:
+```bash
+php artisan config:cache
+```
+
+### 5. Set Up Webhooks (Optional but Recommended)
 
 Webhooks allow PayMongo to notify your application when payment events occur.
 
@@ -175,6 +192,18 @@ When using test mode:
 5. **Store minimal data** - Don't store sensitive payment data locally
 
 ## Troubleshooting
+
+### "Payment service not configured" Error
+This means the API keys are not being read correctly. Follow these steps:
+1. Verify the `.env` file is in the `backend` directory (not the root)
+2. Clear the configuration cache:
+   ```bash
+   cd backend
+   php artisan config:clear
+   php artisan cache:clear
+   ```
+3. Restart your Laravel server
+4. Check that there are no typos in the environment variable names
 
 ### "Invalid API key" Error
 - Ensure you're using the correct key (test vs live)

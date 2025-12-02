@@ -187,6 +187,7 @@ class SubscriptionController extends Controller
         return response()->json([
             'success' => true,
             'data' => $plans,
+            'payment_configured' => $this->payMongoService->isConfigured(),
         ]);
     }
 

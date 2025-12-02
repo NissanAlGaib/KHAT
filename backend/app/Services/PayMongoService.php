@@ -25,10 +25,21 @@ class PayMongoService
      */
     public function isConfigured(): bool
     {
-        return ! empty($this->secretKey)
+        $configured = ! empty($this->secretKey)
             && $this->secretKey !== 'sk_test_your_secret_key_here'
             && ! empty($this->publicKey)
             && $this->publicKey !== 'pk_test_your_public_key_here';
+
+        if (! $configured) {
+            Log::warning('PayMongo configuration check failed', [
+                'secret_key_set' => ! empty($this->secretKey),
+                'secret_key_is_placeholder' => $this->secretKey === 'sk_test_your_secret_key_here',
+                'public_key_set' => ! empty($this->publicKey),
+                'public_key_is_placeholder' => $this->publicKey === 'pk_test_your_public_key_here',
+            ]);
+        }
+
+        return $configured;
     }
 
     /**
