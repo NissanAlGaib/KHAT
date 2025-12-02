@@ -407,6 +407,17 @@ class PaymentController extends Controller
             return;
         }
 
+        // Handle match request payments
+        if ($payment->payment_type === Payment::TYPE_MATCH_REQUEST) {
+            Log::info('Match request payment received', [
+                'payment_id' => $payment->id,
+                'user_id' => $payment->user_id,
+                'requester_pet_id' => $payment->metadata['requester_pet_id'] ?? null,
+                'target_pet_id' => $payment->metadata['target_pet_id'] ?? null,
+            ]);
+            return;
+        }
+
         // Handle contract payments
         $this->updateContractPaymentStatus($payment);
     }

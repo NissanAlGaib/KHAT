@@ -46,10 +46,17 @@ class MatchRequestController extends Controller
      */
     private function hasValidMatchPayment($userId, $targetPetId): bool
     {
+        // Convert to string for JSON comparison as MySQL JSON functions are type-sensitive
+        $targetPetIdStr = (string) $targetPetId;
+
         return Payment::where('user_id', $userId)
             ->where('payment_type', Payment::TYPE_MATCH_REQUEST)
             ->where('status', Payment::STATUS_PAID)
-            ->whereJsonContains('metadata->target_pet_id', $targetPetId)
+            ->where(function ($query) use ($targetPetId, $targetPetIdStr) {
+                // Check both integer and string representations in metadata
+                $query->whereJsonContains('metadata->target_pet_id', $targetPetId)
+                    ->orWhereJsonContains('metadata->target_pet_id', $targetPetIdStr);
+            })
             ->exists();
     }
 
@@ -114,7 +121,16 @@ class MatchRequestController extends Controller
         // Check if free tier user needs to pay
         if ($this->requiresPayment($user)) {
             // Check if they have a valid payment for this match
-            if (! $this->hasValidMatchPayment($user->id, $validated['target_pet_id'])) {
+            $hasPayment = $this->hasValidMatchPayment($user->id, $validated['target_pet_id']);
+
+            Log::info('Match request payment check', [
+                'user_id' => $user->id,
+                'target_pet_id' => $validated['target_pet_id'],
+                'requires_payment' => true,
+                'has_valid_payment' => $hasPayment,
+            ]);
+
+            if (!$hasPayment) {
                 return response()->json([
                     'success' => false,
                     'message' => 'Payment required for match request',
