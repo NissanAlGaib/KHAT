@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\Pet;
+use App\Models\UserAuth;
 use App\Models\Vaccination;
 use App\Models\HealthRecord;
 use App\Models\PetPhoto;
@@ -16,10 +17,30 @@ use Illuminate\Validation\Rule;
 class PetController extends Controller
 {
     /**
+     * Check if a user has verified their identity (approved ID verification)
+     */
+    private function isUserVerified($userId): bool
+    {
+        return UserAuth::where('user_id', $userId)
+            ->where('auth_type', 'id')
+            ->where('status', 'approved')
+            ->exists();
+    }
+
+    /**
      * Store a newly created pet in storage.
      */
     public function store(Request $request)
     {
+        // Check if user is verified before allowing pet registration
+        $user = Auth::user();
+        if (!$this->isUserVerified($user->id)) {
+            return response()->json([
+                'success' => false,
+                'message' => 'You must complete identity verification before adding a pet',
+                'requires_verification' => true,
+            ], 403);
+        }
         // Validate all pet data
         $validated = $request->validate([
             // Step 1 - Basic Information

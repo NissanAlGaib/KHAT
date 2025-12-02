@@ -358,7 +358,27 @@ export default function AddPetScreen() {
         max_age: formData.maxAge || "",
       };
 
-      await createPet(petData as any);
+      const result = await createPet(petData as any);
+      
+      // Check if verification is required
+      if (result?.requires_verification) {
+        showAlert({
+          title: "Verification Required",
+          message: result.message || "You must complete identity verification before adding a pet",
+          type: "warning",
+          buttons: [
+            {
+              text: "Verify Now",
+              onPress: () => {
+                router.push("/(verification)/verify");
+              },
+            },
+            { text: "Later" },
+          ],
+        });
+        return;
+      }
+      
       setShowSuccessModal(true);
     } catch (error: any) {
       console.error("Error submitting pet:", error);
