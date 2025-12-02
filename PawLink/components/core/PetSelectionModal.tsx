@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useEffect } from "react";
 import {
   View,
   Text,
@@ -36,12 +36,30 @@ export default function PetSelectionModal({
   visible,
   onClose,
 }: PetSelectionModalProps) {
-  const { selectedPet, userPets, setSelectedPet, isLoading } = usePet();
+  const { selectedPet, userPets, setSelectedPet, isLoading, loadUserPets } = usePet();
+
+  // Refresh pets list whenever modal becomes visible
+  useEffect(() => {
+    if (visible) {
+      loadUserPets();
+    }
+  }, [visible]);
 
   const handleSelectPet = async (pet: any) => {
+    // Only allow selecting active pets for matching
+    if (pet.status !== "active") {
+      return;
+    }
     await setSelectedPet(pet);
     onClose();
   };
+
+  // Filter to show active pets first, then pending
+  const sortedPets = [...userPets].sort((a, b) => {
+    if (a.status === "active" && b.status !== "active") return -1;
+    if (a.status !== "active" && b.status === "active") return 1;
+    return 0;
+  });
 
   return (
     <Modal
@@ -79,25 +97,30 @@ export default function PetSelectionModal({
               <View className="py-10">
                 <ActivityIndicator size="large" color="#ea5b3a" />
               </View>
-            ) : userPets.length === 0 ? (
+            ) : sortedPets.length === 0 ? (
               <View className="py-10">
                 <Text className="text-center text-gray-500">
                   No pets found. Add your first pet to get started!
                 </Text>
               </View>
             ) : (
-              userPets.map((pet) => {
+              sortedPets.map((pet) => {
                 const isSelected = selectedPet?.pet_id === pet.pet_id;
                 const primaryPhoto = pet.photos?.find((p) => p.is_primary);
                 const photoUrl = primaryPhoto?.photo_url;
+                const isActive = pet.status === "active";
+                const isPending = pet.status === "pending_verification";
 
                 return (
                   <TouchableOpacity
                     key={pet.pet_id}
                     onPress={() => handleSelectPet(pet)}
+                    disabled={!isActive}
                     className={`flex-row items-center p-4 rounded-2xl mb-3 ${
                       isSelected
                         ? "bg-[#FFF5F3] border-2 border-[#ea5b3a]"
+                        : !isActive
+                        ? "bg-gray-100 opacity-60"
                         : "bg-gray-50"
                     }`}
                   >
@@ -129,23 +152,35 @@ export default function PetSelectionModal({
                     </View>
 
                     {/* Status Badge */}
-                    {pet.status === "active" && (
+                    {isActive ? (
                       <View className="bg-green-100 px-3 py-1 rounded-full mr-3">
                         <Text className="text-xs text-green-800 font-semibold">
                           Available
                         </Text>
                       </View>
-                    )}
+                    ) : isPending ? (
+                      <View className="bg-yellow-100 px-3 py-1 rounded-full mr-3">
+                        <Text className="text-xs text-yellow-800 font-semibold">
+                          Pending
+                        </Text>
+                      </View>
+                    ) : null}
 
                     {/* Select Button */}
                     {isSelected ? (
                       <View className="w-12 h-12 rounded-full bg-[#ea5b3a] items-center justify-center">
                         <Text className="text-white text-xl font-bold">✓</Text>
                       </View>
-                    ) : (
+                    ) : isActive ? (
                       <View className="w-12 h-12 rounded-full bg-[#ea5b3a] items-center justify-center">
                         <Text className="text-white text-sm font-semibold">
                           SELECT
+                        </Text>
+                      </View>
+                    ) : (
+                      <View className="w-12 h-12 rounded-full bg-gray-300 items-center justify-center">
+                        <Text className="text-gray-500 text-xs font-semibold">
+                          N/A
                         </Text>
                       </View>
                     )}
