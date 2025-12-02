@@ -643,3 +643,90 @@ export const completeMatch = async (
     return { success: false, message: errorMessage };
   }
 };
+
+// ==================== DAILY REPORT INTERFACES ====================
+
+export interface DailyReportData {
+  report_date: string;
+  progress_notes: string;
+  health_status: "excellent" | "good" | "fair" | "poor" | "concerning";
+  health_notes?: string;
+  breeding_attempted: boolean;
+  breeding_successful?: boolean;
+  additional_notes?: string;
+}
+
+export interface DailyReport {
+  report_id: number;
+  contract_id: number;
+  report_date: string;
+  progress_notes: string;
+  health_status: "excellent" | "good" | "fair" | "poor" | "concerning";
+  health_notes?: string;
+  breeding_attempted: boolean;
+  breeding_successful?: boolean;
+  additional_notes?: string;
+  reporter?: {
+    id: number;
+    name: string;
+    profile_image?: string;
+  };
+  is_from_shooter: boolean;
+  created_at: string;
+}
+
+export interface DailyReportsResponse {
+  reports: DailyReport[];
+  can_submit_report: boolean;
+  today_report_exists: boolean;
+  total_reports: number;
+}
+
+// ==================== DAILY REPORT FUNCTIONS ====================
+
+/**
+ * Submit a daily report for a breeding contract
+ * Only shooter (if assigned) or male pet owner can submit reports
+ */
+export const submitDailyReport = async (
+  contractId: number,
+  data: DailyReportData
+): Promise<ApiResponse<DailyReport>> => {
+  try {
+    const response = await axiosInstance.post(
+      `/api/contracts/${contractId}/daily-reports`,
+      data
+    );
+    return {
+      success: true,
+      message: response.data.message,
+      data: response.data.data,
+    };
+  } catch (error: any) {
+    const errorMessage =
+      error.response?.data?.message || "Failed to submit daily report";
+    return { success: false, message: errorMessage };
+  }
+};
+
+/**
+ * Get all daily reports for a breeding contract
+ */
+export const getDailyReports = async (
+  contractId: number
+): Promise<ApiResponse<DailyReportsResponse>> => {
+  try {
+    const response = await axiosInstance.get(
+      `/api/contracts/${contractId}/daily-reports`
+    );
+    return {
+      success: true,
+      message: "Daily reports retrieved successfully",
+      data: response.data.data,
+    };
+  } catch (error: any) {
+    const errorMessage =
+      error.response?.data?.message || "Failed to get daily reports";
+    return { success: false, message: errorMessage };
+  }
+};
