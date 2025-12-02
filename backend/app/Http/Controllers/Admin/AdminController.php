@@ -590,6 +590,11 @@ class AdminController extends Controller
      */
     public function billing()
     {
+        // Subscription pricing constants (matching SubscriptionController)
+        $standardPrice = 199;
+        $premiumPrice = 499;
+        $matchRequestFee = 50;
+
         // Subscription statistics
         $freeUsers = User::where('subscription_tier', 'free')
             ->orWhereNull('subscription_tier')
@@ -625,13 +630,21 @@ class AdminController extends Controller
             ->where('status', \App\Models\Payment::STATUS_PAID)
             ->sum('amount');
 
-        // Growth calculations for match request payments
+        // Growth calculations for match request payments (this month vs last month)
+        $startOfThisMonth = Carbon::now()->startOfMonth();
+        $startOfLastMonth = Carbon::now()->subMonth()->startOfMonth();
+        $endOfLastMonth = Carbon::now()->subMonth()->endOfMonth();
+        
+        $matchRequestPaymentsThisMonth = \App\Models\Payment::where('payment_type', \App\Models\Payment::TYPE_MATCH_REQUEST)
+            ->where('status', \App\Models\Payment::STATUS_PAID)
+            ->where('paid_at', '>=', $startOfThisMonth)
+            ->count();
         $matchRequestPaymentsLastMonth = \App\Models\Payment::where('payment_type', \App\Models\Payment::TYPE_MATCH_REQUEST)
             ->where('status', \App\Models\Payment::STATUS_PAID)
-            ->where('paid_at', '<', $lastMonth)
+            ->whereBetween('paid_at', [$startOfLastMonth, $endOfLastMonth])
             ->count();
         $matchRequestGrowth = $matchRequestPaymentsLastMonth > 0 
-            ? round((($matchRequestPayments - $matchRequestPaymentsLastMonth) / $matchRequestPaymentsLastMonth) * 100, 1)
+            ? round((($matchRequestPaymentsThisMonth - $matchRequestPaymentsLastMonth) / $matchRequestPaymentsLastMonth) * 100, 1)
             : 0;
 
         // Recent subscription changes
@@ -646,7 +659,8 @@ class AdminController extends Controller
             'standardUsers', 'standardPercentage', 'standardGrowth',
             'premiumUsers', 'premiumPercentage', 'premiumGrowth',
             'totalUsers', 'recentSubscriptions',
-            'matchRequestPayments', 'matchRequestRevenue', 'matchRequestGrowth'
+            'matchRequestPayments', 'matchRequestRevenue', 'matchRequestGrowth',
+            'standardPrice', 'premiumPrice', 'matchRequestFee'
         ));
     }
 

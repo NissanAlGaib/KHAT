@@ -81,28 +81,28 @@
         <div class="space-y-4">
             <div class="flex justify-between items-center p-4 bg-gray-50 rounded-lg">
                 <div>
-                    <p class="text-sm text-gray-500">Free Tier Match Payments (₱50/match)</p>
+                    <p class="text-sm text-gray-500">Free Tier Match Payments (₱{{ $matchRequestFee }}/match)</p>
                     <p class="text-lg font-bold">{{ number_format($matchRequestPayments) }} payments</p>
                 </div>
                 <p class="text-xl font-bold text-gray-900">₱{{ number_format($matchRequestRevenue) }}</p>
             </div>
             <div class="flex justify-between items-center p-4 bg-gray-50 rounded-lg">
                 <div>
-                    <p class="text-sm text-gray-500">Standard (₱199/mo)</p>
+                    <p class="text-sm text-gray-500">Standard (₱{{ $standardPrice }}/mo)</p>
                     <p class="text-lg font-bold">{{ number_format($standardUsers) }} users</p>
                 </div>
-                <p class="text-xl font-bold text-gray-900">₱{{ number_format($standardUsers * 199) }}</p>
+                <p class="text-xl font-bold text-gray-900">₱{{ number_format($standardUsers * $standardPrice) }}</p>
             </div>
             <div class="flex justify-between items-center p-4 bg-gray-50 rounded-lg">
                 <div>
-                    <p class="text-sm text-gray-500">Premium (₱499/mo)</p>
+                    <p class="text-sm text-gray-500">Premium (₱{{ $premiumPrice }}/mo)</p>
                     <p class="text-lg font-bold">{{ number_format($premiumUsers) }} users</p>
                 </div>
-                <p class="text-xl font-bold text-gray-900">₱{{ number_format($premiumUsers * 499) }}</p>
+                <p class="text-xl font-bold text-gray-900">₱{{ number_format($premiumUsers * $premiumPrice) }}</p>
             </div>
             <div class="flex justify-between items-center p-4 bg-[#E75234] rounded-lg text-white">
                 <p class="text-lg font-semibold">Total Monthly Revenue</p>
-                <p class="text-2xl font-bold">₱{{ number_format($matchRequestRevenue + ($standardUsers * 199) + ($premiumUsers * 499)) }}</p>
+                <p class="text-2xl font-bold">₱{{ number_format($matchRequestRevenue + ($standardUsers * $standardPrice) + ($premiumUsers * $premiumPrice)) }}</p>
             </div>
         </div>
     </div>
