@@ -169,25 +169,43 @@ class PayMongoService
 
             if ($response->successful()) {
                 $data = $response->json()['data'];
+                $attributes = $data['attributes'];
+
+                // Log the raw response for debugging
+                Log::info('PayMongo checkout session retrieved', [
+                    'checkout_id' => $checkoutId,
+                    'status' => $attributes['status'],
+                    'has_payments' => !empty($attributes['payments'] ?? []),
+                    'payment_count' => count($attributes['payments'] ?? []),
+                ]);
 
                 return [
                     'success' => true,
                     'data' => [
                         'id' => $data['id'],
-                        'status' => $data['attributes']['status'],
-                        'payment_intent_id' => $data['attributes']['payment_intent']['id'] ?? null,
-                        'payments' => $data['attributes']['payments'] ?? [],
-                        'checkout_url' => $data['attributes']['checkout_url'],
+                        'status' => $attributes['status'],
+                        'payment_intent_id' => $attributes['payment_intent']['id'] ?? null,
+                        'payments' => $attributes['payments'] ?? [],
+                        'checkout_url' => $attributes['checkout_url'],
                     ],
                 ];
             }
+
+            Log::warning('PayMongo checkout session not found', [
+                'checkout_id' => $checkoutId,
+                'status' => $response->status(),
+            ]);
 
             return [
                 'success' => false,
                 'error' => 'Checkout session not found',
             ];
         } catch (\Exception $e) {
-            Log::error('PayMongo get checkout exception', ['message' => $e->getMessage()]);
+            Log::error('PayMongo get checkout exception', [
+                'checkout_id' => $checkoutId,
+                'message' => $e->getMessage(),
+                'trace' => $e->getTraceAsString(),
+            ]);
 
             return [
                 'success' => false,

@@ -16,6 +16,7 @@ interface User {
   email: string;
   emailVerifiedAt: string | null;
   credits: number | null;
+  subscription_tier?: string;
   // Add other user properties as needed
 }
 interface AuthContextType {

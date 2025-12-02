@@ -170,18 +170,48 @@ class PaymentController extends Controller
         if ($payment->paymongo_checkout_id) {
             $result = $this->payMongoService->getCheckoutSession($payment->paymongo_checkout_id);
 
+            Log::info('Payment verification', [
+                'payment_id' => $payment->id,
+                'checkout_id' => $payment->paymongo_checkout_id,
+                'result_success' => $result['success'] ?? false,
+                'checkout_status' => $result['data']['status'] ?? null,
+                'has_payments' => !empty($result['data']['payments'] ?? []),
+            ]);
+
             if ($result['success']) {
                 $checkoutStatus = $result['data']['status'];
+                $payments = $result['data']['payments'] ?? [];
+
+                // Check if there are any payments in the checkout session
+                // PayMongo adds payments to the array when successfully paid
+                $hasSuccessfulPayment = false;
+                $paymongoPaymentId = null;
+
+                if (!empty($payments)) {
+                    // Check if any payment in the array has status 'paid'
+                    foreach ($payments as $paymentData) {
+                        $paymentStatus = $paymentData['attributes']['status'] ?? null;
+                        if ($paymentStatus === 'paid') {
+                            $hasSuccessfulPayment = true;
+                            $paymongoPaymentId = $paymentData['id'];
+                            break;
+                        }
+                    }
+                }
 
                 // PayMongo checkout statuses: 'active' (pending), 'paid' (completed), 'expired'
-                if ($checkoutStatus === 'paid') {
-                    // Payment completed
-                    $payments = $result['data']['payments'] ?? [];
-                    $paymentId = ! empty($payments) ? $payments[0]['id'] ?? null : null;
-                    $payment->markAsPaid($paymentId);
+                // Check both the checkout status and if we have successful payment records
+                if ($checkoutStatus === 'paid' || $hasSuccessfulPayment) {
+                    Log::info('Payment verified as paid', [
+                        'payment_id' => $payment->id,
+                        'checkout_status' => $checkoutStatus,
+                        'paymongo_payment_id' => $paymongoPaymentId,
+                    ]);
 
-                    // Update contract if applicable
-                    $this->updateContractPaymentStatus($payment);
+                    $payment->markAsPaid($paymongoPaymentId);
+
+                    // Update contract or subscription based on payment type
+                    $this->updatePaymentRelatedData($payment);
 
                     return response()->json([
                         'success' => true,
@@ -196,6 +226,12 @@ class PaymentController extends Controller
                 if ($checkoutStatus === 'expired') {
                     $payment->update(['status' => Payment::STATUS_EXPIRED]);
                 }
+            } else {
+                Log::warning('Failed to get checkout session', [
+                    'payment_id' => $payment->id,
+                    'checkout_id' => $payment->paymongo_checkout_id,
+                    'error' => $result['error'] ?? 'Unknown error',
+                ]);
             }
         }
 
@@ -320,8 +356,8 @@ class PaymentController extends Controller
         $paymentId = ! empty($payments) ? $payments[0]['id'] ?? null : null;
         $payment->markAsPaid($paymentId);
 
-        // Update contract payment status
-        $this->updateContractPaymentStatus($payment);
+        // Update contract or subscription based on payment type
+        $this->updatePaymentRelatedData($payment);
 
         Log::info('Payment marked as paid via webhook', ['payment_id' => $payment->id]);
     }
@@ -339,7 +375,7 @@ class PaymentController extends Controller
         $payment = Payment::where('paymongo_payment_intent_id', $paymentIntentId)->first();
         if ($payment && ! $payment->isPaid()) {
             $payment->markAsPaid($data['id']);
-            $this->updateContractPaymentStatus($payment);
+            $this->updatePaymentRelatedData($payment);
         }
     }
 
@@ -358,6 +394,54 @@ class PaymentController extends Controller
             $payment->update(['status' => Payment::STATUS_FAILED]);
             Log::info('Payment marked as failed via webhook', ['payment_id' => $payment->id]);
         }
+    }
+
+    /**
+     * Update related data based on payment completion (contract or subscription)
+     */
+    private function updatePaymentRelatedData(Payment $payment): void
+    {
+        // Handle subscription payments
+        if ($payment->payment_type === Payment::TYPE_SUBSCRIPTION) {
+            $this->updateUserSubscription($payment);
+            return;
+        }
+
+        // Handle contract payments
+        $this->updateContractPaymentStatus($payment);
+    }
+
+    /**
+     * Update user subscription tier after successful payment
+     */
+    private function updateUserSubscription(Payment $payment): void
+    {
+        $user = $payment->user;
+        if (!$user) {
+            Log::warning('User not found for subscription payment', ['payment_id' => $payment->id]);
+            return;
+        }
+
+        // Get the plan_id from payment metadata
+        $planId = $payment->metadata['plan_id'] ?? null;
+
+        if (!$planId || !in_array($planId, ['standard', 'premium'])) {
+            Log::warning('Invalid plan_id in subscription payment metadata', [
+                'payment_id' => $payment->id,
+                'plan_id' => $planId,
+            ]);
+            return;
+        }
+
+        // Update user's subscription tier
+        $user->update(['subscription_tier' => $planId]);
+
+        Log::info('User subscription tier updated', [
+            'user_id' => $user->id,
+            'payment_id' => $payment->id,
+            'subscription_tier' => $planId,
+            'billing_cycle' => $payment->metadata['billing_cycle'] ?? 'unknown',
+        ]);
     }
 
     /**

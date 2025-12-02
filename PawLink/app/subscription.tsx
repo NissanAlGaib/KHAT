@@ -16,6 +16,7 @@ import { Feather } from "@expo/vector-icons";
 import { useAlert } from "@/hooks/useAlert";
 import AlertModal from "@/components/core/AlertModal";
 import axiosInstance from "@/config/axiosConfig";
+import { useSession } from "@/context/AuthContext";
 
 interface SubscriptionPlan {
   id: string;
@@ -62,6 +63,7 @@ const SUBSCRIPTION_PLANS: SubscriptionPlan[] = [
 export default function SubscriptionScreen() {
   const router = useRouter();
   const { visible, alertOptions, showAlert, hideAlert } = useAlert();
+  const { updateUser } = useSession();
   const [billingCycle, setBillingCycle] = useState<"monthly" | "yearly">(
     "monthly"
   );
@@ -70,53 +72,71 @@ export default function SubscriptionScreen() {
   const [checkingPayment, setCheckingPayment] = useState(false);
   const appState = useRef(AppState.currentState);
 
-  const checkPaymentStatus = useCallback(async (paymentId: number) => {
-    setCheckingPayment(true);
-    try {
-      const response = await axiosInstance.get(`/api/payments/${paymentId}/verify`);
-      
-      if (response.data.success && response.data.data?.status === "paid") {
-        setPendingPaymentId(null);
+  const checkPaymentStatus = useCallback(
+    async (paymentId: number) => {
+      setCheckingPayment(true);
+      try {
+        const response = await axiosInstance.get(
+          `/api/payments/${paymentId}/verify`
+        );
+
+        if (response.data.success && response.data.data?.status === "paid") {
+          setPendingPaymentId(null);
+
+          // Refresh user data to get updated subscription tier
+          try {
+            const userResponse = await axiosInstance.get("/api/user");
+            await updateUser(userResponse.data);
+          } catch (error) {
+            console.error("Error refreshing user data:", error);
+          }
+
+          showAlert({
+            title: "Payment Successful! 🎉",
+            message:
+              "Your subscription has been activated. Enjoy your premium features!",
+            type: "success",
+            buttons: [
+              {
+                text: "OK",
+                onPress: () => router.back(),
+              },
+            ],
+          });
+        } else if (response.data.data?.status === "expired") {
+          setPendingPaymentId(null);
+          showAlert({
+            title: "Payment Expired",
+            message: "The payment session has expired. Please try again.",
+            type: "error",
+            buttons: [{ text: "OK" }],
+          });
+        } else {
+          showAlert({
+            title: "Payment Pending",
+            message:
+              "We haven't received your payment yet. If you completed the payment, it may take a moment to process.",
+            type: "info",
+            buttons: [
+              { text: "Check Again" },
+              { text: "Cancel", onPress: () => setPendingPaymentId(null) },
+            ],
+          });
+        }
+      } catch (error) {
+        console.error("Error checking payment status:", error);
         showAlert({
-          title: "Payment Successful! 🎉",
-          message: "Your subscription has been activated. Enjoy your premium features!",
-          type: "success",
-          buttons: [{ 
-            text: "OK", 
-            onPress: () => router.back() 
-          }],
-        });
-      } else if (response.data.data?.status === "expired") {
-        setPendingPaymentId(null);
-        showAlert({
-          title: "Payment Expired",
-          message: "The payment session has expired. Please try again.",
+          title: "Error",
+          message: "Unable to verify payment status. Please try again.",
           type: "error",
           buttons: [{ text: "OK" }],
         });
-      } else {
-        showAlert({
-          title: "Payment Pending",
-          message: "We haven't received your payment yet. If you completed the payment, it may take a moment to process.",
-          type: "info",
-          buttons: [
-            { text: "Check Again" },
-            { text: "Cancel", onPress: () => setPendingPaymentId(null) },
-          ],
-        });
+      } finally {
+        setCheckingPayment(false);
       }
-    } catch (error) {
-      console.error("Error checking payment status:", error);
-      showAlert({
-        title: "Error",
-        message: "Unable to verify payment status. Please try again.",
-        type: "error",
-        buttons: [{ text: "OK" }],
-      });
-    } finally {
-      setCheckingPayment(false);
-    }
-  }, [router, showAlert]);
+    },
+    [router, showAlert, updateUser]
+  );
 
   // Check payment status when app comes back to foreground
   useEffect(() => {
@@ -132,7 +152,10 @@ export default function SubscriptionScreen() {
       appState.current = nextAppState;
     };
 
-    const subscription = AppState.addEventListener("change", handleAppStateChange);
+    const subscription = AppState.addEventListener(
+      "change",
+      handleAppStateChange
+    );
     return () => {
       subscription.remove();
     };
@@ -157,7 +180,8 @@ export default function SubscriptionScreen() {
     let maxSavings = 0;
     SUBSCRIPTION_PLANS.forEach((plan) => {
       const monthlyTotal = plan.monthlyPrice * 12;
-      const savingsPercent = ((monthlyTotal - plan.yearlyPrice) / monthlyTotal) * 100;
+      const savingsPercent =
+        ((monthlyTotal - plan.yearlyPrice) / monthlyTotal) * 100;
       if (savingsPercent > maxSavings) {
         maxSavings = savingsPercent;
       }
@@ -173,7 +197,7 @@ export default function SubscriptionScreen() {
         billingCycle === "monthly" ? plan.monthlyPrice : plan.yearlyPrice;
 
       // PayMongo requires HTTPS URLs for success/cancel redirects
-      // For mobile apps, we use placeholder URLs since the actual redirect 
+      // For mobile apps, we use placeholder URLs since the actual redirect
       // happens in a browser and we verify payment status via API
       const successUrl = "https://pawlink.app/payment/success";
       const cancelUrl = "https://pawlink.app/payment/cancel";
@@ -196,7 +220,7 @@ export default function SubscriptionScreen() {
           // Store the payment ID for status checking
           const paymentId = response.data.data.payment_id;
           setPendingPaymentId(paymentId);
-          
+
           await Linking.openURL(response.data.data.checkout_url);
           showAlert({
             title: "Complete Your Payment",
@@ -204,9 +228,9 @@ export default function SubscriptionScreen() {
               "You've been redirected to PayMongo to complete your payment. After paying, return to the app and we'll verify your subscription.",
             type: "info",
             buttons: [
-              { 
-                text: "I've Completed Payment", 
-                onPress: () => checkPaymentStatus(paymentId) 
+              {
+                text: "I've Completed Payment",
+                onPress: () => checkPaymentStatus(paymentId),
               },
               { text: "Cancel" },
             ],
@@ -219,10 +243,11 @@ export default function SubscriptionScreen() {
       }
     } catch (error: any) {
       console.error("Subscription error:", error);
-      
+
       // Extract error message from response
-      const errorMessage = error.response?.data?.message || error.message || "An error occurred";
-      
+      const errorMessage =
+        error.response?.data?.message || error.message || "An error occurred";
+
       showAlert({
         title: "Subscription Error",
         message: errorMessage,
@@ -245,7 +270,7 @@ export default function SubscriptionScreen() {
               Payment pending verification
             </Text>
           </View>
-          <TouchableOpacity 
+          <TouchableOpacity
             style={styles.verifyButton}
             onPress={() => checkPaymentStatus(pendingPaymentId)}
             disabled={checkingPayment}
@@ -258,7 +283,7 @@ export default function SubscriptionScreen() {
           </TouchableOpacity>
         </View>
       )}
-      
+
       {/* Header */}
       <View style={styles.header}>
         <TouchableOpacity
@@ -310,7 +335,9 @@ export default function SubscriptionScreen() {
               Yearly
             </Text>
             <View style={styles.saveBadge}>
-              <Text style={styles.saveBadgeText}>Save up to {getMaxSavingsPercentage()}%</Text>
+              <Text style={styles.saveBadgeText}>
+                Save up to {getMaxSavingsPercentage()}%
+              </Text>
             </View>
           </TouchableOpacity>
         </View>
@@ -319,7 +346,10 @@ export default function SubscriptionScreen() {
         {SUBSCRIPTION_PLANS.map((plan) => (
           <View
             key={plan.id}
-            style={[styles.planCard, plan.highlighted && styles.planCardHighlighted]}
+            style={[
+              styles.planCard,
+              plan.highlighted && styles.planCardHighlighted,
+            ]}
           >
             {plan.highlighted && (
               <View style={styles.popularBadge}>
