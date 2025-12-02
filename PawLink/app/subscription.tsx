@@ -105,8 +105,8 @@ export default function SubscriptionScreen() {
         plan_id: plan.id,
         billing_cycle: billingCycle,
         amount: amount,
-        success_url: `${API_BASE_URL}/subscription/success`,
-        cancel_url: `${API_BASE_URL}/subscription/cancel`,
+        success_url: `${API_BASE_URL}/api/subscription/success`,
+        cancel_url: `${API_BASE_URL}/api/subscription/cancel`,
       });
 
       if (response.data.success && response.data.data?.checkout_url) {
@@ -131,12 +131,14 @@ export default function SubscriptionScreen() {
       }
     } catch (error: any) {
       console.error("Subscription error:", error);
-
-      // For demo purposes, show a message that the API is ready
+      
+      // Extract error message from response
+      const errorMessage = error.response?.data?.message || error.message || "An error occurred";
+      
       showAlert({
-        title: "PayMongo Integration Ready",
-        message: `The PayMongo API is configured. To complete the ${plan.name} subscription (${formatPrice(billingCycle === "monthly" ? plan.monthlyPrice : plan.yearlyPrice)}/${billingCycle === "monthly" ? "month" : "year"}), please ensure the backend subscription endpoint is set up.`,
-        type: "info",
+        title: "Subscription Error",
+        message: errorMessage,
+        type: "error",
         buttons: [{ text: "OK" }],
       });
     } finally {

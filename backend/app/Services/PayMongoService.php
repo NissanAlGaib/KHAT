@@ -7,9 +7,9 @@ use Illuminate\Support\Facades\Log;
 
 class PayMongoService
 {
-    private string $secretKey;
+    private ?string $secretKey;
 
-    private string $publicKey;
+    private ?string $publicKey;
 
     private string $baseUrl;
 
@@ -17,7 +17,18 @@ class PayMongoService
     {
         $this->secretKey = config('services.paymongo.secret_key');
         $this->publicKey = config('services.paymongo.public_key');
-        $this->baseUrl = config('services.paymongo.base_url');
+        $this->baseUrl = config('services.paymongo.base_url') ?? 'https://api.paymongo.com/v1';
+    }
+
+    /**
+     * Check if PayMongo is properly configured
+     */
+    public function isConfigured(): bool
+    {
+        return ! empty($this->secretKey)
+            && $this->secretKey !== 'sk_test_your_secret_key_here'
+            && ! empty($this->publicKey)
+            && $this->publicKey !== 'pk_test_your_public_key_here';
     }
 
     /**
@@ -25,6 +36,16 @@ class PayMongoService
      */
     public function createCheckoutSession(array $params): array
     {
+        // Check if PayMongo is configured
+        if (! $this->isConfigured()) {
+            Log::warning('PayMongo API keys not configured');
+
+            return [
+                'success' => false,
+                'error' => 'Payment service not configured. Please set up PayMongo API keys in the backend .env file.',
+            ];
+        }
+
         $payload = [
             'data' => [
                 'attributes' => [
@@ -76,16 +97,22 @@ class PayMongoService
                 'body' => $response->body(),
             ]);
 
+            $errorMessage = 'Failed to create checkout session';
+            $responseData = $response->json();
+            if (isset($responseData['errors'][0]['detail'])) {
+                $errorMessage = $responseData['errors'][0]['detail'];
+            }
+
             return [
                 'success' => false,
-                'error' => $response->json()['errors'][0]['detail'] ?? 'Failed to create checkout session',
+                'error' => $errorMessage,
             ];
         } catch (\Exception $e) {
             Log::error('PayMongo exception', ['message' => $e->getMessage()]);
 
             return [
                 'success' => false,
-                'error' => 'Payment service unavailable',
+                'error' => 'Payment service temporarily unavailable. Please try again later.',
             ];
         }
     }
