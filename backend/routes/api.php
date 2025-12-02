@@ -10,6 +10,7 @@ use App\Http\Controllers\NotificationController;
 use App\Http\Controllers\PaymentController;
 use App\Http\Controllers\PetController;
 use App\Http\Controllers\ShooterController;
+use App\Http\Controllers\SubscriptionController;
 use App\Http\Controllers\UserController;
 use App\Http\Controllers\VerificationController;
 use Illuminate\Http\Request;
@@ -131,4 +132,8 @@ Route::middleware(['auth:sanctum'])
         Route::get('/payments/{id}/verify', [PaymentController::class, 'verifyPayment']);
         Route::get('/payments', [PaymentController::class, 'getPayments']);
         Route::get('/contracts/{id}/payments', [PaymentController::class, 'getContractPayments']);
+
+        // Subscription routes
+        Route::get('/subscriptions/plans', [SubscriptionController::class, 'getPlans']);
+        Route::post('/subscriptions/checkout', [SubscriptionController::class, 'createCheckout']);
     });

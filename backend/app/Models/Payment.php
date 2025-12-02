@@ -42,6 +42,8 @@ class Payment extends Model
 
     const TYPE_SHOOTER_COLLATERAL = 'shooter_collateral';
 
+    const TYPE_SUBSCRIPTION = 'subscription';
+
     /**
      * Status constants
      */

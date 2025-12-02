@@ -459,7 +459,7 @@ export default function Homepage() {
         <View style={styles.headerTopRow}>
           <Text style={styles.headerTitle}>PAWLINK</Text>
           <View style={styles.headerIcons}>
-            <TouchableOpacity>
+            <TouchableOpacity onPress={() => router.push("/subscription")}>
               <Image
                 source={require("../../assets/images/Subscription_Icon.png")}
                 style={styles.iconImage}
