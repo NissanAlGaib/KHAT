@@ -14,7 +14,6 @@ import { Feather } from "@expo/vector-icons";
 import { useAlert } from "@/hooks/useAlert";
 import AlertModal from "@/components/core/AlertModal";
 import axiosInstance from "@/config/axiosConfig";
-import { API_BASE_URL } from "@/config/env";
 
 interface SubscriptionPlan {
   id: string;
@@ -100,13 +99,19 @@ export default function SubscriptionScreen() {
       const amount =
         billingCycle === "monthly" ? plan.monthlyPrice : plan.yearlyPrice;
 
+      // PayMongo requires HTTPS URLs for success/cancel redirects
+      // For mobile apps, we use placeholder URLs since the actual redirect 
+      // happens in a browser and we verify payment status via API
+      const successUrl = "https://pawlink.app/payment/success";
+      const cancelUrl = "https://pawlink.app/payment/cancel";
+
       // Create a checkout session via the backend
       const response = await axiosInstance.post("/api/subscriptions/checkout", {
         plan_id: plan.id,
         billing_cycle: billingCycle,
         amount: amount,
-        success_url: `${API_BASE_URL}/api/subscription/success`,
-        cancel_url: `${API_BASE_URL}/api/subscription/cancel`,
+        success_url: successUrl,
+        cancel_url: cancelUrl,
       });
 
       if (response.data.success && response.data.data?.checkout_url) {
