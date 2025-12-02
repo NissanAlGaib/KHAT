@@ -162,7 +162,7 @@ export default function DailyReportModal({
         <View className="py-8 items-center">
           <CheckCircle size={48} color="#16a34a" />
           <Text className="text-green-700 font-semibold text-center mt-4">
-            Today&apos;s report has been submitted!
+            Today's report has been submitted!
           </Text>
           <Text className="text-gray-500 text-center mt-2 px-6">
             You can only submit one report per day. Check back tomorrow to submit a new report.

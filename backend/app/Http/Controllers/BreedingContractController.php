@@ -1776,7 +1776,7 @@ class BreedingContractController extends Controller
             'health_status' => 'required|in:excellent,good,fair,poor,concerning',
             'health_notes' => 'nullable|string|max:500',
             'breeding_attempted' => 'required|boolean',
-            'breeding_successful' => 'nullable|boolean|required_if:breeding_attempted,true',
+            'breeding_successful' => 'nullable|boolean',
             'additional_notes' => 'nullable|string|max:500',
         ]);
 
@@ -1831,7 +1831,7 @@ class BreedingContractController extends Controller
                 'health_status' => $validated['health_status'],
                 'health_notes' => $validated['health_notes'] ?? null,
                 'breeding_attempted' => $validated['breeding_attempted'],
-                'breeding_successful' => $validated['breeding_attempted'] ? ($validated['breeding_successful'] ?? null) : null,
+                'breeding_successful' => $validated['breeding_successful'] ?? null,
                 'additional_notes' => $validated['additional_notes'] ?? null,
             ]);
 
