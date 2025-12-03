@@ -203,7 +203,7 @@ export default function OffspringInputModal({
       onRequestClose={onClose}
     >
       <View className="flex-1 bg-black/50 justify-end">
-        <View className="bg-white rounded-t-3xl max-h-[95%]">
+        <View className="bg-white rounded-t-3xl" style={{ maxHeight: '95%', flex: 1 }}>
           {/* Header */}
           <View className="flex-row items-center justify-between px-6 py-4 border-b border-gray-100">
             <View className="flex-row items-center">
@@ -246,7 +246,11 @@ export default function OffspringInputModal({
             </View>
           </View>
 
-          <ScrollView className="flex-1" showsVerticalScrollIndicator={false}>
+          <ScrollView 
+            style={{ flex: 1 }} 
+            showsVerticalScrollIndicator={false}
+            contentContainerStyle={{ paddingBottom: 20 }}
+          >
             <View className="px-4 py-4">
               {/* Birth Date Card */}
               <View className="bg-white rounded-2xl border border-gray-200 p-4 mb-4 shadow-sm">
