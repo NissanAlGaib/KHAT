@@ -389,6 +389,7 @@ function OffspringCard({
   onRemovePhoto,
   canRemove,
 }: OffspringCardProps) {
+  const [showDeathDatePicker, setShowDeathDatePicker] = useState(false);
   const sexColor = pup.sex === "male" ? "#3b82f6" : "#ec4899";
   const sexBgColor = pup.sex === "male" ? "bg-blue-50" : "bg-pink-50";
   const statusColors: Record<string, { bg: string; text: string }> = {
@@ -602,6 +603,36 @@ function OffspringCard({
               ))}
             </View>
           </View>
+
+          {/* Death Date - Only shown when status is "died" */}
+          {pup.status === "died" && (
+            <View className="mb-4">
+              <Text className="text-gray-600 text-sm font-medium mb-2">Death Date *</Text>
+              <TouchableOpacity
+                onPress={() => setShowDeathDatePicker(true)}
+                className="bg-gray-50 rounded-xl p-4 flex-row items-center justify-between border border-gray-200"
+              >
+                <Text className={pup.death_date ? "text-gray-800 font-medium" : "text-gray-400"}>
+                  {pup.death_date 
+                    ? dayjs(pup.death_date).format("MMMM D, YYYY")
+                    : "Select death date..."
+                  }
+                </Text>
+                <Calendar size={20} color="#9ca3af" />
+              </TouchableOpacity>
+              <DateTimePickerModal
+                isVisible={showDeathDatePicker}
+                mode="date"
+                date={pup.death_date ? new Date(pup.death_date) : new Date()}
+                onConfirm={(date) => {
+                  onUpdate("death_date", dayjs(date).format("YYYY-MM-DD"));
+                  setShowDeathDatePicker(false);
+                }}
+                onCancel={() => setShowDeathDatePicker(false)}
+                maximumDate={new Date()}
+              />
+            </View>
+          )}
 
           {/* Notes Input */}
           <View>
