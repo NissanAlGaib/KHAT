@@ -196,10 +196,24 @@ export default function ProfileScreen() {
     return (
       <View style={styles.petsGrid}>
         {pets.map((pet, index) => {
-          const status = statusStyles[pet.status] || {
-            label: pet.status,
-            style: "bg-gray-500",
-          };
+          // Check if pet is on cooldown
+          const isOnCooldown = pet.is_on_cooldown;
+          const cooldownDaysRemaining = pet.cooldown_days_remaining;
+          
+          // Determine status badge to show
+          let statusBadge;
+          if (isOnCooldown) {
+            statusBadge = {
+              label: `Cooldown: ${cooldownDaysRemaining}d`,
+              style: "bg-blue-500",
+            };
+          } else {
+            statusBadge = statusStyles[pet.status] || {
+              label: pet.status,
+              style: "bg-gray-500",
+            };
+          }
+          
           return (
             <TouchableOpacity
               key={index}
@@ -225,10 +239,10 @@ export default function ProfileScreen() {
                 </View>
               </View>
               <View
-                className={`absolute top-2 right-2 px-2 py-1 rounded-full ${status.style}`}
+                className={`absolute top-2 right-2 px-2 py-1 rounded-full ${statusBadge.style}`}
               >
                 <Text className="text-white text-xs font-bold">
-                  {status.label}
+                  {statusBadge.label}
                 </Text>
               </View>
             </TouchableOpacity>
