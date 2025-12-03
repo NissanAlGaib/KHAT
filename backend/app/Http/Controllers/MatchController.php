@@ -2,10 +2,9 @@
 
 namespace App\Http\Controllers;
 
-use Illuminate\Http\Request;
 use App\Models\Pet;
 use App\Models\User;
-use Illuminate\Support\Facades\DB;
+use Illuminate\Http\Request;
 
 class MatchController extends Controller
 {
@@ -28,7 +27,7 @@ class MatchController extends Controller
                 return response()->json([
                     'success' => true,
                     'message' => 'No active pets found',
-                    'data' => []
+                    'data' => [],
                 ]);
             }
 
@@ -74,13 +73,13 @@ class MatchController extends Controller
 
             return response()->json([
                 'success' => true,
-                'data' => $sortedMatches
+                'data' => $sortedMatches,
             ]);
         } catch (\Exception $e) {
             return response()->json([
                 'success' => false,
                 'message' => 'Failed to get potential matches',
-                'error' => $e->getMessage()
+                'error' => $e->getMessage(),
             ], 500);
         }
     }
@@ -103,7 +102,7 @@ class MatchController extends Controller
                 return response()->json([
                     'success' => true,
                     'message' => 'No active pets found',
-                    'data' => []
+                    'data' => [],
                 ]);
             }
 
@@ -152,77 +151,295 @@ class MatchController extends Controller
 
             return response()->json([
                 'success' => true,
-                'data' => $topMatches
+                'data' => $topMatches,
             ]);
         } catch (\Exception $e) {
             return response()->json([
                 'success' => false,
                 'message' => 'Failed to get top matches',
-                'error' => $e->getMessage()
+                'error' => $e->getMessage(),
             ], 500);
         }
     }
 
     /**
-     * Calculate compatibility score between two pets
+     * Calculate compatibility score between two pets using MLP-like architecture
+     *
+     * This implementation mimics a multilayer perceptron with:
+     * - Input layer: Feature extraction and normalization
+     * - Hidden layer: Non-linear transformations and feature interactions
+     * - Output layer: Final score calculation with activation
      */
     private function calculateCompatibilityScore($pet, $userPet)
     {
-        $score = 0;
         $reasons = [];
         $preferences = $userPet->partnerPreferences->first();
 
-        if (!$preferences) {
-            // No preferences set, return base score
+        if (! $preferences) {
             return ['score' => 50, 'reasons' => ['No specific preferences set']];
         }
 
-        // Breed match (40 points)
-        if ($preferences->preferred_breed && $pet->breed === $preferences->preferred_breed) {
-            $score += 40;
-            $reasons[] = 'Perfect breed match';
+        // ============================================
+        // INPUT LAYER: Feature extraction & normalization
+        // ============================================
+        $inputFeatures = $this->extractInputFeatures($pet, $userPet, $preferences);
+
+        // ============================================
+        // HIDDEN LAYER: Non-linear transformations & interactions
+        // ============================================
+        $hiddenActivations = $this->computeHiddenLayer($inputFeatures);
+
+        // ============================================
+        // OUTPUT LAYER: Final score with activation
+        // ============================================
+        $result = $this->computeOutputLayer($hiddenActivations, $inputFeatures, $reasons);
+
+        return $result;
+    }
+
+    /**
+     * Input Layer: Extract and normalize features from pet data
+     * Returns normalized values between 0 and 1
+     */
+    private function extractInputFeatures($pet, $userPet, $preferences): array
+    {
+        $features = [];
+
+        // Breed feature (exact match = 1.0, same species different breed = 0.3, no match = 0)
+        $features['breed'] = 0.0;
+        if ($preferences->preferred_breed) {
+            if ($pet->breed === $preferences->preferred_breed) {
+                $features['breed'] = 1.0;
+            } elseif ($pet->species === $userPet->species) {
+                $features['breed'] = 0.3;
+            }
         }
 
-        // Sex preference (20 points)
-        if ($preferences->preferred_sex && $pet->sex === $preferences->preferred_sex) {
-            $score += 20;
+        // Sex feature (exact match = 1.0, no preference = 0.5, no match = 0)
+        $features['sex'] = 0.5;
+        if ($preferences->preferred_sex) {
+            $features['sex'] = $pet->sex === $preferences->preferred_sex ? 1.0 : 0.0;
+        }
+
+        // Age feature (normalized based on distance from preferred range)
+        $features['age'] = 0.5;
+        if ($preferences->min_age && $preferences->max_age && $pet->birthdate) {
+            $petAgeInMonths = $pet->birthdate->diffInMonths(now());
+            $midAge = ($preferences->min_age + $preferences->max_age) / 2;
+            $ageRange = $preferences->max_age - $preferences->min_age;
+
+            if ($petAgeInMonths >= $preferences->min_age && $petAgeInMonths <= $preferences->max_age) {
+                // Gaussian-like normalization within range (closer to mid = higher score)
+                $distanceFromMid = abs($petAgeInMonths - $midAge);
+                $normalizedDistance = $ageRange > 0 ? $distanceFromMid / ($ageRange / 2) : 0;
+                $features['age'] = 1.0 - (0.2 * $normalizedDistance);
+            } else {
+                // Outside range - decay based on distance
+                $distanceOutside = min(
+                    abs($petAgeInMonths - $preferences->min_age),
+                    abs($petAgeInMonths - $preferences->max_age)
+                );
+                $features['age'] = max(0.0, 0.4 - ($distanceOutside / ($ageRange ?: 12)) * 0.3);
+            }
+        }
+
+        // Behaviors feature (ratio of matching behaviors with bonus for multiple matches)
+        $features['behaviors'] = 0.0;
+        $features['behaviors_count'] = 0;
+        if ($preferences->preferred_behaviors && $pet->behaviors) {
+            $preferredBehaviors = is_array($preferences->preferred_behaviors)
+                ? $preferences->preferred_behaviors
+                : json_decode($preferences->preferred_behaviors, true) ?? [];
+            $petBehaviors = is_array($pet->behaviors)
+                ? $pet->behaviors
+                : json_decode($pet->behaviors, true) ?? [];
+
+            $matchingBehaviors = array_intersect($preferredBehaviors, $petBehaviors);
+            $matchCount = count($matchingBehaviors);
+            $totalPreferred = count($preferredBehaviors);
+
+            if ($totalPreferred > 0) {
+                $features['behaviors'] = $matchCount / $totalPreferred;
+                $features['behaviors_count'] = $matchCount;
+            }
+        }
+
+        // Attributes feature (similar to behaviors)
+        $features['attributes'] = 0.0;
+        $features['attributes_count'] = 0;
+        if ($preferences->preferred_attributes && $pet->attributes) {
+            $preferredAttributes = is_array($preferences->preferred_attributes)
+                ? $preferences->preferred_attributes
+                : json_decode($preferences->preferred_attributes, true) ?? [];
+            $petAttributes = is_array($pet->attributes)
+                ? $pet->attributes
+                : json_decode($pet->attributes, true) ?? [];
+
+            $matchingAttributes = array_intersect($preferredAttributes, $petAttributes);
+            $matchCount = count($matchingAttributes);
+            $totalPreferred = count($preferredAttributes);
+
+            if ($totalPreferred > 0) {
+                $features['attributes'] = $matchCount / $totalPreferred;
+                $features['attributes_count'] = $matchCount;
+            }
+        }
+
+        return $features;
+    }
+
+    /**
+     * Hidden Layer: Apply non-linear transformations and compute feature interactions
+     */
+    private function computeHiddenLayer(array $inputFeatures): array
+    {
+        $hidden = [];
+
+        // Weights for hidden layer neurons (simulating learned weights)
+        $weights = [
+            'breed' => 0.35,
+            'sex' => 0.15,
+            'age' => 0.20,
+            'behaviors' => 0.15,
+            'attributes' => 0.15,
+        ];
+
+        // Hidden Neuron 1: Primary compatibility (weighted sum with ReLU)
+        $primarySum =
+            $inputFeatures['breed'] * $weights['breed'] +
+            $inputFeatures['sex'] * $weights['sex'] +
+            $inputFeatures['age'] * $weights['age'];
+        $hidden['primary'] = $this->relu($primarySum);
+
+        // Hidden Neuron 2: Secondary compatibility (behaviors & attributes interaction)
+        $secondarySum =
+            $inputFeatures['behaviors'] * $weights['behaviors'] +
+            $inputFeatures['attributes'] * $weights['attributes'];
+        // Apply sigmoid for smooth activation
+        $hidden['secondary'] = $this->sigmoid($secondarySum * 3);
+
+        // Hidden Neuron 3: Feature interaction term (multiplicative interaction)
+        // Captures synergy between good breed match AND good behavior match
+        $interactionTerm = $inputFeatures['breed'] * $inputFeatures['behaviors'] * 0.5 +
+                          $inputFeatures['breed'] * $inputFeatures['attributes'] * 0.3 +
+                          $inputFeatures['age'] * $inputFeatures['sex'] * 0.2;
+        $hidden['interaction'] = $this->tanh($interactionTerm);
+
+        // Hidden Neuron 4: Bonus neuron for multiple feature matches
+        $matchBonus = 0;
+        if ($inputFeatures['breed'] >= 0.9) {
+            $matchBonus += 0.3;
+        }
+        if ($inputFeatures['sex'] >= 0.9) {
+            $matchBonus += 0.2;
+        }
+        if ($inputFeatures['age'] >= 0.8) {
+            $matchBonus += 0.2;
+        }
+        if ($inputFeatures['behaviors_count'] >= 2) {
+            $matchBonus += 0.15;
+        }
+        if ($inputFeatures['attributes_count'] >= 2) {
+            $matchBonus += 0.15;
+        }
+        $hidden['bonus'] = $this->sigmoid($matchBonus * 2);
+
+        return $hidden;
+    }
+
+    /**
+     * Output Layer: Compute final compatibility score with activation
+     */
+    private function computeOutputLayer(array $hiddenActivations, array $inputFeatures, array &$reasons): array
+    {
+        // Output layer weights
+        $outputWeights = [
+            'primary' => 0.45,
+            'secondary' => 0.25,
+            'interaction' => 0.15,
+            'bonus' => 0.15,
+        ];
+
+        // Compute weighted sum of hidden layer outputs
+        $outputSum =
+            $hiddenActivations['primary'] * $outputWeights['primary'] +
+            $hiddenActivations['secondary'] * $outputWeights['secondary'] +
+            $hiddenActivations['interaction'] * $outputWeights['interaction'] +
+            $hiddenActivations['bonus'] * $outputWeights['bonus'];
+
+        // Apply sigmoid activation and scale to 0-100
+        $rawScore = $this->sigmoid($outputSum * 4) * 100;
+
+        // Apply softplus for smooth lower bound (ensures minimum score)
+        $finalScore = $this->softplus($rawScore - 10) + 10;
+        $finalScore = min(100, max(0, round($finalScore)));
+
+        // Generate reasons based on input features
+        if ($inputFeatures['breed'] >= 0.9) {
+            $reasons[] = 'Perfect breed match';
+        } elseif ($inputFeatures['breed'] >= 0.3) {
+            $reasons[] = 'Compatible species';
+        }
+
+        if ($inputFeatures['sex'] >= 0.9) {
             $reasons[] = 'Sex preference match';
         }
 
-        // Age range (20 points)
-        if ($preferences->min_age && $preferences->max_age) {
-            $petAgeInMonths = $pet->birthdate->diffInMonths(now());
-            if ($petAgeInMonths >= $preferences->min_age && $petAgeInMonths <= $preferences->max_age) {
-                $score += 20;
-                $reasons[] = 'Age within preferred range';
-            }
+        if ($inputFeatures['age'] >= 0.8) {
+            $reasons[] = 'Age within preferred range';
+        } elseif ($inputFeatures['age'] >= 0.4) {
+            $reasons[] = 'Age close to preferred range';
         }
 
-        // Behaviors match (10 points)
-        if ($preferences->preferred_behaviors && $pet->behaviors) {
-            $matchingBehaviors = array_intersect($preferences->preferred_behaviors, $pet->behaviors);
-            if (count($matchingBehaviors) > 0) {
-                $score += 10;
-                $reasons[] = 'Matching behaviors';
-            }
+        if ($inputFeatures['behaviors'] >= 0.5) {
+            $reasons[] = 'Matching behaviors';
         }
 
-        // Attributes match (10 points)
-        if ($preferences->preferred_attributes && $pet->attributes) {
-            $matchingAttributes = array_intersect($preferences->preferred_attributes, $pet->attributes);
-            if (count($matchingAttributes) > 0) {
-                $score += 10;
-                $reasons[] = 'Matching attributes';
-            }
+        if ($inputFeatures['attributes'] >= 0.5) {
+            $reasons[] = 'Matching attributes';
         }
 
-        // Ensure score doesn't exceed 100
-        $score = min($score, 100);
+        // Add interaction-based reason
+        if ($hiddenActivations['interaction'] > 0.3) {
+            $reasons[] = 'Strong overall compatibility';
+        }
 
         if (empty($reasons)) {
             $reasons[] = 'General compatibility';
         }
 
-        return ['score' => $score, 'reasons' => $reasons];
+        return ['score' => $finalScore, 'reasons' => $reasons];
+    }
+
+    /**
+     * ReLU activation function
+     */
+    private function relu(float $x): float
+    {
+        return max(0, $x);
+    }
+
+    /**
+     * Sigmoid activation function
+     */
+    private function sigmoid(float $x): float
+    {
+        return 1 / (1 + exp(-$x));
+    }
+
+    /**
+     * Tanh activation function
+     */
+    private function tanh(float $x): float
+    {
+        return tanh($x);
+    }
+
+    /**
+     * Softplus activation function (smooth ReLU)
+     */
+    private function softplus(float $x): float
+    {
+        return log(1 + exp($x));
     }
 }
