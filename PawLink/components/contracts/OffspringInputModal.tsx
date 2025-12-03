@@ -521,7 +521,7 @@ function OffspringCard({
                     : "bg-gray-50 border border-gray-200"
                 }`}
               >
-                <Text className="text-lg mr-1">{pup.sex === "male" ? "♂" : "♂"}</Text>
+                <Text className="text-lg mr-1">♂</Text>
                 <Text
                   className={`font-semibold ${
                     pup.sex === "male" ? "text-white" : "text-gray-600"
@@ -538,7 +538,7 @@ function OffspringCard({
                     : "bg-gray-50 border border-gray-200"
                 }`}
               >
-                <Text className="text-lg mr-1">{pup.sex === "female" ? "♀" : "♀"}</Text>
+                <Text className="text-lg mr-1">♀</Text>
                 <Text
                   className={`font-semibold ${
                     pup.sex === "female" ? "text-white" : "text-gray-600"
