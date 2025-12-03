@@ -379,8 +379,9 @@ const sigmoid = (x: number): number => 1 / (1 + Math.exp(-x));
 
 /**
  * Softplus activation function (smooth ReLU)
+ * Uses numerically stable implementation to avoid overflow
  */
-const softplus = (x: number): number => Math.log(1 + Math.exp(x));
+const softplus = (x: number): number => (x > 20 ? x : Math.log(1 + Math.exp(x)));
 
 /**
  * Helper to calculate pet age in months

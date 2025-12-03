@@ -437,9 +437,10 @@ class MatchController extends Controller
 
     /**
      * Softplus activation function (smooth ReLU)
+     * Uses numerically stable implementation to avoid overflow
      */
     private function softplus(float $x): float
     {
-        return log(1 + exp($x));
+        return $x > 20 ? $x : log(1 + exp($x));
     }
 }
