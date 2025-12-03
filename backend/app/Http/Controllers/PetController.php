@@ -28,6 +28,20 @@ class PetController extends Controller
     }
 
     /**
+     * Add cooldown information to a pet array
+     * @param Pet $pet The pet model instance
+     * @param array $petArray The pet array to augment with cooldown info
+     * @return array The augmented pet array with cooldown information
+     */
+    private function addCooldownInfo(Pet $pet, array $petArray): array
+    {
+        $petArray['is_on_cooldown'] = $pet->isOnCooldown();
+        $petArray['cooldown_until'] = $pet->cooldown_until?->format('Y-m-d');
+        $petArray['cooldown_days_remaining'] = $pet->cooldown_days_remaining;
+        return $petArray;
+    }
+
+    /**
      * Store a newly created pet in storage.
      */
     public function store(Request $request)
@@ -327,10 +341,7 @@ class PetController extends Controller
             ->findOrFail($id);
 
         // Add cooldown information to the response
-        $petArray = $pet->toArray();
-        $petArray['is_on_cooldown'] = $pet->isOnCooldown();
-        $petArray['cooldown_until'] = $pet->cooldown_until?->format('Y-m-d');
-        $petArray['cooldown_days_remaining'] = $pet->cooldown_days_remaining;
+        $petArray = $this->addCooldownInfo($pet, $pet->toArray());
 
         return response()->json(['pet' => $petArray]);
     }
@@ -504,11 +515,7 @@ class PetController extends Controller
 
         // Add cooldown information to each pet
         $petsWithCooldown = $pets->map(function ($pet) {
-            $petArray = $pet->toArray();
-            $petArray['is_on_cooldown'] = $pet->isOnCooldown();
-            $petArray['cooldown_until'] = $pet->cooldown_until?->format('Y-m-d');
-            $petArray['cooldown_days_remaining'] = $pet->cooldown_days_remaining;
-            return $petArray;
+            return $this->addCooldownInfo($pet, $pet->toArray());
         });
 
         return response()->json(['pets' => $petsWithCooldown]);

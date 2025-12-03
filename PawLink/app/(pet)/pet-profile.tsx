@@ -424,7 +424,7 @@ export default function PetProfileScreen() {
           </View>
           
           {/* Cooldown Info Card */}
-          {petData.is_on_cooldown && (
+          {petData.is_on_cooldown && petData.cooldown_until && (
             <View style={styles.cooldownCard}>
               <Ionicons name="information-circle-outline" size={20} color="#1D4ED8" />
               <View style={styles.cooldownCardContent}>
