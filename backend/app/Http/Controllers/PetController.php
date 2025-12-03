@@ -326,7 +326,13 @@ class PetController extends Controller
         $pet = Pet::with(['photos', 'vaccinations', 'healthRecords', 'partnerPreferences', 'owner'])
             ->findOrFail($id);
 
-        return response()->json(['pet' => $pet]);
+        // Add cooldown information to the response
+        $petArray = $pet->toArray();
+        $petArray['is_on_cooldown'] = $pet->isOnCooldown();
+        $petArray['cooldown_until'] = $pet->cooldown_until?->format('Y-m-d');
+        $petArray['cooldown_days_remaining'] = $pet->cooldown_days_remaining;
+
+        return response()->json(['pet' => $petArray]);
     }
 
     /**
@@ -496,7 +502,16 @@ class PetController extends Controller
             ->with(['photos', 'vaccinations', 'healthRecords'])
             ->get();
 
-        return response()->json(['pets' => $pets]);
+        // Add cooldown information to each pet
+        $petsWithCooldown = $pets->map(function ($pet) {
+            $petArray = $pet->toArray();
+            $petArray['is_on_cooldown'] = $pet->isOnCooldown();
+            $petArray['cooldown_until'] = $pet->cooldown_until?->format('Y-m-d');
+            $petArray['cooldown_days_remaining'] = $pet->cooldown_days_remaining;
+            return $petArray;
+        });
+
+        return response()->json(['pets' => $petsWithCooldown]);
     }
 
     /**

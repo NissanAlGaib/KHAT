@@ -393,21 +393,48 @@ export default function PetProfileScreen() {
             />
           </View>
           <Text style={styles.petName}>{petData.name}</Text>
-          <View
-            style={[
-              styles.statusIndicator,
-              !isEnabled && styles.statusDisabled,
-            ]}
-          >
-            <Text
+          
+          {/* Status and Cooldown Indicators */}
+          <View style={styles.statusRow}>
+            <View
               style={[
-                styles.statusText,
-                !isEnabled && styles.statusTextDisabled,
+                styles.statusIndicator,
+                !isEnabled && styles.statusDisabled,
               ]}
             >
-              {isEnabled ? "Active" : "Disabled"}
-            </Text>
+              <Text
+                style={[
+                  styles.statusText,
+                  !isEnabled && styles.statusTextDisabled,
+                ]}
+              >
+                {isEnabled ? "Active" : "Disabled"}
+              </Text>
+            </View>
+            
+            {/* Cooldown Badge */}
+            {petData.is_on_cooldown && (
+              <View style={styles.cooldownIndicator}>
+                <Ionicons name="time-outline" size={14} color="#1D4ED8" />
+                <Text style={styles.cooldownText}>
+                  Cooldown: {petData.cooldown_days_remaining} days
+                </Text>
+              </View>
+            )}
           </View>
+          
+          {/* Cooldown Info Card */}
+          {petData.is_on_cooldown && (
+            <View style={styles.cooldownCard}>
+              <Ionicons name="information-circle-outline" size={20} color="#1D4ED8" />
+              <View style={styles.cooldownCardContent}>
+                <Text style={styles.cooldownCardTitle}>Breeding Cooldown Active</Text>
+                <Text style={styles.cooldownCardText}>
+                  This pet cannot be matched until {dayjs(petData.cooldown_until).format("MMMM D, YYYY")}
+                </Text>
+              </View>
+            </View>
+          )}
         </View>
 
         {/* Tab Navigation */}
@@ -641,6 +668,13 @@ const styles = StyleSheet.create({
     marginTop: 12,
     marginBottom: 4,
   },
+  statusRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 8,
+    flexWrap: "wrap",
+  },
   statusIndicator: {
     paddingVertical: 4,
     paddingHorizontal: 12,
@@ -656,6 +690,45 @@ const styles = StyleSheet.create({
   },
   statusTextDisabled: {
     color: "#374151", // gray-700
+  },
+  cooldownIndicator: {
+    flexDirection: "row",
+    alignItems: "center",
+    paddingVertical: 4,
+    paddingHorizontal: 12,
+    borderRadius: 20,
+    backgroundColor: "#DBEAFE", // blue-100
+    gap: 4,
+  },
+  cooldownText: {
+    color: "#1D4ED8", // blue-700
+    fontWeight: "600",
+    fontSize: 13,
+  },
+  cooldownCard: {
+    flexDirection: "row",
+    alignItems: "flex-start",
+    backgroundColor: "#EFF6FF", // blue-50
+    borderRadius: 12,
+    padding: 12,
+    marginTop: 16,
+    marginHorizontal: 20,
+    borderWidth: 1,
+    borderColor: "#BFDBFE", // blue-200
+  },
+  cooldownCardContent: {
+    marginLeft: 8,
+    flex: 1,
+  },
+  cooldownCardTitle: {
+    color: "#1E40AF", // blue-800
+    fontWeight: "bold",
+    fontSize: 14,
+  },
+  cooldownCardText: {
+    color: "#1D4ED8", // blue-700
+    fontSize: 13,
+    marginTop: 2,
   },
   tabContainer: {
     flexDirection: "row",
