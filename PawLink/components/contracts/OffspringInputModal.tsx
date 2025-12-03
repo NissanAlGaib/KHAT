@@ -395,7 +395,6 @@ function OffspringCard({
   const statusColors: Record<string, { bg: string; text: string }> = {
     alive: { bg: "bg-green-100", text: "text-green-700" },
     died: { bg: "bg-gray-100", text: "text-gray-700" },
-    adopted: { bg: "bg-purple-100", text: "text-purple-700" },
   };
 
   return (
@@ -577,7 +576,6 @@ function OffspringCard({
               {[
                 { value: "alive", label: "Alive", color: "green" },
                 { value: "died", label: "Died", color: "gray" },
-                { value: "adopted", label: "Adopted", color: "purple" },
               ].map((status) => (
                 <TouchableOpacity
                   key={status.value}
