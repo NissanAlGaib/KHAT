@@ -22,6 +22,7 @@ return new class extends Migration
             $table->boolean('breeding_attempted')->default(false);
             $table->boolean('breeding_successful')->nullable(); // null if not attempted
             $table->text('additional_notes')->nullable();
+            $table->string('photo_url')->nullable(); // optional photo for the daily report
             $table->timestamps();
 
             $table->foreign('contract_id')->references('id')->on('breeding_contracts')->onDelete('cascade');

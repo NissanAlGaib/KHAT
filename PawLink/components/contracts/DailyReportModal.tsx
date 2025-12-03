@@ -8,6 +8,7 @@ import {
   TextInput,
   ActivityIndicator,
   Alert,
+  Image,
 } from "react-native";
 import {
   X,
@@ -21,7 +22,11 @@ import {
   CheckCircle,
   XCircle,
   Clock,
+  Camera,
+  ImageIcon,
+  Trash2,
 } from "lucide-react-native";
+import * as ImagePicker from "expo-image-picker";
 import dayjs from "dayjs";
 import {
   BreedingContract,
@@ -31,6 +36,7 @@ import {
   submitDailyReport,
   getDailyReports,
 } from "@/services/contractService";
+import { API_BASE_URL } from "@/config/env";
 
 interface DailyReportModalProps {
   visible: boolean;
@@ -71,6 +77,7 @@ export default function DailyReportModal({
   const [breedingAttempted, setBreedingAttempted] = useState(false);
   const [breedingSuccessful, setBreedingSuccessful] = useState<boolean | undefined>(undefined);
   const [additionalNotes, setAdditionalNotes] = useState("");
+  const [selectedPhoto, setSelectedPhoto] = useState<ImagePicker.ImagePickerAsset | null>(null);
 
   const fetchReports = useCallback(async () => {
     setIsLoading(true);
@@ -97,8 +104,46 @@ export default function DailyReportModal({
       setBreedingAttempted(false);
       setBreedingSuccessful(undefined);
       setAdditionalNotes("");
+      setSelectedPhoto(null);
     }
   }, [visible, fetchReports]);
+
+  const pickImage = async () => {
+    const permissionResult = await ImagePicker.requestMediaLibraryPermissionsAsync();
+    if (!permissionResult.granted) {
+      Alert.alert("Permission Required", "Please allow access to your photo library to add photos.");
+      return;
+    }
+
+    const result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ImagePicker.MediaTypeOptions.Images,
+      allowsEditing: true,
+      aspect: [4, 3],
+      quality: 0.8,
+    });
+
+    if (!result.canceled && result.assets[0]) {
+      setSelectedPhoto(result.assets[0]);
+    }
+  };
+
+  const takePhoto = async () => {
+    const permissionResult = await ImagePicker.requestCameraPermissionsAsync();
+    if (!permissionResult.granted) {
+      Alert.alert("Permission Required", "Please allow access to your camera to take photos.");
+      return;
+    }
+
+    const result = await ImagePicker.launchCameraAsync({
+      allowsEditing: true,
+      aspect: [4, 3],
+      quality: 0.8,
+    });
+
+    if (!result.canceled && result.assets[0]) {
+      setSelectedPhoto(result.assets[0]);
+    }
+  };
 
   const handleSubmit = async () => {
     if (!progressNotes.trim()) {
@@ -121,6 +166,11 @@ export default function DailyReportModal({
         breeding_attempted: breedingAttempted,
         breeding_successful: breedingAttempted ? breedingSuccessful : undefined,
         additional_notes: additionalNotes || undefined,
+        photo: selectedPhoto ? {
+          uri: selectedPhoto.uri,
+          mimeType: selectedPhoto.mimeType,
+          fileName: selectedPhoto.fileName || `photo_${Date.now()}.jpg`,
+        } : undefined,
       });
 
       if (result.success) {
@@ -132,6 +182,7 @@ export default function DailyReportModal({
         setBreedingAttempted(false);
         setBreedingSuccessful(undefined);
         setAdditionalNotes("");
+        setSelectedPhoto(null);
         setActiveTab("history");
         onReportSubmitted?.();
       } else {
@@ -162,7 +213,7 @@ export default function DailyReportModal({
         <View className="py-8 items-center">
           <CheckCircle size={48} color="#16a34a" />
           <Text className="text-green-700 font-semibold text-center mt-4">
-            Today's report has been submitted!
+            {"Today's report has been submitted!"}
           </Text>
           <Text className="text-gray-500 text-center mt-2 px-6">
             You can only submit one report per day. Check back tomorrow to submit a new report.
@@ -333,7 +384,7 @@ export default function DailyReportModal({
         )}
 
         {/* Additional Notes */}
-        <View className="mb-6">
+        <View className="mb-4">
           <Text className="text-gray-700 font-medium mb-2">Additional Notes (Optional)</Text>
           <TextInput
             value={additionalNotes}
@@ -344,6 +395,43 @@ export default function DailyReportModal({
             className="bg-gray-100 rounded-xl px-4 py-3 text-gray-800"
             style={{ textAlignVertical: "top", minHeight: 60 }}
           />
+        </View>
+
+        {/* Photo Upload */}
+        <View className="mb-6">
+          <Text className="text-gray-700 font-medium mb-2">Photo (Optional)</Text>
+          {selectedPhoto ? (
+            <View className="relative">
+              <Image
+                source={{ uri: selectedPhoto.uri }}
+                className="w-full h-48 rounded-xl"
+                resizeMode="cover"
+              />
+              <TouchableOpacity
+                onPress={() => setSelectedPhoto(null)}
+                className="absolute top-2 right-2 bg-red-500 p-2 rounded-full"
+              >
+                <Trash2 size={18} color="white" />
+              </TouchableOpacity>
+            </View>
+          ) : (
+            <View className="flex-row gap-3">
+              <TouchableOpacity
+                onPress={takePhoto}
+                className="flex-1 bg-gray-100 rounded-xl py-4 flex-row items-center justify-center border border-gray-300"
+              >
+                <Camera size={20} color="#666" />
+                <Text className="text-gray-600 font-medium ml-2">Take Photo</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                onPress={pickImage}
+                className="flex-1 bg-gray-100 rounded-xl py-4 flex-row items-center justify-center border border-gray-300"
+              >
+                <ImageIcon size={20} color="#666" />
+                <Text className="text-gray-600 font-medium ml-2">Choose</Text>
+              </TouchableOpacity>
+            </View>
+          )}
         </View>
 
         {/* Submit Button */}
@@ -563,6 +651,18 @@ function ReportCard({ report, isExpanded, onToggle }: ReportCardProps) {
             <View className="py-3 border-b border-gray-100">
               <Text className="text-gray-500 text-sm mb-1">Additional Notes:</Text>
               <Text className="text-gray-800">{report.additional_notes}</Text>
+            </View>
+          )}
+
+          {/* Photo */}
+          {report.photo_url && (
+            <View className="py-3 border-b border-gray-100">
+              <Text className="text-gray-500 text-sm mb-2">Photo:</Text>
+              <Image
+                source={{ uri: `${API_BASE_URL}/storage/${report.photo_url}` }}
+                className="w-full h-48 rounded-xl"
+                resizeMode="cover"
+              />
             </View>
           )}
 

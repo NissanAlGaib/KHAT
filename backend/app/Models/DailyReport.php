@@ -19,6 +19,7 @@ class DailyReport extends Model
         'breeding_attempted',
         'breeding_successful',
         'additional_notes',
+        'photo_url',
     ];
 
     protected $casts = [

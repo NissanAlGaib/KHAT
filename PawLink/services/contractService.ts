@@ -654,6 +654,7 @@ export interface DailyReportData {
   breeding_attempted: boolean;
   breeding_successful?: boolean;
   additional_notes?: string;
+  photo?: any; // File object for photo upload
 }
 
 export interface DailyReport {
@@ -666,6 +667,7 @@ export interface DailyReport {
   breeding_attempted: boolean;
   breeding_successful?: boolean;
   additional_notes?: string;
+  photo_url?: string;
   reporter?: {
     id: number;
     name: string;
@@ -693,9 +695,38 @@ export const submitDailyReport = async (
   data: DailyReportData
 ): Promise<ApiResponse<DailyReport>> => {
   try {
+    // Use FormData to support file upload
+    const formData = new FormData();
+    formData.append("report_date", data.report_date);
+    formData.append("progress_notes", data.progress_notes);
+    formData.append("health_status", data.health_status);
+    formData.append("breeding_attempted", data.breeding_attempted ? "1" : "0");
+    
+    if (data.health_notes) {
+      formData.append("health_notes", data.health_notes);
+    }
+    if (data.breeding_successful !== undefined) {
+      formData.append("breeding_successful", data.breeding_successful ? "1" : "0");
+    }
+    if (data.additional_notes) {
+      formData.append("additional_notes", data.additional_notes);
+    }
+    if (data.photo) {
+      formData.append("photo", {
+        uri: data.photo.uri,
+        type: data.photo.mimeType || "image/jpeg",
+        name: data.photo.fileName || "photo.jpg",
+      } as any);
+    }
+
     const response = await axiosInstance.post(
       `/api/contracts/${contractId}/daily-reports`,
-      data
+      formData,
+      {
+        headers: {
+          "Content-Type": "multipart/form-data",
+        },
+      }
     );
     return {
       success: true,

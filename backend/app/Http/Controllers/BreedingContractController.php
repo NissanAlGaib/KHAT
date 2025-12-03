@@ -1778,6 +1778,7 @@ class BreedingContractController extends Controller
             'breeding_attempted' => 'required|boolean',
             'breeding_successful' => 'nullable|boolean',
             'additional_notes' => 'nullable|string|max:500',
+            'photo' => 'nullable|image|mimes:jpg,jpeg,png|max:10240',
         ]);
 
         $user = $request->user();
@@ -1823,6 +1824,12 @@ class BreedingContractController extends Controller
         }
 
         try {
+            // Handle photo upload if provided
+            $photoUrl = null;
+            if ($request->hasFile('photo')) {
+                $photoUrl = $request->file('photo')->store('daily_report_photos', 'public');
+            }
+
             $report = \App\Models\DailyReport::create([
                 'contract_id' => $contractId,
                 'reported_by' => $user->id,
@@ -1833,6 +1840,7 @@ class BreedingContractController extends Controller
                 'breeding_attempted' => $validated['breeding_attempted'],
                 'breeding_successful' => $validated['breeding_successful'] ?? null,
                 'additional_notes' => $validated['additional_notes'] ?? null,
+                'photo_url' => $photoUrl,
             ]);
 
             return response()->json([
@@ -1918,6 +1926,7 @@ class BreedingContractController extends Controller
                 'profile_image' => $report->reporter->profile_image,
             ] : null,
             'is_from_shooter' => $report->isFromShooter(),
+            'photo_url' => $report->photo_url,
             'created_at' => $report->created_at->toISOString(),
         ];
     }
