@@ -485,7 +485,7 @@ class AdminController extends Controller
             'requesterPet.photos',
             'targetPet.owner',
             'targetPet.photos',
-            'conversation.contract'
+            'conversation.breedingContract'
         ]);
 
         // Filter by status

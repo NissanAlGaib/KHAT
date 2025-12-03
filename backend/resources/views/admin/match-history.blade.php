@@ -128,9 +128,9 @@
                         </span>
                     </td>
                     <td class="px-6 py-4">
-                        @if($match->conversation && $match->conversation->contract)
+                        @if($match->conversation && $match->conversation->breedingContract)
                             @php
-                                $contractStatus = $match->conversation->contract->status;
+                                $contractStatus = $match->conversation->breedingContract->status;
                                 $contractColors = [
                                     'draft' => 'bg-gray-100 text-gray-700',
                                     'pending_review' => 'bg-yellow-100 text-yellow-700',

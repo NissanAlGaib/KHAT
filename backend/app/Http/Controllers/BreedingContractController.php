@@ -1763,4 +1763,171 @@ class BreedingContractController extends Controller
             ],
         ]);
     }
+
+    /**
+     * Store a daily report for a breeding contract
+     * Only shooter (if assigned) or male pet owner can submit reports
+     */
+    public function storeDailyReport(Request $request, $contractId)
+    {
+        $validated = $request->validate([
+            'report_date' => 'required|date|before_or_equal:today',
+            'progress_notes' => 'required|string|max:1000',
+            'health_status' => 'required|in:excellent,good,fair,poor,concerning',
+            'health_notes' => 'nullable|string|max:500',
+            'breeding_attempted' => 'required|boolean',
+            'breeding_successful' => 'nullable|boolean',
+            'additional_notes' => 'nullable|string|max:500',
+            'photo' => 'nullable|image|mimes:jpg,jpeg,png|max:10240',
+        ]);
+
+        $user = $request->user();
+        $userPetIds = Pet::where('user_id', $user->id)->pluck('pet_id');
+
+        // Get the contract
+        $contract = BreedingContract::where('id', $contractId)
+            ->where('status', 'accepted')
+            ->where(function ($query) use ($userPetIds, $user) {
+                $query->whereHas('conversation.matchRequest', function ($q) use ($userPetIds) {
+                    $q->whereIn('requester_pet_id', $userPetIds)
+                        ->orWhereIn('target_pet_id', $userPetIds);
+                })
+                    ->orWhere('shooter_user_id', $user->id);
+            })
+            ->first();
+
+        if (!$contract) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Contract not found or you do not have access',
+            ], 404);
+        }
+
+        // Check if user can submit reports
+        if (!\App\Models\DailyReport::canUserReport($contract, $user)) {
+            return response()->json([
+                'success' => false,
+                'message' => 'You are not authorized to submit daily reports. Only the shooter or male pet owner can submit reports.',
+            ], 403);
+        }
+
+        // Check if report already exists for this date
+        $existingReport = \App\Models\DailyReport::where('contract_id', $contractId)
+            ->where('report_date', $validated['report_date'])
+            ->first();
+
+        if ($existingReport) {
+            return response()->json([
+                'success' => false,
+                'message' => 'A report has already been submitted for this date. You can only submit one report per day.',
+            ], 409);
+        }
+
+        try {
+            // Handle photo upload if provided
+            $photoUrl = null;
+            if ($request->hasFile('photo')) {
+                $photoUrl = $request->file('photo')->store('daily_report_photos', 'public');
+            }
+
+            $report = \App\Models\DailyReport::create([
+                'contract_id' => $contractId,
+                'reported_by' => $user->id,
+                'report_date' => $validated['report_date'],
+                'progress_notes' => $validated['progress_notes'],
+                'health_status' => $validated['health_status'],
+                'health_notes' => $validated['health_notes'] ?? null,
+                'breeding_attempted' => $validated['breeding_attempted'],
+                'breeding_successful' => $validated['breeding_successful'] ?? null,
+                'additional_notes' => $validated['additional_notes'] ?? null,
+                'photo_url' => $photoUrl,
+            ]);
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Daily report submitted successfully',
+                'data' => $this->formatDailyReport($report),
+            ], 201);
+        } catch (\Exception $e) {
+            \Log::error('Failed to store daily report: ' . $e->getMessage());
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to submit daily report',
+            ], 500);
+        }
+    }
+
+    /**
+     * Get all daily reports for a breeding contract
+     */
+    public function getDailyReports(Request $request, $contractId)
+    {
+        $user = $request->user();
+        $userPetIds = Pet::where('user_id', $user->id)->pluck('pet_id');
+
+        // Get the contract
+        $contract = BreedingContract::where('id', $contractId)
+            ->where(function ($query) use ($userPetIds, $user) {
+                $query->whereHas('conversation.matchRequest', function ($q) use ($userPetIds) {
+                    $q->whereIn('requester_pet_id', $userPetIds)
+                        ->orWhereIn('target_pet_id', $userPetIds);
+                })
+                    ->orWhere('shooter_user_id', $user->id);
+            })
+            ->first();
+
+        if (!$contract) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Contract not found or you do not have access',
+            ], 404);
+        }
+
+        $reports = \App\Models\DailyReport::where('contract_id', $contractId)
+            ->with('reporter:id,name,profile_image')
+            ->orderBy('report_date', 'desc')
+            ->get();
+
+        // Check if user can submit reports
+        $canSubmitReport = \App\Models\DailyReport::canUserReport($contract, $user);
+        
+        // Check if report already exists for today
+        $todayReportExists = $reports->where('report_date', now()->toDateString())->isNotEmpty();
+
+        return response()->json([
+            'success' => true,
+            'data' => [
+                'reports' => $reports->map(fn($report) => $this->formatDailyReport($report)),
+                'can_submit_report' => $canSubmitReport && $contract->status === 'accepted',
+                'today_report_exists' => $todayReportExists,
+                'total_reports' => $reports->count(),
+            ],
+        ]);
+    }
+
+    /**
+     * Format a daily report for API response
+     */
+    private function formatDailyReport(\App\Models\DailyReport $report): array
+    {
+        return [
+            'report_id' => $report->report_id,
+            'contract_id' => $report->contract_id,
+            'report_date' => $report->report_date->format('Y-m-d'),
+            'progress_notes' => $report->progress_notes,
+            'health_status' => $report->health_status,
+            'health_notes' => $report->health_notes,
+            'breeding_attempted' => $report->breeding_attempted,
+            'breeding_successful' => $report->breeding_successful,
+            'additional_notes' => $report->additional_notes,
+            'reporter' => $report->reporter ? [
+                'id' => $report->reporter->id,
+                'name' => $report->reporter->name,
+                'profile_image' => $report->reporter->profile_image,
+            ] : null,
+            'is_from_shooter' => $report->isFromShooter(),
+            'photo_url' => $report->photo_url,
+            'created_at' => $report->created_at->toISOString(),
+        ];
+    }
 }

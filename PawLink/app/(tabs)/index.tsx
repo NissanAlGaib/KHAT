@@ -305,22 +305,38 @@ export default function Homepage() {
     return <ShooterHomepage />;
   }
 
-  const PetsGrid = () => (
+  const PetsGrid = () => {
+    // Filter pets by opposite sex if a pet is selected
+    const filteredPets = selectedPet
+      ? allPets.filter(
+          (pet) =>
+            pet.sex?.toLowerCase() !==
+            selectedPet.sex?.toLowerCase()
+        )
+      : allPets;
+
+    return (
     <View style={styles.sectionPadding}>
-      <Text style={styles.sectionTitle}>All Available Pets</Text>
+      <Text style={styles.sectionTitle}>
+        {selectedPet
+          ? `Available ${selectedPet.sex?.toLowerCase() === "male" ? "Female" : "Male"} Pets`
+          : "All Available Pets"}
+      </Text>
       {loading ? (
         <View style={styles.loadingContainer}>
           <ActivityIndicator size="large" color="#ea5b3a" />
         </View>
-      ) : allPets.length === 0 ? (
+      ) : filteredPets.length === 0 ? (
         <View style={styles.emptyStateContainer}>
           <Text style={styles.emptyStateText}>
-            No pets available at the moment
+            {selectedPet
+              ? `No ${selectedPet.sex?.toLowerCase() === "male" ? "female" : "male"} pets available at the moment`
+              : "No pets available at the moment"}
           </Text>
         </View>
       ) : (
         <View style={styles.gridContainer}>
-          {allPets.map((pet) => {
+          {filteredPets.map((pet) => {
             const primaryPhoto =
               pet.photos?.find((p) => p.is_primary) || pet.photos?.[0];
             return (
@@ -383,6 +399,7 @@ export default function Homepage() {
       )}
     </View>
   );
+  };
 
   const ShootersList = () => {
     const IMAGE_HEIGHT = 160;

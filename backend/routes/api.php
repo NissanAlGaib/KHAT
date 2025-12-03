@@ -117,6 +117,10 @@ Route::middleware(['auth:sanctum'])
         Route::post('/contracts/{id}/offspring/auto-allocate', [BreedingContractController::class, 'autoAllocateOffspring']);
         Route::post('/contracts/{id}/complete-match', [BreedingContractController::class, 'completeMatch']);
 
+        // Daily report routes
+        Route::post('/contracts/{id}/daily-reports', [BreedingContractController::class, 'storeDailyReport']);
+        Route::get('/contracts/{id}/daily-reports', [BreedingContractController::class, 'getDailyReports']);
+
         // Shooter request routes (for owners)
         Route::get('/contracts/shooter-requests/count', [BreedingContractController::class, 'getPendingShooterRequestsCount']);
         Route::get('/contracts/{id}/shooter-request', [BreedingContractController::class, 'getShooterRequest']);

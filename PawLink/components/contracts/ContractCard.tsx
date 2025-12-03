@@ -25,6 +25,7 @@ import {
   Baby,
   Archive,
   Award,
+  ClipboardList,
 } from "lucide-react-native";
 import dayjs from "dayjs";
 import {
@@ -43,6 +44,7 @@ import {
   ShooterContractEditModal,
   OffspringInputModal,
   OffspringAllocationModal,
+  DailyReportModal,
 } from "@/components/contracts";
 
 interface ContractCardProps {
@@ -138,6 +140,7 @@ export default function ContractCard({
   const [showAllocationModal, setShowAllocationModal] = useState(false);
   const [hasOffspringRecorded, setHasOffspringRecorded] = useState(false);
   const [allocationSummary, setAllocationSummary] = useState<AllocationSummaryData | null>(null);
+  const [showDailyReportModal, setShowDailyReportModal] = useState(false);
 
   // Check if offspring have been recorded
   React.useEffect(() => {
@@ -608,6 +611,17 @@ export default function ContractCard({
                 {dayjs(contract.accepted_at).format("MMMM D, YYYY")}
               </Text>
             </View>
+
+            {/* Daily Report Button - Available for all accepted contracts */}
+            <TouchableOpacity
+              onPress={() => setShowDailyReportModal(true)}
+              className="mt-3 bg-blue-500 py-3 rounded-full flex-row items-center justify-center"
+            >
+              <ClipboardList size={18} color="white" />
+              <Text className="text-white font-semibold ml-2">
+                Daily Reports
+              </Text>
+            </TouchableOpacity>
 
             {/* Edit button for accepted contracts (owners) */}
             {contract.can_edit && !contract.can_shooter_edit && (
@@ -1185,6 +1199,13 @@ export default function ContractCard({
         contract={contract}
         onSuccess={onContractUpdate}
         onMatchCompleted={onMatchCompleted}
+      />
+
+      {/* Daily Report Modal */}
+      <DailyReportModal
+        visible={showDailyReportModal}
+        onClose={() => setShowDailyReportModal(false)}
+        contract={contract}
       />
     </View>
   );
