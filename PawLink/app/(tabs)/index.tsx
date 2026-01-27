@@ -30,7 +30,7 @@ import { useRouter } from "expo-router";
 import { useFocusEffect } from "@react-navigation/native";
 import dayjs from "dayjs";
 import { LinearGradient } from "expo-linear-gradient";
-import { Ionicons, Feather } from "@expo/vector-icons";
+import { Feather } from "@expo/vector-icons";
 import ShooterHomepage from "./shooter-index";
 
 const { width: SCREEN_W } = Dimensions.get("window");
@@ -894,13 +894,6 @@ const styles = StyleSheet.create({
     width: 50,
     height: 50,
   },
-  actionButton: {
-    backgroundColor: "#ea5b3a",
-    padding: 10,
-    borderRadius: 10,
-    marginTop: 8,
-  },
-  actionButtonText: { color: "white", fontWeight: "bold" },
   tabSwitcherContainer: {
     flexDirection: "row",
     justifyContent: "center",
