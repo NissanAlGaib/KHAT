@@ -9,6 +9,7 @@ import {
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
+import { Colors, Gradients, BorderRadius, Spacing, Shadows } from "@/constants";
 
 interface StyledModalProps {
   visible: boolean;
@@ -17,6 +18,10 @@ interface StyledModalProps {
   content: () => React.ReactNode;
 }
 
+/**
+ * StyledModal - Unified modal component with gradient header
+ * VERSION 1.1 - Uses theme constants for consistent styling
+ */
 export default function StyledModal({
   visible,
   onClose,
@@ -33,12 +38,16 @@ export default function StyledModal({
       <View style={styles.modalOverlay}>
         <View style={styles.modalContainer}>
           <LinearGradient
-            colors={["#FF9A8B", "#FF6B4A"]}
+            colors={[...Gradients.primary]}
             style={styles.modalHeader}
           >
             <Text style={styles.modalTitle}>{title}</Text>
-            <TouchableOpacity onPress={onClose} style={styles.closeButton}>
-              <Ionicons name="close" size={24} color="white" />
+            <TouchableOpacity 
+              onPress={onClose} 
+              style={styles.closeButton}
+              activeOpacity={0.7}
+            >
+              <Ionicons name="close" size={24} color={Colors.white} />
             </TouchableOpacity>
           </LinearGradient>
           <ScrollView style={styles.modalContent}>{content()}</ScrollView>
@@ -51,38 +60,34 @@ export default function StyledModal({
 const styles = StyleSheet.create({
   modalOverlay: {
     flex: 1,
-    backgroundColor: "rgba(0, 0, 0, 0.6)",
+    backgroundColor: Colors.overlay,
     justifyContent: "center",
     alignItems: "center",
   },
   modalContainer: {
     width: "90%",
     maxHeight: "80%",
-    backgroundColor: "white",
-    borderRadius: 20,
+    backgroundColor: Colors.bgPrimary,
+    borderRadius: BorderRadius["2xl"],
     overflow: "hidden",
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.25,
-    shadowRadius: 4,
-    elevation: 5,
+    ...Shadows.lg,
   },
   modalHeader: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
-    paddingHorizontal: 20,
-    paddingVertical: 16,
+    paddingHorizontal: Spacing.xl,
+    paddingVertical: Spacing.lg,
   },
   modalTitle: {
     fontSize: 20,
     fontWeight: "bold",
-    color: "white",
+    color: Colors.white,
   },
   closeButton: {
-    padding: 4,
+    padding: Spacing.xs,
   },
   modalContent: {
-    padding: 20,
+    padding: Spacing.xl,
   },
 });

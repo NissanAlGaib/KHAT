@@ -6,6 +6,7 @@ import {
   Info,
   XCircle,
 } from "lucide-react-native";
+import { Colors, AlertStyles } from "@/constants";
 
 interface AlertButton {
   text: string;
@@ -22,31 +23,16 @@ interface AlertModalProps {
   onClose: () => void;
 }
 
-const ALERT_STYLES = {
-  success: {
-    icon: CheckCircle,
-    iconColor: "#10b981",
-    bgColor: "#f0fdf4",
-    borderColor: "#10b981",
-  },
-  error: {
-    icon: XCircle,
-    iconColor: "#ef4444",
-    bgColor: "#fef2f2",
-    borderColor: "#ef4444",
-  },
-  warning: {
-    icon: AlertCircle,
-    iconColor: "#f59e0b",
-    bgColor: "#fffbeb",
-    borderColor: "#f59e0b",
-  },
-  info: {
-    icon: Info,
-    iconColor: "#3b82f6",
-    bgColor: "#eff6ff",
-    borderColor: "#3b82f6",
-  },
+/**
+ * AlertModal - Unified alert/dialog component
+ * VERSION 1.1 - Uses theme colors from constants/theme.ts
+ */
+
+const ALERT_ICONS = {
+  success: CheckCircle,
+  error: XCircle,
+  warning: AlertCircle,
+  info: Info,
 };
 
 export default function AlertModal({
@@ -72,8 +58,8 @@ export default function AlertModal({
     }
   }, [visible, scaleAnim]);
 
-  const style = ALERT_STYLES[type];
-  const IconComponent = style.icon;
+  const alertStyle = AlertStyles[type];
+  const IconComponent = ALERT_ICONS[type];
 
   const handleButtonPress = (button: AlertButton) => {
     if (button.onPress) {
@@ -85,20 +71,19 @@ export default function AlertModal({
   const getButtonStyle = (buttonStyle?: string) => {
     switch (buttonStyle) {
       case "cancel":
-        return "bg-gray-200";
+        return "bg-bg-muted";
       case "destructive":
-        return "bg-red-500";
+        return "bg-error";
       default:
-        return "bg-[#ea5b3a]";
+        return "bg-primary";
     }
   };
 
   const getButtonTextStyle = (buttonStyle?: string) => {
     switch (buttonStyle) {
       case "cancel":
-        return "text-gray-700";
+        return "text-text-secondary";
       case "destructive":
-        return "text-white";
       default:
         return "text-white";
     }
@@ -116,38 +101,39 @@ export default function AlertModal({
           style={{
             transform: [{ scale: scaleAnim }],
           }}
-          className="bg-white rounded-3xl w-full max-w-sm overflow-hidden"
+          className="bg-white rounded-2.5xl w-full max-w-sm overflow-hidden"
         >
           {/* Header with Icon */}
           <View className="items-center pt-8 pb-4 px-6">
             <View
               className="w-16 h-16 rounded-full items-center justify-center mb-4"
-              style={{ backgroundColor: style.bgColor }}
+              style={{ backgroundColor: alertStyle.bgColor }}
             >
-              <IconComponent size={32} color={style.iconColor} />
+              <IconComponent size={32} color={alertStyle.iconColor} />
             </View>
-            <Text className="text-2xl font-baloo text-[#111111] text-center mb-2">
+            <Text className="text-2xl font-baloo text-text-primary text-center mb-2">
               {title}
             </Text>
-            <Text className="text-gray-600 text-center text-base leading-6">
+            <Text className="text-text-muted text-center text-base leading-6">
               {message}
             </Text>
           </View>
 
           {/* Divider */}
-          <View className="h-[1px] bg-gray-200 mx-6" />
+          <View className="h-[1px] bg-border-light mx-6" />
 
           {/* Buttons */}
           <View className="px-6 py-4">
             {buttons.length === 1 ? (
               <TouchableOpacity
                 onPress={() => handleButtonPress(buttons[0])}
-                className={`py-4 rounded-full ${getButtonStyle(
+                className={`py-3.5 rounded-full ${getButtonStyle(
                   buttons[0].style
                 )}`}
+                activeOpacity={0.8}
               >
                 <Text
-                  className={`text-center font-semibold text-base ${getButtonTextStyle(
+                  className={`text-center font-mulish-bold text-base ${getButtonTextStyle(
                     buttons[0].style
                   )}`}
                 >
@@ -160,12 +146,13 @@ export default function AlertModal({
                   <TouchableOpacity
                     key={index}
                     onPress={() => handleButtonPress(button)}
-                    className={`flex-1 py-4 rounded-full ${getButtonStyle(
+                    className={`flex-1 py-3.5 rounded-full ${getButtonStyle(
                       button.style
                     )}`}
+                    activeOpacity={0.8}
                   >
                     <Text
-                      className={`text-center font-semibold text-base ${getButtonTextStyle(
+                      className={`text-center font-mulish-bold text-base ${getButtonTextStyle(
                         button.style
                       )}`}
                     >
