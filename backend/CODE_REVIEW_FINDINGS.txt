@@ -1,0 +1,428 @@
+================================================================================
+                    LARAVEL BACKEND CODE REVIEW - KHAT (PawLink)
+                              Review Date: January 27, 2026
+================================================================================
+
+EXECUTIVE SUMMARY
+================================================================================
+
+The codebase is a pet breeding platform built on Laravel 12 with standard 
+patterns. It shows signs of rapid development with significant technical debt 
+that should be addressed for long-term maintainability.
+
++-------------------+---------------+------------+
+| Category          | Issues Found  | Severity   |
++-------------------+---------------+------------+
+| Duplicate Code    | 9 major       | HIGH       |
+| Unused/Dead Code  | 12 instances  | MEDIUM     |
+| Code Quality      | 15+ issues    | HIGH       |
++-------------------+---------------+------------+
+
+
+================================================================================
+1. DUPLICATE CODE ISSUES [HIGH SEVERITY]
+================================================================================
+
+1.1 REPEATED ACCESS CHECK LOGIC (CRITICAL)
+--------------------------------------------------------------------------------
+File: app/Http/Controllers/BreedingContractController.php
+Lines: 50-55, 130-137, 195-200, 254-259, 322-327, 379-384, 461-466, 516-521, 578-583
+
+The exact same query pattern is REPEATED 9 TIMES:
+
+    $userPetIds = Pet::where('user_id', $user->id)->pluck('pet_id');
+    $contract = BreedingContract::whereHas('conversation.matchRequest', function ($query) use ($userPetIds) {
+        $query->where(function ($q) use ($userPetIds) {
+            $q->whereIn('requester_pet_id', $userPetIds)
+                ->orWhereIn('target_pet_id', $userPetIds);
+        });
+    })->find($contractId);
+
+RECOMMENDED FIX: Add a scope to BreedingContract model:
+
+    public function scopeForUser($query, $userId) {
+        $userPetIds = Pet::where('user_id', $userId)->pluck('pet_id');
+        return $query->whereHas('conversation.matchRequest', fn($q) => 
+            $q->whereIn('requester_pet_id', $userPetIds)
+              ->orWhereIn('target_pet_id', $userPetIds)
+        );
+    }
+
+
+1.2 SHOOTER ROLE VERIFICATION (4x DUPLICATED)
+--------------------------------------------------------------------------------
+File: app/Http/Controllers/ShooterController.php
+Lines: 95-109, 241-255, 358-372, 422-435
+
+    $shooterRole = Role::where('role_type', 'Shooter')->first();
+    if (!$shooterRole) { ... }
+    $isShooter = $user->roles()->where('roles.role_id', $shooterRole->role_id)->exists();
+    if (!$isShooter) { ... }
+
+RECOMMENDED FIX: Create middleware CheckShooterRole or a policy.
+
+
+1.3 PRIMARY PET PHOTO FETCHING (7x DUPLICATED)
+--------------------------------------------------------------------------------
+Files: 
+  - app/Http/Controllers/BreedingContractController.php (line 785-786)
+  - app/Http/Controllers/ShooterController.php (lines 174-175, 291-292, 455-456, 608)
+  - app/Http/Controllers/MatchRequestController.php (lines 357, 412, 479)
+  - app/Http/Controllers/MatchController.php (lines 132-133)
+
+    $primaryPhoto = $pet->photos->firstWhere('is_primary', true) ?? $pet->photos->first();
+
+RECOMMENDED FIX: Add accessor to Pet model:
+
+    public function getPrimaryPhotoUrlAttribute(): ?string {
+        $photo = $this->photos->firstWhere('is_primary', true) ?? $this->photos->first();
+        return $photo?->photo_url;
+    }
+
+
+1.4 GROWTH PERCENTAGE CALCULATION (10x DUPLICATED)
+--------------------------------------------------------------------------------
+File: app/Http/Controllers/Admin/AdminController.php
+Lines: 95, 109, 123, 131, 138, 147, 155, 162, 584, 591, 599, 674, 680, 705
+
+    $growth = $previousCount > 0 
+        ? round((($currentCount - $previousCount) / $previousCount) * 100, 1)
+        : 0;
+
+RECOMMENDED FIX: Extract to helper method:
+
+    private function calculateGrowth(int $current, int $previous): float {
+        return $previous > 0 ? round((($current - $previous) / $previous) * 100, 1) : 0;
+    }
+
+
+1.5 FILE SIZE VALIDATION (7x HARDCODED)
+--------------------------------------------------------------------------------
+File: app/Http/Controllers/PetController.php
+Lines: 81, 88, 97, 104, 112, 584, 633
+
+    max:20480 appears 7 times for file uploads.
+
+RECOMMENDED FIX: Define constant:
+
+    const MAX_FILE_SIZE_KB = 20480;
+
+
+1.6 SIMILAR VALIDATION RULE BLOCKS
+--------------------------------------------------------------------------------
+File: app/Http/Controllers/BreedingContractController.php
+  - Lines 21-44 (store method)
+  - Lines 166-189 (update method)
+  
+Nearly identical validation rules duplicated.
+
+File: app/Http/Controllers/PetController.php
+  - Lines 583-589 (resubmitVaccination)
+  - Lines 633-639 (resubmitHealthRecord)
+
+RECOMMENDED FIX: Extract to Form Request classes:
+  - BreedingContractRequest
+  - DocumentResubmitRequest
+
+
+================================================================================
+2. UNUSED/DEAD CODE [MEDIUM SEVERITY]
+================================================================================
+
+2.1 UNUSED IMPORTS
+--------------------------------------------------------------------------------
++--------------------------------+------+--------------------------------------------------+
+| File                           | Line | Import                                           |
++--------------------------------+------+--------------------------------------------------+
+| app/Models/User.php            | 5    | // use Illuminate\Contracts\Auth\MustVerifyEmail |
+| app/Http/Controllers/          | 7    | use Illuminate\Support\Facades\Storage;          |
+|   VerificationController.php   |      | (never used - file storage via $request->file)  |
+| app/Http/Controllers/          | 6    | use App\Models\User;                             |
+|   MatchController.php          |      | (never used - uses $request->user())            |
++--------------------------------+------+--------------------------------------------------+
+
+
+2.2 DEBUG/UTILITY METHODS (SHOULD NOT BE IN PRODUCTION)
+--------------------------------------------------------------------------------
+File: app/Http/Controllers/ShooterController.php
+
++------+--------------------+------------------------------------------+
+| Line | Method             | Issue                                    |
++------+--------------------+------------------------------------------+
+| 694  | debugContracts()   | Exposes internal state                   |
+| 748  | fixShooterStatus() | One-time fix should be migration/command |
++------+--------------------+------------------------------------------+
+
+File: routes/api.php (Lines 76-77)
+
+    Route::get('/shooter/debug/contracts', [ShooterController::class, 'debugContracts']);
+    Route::post('/shooter/debug/fix-status', [ShooterController::class, 'fixShooterStatus']);
+
+*** WARNING: THESE DEBUG ROUTES ARE ACCESSIBLE IN PRODUCTION! ***
+
+
+2.3 TODO PLACEHOLDERS (INCOMPLETE FEATURES)
+--------------------------------------------------------------------------------
+File: app/Http/Controllers/ShooterController.php
+
++------+--------------------------------------------------+
+| Line | TODO                                             |
++------+--------------------------------------------------+
+| 65   | // TODO: Add specialization field to users table |
+| 68   | // TODO: Implement rating system                 |
+| 69   | // TODO: Implement session tracking              |
+| 658  | // TODO: Implement rating system (duplicate)     |
++------+--------------------------------------------------+
+
+
+2.4 POTENTIALLY UNUSED RELATIONSHIPS
+--------------------------------------------------------------------------------
++-------+------------------+------+--------------------------------------------------+
+| Model | Relationship     | Line | Issue                                            |
++-------+------------------+------+--------------------------------------------------+
+| Pet   | recommender()    | 67   | rec_id field exists but no code populates/uses   |
+| User  | recommendedPets()| 81   | Inverse of above, never used in controllers      |
++-------+------------------+------+--------------------------------------------------+
+
+
+================================================================================
+3. CODE QUALITY ISSUES [HIGH SEVERITY]
+================================================================================
+
+3.1 FAT CONTROLLERS / GOD CLASSES
+--------------------------------------------------------------------------------
++----------------------------------+-------+--------------------------------------------------+
+| File                             | Lines | Issue                                            |
++----------------------------------+-------+--------------------------------------------------+
+| PetController.php::store()       | ~280  | Handles validation, 4 models, file uploads,      |
+|                                  |       | transactions all in one method                   |
++----------------------------------+-------+--------------------------------------------------+
+| AdminController.php              | 984   | Dashboard, verification, billing, analytics,     |
+|                                  |       | reports - everything in one class                |
++----------------------------------+-------+--------------------------------------------------+
+| MatchController.php              | 446   | Contains full compatibility algorithm with       |
+|                                  |       | MLP-like scoring logic                           |
++----------------------------------+-------+--------------------------------------------------+
+
+RECOMMENDED FIX: Extract to services:
+  - PetRegistrationService
+  - AdminReportService, UserVerificationService, BillingService
+  - MatchingService / CompatibilityCalculator
+
+
+3.2 HARDCODED MAGIC VALUES
+--------------------------------------------------------------------------------
++----------------------+----------+-----------------+----------------------------------+
+| File                 | Line     | Value           | Should Be                        |
++----------------------+----------+-----------------+----------------------------------+
+| AdminController.php  | 557, 653 | 199, 499        | config('subscription.prices')    |
+| MatchController.php  | 300-305  | 0.35, 0.15, etc | config('matching.weights')       |
+| MatchController.php  | 378-403  | 0.9, 0.3, 0.8   | config('matching.thresholds')    |
+| Multiple files       | various  | 'pending_       | Pet::STATUS_PENDING_VERIFICATION |
+|                      |          | verification',  | Pet::STATUS_APPROVED             |
+|                      |          | 'approved',     | Pet::STATUS_ACTIVE               |
+|                      |          | 'active'        |                                  |
++----------------------+----------+-----------------+----------------------------------+
+
+
+3.3 MISSING TYPE HINTS & RETURN TYPES
+--------------------------------------------------------------------------------
++------------------------+--------------------------------+----------------------------+
+| File                   | Method                         | Missing                    |
++------------------------+--------------------------------+----------------------------+
+| MatchController.php    | calculateCompatibilityScore()  | Parameter types, return    |
+|   line 173             | ($pet, $userPet)               | type                       |
++------------------------+--------------------------------+----------------------------+
+| PetController.php      | store(), show(), index(),      | Return type : JsonResponse |
+|                        | resubmitVaccination()          |                            |
++------------------------+--------------------------------+----------------------------+
+| User.php line 65       | roles()                        | : BelongsToMany            |
++------------------------+--------------------------------+----------------------------+
+| Pet.php line 139       | litters()                      | Return type                |
++------------------------+--------------------------------+----------------------------+
+
+
+3.4 RAW SQL (DATABASE-SPECIFIC)
+--------------------------------------------------------------------------------
+File: app/Http/Controllers/Admin/AdminController.php
+Lines: 168, 178, 620, 629
+
+    DB::raw('DATE_FORMAT(created_at, "%Y-%m")')
+
+This is MySQL-specific and will break on PostgreSQL/SQLite.
+
+RECOMMENDED FIX: Use Eloquent's whereMonth(), whereYear(), or create 
+database-agnostic date formatting.
+
+
+3.5 INCONSISTENT NAMING
+--------------------------------------------------------------------------------
++----------+-------------------------------------------------------------------+
+| Location | Issue                                                             |
++----------+-------------------------------------------------------------------+
+| Pet.php  | rec_id should be recommender_id (unclear abbreviation)            |
++----------+-------------------------------------------------------------------+
+| Pet.php  | pet_id as primary key (Laravel convention is id)                  |
++----------+-------------------------------------------------------------------+
+| User.php | Mix of firstName/lastName (camelCase) vs contact_number           |
+|          | (snake_case) - should be consistent                               |
++----------+-------------------------------------------------------------------+
+
+
+================================================================================
+4. RECOMMENDED ACTIONS (PRIORITIZED)
+================================================================================
+
+PRIORITY 1 - CRITICAL (Security/Production Issues)
+--------------------------------------------------------------------------------
+Estimated Time: 2-3 hours
+
+[ ] 1. REMOVE debug routes from routes/api.php (lines 76-77)
+[ ] 2. REMOVE debug methods from ShooterController (debugContracts, fixShooterStatus)
+[ ] 3. EXTRACT access check logic into BreedingContract::scopeForUser()
+
+
+PRIORITY 2 - HIGH (Maintainability)
+--------------------------------------------------------------------------------
+Estimated Time: 1-2 days
+
+[ ] 4. CREATE Middleware for shooter role verification (CheckShooterRole)
+[ ] 5. ADD primary_photo_url accessor to Pet model
+[ ] 6. EXTRACT PetRegistrationService from PetController::store()
+[ ] 7. MOVE hardcoded prices/thresholds to config/ files:
+       - config/subscription.php (prices)
+       - config/matching.php (weights, thresholds)
+[ ] 8. CREATE Form Request classes:
+       - BreedingContractRequest
+       - DocumentResubmitRequest
+
+
+PRIORITY 3 - MEDIUM (Code Quality)
+--------------------------------------------------------------------------------
+Estimated Time: 4-6 hours
+
+[ ] 9.  ADD status constants to models (Pet::STATUS_ACTIVE, etc.)
+[ ] 10. ADD PHP 8+ type hints across controllers
+[ ] 11. REMOVE unused imports and commented code
+[ ] 12. CLEAN UP or implement TODO items
+[ ] 13. EXTRACT calculateGrowth() helper in AdminController
+
+
+PRIORITY 4 - LOW (Nice to Have)
+--------------------------------------------------------------------------------
+Estimated Time: 1-2 days
+
+[ ] 14. BREAK DOWN AdminController into domain-specific services
+[ ] 15. RENAME rec_id to recommender_id (requires migration)
+[ ] 16. STANDARDIZE naming convention (camelCase vs snake_case for user fields)
+[ ] 17. Replace raw SQL date formatting with Eloquent methods
+
+
+================================================================================
+5. FILES REQUIRING IMMEDIATE ATTENTION
+================================================================================
+
+1. routes/api.php
+   - Remove debug routes (lines 76-77)
+
+2. app/Http/Controllers/ShooterController.php
+   - Remove debugContracts() method
+   - Remove fixShooterStatus() method
+   - Extract shooter role verification to middleware
+
+3. app/Http/Controllers/BreedingContractController.php
+   - Extract access check logic to model scope
+   - Create Form Request for validation
+
+4. app/Http/Controllers/PetController.php
+   - Extract store() logic to service
+   - Define file size constant
+
+5. app/Http/Controllers/Admin/AdminController.php
+   - Extract calculateGrowth() helper
+   - Move hardcoded prices to config
+   - Consider breaking into smaller controllers/services
+
+6. app/Models/Pet.php
+   - Add getPrimaryPhotoUrlAttribute() accessor
+
+
+================================================================================
+SUMMARY
+================================================================================
+
+The codebase functions but has accumulated significant technical debt. 
+
+Most Critical Issues:
+1. Debug routes exposed in production (SECURITY RISK)
+2. Massive code duplication (access checks, shooter verification)
+3. Fat controllers (PetController::store is 280 lines)
+
+Estimated Effort:
+- Priority 1 items: 2-3 hours
+- Full cleanup (all priorities): 2-3 days
+
+================================================================================
+6. MISSING IMPORTS - RUNTIME ERRORS [CRITICAL]
+================================================================================
+
+The following controllers use the Log facade without importing it.
+This will cause RUNTIME ERRORS when those code paths are executed.
+
+6.1 BreedingContractController.php - MISSING: use Illuminate\Support\Facades\Log;
+--------------------------------------------------------------------------------
+Lines with undefined Log usage:
+  - Line 113
+  - Line 237
+  - Line 285
+  - Line 294
+  - Line 305
+  - Line 362
+  - Line 444
+  - Line 499
+  - Line 674
+  - Line 727
+  - Line 984
+  - Line 1123
+  - Line 1176
+  - Line 1383
+  - Line 1525
+  - Line 1627
+  - Line 1852
+
+Total: 17 instances
+
+
+6.2 ShooterController.php - MISSING: use Illuminate\Support\Facades\Log;
+--------------------------------------------------------------------------------
+Lines with undefined Log usage:
+  - Line 126
+  - Line 143
+  - Line 163
+  - Line 212
+  - Line 224
+  - Line 341
+  - Line 404
+  - Line 502
+
+Total: 8 instances
+
+
+6.3 MatchRequestController.php - MISSING: use Illuminate\Support\Facades\Log;
+--------------------------------------------------------------------------------
+Lines with undefined Log usage:
+  - Line 648
+  - Line 679
+
+Total: 2 instances
+
+
+RECOMMENDED FIX:
+Add the following import to each file after the namespace declaration:
+
+    use Illuminate\Support\Facades\Log;
+
+
+================================================================================
+                              END OF CODE REVIEW
+================================================================================
