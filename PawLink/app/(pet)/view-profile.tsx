@@ -508,6 +508,37 @@ export default function ViewPetProfileScreen() {
                 >
                   {sendingRequest ? <ActivityIndicator size="small" color="white" /> : <Feather name="heart" size={28} color="white" />}
                 </TouchableOpacity>
+                <TouchableOpacity 
+                  style={styles.actionButton}
+                  onPress={() => {
+                    if (!selectedPet) {
+                      showAlert({
+                        title: "No Pet Selected",
+                        message: "Please select one of your pets to see AI offspring prediction.",
+                        type: "warning",
+                      });
+                      return;
+                    }
+                    const primaryPhoto = selectedPet.photos?.find((p) => p.is_primary) || selectedPet.photos?.[0];
+                    router.push({
+                      pathname: "/(pet)/ai-offspring",
+                      params: {
+                        pet1Name: selectedPet.name,
+                        pet2Name: petData?.name || "Unknown",
+                        pet1Photo: primaryPhoto?.photo_url || "",
+                        pet2Photo: petData?.profile_image || "",
+                        pet1Breed: selectedPet.breed || "Unknown",
+                        pet2Breed: petData?.breed || "Unknown",
+                        compatibilityScore: "85",
+                      },
+                    });
+                  }}
+                >
+                  <Image
+                    source={require("@/assets/images/AI_Rec.png")}
+                    style={styles.aiRecButtonIcon}
+                  />
+                </TouchableOpacity>
                 <TouchableOpacity style={styles.actionButton}>
                     <Feather name="message-circle" size={24} color="#4B5563" />
                 </TouchableOpacity>
@@ -651,5 +682,6 @@ const styles = StyleSheet.create({
   photo: { width: '100%', height: '100%' },
   emptyGalleryText: { marginTop: 15, fontSize: 16, color: '#888', textAlign: 'center' },
   viewLitterButton: { backgroundColor: '#FF6B4A', borderRadius: 20, paddingVertical: 12, paddingHorizontal: 20, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', marginTop: 10 },
-  viewLitterText: { color: 'white', fontWeight: 'bold', marginRight: 8 }
+  viewLitterText: { color: 'white', fontWeight: 'bold', marginRight: 8 },
+  aiRecButtonIcon: { width: 32, height: 32 }
 });

@@ -209,7 +209,22 @@ function TopMatches({ matches, onAddPetPress }: { matches: TopMatch[], onAddPetP
           </Text>
         </View>
 
-        <TouchableOpacity>
+        <TouchableOpacity
+          onPress={() =>
+            router.push({
+              pathname: "/(pet)/ai-offspring",
+              params: {
+                pet1Name: topMatch.pet1.name,
+                pet2Name: topMatch.pet2.name,
+                pet1Photo: topMatch.pet1.photo_url || "",
+                pet2Photo: topMatch.pet2.photo_url || "",
+                pet1Breed: "Unknown",
+                pet2Breed: "Unknown",
+                compatibilityScore: topMatch.compatibility_score.toString(),
+              },
+            })
+          }
+        >
           <Image
             source={require("@/assets/images/AI_Rec.png")}
             style={styles.aiRecIcon}
