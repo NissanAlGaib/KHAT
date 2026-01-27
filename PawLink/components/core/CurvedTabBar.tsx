@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { View, TouchableOpacity, Dimensions, Text } from "react-native";
+import { View, TouchableOpacity, Dimensions, Text, Image } from "react-native";
 import Animated, { FadeIn, FadeOut } from "react-native-reanimated";
 import Svg, { Path } from "react-native-svg";
 import { useRouter } from "expo-router";
@@ -13,7 +13,9 @@ import {
 import { BottomTabBarProps } from "@react-navigation/bottom-tabs";
 import PetSelectionModal from "./PetSelectionModal";
 import { useRole } from "@/context/RoleContext";
+import { usePet } from "@/context/PetContext";
 import { getPendingShooterRequestsCount } from "@/services/contractService";
+import { API_BASE_URL } from "@/config/env";
 
 const { width } = Dimensions.get("window");
 const TAB_BAR_WIDTH = width * 0.9;
@@ -30,11 +32,24 @@ export default function CurvedTabBar({
   const current = state.index;
   const [showPetModal, setShowPetModal] = useState(false);
   const { role } = useRole();
+  const { selectedPet } = usePet();
   const [pendingShooterRequestsCount, setPendingShooterRequestsCount] =
     useState(0);
 
   // Check if user is in Shooter mode
   const isShooterMode = role === "Shooter";
+
+  // Get selected pet's photo URL
+  const getSelectedPetPhoto = () => {
+    if (!selectedPet) return null;
+    const primaryPhoto = selectedPet.photos?.find((p) => p.is_primary);
+    if (primaryPhoto?.photo_url) {
+      return `${API_BASE_URL}/storage/${primaryPhoto.photo_url}`;
+    }
+    return null;
+  };
+
+  const petPhotoUrl = getSelectedPetPhoto();
 
   // Fetch pending shooter requests count
   useEffect(() => {
@@ -142,8 +157,9 @@ export default function CurvedTabBar({
               shadowOpacity: 0.3,
               shadowRadius: 8,
               elevation: 8,
-              borderWidth: 6,
+              borderWidth: 4,
               borderColor: "#EA5B3A",
+              overflow: "hidden",
             }}
           >
             <TouchableOpacity
@@ -155,7 +171,19 @@ export default function CurvedTabBar({
                 justifyContent: "center",
               }}
             >
-              <PawPrint size={40} color="#EA5B3A" strokeWidth={2.5} />
+              {petPhotoUrl ? (
+                <Image
+                  source={{ uri: petPhotoUrl }}
+                  style={{
+                    width: "100%",
+                    height: "100%",
+                    borderRadius: CENTER_CIRCLE_SIZE / 2,
+                  }}
+                  resizeMode="cover"
+                />
+              ) : (
+                <PawPrint size={36} color="#EA5B3A" strokeWidth={2.5} />
+              )}
             </TouchableOpacity>
           </Animated.View>
         )}

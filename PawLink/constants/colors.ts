@@ -53,6 +53,19 @@ export const Colors = {
   bgSecondary: "#F9FAFB",      // Secondary background (gray-50)
   bgTertiary: "#F3F4F6",       // Tertiary background (gray-100)
   bgMuted: "#E5E7EB",          // Muted background (gray-200)
+  bgWarm: "#FFF8F6",           // Warm off-white with peach tint
+  bgWarmSecondary: "#FFF5F3",  // Slightly warmer for sections
+  coralSubtle: "#FFF1EF",      // Very subtle coral for highlights
+  
+  // Vibrant backgrounds
+  bgCoral: "#FFE0D8",        // Original homepage background
+  bgCoralLight: "#FFF5F3",   // Lighter coral
+  matchCardBg: "#F9DCDC",    // Pink for match sections
+  matchCardBorder: "#FECACA", // Match card border
+
+  // More vibrant accents
+  coralVibrant: "#FF6B4A",   // Primary brand color
+  coralDark: "#DC2626",      // For emphasis text
   
   // Legacy gray mappings (for backwards compatibility)
   grayDark: "#333333",
