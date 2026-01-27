@@ -1,6 +1,6 @@
 # KHAT - PawLink
 
-A pet adoption and management platform built with React Native (Expo) and Laravel.
+A pet breeding matchmaking platform built with React Native (Expo) and Laravel.
 
 ## Project Structure
 
