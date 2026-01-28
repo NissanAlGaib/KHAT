@@ -7,6 +7,7 @@ import * as SplashScreen from "expo-splash-screen";
 import { useLoadFonts } from "@/hooks/useLoadFonts";
 import { useEffect, useMemo } from "react";
 import { Text, View } from "react-native";
+import { GestureHandlerRootView } from "react-native-gesture-handler";
 import "./globals.css";
 
 SplashScreen.preventAutoHideAsync().catch((err) => {
@@ -65,31 +66,35 @@ export default function RootLayout() {
 
   try {
     return (
-      <SessionProvider>
-        <PetProvider>
-          <RoleProvider>
-            <NotificationProvider>
-              <RootNavigator />
-            </NotificationProvider>
-          </RoleProvider>
-        </PetProvider>
-      </SessionProvider>
+      <GestureHandlerRootView style={{ flex: 1 }}>
+        <SessionProvider>
+          <PetProvider>
+            <RoleProvider>
+              <NotificationProvider>
+                <RootNavigator />
+              </NotificationProvider>
+            </RoleProvider>
+          </PetProvider>
+        </SessionProvider>
+      </GestureHandlerRootView>
     );
   } catch (error) {
     console.error("RootLayout error:", error);
     return (
-      <View
-        style={{
-          flex: 1,
-          justifyContent: "center",
-          alignItems: "center",
-          padding: 20,
-        }}
-      >
-        <Text style={{ color: "red", textAlign: "center" }}>
-          Error loading app: {String(error)}
-        </Text>
-      </View>
+      <GestureHandlerRootView style={{ flex: 1 }}>
+        <View
+          style={{
+            flex: 1,
+            justifyContent: "center",
+            alignItems: "center",
+            padding: 20,
+          }}
+        >
+          <Text style={{ color: "red", textAlign: "center" }}>
+            Error loading app: {String(error)}
+          </Text>
+        </View>
+      </GestureHandlerRootView>
     );
   }
 }

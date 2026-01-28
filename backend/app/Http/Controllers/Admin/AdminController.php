@@ -19,6 +19,22 @@ use Carbon\Carbon;
 class AdminController extends Controller
 {
     /**
+     * Calculate percentage growth between two values.
+     *
+     * @param int|float $current Current value
+     * @param int|float $previous Previous value
+     * @return float Growth percentage rounded to 1 decimal place
+     */
+    private function calculateGrowth(int|float $current, int|float $previous): float
+    {
+        if ($previous <= 0) {
+            return 0.0;
+        }
+
+        return round((($current - $previous) / $previous) * 100, 1);
+    }
+
+    /**
      * Display the admin login form.
      */
     public function showLoginForm()
@@ -92,9 +108,7 @@ class AdminController extends Controller
         // Total Users
         $totalUsers = User::count();
         $usersLastMonth = User::where('created_at', '<', $lastMonth)->count();
-        $usersGrowth = $usersLastMonth > 0 
-            ? round((($totalUsers - $usersLastMonth) / $usersLastMonth) * 100, 1)
-            : 0;
+        $usersGrowth = $this->calculateGrowth($totalUsers, $usersLastMonth);
 
         // Verified Breeders (users with breeder_certificate approved)
         $verifiedBreeders = User::whereHas('userAuth', function ($q) {
@@ -106,9 +120,7 @@ class AdminController extends Controller
               ->where('status', 'approved')
               ->where('updated_at', '<', $lastMonth);
         })->count();
-        $breedersGrowth = $breedersLastMonth > 0 
-            ? round((($verifiedBreeders - $breedersLastMonth) / $breedersLastMonth) * 100, 1)
-            : 0;
+        $breedersGrowth = $this->calculateGrowth($verifiedBreeders, $breedersLastMonth);
 
         // Verified Shooters (users with shooter_certificate approved)
         $verifiedShooters = User::whereHas('userAuth', function ($q) {
@@ -120,48 +132,36 @@ class AdminController extends Controller
               ->where('status', 'approved')
               ->where('updated_at', '<', $lastWeek);
         })->count();
-        $shootersGrowth = $shootersLastWeek > 0 
-            ? round((($verifiedShooters - $shootersLastWeek) / $shootersLastWeek) * 100, 1)
-            : 0;
+        $shootersGrowth = $this->calculateGrowth($verifiedShooters, $shootersLastWeek);
 
         // Pet Statistics
         $activePets = Pet::where('status', 'active')->count();
         $activePetsLastWeek = Pet::where('status', 'active')
             ->where('updated_at', '<', $lastWeek)->count();
-        $activePetsGrowth = $activePetsLastWeek > 0 
-            ? round((($activePets - $activePetsLastWeek) / $activePetsLastWeek) * 100, 1)
-            : 0;
+        $activePetsGrowth = $this->calculateGrowth($activePets, $activePetsLastWeek);
 
         $disabledPets = Pet::where('status', 'disabled')->count();
         $disabledPetsLastWeek = Pet::where('status', 'disabled')
             ->where('updated_at', '<', $lastWeek)->count();
-        $disabledPetsGrowth = $disabledPetsLastWeek > 0 
-            ? round((($disabledPets - $disabledPetsLastWeek) / $disabledPetsLastWeek) * 100, 1)
-            : 0;
+        $disabledPetsGrowth = $this->calculateGrowth($disabledPets, $disabledPetsLastWeek);
 
         // Pets on cooldown (using cooldown_until timestamp)
         $cooldownPets = Pet::onCooldown()->count();
         $cooldownPetsLastMonth = Pet::where('cooldown_until', '>', $lastMonth)
             ->where('cooldown_until', '<=', $now)
             ->count();
-        $cooldownPetsGrowth = $cooldownPetsLastMonth > 0 
-            ? round((($cooldownPets - $cooldownPetsLastMonth) / $cooldownPetsLastMonth) * 100, 1)
-            : 0;
+        $cooldownPetsGrowth = $this->calculateGrowth($cooldownPets, $cooldownPetsLastMonth);
 
         // Subscription Statistics
         $standardSubscribers = User::where('subscription_tier', 'standard')->count();
         $standardLastMonth = User::where('subscription_tier', 'standard')
             ->where('updated_at', '<', $lastMonth)->count();
-        $standardGrowth = $standardLastMonth > 0 
-            ? round((($standardSubscribers - $standardLastMonth) / $standardLastMonth) * 100, 1)
-            : 0;
+        $standardGrowth = $this->calculateGrowth($standardSubscribers, $standardLastMonth);
 
         $premiumSubscribers = User::where('subscription_tier', 'premium')->count();
         $premiumLastMonth = User::where('subscription_tier', 'premium')
             ->where('updated_at', '<', $lastMonth)->count();
-        $premiumGrowth = $premiumLastMonth > 0 
-            ? round((($premiumSubscribers - $premiumLastMonth) / $premiumLastMonth) * 100, 1)
-            : 0;
+        $premiumGrowth = $this->calculateGrowth($premiumSubscribers, $premiumLastMonth);
 
         // Monthly New Users for Chart (last 12 months)
         $monthlyUsers = User::select(
@@ -582,23 +582,19 @@ class AdminController extends Controller
         $subscriptionRevenueLastMonth = ($premiumLastMonth * $premiumPrice) + ($standardLastMonth * $standardPrice);
         $revenueLastMonth = $subscriptionRevenueLastMonth + $matchRequestRevenueLastMonth;
         $revenueGrowth = $revenueLastMonth > 0 
-            ? round((($totalRevenue - $revenueLastMonth) / $revenueLastMonth) * 100, 1)
+            ? $this->calculateGrowth($totalRevenue, $revenueLastMonth)
             : ($totalRevenue > 0 ? 100 : 0);
 
         // Active Users (users with activity in last 30 days)
         $activeUsers = User::where('updated_at', '>=', $lastMonth)->count();
         $activeUsersLastMonth = User::whereBetween('updated_at', [$twoMonthsAgo, $lastMonth])->count();
-        $activeUsersGrowth = $activeUsersLastMonth > 0 
-            ? round((($activeUsers - $activeUsersLastMonth) / $activeUsersLastMonth) * 100, 1)
-            : 0;
+        $activeUsersGrowth = $this->calculateGrowth($activeUsers, $activeUsersLastMonth);
 
         // Matches Made
         $matchesMade = MatchRequest::where('status', 'accepted')->count();
         $matchesLastWeek = MatchRequest::where('status', 'accepted')
             ->where('updated_at', '<', $now->copy()->subWeek())->count();
-        $matchesGrowth = $matchesLastWeek > 0 
-            ? round((($matchesMade - $matchesLastWeek) / $matchesLastWeek) * 100, 1)
-            : 0;
+        $matchesGrowth = $this->calculateGrowth($matchesMade, $matchesLastWeek);
 
         // Conversion Rate (accepted matches / total match requests)
         $totalRequests = MatchRequest::count();
@@ -671,15 +667,11 @@ class AdminController extends Controller
         $lastMonth = Carbon::now()->subMonth();
         $standardLastMonth = User::where('subscription_tier', 'standard')
             ->where('updated_at', '<', $lastMonth)->count();
-        $standardGrowth = $standardLastMonth > 0 
-            ? round((($standardUsers - $standardLastMonth) / $standardLastMonth) * 100, 1)
-            : 0;
+        $standardGrowth = $this->calculateGrowth($standardUsers, $standardLastMonth);
 
         $premiumLastMonth = User::where('subscription_tier', 'premium')
             ->where('updated_at', '<', $lastMonth)->count();
-        $premiumGrowth = $premiumLastMonth > 0 
-            ? round((($premiumUsers - $premiumLastMonth) / $premiumLastMonth) * 100, 1)
-            : 0;
+        $premiumGrowth = $this->calculateGrowth($premiumUsers, $premiumLastMonth);
 
         // Match request payment statistics for free tier users
         $matchRequestPayments = \App\Models\Payment::where('payment_type', \App\Models\Payment::TYPE_MATCH_REQUEST)
@@ -702,9 +694,7 @@ class AdminController extends Controller
             ->where('status', \App\Models\Payment::STATUS_PAID)
             ->whereBetween('paid_at', [$startOfLastMonth, $endOfLastMonth])
             ->count();
-        $matchRequestGrowth = $matchRequestPaymentsLastMonth > 0 
-            ? round((($matchRequestPaymentsThisMonth - $matchRequestPaymentsLastMonth) / $matchRequestPaymentsLastMonth) * 100, 1)
-            : 0;
+        $matchRequestGrowth = $this->calculateGrowth($matchRequestPaymentsThisMonth, $matchRequestPaymentsLastMonth);
 
         // Recent subscription changes
         $recentSubscriptions = User::whereNotNull('subscription_tier')

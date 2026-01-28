@@ -1,0 +1,378 @@
+================================================================================
+                   PAWLINK FRONTEND - VERSION 1 CHANGES
+                           January 27, 2026
+================================================================================
+
+This document tracks all code review implementation changes made to the PawLink
+React Native frontend application.
+
+================================================================================
+1. DEAD CODE REMOVAL
+================================================================================
+
+1.1 REMOVED UNUSED IMPORT: Ionicons
+--------------------------------------------------------------------------------
+File: app/(tabs)/index.tsx
+Line: 33
+
+Before:
+  import { Ionicons, Feather } from "@expo/vector-icons";
+
+After:
+  import { Feather } from "@expo/vector-icons";
+
+Reason: Ionicons was imported but never used in the component. Only Feather
+icons are used throughout the file.
+
+
+1.2 REMOVED UNUSED STYLES: actionButton, actionButtonText
+--------------------------------------------------------------------------------
+File: app/(tabs)/index.tsx
+Lines: 897-903 (removed)
+
+Removed unused StyleSheet definitions:
+  - actionButton: { backgroundColor: "#ea5b3a", padding: 10, ... }
+  - actionButtonText: { color: "white", fontWeight: "bold" }
+
+Reason: These styles were defined but never referenced in the component JSX.
+
+
+================================================================================
+2. NEW FILES CREATED
+================================================================================
+
+2.1 COLOR CONSTANTS
+--------------------------------------------------------------------------------
+File: constants/colors.ts
+
+Purpose: Centralized color palette to eliminate hardcoded color values across
+the codebase. Includes:
+
+- Primary brand colors (#FF6B4A, #FF9A8B, #E4492E)
+- Coral/red theme colors for matches and alerts
+- Semantic colors (success, error, warning)
+- Gray scale (7 shades from #333333 to #F3F4F6)
+- UI colors (white, black, overlay)
+- Shadow color presets
+- Gradient presets for LinearGradient components
+- Date format constants (API, DISPLAY, DISPLAY_LONG, TIMESTAMP)
+
+Exports:
+  - Colors: Object with all color hex values
+  - Gradients: Preset gradient color arrays
+  - DateFormats: Common date format strings
+  - ColorKey, GradientKey: TypeScript types
+
+
+2.2 TYPESCRIPT INTERFACES
+--------------------------------------------------------------------------------
+Directory: types/
+
+Files created:
+  - types/Pet.ts
+  - types/User.ts
+  - types/Contract.ts
+  - types/index.ts (barrel export)
+
+Pet.ts exports:
+  - Pet: Full pet data interface
+  - PetImage: Pet image model
+  - PetFormData: Form data for pet creation/editing
+  - ImagePickerAsset: Image picker result type
+  - DocumentPickerAsset: Document picker result type
+  - Litter: Litter data from breeding
+  - LitterPuppy: Individual puppy data
+
+User.ts exports:
+  - User: Full user profile interface
+  - UserRole: "user" | "breeder" | "shooter" | "admin"
+  - VerificationStatusType: User verification states
+  - SubscriptionTier: Subscription level types
+  - ShooterProfile: Extended user for shooters
+  - UserPreferences: User notification/preference settings
+  - AuthState: Authentication context state
+
+Contract.ts exports:
+  - BreedingContract: Full contract model
+  - ContractStatus: All possible contract states
+  - ContractFormData: Form data for contracts
+  - OffspringSplitType: "percentage" | "fixed" | "alternating"
+  - OffspringSelectionMethod: Selection order types
+  - ContractAction: UI action button configuration
+  - AllocationSummary: Offspring allocation summary
+
+index.ts exports:
+  - All above types re-exported
+  - ApiResponse<T>: Generic API response wrapper
+  - ApiErrorResponse: Error response structure
+  - PaginatedResponse<T>: Paginated list response
+  - ModalProps: Common modal component props
+  - LoadingState: Loading/error state interface
+
+
+2.3 API ERROR HANDLING UTILITY
+--------------------------------------------------------------------------------
+File: utils/apiError.ts
+
+Purpose: Centralized API error handling to replace duplicated try-catch patterns
+across all service files.
+
+Exports:
+  - parseApiError(error): Convert any error to ApiError format
+  - handleApiError(error, context, options): Parse + optionally show alert
+  - extractValidationErrors(errors): Flatten validation errors for forms
+  - isNetworkError(error): Check if network connection error
+  - isAuthError(error): Check if 401 unauthorized
+  - isValidationError(error): Check if 422 validation error
+  - getErrorMessage(error): Get user-friendly error message
+
+Features:
+  - Axios error detection and parsing
+  - Status code-specific error messages
+  - Optional Alert.alert display
+  - DEV-only console logging
+  - TypeScript-safe error handling
+
+
+2.4 FORMDATA UTILITIES
+--------------------------------------------------------------------------------
+File: utils/formDataUtils.ts
+
+Purpose: Centralized FormData construction for React Native image/document
+uploads. Eliminates duplicated FormData patterns in services.
+
+Exports:
+  - toFormDataImage(image, defaultName): Convert image to FormData-compatible
+  - toFormDataDocument(document, defaultName): Convert document to FormData
+  - appendImageToFormData(formData, fieldName, image): Add single image
+  - appendImagesToFormData(formData, fieldName, images): Add multiple images
+  - appendDocumentToFormData(formData, fieldName, document): Add document
+  - createFormData(data, imageFields, documentFields): Build complete FormData
+  - getFileExtension(uri): Extract file extension from URI
+  - getMimeType(extension): Get MIME type from extension
+
+Features:
+  - Handles both raw URIs and ImagePickerAsset objects
+  - Automatic type detection (image/jpeg, application/pdf, etc.)
+  - Array field support for multiple images
+  - Boolean to string conversion ("0"/"1")
+  - Proper React Native Blob typing
+
+
+2.5 MODAL ANIMATION HOOK
+--------------------------------------------------------------------------------
+File: hooks/useModalAnimation.ts
+
+Purpose: Reusable modal animation logic to eliminate duplicated Animated.spring
+patterns across ContractModal, ShooterContractEditModal, OffspringInputModal,
+and DailyReportModal.
+
+Exports:
+  - useModalAnimation(options): Full-featured animation hook
+  - useSimpleModalAnimation(visible): Backwards-compatible simple version
+
+useModalAnimation returns:
+  - scaleAnim: Animated.Value for scale transform
+  - opacityAnim: Animated.Value for opacity
+  - animatedStyle: Pre-built style object { transform, opacity }
+  - animateIn(): Manual open animation trigger
+  - animateOut(callback): Manual close animation with callback
+
+Options:
+  - visible: boolean (required)
+  - tension: Spring tension (default: 50)
+  - friction: Spring friction (default: 7)
+  - useNativeDriver: boolean (default: true)
+  - initialScale: Starting scale (default: 0)
+  - targetScale: Open scale (default: 1)
+  - onAnimationComplete: Callback when animation finishes
+
+
+================================================================================
+3. BUG FIXES
+================================================================================
+
+3.1 USEEFFECT CLEANUP - ContractCard.tsx
+--------------------------------------------------------------------------------
+File: components/contracts/ContractCard.tsx
+Lines: 146-177
+
+Issue: Two useEffect hooks performed async API calls without cleanup,
+potentially causing memory leaks and "Can't perform state update on unmounted
+component" warnings.
+
+Before (line 146-154):
+  React.useEffect(() => {
+    const checkOffspring = async () => {
+      if (...) {
+        const offspring = await getOffspring(contract.id);
+        setHasOffspringRecorded(...);  // May update unmounted component
+      }
+    };
+    checkOffspring();
+  }, [...]);
+
+After:
+  React.useEffect(() => {
+    let isMounted = true;
+    
+    const checkOffspring = async () => {
+      if (...) {
+        try {
+          const offspring = await getOffspring(contract.id);
+          if (isMounted) {
+            setHasOffspringRecorded(...);
+          }
+        } catch {
+          // Silently handle - component may have unmounted
+        }
+      }
+    };
+    checkOffspring();
+    
+    return () => {
+      isMounted = false;
+    };
+  }, [...]);
+
+Same pattern applied to fetchAllocationSummary effect (lines 160-177).
+
+Benefits:
+  - Prevents memory leaks
+  - Eliminates React warnings about unmounted state updates
+  - Graceful error handling for race conditions
+
+
+================================================================================
+4. FILES MODIFIED SUMMARY
+================================================================================
+
++------------------------------------------------+---------------------------+
+| File                                           | Change                    |
++------------------------------------------------+---------------------------+
+| app/(tabs)/index.tsx                           | Remove unused import,     |
+|                                                | remove unused styles      |
++------------------------------------------------+---------------------------+
+| components/contracts/ContractCard.tsx          | Add useEffect cleanup     |
++------------------------------------------------+---------------------------+
+
+================================================================================
+5. FILES CREATED SUMMARY
+================================================================================
+
++------------------------------------------------+---------------------------+
+| File                                           | Purpose                   |
++------------------------------------------------+---------------------------+
+| constants/colors.ts                            | Color constants & formats |
++------------------------------------------------+---------------------------+
+| types/Pet.ts                                   | Pet-related interfaces    |
++------------------------------------------------+---------------------------+
+| types/User.ts                                  | User-related interfaces   |
++------------------------------------------------+---------------------------+
+| types/Contract.ts                              | Contract interfaces       |
++------------------------------------------------+---------------------------+
+| types/index.ts                                 | Barrel exports + common   |
++------------------------------------------------+---------------------------+
+| utils/apiError.ts                              | API error handling        |
++------------------------------------------------+---------------------------+
+| utils/formDataUtils.ts                         | FormData construction     |
++------------------------------------------------+---------------------------+
+| hooks/useModalAnimation.ts                     | Modal animation hook      |
++------------------------------------------------+---------------------------+
+
+
+================================================================================
+6. USAGE EXAMPLES
+================================================================================
+
+6.1 USING COLORS
+--------------------------------------------------------------------------------
+  import { Colors, Gradients, DateFormats } from "@/constants/colors";
+  
+  // In styles
+  { backgroundColor: Colors.primary }
+  { color: Colors.gray600 }
+  
+  // In LinearGradient
+  <LinearGradient colors={Gradients.primary} />
+  
+  // Date formatting
+  dayjs(date).format(DateFormats.DISPLAY);
+
+
+6.2 USING TYPES
+--------------------------------------------------------------------------------
+  import { Pet, User, BreedingContract, ApiResponse } from "@/types";
+  
+  const [pet, setPet] = useState<Pet | null>(null);
+  
+  const fetchPet = async (): Promise<ApiResponse<Pet>> => { ... };
+
+
+6.3 USING API ERROR HANDLING
+--------------------------------------------------------------------------------
+  import { handleApiError, extractValidationErrors } from "@/utils/apiError";
+  
+  try {
+    await createPet(formData);
+  } catch (error) {
+    handleApiError(error, "CreatePet", {
+      showAlert: true,
+      alertTitle: "Failed to create pet"
+    });
+  }
+
+
+6.4 USING FORMDATA UTILITIES
+--------------------------------------------------------------------------------
+  import { createFormData, appendImageToFormData } from "@/utils/formDataUtils";
+  
+  const formData = createFormData(
+    { name: "Max", species: "dog", images: selectedImages },
+    ["images"],  // image fields
+    ["health_certificate"]  // document fields
+  );
+
+
+6.5 USING MODAL ANIMATION HOOK
+--------------------------------------------------------------------------------
+  import { useModalAnimation } from "@/hooks/useModalAnimation";
+  
+  const { scaleAnim, animatedStyle } = useModalAnimation({ visible });
+  
+  return (
+    <Modal visible={visible}>
+      <Animated.View style={[styles.modal, animatedStyle]}>
+        {children}
+      </Animated.View>
+    </Modal>
+  );
+
+
+================================================================================
+7. REMAINING ITEMS (NOT IMPLEMENTED)
+================================================================================
+
+The following items from CODE_REVIEW_FINDINGS.txt were NOT implemented in this
+version due to scope/risk considerations:
+
+PRIORITY 1 (Production Critical):
+  [ ] Remove remaining console.log statements (in pet-profile.tsx, _layout.tsx)
+  [ ] Add proper error handling with user-facing messages
+
+PRIORITY 2 (Refactoring - Higher Risk):
+  [ ] Split add-pet.tsx into step components (1570 lines)
+  [ ] Split ContractCard.tsx into smaller components (1212 lines)
+  [ ] Replace 'any' types with proper interfaces throughout codebase
+  [ ] Convert inline styles to StyleSheet/NativeWind
+
+PRIORITY 3 (Nice to Have):
+  [ ] Add accessibility props to interactive elements
+  [ ] Implement i18n for localization
+  [ ] Create ContractContext to reduce props drilling
+  [ ] Add API response transformers for snake_case -> camelCase
+
+
+================================================================================
+                           END OF VERSION 1 CHANGES
+================================================================================

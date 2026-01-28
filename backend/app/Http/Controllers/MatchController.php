@@ -3,7 +3,6 @@
 namespace App\Http\Controllers;
 
 use App\Models\Pet;
-use App\Models\User;
 use Illuminate\Http\Request;
 
 class MatchController extends Controller
@@ -137,11 +136,17 @@ class MatchController extends Controller
                             'pet_id' => $userPet->pet_id,
                             'name' => $userPet->name,
                             'photo_url' => $primaryPhoto1?->photo_url,
+                            'breed' => $userPet->breed,
+                            'sex' => $userPet->sex,
+                            'birthdate' => $userPet->birthdate,
                         ],
                         'pet2' => [
                             'pet_id' => $bestMatch->pet_id,
                             'name' => $bestMatch->name,
                             'photo_url' => $primaryPhoto2?->photo_url,
+                            'breed' => $bestMatch->breed,
+                            'sex' => $bestMatch->sex,
+                            'birthdate' => $bestMatch->birthdate,
                         ],
                         'compatibility_score' => $bestScore,
                         'match_reasons' => $compatibility['reasons'],

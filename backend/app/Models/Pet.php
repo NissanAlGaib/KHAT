@@ -19,6 +19,24 @@ class Pet extends Model
      */
     const DEFAULT_COOLDOWN_DAYS = 90; // 3 months
 
+    /**
+     * Pet status constants
+     */
+    const STATUS_PENDING_VERIFICATION = 'pending_verification';
+    const STATUS_ACTIVE = 'active';
+    const STATUS_DISABLED = 'disabled';
+    const STATUS_REJECTED = 'rejected';
+
+    /**
+     * All available pet statuses
+     */
+    const STATUSES = [
+        self::STATUS_PENDING_VERIFICATION,
+        self::STATUS_ACTIVE,
+        self::STATUS_DISABLED,
+        self::STATUS_REJECTED,
+    ];
+
     protected $fillable = [
         'user_id',
         'rec_id',
@@ -240,5 +258,24 @@ class Pet extends Model
     public function scopeOnCooldown($query)
     {
         return $query->where('cooldown_until', '>', Carbon::now());
+    }
+
+    /**
+     * Get the primary photo URL for the pet.
+     * Returns the primary photo if set, otherwise the first photo, otherwise null.
+     *
+     * @return string|null
+     */
+    public function getPrimaryPhotoUrlAttribute(): ?string
+    {
+        $primaryPhoto = $this->photos->firstWhere('is_primary', true);
+
+        if ($primaryPhoto) {
+            return $primaryPhoto->photo_url;
+        }
+
+        $firstPhoto = $this->photos->first();
+
+        return $firstPhoto?->photo_url;
     }
 }

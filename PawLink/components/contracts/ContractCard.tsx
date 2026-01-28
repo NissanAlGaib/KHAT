@@ -144,30 +144,48 @@ export default function ContractCard({
 
   // Check if offspring have been recorded
   React.useEffect(() => {
+    let isMounted = true;
+    
     const checkOffspring = async () => {
       if (contract.breeding_status === "completed" && contract.has_offspring) {
-        const offspring = await getOffspring(contract.id);
-        setHasOffspringRecorded(offspring !== null && offspring.offspring.length > 0);
+        try {
+          const offspring = await getOffspring(contract.id);
+          if (isMounted) {
+            setHasOffspringRecorded(offspring !== null && offspring.offspring.length > 0);
+          }
+        } catch {
+          // Silently handle error - component may have unmounted
+        }
       }
     };
     checkOffspring();
+    
+    return () => {
+      isMounted = false;
+    };
   }, [contract.id, contract.breeding_status, contract.has_offspring]);
 
   // Fetch allocation summary when contract is fulfilled
   React.useEffect(() => {
+    let isMounted = true;
+    
     const fetchAllocationSummary = async () => {
       if (contract.status === "fulfilled" && contract.has_offspring === true && contract.share_offspring === true) {
         try {
           const result = await getOffspringAllocationSummary(contract.id);
-          if (result.success && result.data) {
+          if (isMounted && result.success && result.data) {
             setAllocationSummary(result.data);
           }
-        } catch (error) {
-          console.error("Error fetching allocation summary:", error);
+        } catch {
+          // Silently handle error - component may have unmounted
         }
       }
     };
     fetchAllocationSummary();
+    
+    return () => {
+      isMounted = false;
+    };
   }, [contract.id, contract.status, contract.has_offspring, contract.share_offspring]);
 
   const handleAccept = async () => {

@@ -71,11 +71,17 @@ export interface TopMatch {
     pet_id: number;
     name: string;
     photo_url?: string;
+    breed?: string;
+    sex?: string;
+    birthdate?: string;
   };
   pet2: {
     pet_id: number;
     name: string;
     photo_url?: string;
+    breed?: string;
+    sex?: string;
+    birthdate?: string;
   };
   compatibility_score: number;
   match_reasons?: string[];
