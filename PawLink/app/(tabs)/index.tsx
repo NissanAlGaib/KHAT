@@ -197,7 +197,7 @@ export default function Homepage() {
       <PlayfulHeader
         badgeCount={badgeCount}
         onNotificationPress={() => router.push("/notifications")}
-        onSearchPress={() => console.log("Search pressed")}
+        onSearchPress={() => router.push("/search")}
         onSubscriptionPress={() => console.log("Subscription pressed")}
       />
 
@@ -247,7 +247,7 @@ export default function Homepage() {
             title="Nearby Pets" 
             icon="🐕"
             showSeeAll
-            onSeeAllPress={() => console.log("See all pets")}
+            onSeeAllPress={() => router.push("/search?tab=pets")}
           >
             {loading ? (
               <ScrollView horizontal showsHorizontalScrollIndicator={false}>
@@ -267,7 +267,7 @@ export default function Homepage() {
             title="Shooters" 
             icon="📸"
             showSeeAll
-            onSeeAllPress={() => console.log("See all shooters")}
+            onSeeAllPress={() => router.push("/search?tab=shooters")}
           >
             {loading ? (
               <ScrollView horizontal showsHorizontalScrollIndicator={false}>

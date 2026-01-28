@@ -13,6 +13,7 @@ use App\Http\Controllers\ShooterController;
 use App\Http\Controllers\SubscriptionController;
 use App\Http\Controllers\UserController;
 use App\Http\Controllers\VerificationController;
+use App\Http\Controllers\SearchController;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
 
@@ -137,4 +138,9 @@ Route::middleware(['auth:sanctum'])
         // Subscription routes
         Route::get('/subscriptions/plans', [SubscriptionController::class, 'getPlans']);
         Route::post('/subscriptions/checkout', [SubscriptionController::class, 'createCheckout']);
+
+        // Search routes
+        Route::get('/search/pets', [SearchController::class, 'searchPets']);
+        Route::get('/search/breeders', [SearchController::class, 'searchBreeders']);
+        Route::get('/search/shooters', [SearchController::class, 'searchShooters']);
     });
