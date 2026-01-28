@@ -1,0 +1,61 @@
+name: pawlink-backend
+services:
+  - name: api
+    dockerfile_path: Dockerfile
+    source_dir: /backend
+    http_port: 80
+    instance_size_slug: basic-xxs
+    instance_count: 1
+    routes:
+      - path: /
+    envs:
+      - key: APP_NAME
+        value: PawLink
+      - key: APP_ENV
+        value: production
+      - key: APP_DEBUG
+        value: "false"
+      - key: APP_KEY
+        type: SECRET
+      - key: APP_URL
+        value: ${APP_URL}
+      - key: DB_CONNECTION
+        value: mysql
+      - key: DB_HOST
+        type: SECRET
+      - key: DB_PORT
+        value: "25060"
+      - key: DB_DATABASE
+        type: SECRET
+      - key: DB_USERNAME
+        type: SECRET
+      - key: DB_PASSWORD
+        type: SECRET
+      - key: SESSION_DRIVER
+        value: database
+      - key: CACHE_STORE
+        value: database
+      - key: QUEUE_CONNECTION
+        value: database
+      - key: FILESYSTEM_DISK
+        value: do_spaces
+      - key: DO_SPACES_KEY
+        type: SECRET
+      - key: DO_SPACES_SECRET
+        type: SECRET
+      - key: DO_SPACES_REGION
+        value: sgp1
+      - key: DO_SPACES_BUCKET
+        value: pawlink-storage
+      - key: DO_SPACES_ENDPOINT
+        value: https://sgp1.digitaloceanspaces.com
+      - key: DO_SPACES_URL
+        value: https://pawlink-storage.sgp1.digitaloceanspaces.com
+      - key: PAYMONGO_PUBLIC_KEY
+        type: SECRET
+      - key: PAYMONGO_SECRET_KEY
+        type: SECRET
+      - key: PAYMONGO_WEBHOOK_SECRET
+        type: SECRET
+      - key: PAYMONGO_VERIFY_SSL
+        value: "true"
