@@ -137,7 +137,7 @@ const styles = StyleSheet.create({
   },
   title: {
     fontSize: 24,
-    fontWeight: "800",
+    fontFamily: "Baloo2-ExtraBold",
     color: Colors.coralVibrant,
     letterSpacing: 1.5,
   },

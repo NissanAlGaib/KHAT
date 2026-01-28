@@ -1,6 +1,5 @@
 import React, { useState, useEffect } from "react";
 import { View, TouchableOpacity, Dimensions, Text, Image } from "react-native";
-import Animated, { FadeIn, FadeOut } from "react-native-reanimated";
 import Svg, { Path } from "react-native-svg";
 import { useRouter } from "expo-router";
 import {
@@ -139,9 +138,7 @@ export default function CurvedTabBar({
 
         {/* Center floating circle button - only show in Pet Owner mode */}
         {!isShooterMode && (
-          <Animated.View
-            entering={FadeIn}
-            exiting={FadeOut}
+          <View
             style={{
               position: "absolute",
               top: -2,
@@ -185,7 +182,7 @@ export default function CurvedTabBar({
                 <PawPrint size={36} color="#EA5B3A" strokeWidth={2.5} />
               )}
             </TouchableOpacity>
-          </Animated.View>
+          </View>
         )}
 
         {/* Icons Row */}

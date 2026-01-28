@@ -5,6 +5,7 @@ import { RoleProvider } from "@/context/RoleContext";
 import { NotificationProvider } from "@/context/NotificationContext";
 import * as SplashScreen from "expo-splash-screen";
 import { useLoadFonts } from "@/hooks/useLoadFonts";
+import { useUpdateChecker } from "@/hooks/useUpdateChecker";
 import { useEffect, useMemo } from "react";
 import { Text, View } from "react-native";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
@@ -49,6 +50,9 @@ function RootNavigator() {
 
 export default function RootLayout() {
   const fontsLoaded = useLoadFonts();
+  
+  // Check for OTA updates
+  useUpdateChecker();
 
   useEffect(() => {
     console.log("RootLayout - fontsLoaded:", fontsLoaded);

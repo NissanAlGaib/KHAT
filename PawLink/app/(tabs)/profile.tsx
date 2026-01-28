@@ -252,68 +252,77 @@ export default function ProfileScreen() {
     );
   };
 
-  const renderSettings = () => (
-    <View style={styles.tabContent}>
-      <SettingsCard title="Role">
-        <View style={styles.roleSwitcher}>
-          <TouchableOpacity
-            style={[
-              styles.roleButton,
-              role === "Pet Owner" && styles.roleActive,
-            ]}
-            onPress={() => setRole("Pet Owner")}
-          >
-            <Text
-              style={[
-                styles.roleText,
-                role === "Pet Owner" && styles.roleTextActive,
-              ]}
-            >
-              Pet Owner
-            </Text>
-          </TouchableOpacity>
-          <TouchableOpacity
-            style={[styles.roleButton, role === "Shooter" && styles.roleActive]}
-            onPress={() => setRole("Shooter")}
-          >
-            <Text
-              style={[
-                styles.roleText,
-                role === "Shooter" && styles.roleTextActive,
-              ]}
-            >
-              Shooter
-            </Text>
-          </TouchableOpacity>
-        </View>
-      </SettingsCard>
-      <SettingsItem
-        icon="user"
-        title="Account"
-        description="Update personal information"
-        onPress={() => {}}
-      />
-      <SettingsItem
-        icon="bell"
-        title="Notifications"
-        description="Manage notifications"
-        onPress={() => {}}
-      />
-      <SettingsItem
-        icon="shield"
-        title="Privacy & Security"
-        description="Control your privacy"
-        onPress={() => {}}
-      />
-      <SettingsItem
-        icon="log-out"
-        title="Sign Out"
-        description="Log out of your account"
-        onPress={handleLogout}
-        isDestructive
-      />
-    </View>
-  );
+  const renderSettings = () => {
+    // Check if user has both Pet Owner and Shooter roles
+    const hasBothRoles = userProfile?.roles && 
+      userProfile.roles.some(r => r.role_type === "Breeder" || r.role_type === "Pet Owner") &&
+      userProfile.roles.some(r => r.role_type === "Shooter");
+
+    return (
+      <View style={styles.tabContent}>
+        {hasBothRoles && (
+          <SettingsCard title="Role">
+            <View style={styles.roleSwitcher}>
+              <TouchableOpacity
+                style={[
+                  styles.roleButton,
+                  role === "Pet Owner" && styles.roleActive,
+                ]}
+                onPress={() => setRole("Pet Owner")}
+              >
+                <Text
+                  style={[
+                    styles.roleText,
+                    role === "Pet Owner" && styles.roleTextActive,
+                  ]}
+                >
+                  Pet Owner
+                </Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[styles.roleButton, role === "Shooter" && styles.roleActive]}
+                onPress={() => setRole("Shooter")}
+              >
+                <Text
+                  style={[
+                    styles.roleText,
+                    role === "Shooter" && styles.roleTextActive,
+                  ]}
+                >
+                  Shooter
+                </Text>
+              </TouchableOpacity>
+            </View>
+          </SettingsCard>
+        )}
+        <SettingsItem
+          icon="user"
+          title="Account"
+          description="Update personal information"
+          onPress={() => {}}
+        />
+        <SettingsItem
+          icon="bell"
+          title="Notifications"
+          description="Manage notifications"
+          onPress={() => {}}
+        />
+        <SettingsItem
+          icon="shield"
+          title="Privacy & Security"
+          description="Control your privacy"
+          onPress={() => {}}
+        />
+        <SettingsItem
+          icon="log-out"
+          title="Sign Out"
+          description="Log out of your account"
+          onPress={handleLogout}
+          isDestructive
+        />
+      </View>
+    );
+  };
 
   const renderTabContent = () => {
     if (loading)
