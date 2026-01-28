@@ -46,18 +46,28 @@ export default function PetSelectionModal({
   }, [visible]);
 
   const handleSelectPet = async (pet: any) => {
-    // Only allow selecting active pets for matching
-    if (pet.status !== "active") {
+    // Only allow selecting active pets that are NOT on cooldown
+    if (pet.status !== "active" || pet.is_on_cooldown) {
       return;
     }
     await setSelectedPet(pet);
     onClose();
   };
 
-  // Filter to show active pets first, then pending
+  // Sort pets: active (not on cooldown) first, then cooldown, then pending/others
   const sortedPets = [...userPets].sort((a, b) => {
-    if (a.status === "active" && b.status !== "active") return -1;
-    if (a.status !== "active" && b.status === "active") return 1;
+    // Available pets (active and not on cooldown) come first
+    const aAvailable = a.status === "active" && !a.is_on_cooldown;
+    const bAvailable = b.status === "active" && !b.is_on_cooldown;
+    if (aAvailable && !bAvailable) return -1;
+    if (!aAvailable && bAvailable) return 1;
+    
+    // Then cooldown pets
+    const aCooldown = a.status === "active" && a.is_on_cooldown;
+    const bCooldown = b.status === "active" && b.is_on_cooldown;
+    if (aCooldown && !bCooldown) return -1;
+    if (!aCooldown && bCooldown) return 1;
+    
     return 0;
   });
 
@@ -149,16 +159,18 @@ export default function PetSelectionModal({
                 const photoUrl = primaryPhoto?.photo_url;
                 const isActive = pet.status === "active";
                 const isPending = pet.status === "pending_verification";
+                const isOnCooldown = pet.is_on_cooldown;
+                const isSelectable = isActive && !isOnCooldown;
 
                 return (
                   <TouchableOpacity
                     key={pet.pet_id}
                     onPress={() => handleSelectPet(pet)}
-                    disabled={!isActive}
+                    disabled={!isSelectable}
                     className={`flex-row items-center p-4 rounded-2xl mb-3 ${
                       isSelected
                         ? "bg-[#FFF5F3] border-2 border-[#ea5b3a]"
-                        : !isActive
+                        : !isSelectable
                         ? "bg-gray-100 opacity-60"
                         : "bg-gray-50"
                     }`}
@@ -191,7 +203,13 @@ export default function PetSelectionModal({
                     </View>
 
                     {/* Status Badge */}
-                    {isActive ? (
+                    {isOnCooldown ? (
+                      <View className="bg-amber-100 px-3 py-1 rounded-full mr-3">
+                        <Text className="text-xs text-amber-800 font-semibold">
+                          ⏸ {pet.cooldown_days_remaining}d left
+                        </Text>
+                      </View>
+                    ) : isActive ? (
                       <View className="bg-green-100 px-3 py-1 rounded-full mr-3">
                         <Text className="text-xs text-green-800 font-semibold">
                           Available
@@ -210,7 +228,7 @@ export default function PetSelectionModal({
                       <View className="w-12 h-12 rounded-full bg-[#ea5b3a] items-center justify-center">
                         <Text className="text-white text-xl font-bold">✓</Text>
                       </View>
-                    ) : isActive ? (
+                    ) : isSelectable ? (
                       <View className="w-12 h-12 rounded-full bg-[#ea5b3a] items-center justify-center">
                         <Text className="text-white text-sm font-semibold">
                           SELECT

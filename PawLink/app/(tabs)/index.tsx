@@ -6,6 +6,7 @@ import {
   RefreshControl,
   Image,
   Text,
+  Alert,
 } from "react-native";
 import { useRouter } from "expo-router";
 import { useFocusEffect } from "@react-navigation/native";
@@ -26,6 +27,7 @@ import {
   type TopMatch,
   type ShooterProfile,
 } from "@/services/matchService";
+import { sendMatchRequest } from "@/services/matchRequestService";
 
 // Constants
 import { Colors, Spacing, Shadows } from "@/constants";
@@ -50,6 +52,7 @@ export default function Homepage() {
   // State
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+  const [sendingRequest, setSendingRequest] = useState(false);
   const [allPets, setAllPets] = useState<PetMatch[]>([]);
   const [topMatches, setTopMatches] = useState<TopMatch[]>([]);
   const [shooters, setShooters] = useState<ShooterProfile[]>([]);
@@ -116,11 +119,50 @@ export default function Homepage() {
     setTopMatches((prev) => prev.filter((m) => m !== match));
   };
 
-  const handleLike = (match: TopMatch) => {
-    // TODO: Implement like logic
-    console.log("Liked match:", match);
-    // Optimistic update: remove from list
-    setTopMatches((prev) => prev.filter((m) => m !== match));
+  const handleLike = async (match: TopMatch) => {
+    // Determine which pet is the user's pet (requester) and which is the target
+    const isUserPet1 = match.pet1.pet_id === selectedPet?.pet_id;
+    const requesterPetId = isUserPet1 ? match.pet1.pet_id : match.pet2.pet_id;
+    const targetPetId = isUserPet1 ? match.pet2.pet_id : match.pet1.pet_id;
+    const targetPetName = isUserPet1 ? match.pet2.name : match.pet1.name;
+
+    if (!selectedPet) {
+      Alert.alert("No Pet Selected", "Please select a pet to send match requests.");
+      return;
+    }
+
+    // Prevent double-tap
+    if (sendingRequest) return;
+    setSendingRequest(true);
+
+    try {
+      const result = await sendMatchRequest(requesterPetId, targetPetId);
+
+      // Optimistic update: remove from list regardless of result
+      setTopMatches((prev) => prev.filter((m) => m !== match));
+
+      if (result.success) {
+        Alert.alert(
+          "Match Request Sent! 💕",
+          `Your request to match with ${targetPetName} has been sent to their owner.`
+        );
+      } else if (result.requires_payment) {
+        // Handle free tier users who need to pay
+        // TODO: Implement payment flow screen
+        Alert.alert(
+          "Upgrade Required",
+          `Free users need to pay ₱${result.payment_amount} per match request, or upgrade to a subscription for unlimited requests.`,
+          [{ text: "OK", style: "default" }]
+        );
+      } else {
+        Alert.alert("Request Failed", result.message);
+      }
+    } catch (error) {
+      console.error("Error sending match request:", error);
+      Alert.alert("Error", "Failed to send match request. Please try again.");
+    } finally {
+      setSendingRequest(false);
+    }
   };
 
   const handleMessage = (match: TopMatch) => {
