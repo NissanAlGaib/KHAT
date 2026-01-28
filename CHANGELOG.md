@@ -7,6 +7,37 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [1.3.1] - 2026-01-29
+
+### Pet Cooldown Fixes & Global Search
+
+#### Global Search Feature
+- Added new **Search Screen** (`app/search.tsx`) with full-text search across pets, breeders, and shooters
+- Three tab navigation: Pets, Breeders, Shooters
+- Filter chips for pets: Species (Dog/Cat) and Sex (Male/Female)
+- Debounced search (300ms) for optimal performance
+- Recent searches persistence with AsyncStorage (save, remove, clear all)
+- Search icon in PlayfulHeader now navigates to search screen
+- "See All" buttons in homepage sections navigate to search with pre-applied tab filters
+
+#### Backend Search API
+- Created `SearchController.php` with three endpoints:
+  - `GET /api/search/pets` - Search pets by name, breed, species with optional filters
+  - `GET /api/search/breeders` - Search verified breeders by name/email
+  - `GET /api/search/shooters` - Search verified shooters by name/email
+- Excludes pets on cooldown from search results
+- Returns formatted data with owner info and photos
+
+#### New Files
+- `PawLink/app/search.tsx` - Search screen component
+- `PawLink/services/searchService.ts` - API service + AsyncStorage persistence
+- `backend/app/Http/Controllers/SearchController.php` - Search endpoints
+
+#### Dependencies
+- Added `@react-native-async-storage/async-storage` for recent searches persistence
+
+---
+
 ## [1.3.0] - 2026-01-28
 
 ### Deployment
@@ -177,6 +208,7 @@ Added new colors to `constants/colors.ts`:
 
 | Version | Date | Highlights |
 |---------|------|------------|
+| 1.3.1 | 2026-01-29 | Pet cooldown fixes, global search feature with filters |
 | 1.3.0 | 2026-01-28 | DigitalOcean deployment, EAS Build/Update, role switcher fix |
 | 1.2.0 | 2026-01-27 | Instagram-style header, pet photo in nav bar |
 | 1.1.0 | 2026-01-27 | Match card redesign, breed data fix, button improvements |

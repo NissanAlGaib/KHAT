@@ -24,6 +24,10 @@ interface Pet {
   birthdate?: string;
   status?: string;
   photos?: { photo_url: string; is_primary: boolean }[];
+  // Cooldown fields
+  is_on_cooldown?: boolean;
+  cooldown_until?: string;
+  cooldown_days_remaining?: number;
 }
 
 interface ActivePetPillProps {
@@ -64,7 +68,9 @@ export default function ActivePetPill({
   const [showPetPicker, setShowPetPicker] = useState(false);
   
   const primaryPhoto = pet?.photos?.find((p) => p.is_primary) || pet?.photos?.[0];
-  const hasMultiplePets = userPets.length > 1;
+  // Count available pets (not on cooldown) for determining if switch is needed
+  const availablePets = userPets.filter((p) => !p.is_on_cooldown);
+  const hasMultiplePets = userPets.length > 1; // Show modal if there are multiple pets (even if some on cooldown)
 
   // Empty state - no pet selected
   if (!pet) {
@@ -100,30 +106,52 @@ export default function ActivePetPill({
   const renderPetOption = ({ item }: { item: Pet }) => {
     const isSelected = item.pet_id === pet.pet_id;
     const photo = item.photos?.find((p) => p.is_primary) || item.photos?.[0];
+    const isOnCooldown = item.is_on_cooldown;
 
     return (
       <TouchableOpacity
-        style={[styles.petOption, isSelected && styles.petOptionSelected]}
-        onPress={() => handleSelectPet(item)}
-        activeOpacity={0.7}
+        style={[
+          styles.petOption, 
+          isSelected && styles.petOptionSelected,
+          isOnCooldown && styles.petOptionDisabled
+        ]}
+        onPress={() => !isOnCooldown && handleSelectPet(item)}
+        activeOpacity={isOnCooldown ? 1 : 0.7}
+        disabled={isOnCooldown}
       >
         {photo?.photo_url ? (
           <Image
             source={{ uri: `${API_BASE_URL}/storage/${photo.photo_url}` }}
-            style={styles.petOptionAvatar}
+            style={[styles.petOptionAvatar, isOnCooldown && styles.avatarDisabled]}
           />
         ) : (
-          <View style={styles.petOptionAvatarPlaceholder}>
+          <View style={[styles.petOptionAvatarPlaceholder, isOnCooldown && styles.avatarDisabled]}>
             <Text style={{ fontSize: 20 }}>🐾</Text>
           </View>
         )}
         <View style={styles.petOptionInfo}>
-          <Text style={styles.petOptionName}>{item.name}</Text>
-          <Text style={styles.petOptionBreed}>{item.breed || "Unknown breed"}</Text>
+          <Text style={[styles.petOptionName, isOnCooldown && styles.textDisabled]}>
+            {item.name}
+          </Text>
+          {isOnCooldown ? (
+            <View style={styles.cooldownBadge}>
+              <Feather name="clock" size={10} color={Colors.warning} />
+              <Text style={styles.cooldownText}>
+                Cooldown: {item.cooldown_days_remaining} days left
+              </Text>
+            </View>
+          ) : (
+            <Text style={styles.petOptionBreed}>{item.breed || "Unknown breed"}</Text>
+          )}
         </View>
-        {isSelected && (
+        {isSelected && !isOnCooldown && (
           <View style={styles.checkmark}>
             <Feather name="check" size={16} color={Colors.white} />
+          </View>
+        )}
+        {isOnCooldown && (
+          <View style={styles.cooldownIcon}>
+            <Feather name="pause-circle" size={20} color={Colors.warning} />
           </View>
         )}
       </TouchableOpacity>
@@ -156,8 +184,11 @@ export default function ActivePetPill({
                 <Text style={styles.avatarEmoji}>🐾</Text>
               </View>
             )}
-            {/* Status indicator */}
-            <View style={styles.statusDot} />
+            {/* Status indicator - shows cooldown status */}
+            <View style={[
+              styles.statusDot,
+              pet.is_on_cooldown && styles.statusDotCooldown
+            ]} />
           </View>
 
           {/* Pet Info - More Details */}
@@ -317,6 +348,9 @@ const styles = StyleSheet.create({
     borderWidth: 2,
     borderColor: "white",
   },
+  statusDotCooldown: {
+    backgroundColor: Colors.warning,
+  },
   infoContainer: {
     flex: 1,
     marginLeft: 14,
@@ -454,5 +488,35 @@ const styles = StyleSheet.create({
     backgroundColor: Colors.coralVibrant,
     alignItems: "center",
     justifyContent: "center",
+  },
+  // Cooldown styles
+  petOptionDisabled: {
+    opacity: 0.6,
+    backgroundColor: Colors.bgTertiary,
+  },
+  avatarDisabled: {
+    opacity: 0.5,
+  },
+  textDisabled: {
+    color: Colors.textMuted,
+  },
+  cooldownBadge: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 4,
+    backgroundColor: Colors.warningBg,
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 10,
+    alignSelf: "flex-start",
+    marginTop: 4,
+  },
+  cooldownText: {
+    fontSize: 11,
+    color: Colors.warning,
+    fontWeight: "600",
+  },
+  cooldownIcon: {
+    marginLeft: 8,
   },
 });
