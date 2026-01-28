@@ -12,6 +12,7 @@ export interface UserProfile {
   address?: any;
   profile_image?: string;
   email_verified_at?: string | null;
+  roles?: { role_id: number; role_type: string }[];
 }
 
 export interface UserStatistics {

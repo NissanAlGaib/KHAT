@@ -1,0 +1,14 @@
+# Ignore backend folder entirely (has symlinks that break Windows)
+backend/
+
+# Git
+.git/
+
+# Documentation
+docs/
+*.md
+!README.md
+
+# OS files
+.DS_Store
+Thumbs.db

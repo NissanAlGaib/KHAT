@@ -7,6 +7,61 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [1.3.0] - 2026-01-28
+
+### Deployment
+
+#### DigitalOcean App Platform
+- Deployed Laravel backend to DigitalOcean App Platform
+- Created `Dockerfile` for PHP 8.2 + Apache container
+- Created `.do/app.yaml` App Platform specification
+- Admin panel accessible at `/admin/login`
+
+#### DigitalOcean Managed MySQL
+- Configured managed MySQL 8 database cluster
+- Connected via secure port 25060
+
+#### DigitalOcean Spaces (Object Storage)
+- Set up S3-compatible file storage for pet images and documents
+- Added `do_spaces` disk configuration to `filesystems.php`
+- Region: Singapore (sgp1) for optimal Philippines access
+
+### Mobile App Build & Distribution
+
+#### EAS Build Configuration
+- Configured Expo Application Services (EAS) for Android APK builds
+- Updated `app.json` with proper package name (`com.khat.pawlink`)
+- Created `eas.json` with preview and production build profiles
+- Added `.easignore` to exclude backend folder from builds
+
+#### OTA Updates (EAS Update)
+- Installed and configured `expo-updates` for over-the-air updates
+- Created `useUpdateChecker` hook for update prompts
+- Users receive update notification on app open with option to restart
+- Branch/channel mapping: `preview` branch → `preview` channel
+
+### UI/UX Improvements
+
+#### Role Switcher Enhancement
+- Role switcher in Profile Settings now only shows for users with both Pet Owner AND Shooter roles
+- Single-role users no longer see the unnecessary role toggle
+
+#### Typography
+- Changed "PAWLINK" header title to use Baloo font family
+
+### Bug Fixes
+
+#### Build Fixes
+- Fixed crash on tab navigation caused by Reanimated v4 + SVG animations on new architecture
+- Removed `FadeIn`/`FadeOut` animations from `CurvedTabBar` center button
+- Fixed package version mismatches via `npx expo install --fix`
+
+### Documentation
+- Created `docs/digitalocean-deployment.md` with complete deployment guide
+- Step-by-step instructions for Spaces, MySQL, and App Platform setup
+
+---
+
 ## [1.2.0] - 2026-01-27
 
 ### UI/UX Improvements
@@ -122,6 +177,7 @@ Added new colors to `constants/colors.ts`:
 
 | Version | Date | Highlights |
 |---------|------|------------|
+| 1.3.0 | 2026-01-28 | DigitalOcean deployment, EAS Build/Update, role switcher fix |
 | 1.2.0 | 2026-01-27 | Instagram-style header, pet photo in nav bar |
 | 1.1.0 | 2026-01-27 | Match card redesign, breed data fix, button improvements |
 | 1.0.0 | 2026-01-26 | Initial homepage redesign with swipe gestures |
