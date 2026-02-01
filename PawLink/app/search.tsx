@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, useMemo } from "react";
+import React, { useState, useEffect, useCallback, useRef } from "react";
 import {
   View,
   Text,
@@ -11,23 +11,25 @@ import {
   StyleSheet,
   Dimensions,
   ScrollView,
+  Platform,
 } from "react-native";
-import { SafeAreaView } from "react-native-safe-area-context";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useRouter, useLocalSearchParams } from "expo-router";
 import { Feather } from "@expo/vector-icons";
-import debounce from "lodash.debounce";
 import { Colors, Spacing, BorderRadius, Shadows, FontSize } from "@/constants";
 import { searchService, SearchFilters, Breeder } from "@/services/searchService";
 import { Pet } from "@/types/Pet";
 import { ShooterProfile } from "@/types/User";
 import { API_BASE_URL } from "@/config/env";
+import ErrorBoundary from "@/components/ErrorBoundary";
 
 // Types
 type TabType = "pets" | "breeders" | "shooters";
 
-export default function SearchScreen() {
+function SearchScreenContent() {
   const router = useRouter();
   const params = useLocalSearchParams();
+  const insets = useSafeAreaInsets();
   
   // State
   const [query, setQuery] = useState("");
@@ -78,10 +80,12 @@ export default function SearchScreen() {
           break;
       }
       
-      setResults(data);
+      // Ensure data is always an array
+      const safeData = Array.isArray(data) ? data : [];
+      setResults(safeData);
       
       // Save to recent searches if we got results
-      if (data.length > 0) {
+      if (safeData.length > 0) {
         await searchService.saveRecentSearch(searchQuery);
         // Reload recent searches to update the list
         loadRecentSearches();
@@ -94,21 +98,28 @@ export default function SearchScreen() {
     }
   };
 
-  // Debounced search
-  const debouncedSearch = useMemo(
-    () => debounce((q: string, tab: TabType, f: SearchFilters) => {
-      performSearch(q, tab, f);
-    }, 300),
-    []
-  );
+  // Debounced search using native setTimeout (no external dependency)
+  const debounceTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // Effect to trigger search when dependencies change
   useEffect(() => {
-    debouncedSearch(query, activeTab, filters);
+    // Clear any pending debounce
+    if (debounceTimeoutRef.current) {
+      clearTimeout(debounceTimeoutRef.current);
+    }
+
+    // Set new debounce timeout
+    debounceTimeoutRef.current = setTimeout(() => {
+      performSearch(query, activeTab, filters);
+    }, 300);
+
+    // Cleanup on unmount or dependency change
     return () => {
-      debouncedSearch.cancel();
+      if (debounceTimeoutRef.current) {
+        clearTimeout(debounceTimeoutRef.current);
+      }
     };
-  }, [query, activeTab, filters, debouncedSearch]);
+  }, [query, activeTab, filters]);
 
   // Handlers
   const handleTabChange = (tab: TabType) => {
@@ -139,11 +150,18 @@ export default function SearchScreen() {
 
   // Render Items
   const renderPetCard = ({ item }: { item: Pet }) => {
+    // Defensive check - skip rendering if item is invalid
+    if (!item) return null;
+    
     // Handle both frontend Pet type (id, gender, images) and backend response (pet_id, sex, photos)
     const petId = (item as any).pet_id || item.id;
+    if (!petId) return null;
+    
     const petGender = (item as any).sex || item.gender;
     const profileImage = (item as any).profile_image;
     const photos = (item as any).photos;
+    const displayName = item.name || 'Unknown';
+    const displayBreed = item.breed || 'Unknown breed';
     
     // Try to get photo URL from various sources
     let photoUrl = item.primary_photo_url;
@@ -186,8 +204,8 @@ export default function SearchScreen() {
           </View>
         </View>
         <View style={styles.cardContent}>
-          <Text style={styles.cardTitle} numberOfLines={1}>{item.name}</Text>
-          <Text style={styles.cardSubtitle} numberOfLines={1}>{item.breed}</Text>
+          <Text style={styles.cardTitle} numberOfLines={1}>{displayName}</Text>
+          <Text style={styles.cardSubtitle} numberOfLines={1}>{displayBreed}</Text>
           <Text style={styles.cardPrice}>
             {item.breeding_price ? `$${item.breeding_price}` : 'Contact for price'}
           </Text>
@@ -197,7 +215,11 @@ export default function SearchScreen() {
   };
 
   const renderUserCard = ({ item, type }: { item: Breeder | ShooterProfile, type: 'breeder' | 'shooter' }) => {
+    // Defensive check - skip rendering if item is invalid
+    if (!item || !item.id) return null;
+    
     const photoUrl = item.profile_image ? (item.profile_image.startsWith('http') ? item.profile_image : `${API_BASE_URL}/storage/${item.profile_image}`) : null;
+    const displayName = item.name || 'Unknown';
     
     return (
       <TouchableOpacity 
@@ -216,12 +238,12 @@ export default function SearchScreen() {
             <Image source={{ uri: photoUrl }} style={styles.avatar} />
           ) : (
             <View style={[styles.avatar, styles.placeholderAvatar]}>
-              <Text style={styles.avatarText}>{item.name.charAt(0).toUpperCase()}</Text>
+              <Text style={styles.avatarText}>{displayName.charAt(0).toUpperCase()}</Text>
             </View>
           )}
         </View>
         <View style={styles.listTextContent}>
-          <Text style={styles.listTitle}>{item.name}</Text>
+          <Text style={styles.listTitle}>{displayName}</Text>
           <Text style={styles.listSubtitle}>
             {item.city && item.state ? `${item.city}, ${item.state}` : 'Location unknown'}
           </Text>
@@ -326,7 +348,7 @@ export default function SearchScreen() {
   };
 
   return (
-    <SafeAreaView style={styles.container} edges={['top']}>
+    <View style={[styles.container, { paddingTop: insets.top }]}>
       {/* Header */}
       <View style={styles.header}>
         <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
@@ -340,7 +362,7 @@ export default function SearchScreen() {
             placeholderTextColor={Colors.textMuted}
             value={query}
             onChangeText={setQuery}
-            autoFocus={!params.query}
+            autoFocus={false}
             returnKeyType="search"
           />
           {query.length > 0 && (
@@ -403,7 +425,16 @@ export default function SearchScreen() {
       <View style={styles.content}>
         {renderContent()}
       </View>
-    </SafeAreaView>
+    </View>
+  );
+}
+
+// Wrap with ErrorBoundary to catch crashes and show fallback UI
+export default function SearchScreen() {
+  return (
+    <ErrorBoundary>
+      <SearchScreenContent />
+    </ErrorBoundary>
   );
 }
 

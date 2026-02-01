@@ -1,21 +1,39 @@
-import { useEffect } from 'react';
-import { Alert } from 'react-native';
+import { useEffect, useCallback } from 'react';
+import { Alert, AppState, AppStateStatus } from 'react-native';
 import * as Updates from 'expo-updates';
 
+/**
+ * Hook to check for OTA updates
+ * - Checks on app mount
+ * - Checks when app comes to foreground
+ * - More robust error handling
+ */
 export function useUpdateChecker() {
-  useEffect(() => {
-    async function checkForUpdates() {
-      // Skip in development
-      if (__DEV__) {
-        return;
-      }
+  const checkForUpdates = useCallback(async () => {
+    // Skip in development mode
+    if (__DEV__) {
+      console.log('[UpdateChecker] Skipping in development mode');
+      return;
+    }
 
-      try {
-        const update = await Updates.checkForUpdateAsync();
+    // Skip if updates are not enabled (e.g., development client)
+    if (!Updates.isEnabled) {
+      console.log('[UpdateChecker] Updates not enabled for this build');
+      return;
+    }
+
+    try {
+      console.log('[UpdateChecker] Checking for updates...');
+      const update = await Updates.checkForUpdateAsync();
+      
+      if (update.isAvailable) {
+        console.log('[UpdateChecker] Update available, downloading...');
         
-        if (update.isAvailable) {
-          // Download the update
-          await Updates.fetchUpdateAsync();
+        // Download the update
+        const fetchResult = await Updates.fetchUpdateAsync();
+        
+        if (fetchResult.isNew) {
+          console.log('[UpdateChecker] Update downloaded, prompting user...');
           
           // Prompt user to restart
           Alert.alert(
@@ -27,20 +45,42 @@ export function useUpdateChecker() {
                 style: 'cancel',
               },
               {
-                text: 'Restart',
+                text: 'Restart Now',
                 onPress: async () => {
-                  await Updates.reloadAsync();
+                  try {
+                    await Updates.reloadAsync();
+                  } catch (reloadError) {
+                    console.error('[UpdateChecker] Error reloading:', reloadError);
+                  }
                 },
               },
             ]
           );
         }
-      } catch (error) {
-        // Silently fail - don't disrupt user experience
-        console.log('Error checking for updates:', error);
+      } else {
+        console.log('[UpdateChecker] App is up to date');
       }
+    } catch (error) {
+      // Log the error but don't disrupt user experience
+      console.log('[UpdateChecker] Error checking for updates:', error);
     }
-
-    checkForUpdates();
   }, []);
+
+  useEffect(() => {
+    // Check for updates on mount
+    checkForUpdates();
+
+    // Also check when app comes to foreground
+    const handleAppStateChange = (nextAppState: AppStateStatus) => {
+      if (nextAppState === 'active') {
+        checkForUpdates();
+      }
+    };
+
+    const subscription = AppState.addEventListener('change', handleAppStateChange);
+
+    return () => {
+      subscription.remove();
+    };
+  }, [checkForUpdates]);
 }
