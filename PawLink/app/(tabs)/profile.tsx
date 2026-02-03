@@ -85,28 +85,53 @@ export default function ProfileScreen() {
 
   const getVerificationDisplay = () => {
     if (!verificationStatus || verificationStatus.length === 0)
-      return { text: "Not Verified", color: "#6B7280", showButton: true };
+      return { text: "Not Verified", color: "#6B7280", showButton: true, isRejected: false, rejectedDoc: null };
     const idVerification = verificationStatus.find((v) => v.auth_type === "id");
     if (!idVerification)
-      return { text: "Not Verified", color: "#6B7280", showButton: true };
+      return { text: "Not Verified", color: "#6B7280", showButton: true, isRejected: false, rejectedDoc: null };
 
     switch (idVerification.status) {
       case "approved":
-        return { text: "Verified", color: "#16A34A", showButton: false };
+        return { text: "Verified", color: "#16A34A", showButton: false, isRejected: false, rejectedDoc: null };
       case "pending":
         return {
           text: "Pending Verification",
           color: "#F59E0B",
           showButton: false,
+          isRejected: false,
+          rejectedDoc: null,
         };
       case "rejected":
         return {
           text: "Verification Rejected",
           color: "#DC2626",
           showButton: true,
+          isRejected: true,
+          rejectedDoc: idVerification,
         };
       default:
-        return { text: "Not Verified", color: "#6B7280", showButton: true };
+        return { text: "Not Verified", color: "#6B7280", showButton: true, isRejected: false, rejectedDoc: null };
+    }
+  };
+
+  const handleVerifyPress = () => {
+    const verification = getVerificationDisplay();
+    
+    if (verification.isRejected && verification.rejectedDoc) {
+      // Navigate to resubmit screen for the rejected document
+      router.push({
+        pathname: "/(verification)/resubmit-user-verification",
+        params: {
+          authId: verification.rejectedDoc.auth_id,
+          authType: verification.rejectedDoc.auth_type,
+          documentType: verification.rejectedDoc.auth_type === "id" ? "ID Document" : 
+                        verification.rejectedDoc.auth_type === "breeder_certificate" ? "Breeder Certificate" : 
+                        "Shooter Certificate",
+        },
+      });
+    } else {
+      // Navigate to full verification flow for new verification
+      router.push("/(verification)/verify");
     }
   };
 
@@ -124,16 +149,17 @@ export default function ProfileScreen() {
   // Handle add pet button - check verification first
   const handleAddPetPress = () => {
     if (!isIdVerified()) {
+      const verification = getVerificationDisplay();
       showAlert({
         title: "Verification Required",
-        message: "You must complete identity verification before adding a pet",
+        message: verification.isRejected 
+          ? "Your verification was rejected. Please resubmit your document before adding a pet."
+          : "You must complete identity verification before adding a pet",
         type: "warning",
         buttons: [
           {
-            text: "Verify Now",
-            onPress: () => {
-              router.push("/(verification)/verify");
-            },
+            text: verification.isRejected ? "Resubmit Document" : "Verify Now",
+            onPress: handleVerifyPress,
           },
           { text: "Later" },
         ],
@@ -377,11 +403,11 @@ export default function ProfileScreen() {
           {verification.showButton && (
             <TouchableOpacity
               style={styles.verifyButton}
-              onPress={() => router.push("/(verification)/verify")}
+              onPress={handleVerifyPress}
             >
               <Text style={styles.verifyButtonText}>
-                {verification.text === "VERIFICATION REJECTED"
-                  ? "Verify Again"
+                {verification.text === "Verification Rejected"
+                  ? "Resubmit Document"
                   : "Verify Now"}
               </Text>
             </TouchableOpacity>

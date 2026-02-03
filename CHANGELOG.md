@@ -6,6 +6,44 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ---
+## [1.3.3] - 2026-02-03
+
+### User Verification Redesign
+
+#### New Verification UI Components
+- `StepperProgress` - Visual 3-step progress indicator with animated transitions
+- `IdTypeSelector` - Modal-based Philippine ID type picker with search
+- `DocumentUploader` - Camera/gallery picker with image preview and remove option
+- `AutoFilledInput` - Styled input with floating label and icon support
+- `OcrLoadingOverlay` - AI scanning animation overlay for future OCR integration
+
+#### Verification Flow Redesign
+- Complete redesign of User Verification pages with modern card-based UI
+- Added ScrollView inside KeyboardAvoidingView to fix keyboard covering inputs
+- Added `keyboardVerticalOffset` to account for header height
+
+#### Resubmission Pages Redesign
+- Redesigned `resubmit-user-verification.tsx` to match new verification design
+- Redesigned `resubmit-document.tsx` for pet vaccination/health record resubmissions
+- Both pages now use consistent styling with verification flow
+
+#### Profile Page Resubmission Fix
+- Fixed resubmission routing from Profile page
+- Now correctly routes to resubmit screen instead of full verification flow
+- Updates existing rejected document instead of creating new database rows
+
+#### DigitalOcean Spaces Storage Fix
+- Changed all verification uploads to use `do_spaces` disk instead of `public`
+- Fixed Admin document URLs to use `Storage::disk('do_spaces')->url()`
+- Fixed `uriToFile()` in `verificationService.ts` to extract MIME type from file extension
+
+#### Type Fixes
+- Added missing `active_contracts` and `failed_contracts` to `ShooterProfile.statistics` type
+
+#### Documentation
+- Added OCR implementation plan in `docs/OCR_IMPLEMENTATION_PLAN.md`
+
+---
 ## [1.3.2] - 2026-02-03
 
 ### Fixed

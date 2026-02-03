@@ -63,6 +63,8 @@ export interface ShooterProfile {
     cat_count: number;
     breeders_handled: number;
     successful_shoots: number;
+    active_contracts: number;
+    failed_contracts: number;
   };
 }
 
