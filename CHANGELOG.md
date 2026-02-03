@@ -43,6 +43,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 #### Documentation
 - Added OCR implementation plan in `docs/OCR_IMPLEMENTATION_PLAN.md`
 
+#### New Verification Status Screen
+- Created `verification-status.tsx` - Centralized screen showing all document statuses
+- Shows summary banner with overall verification status
+- Individual cards for each document type (ID, Breeder License, Shooter Certificate)
+- Displays rejection reasons and provides resubmit buttons for rejected documents
+- Updated `VerificationStatus` type to include `rejection_reason`, `document_number`, `document_name`, `issue_date`, `expiry_date`, `issuing_authority`
+
+#### Single Certificate Submission
+- Created `add-certificate.tsx` - Dedicated screen for adding breeder/shooter certificates
+- Prevents need to go through full 3-step verification flow for optional certificates
+- Dynamic configuration based on certificate type (breeder = amber theme, shooter = blue theme)
+- Profile page verification button now routes to Verification Status screen
+- Updated `getVerificationDisplay()` to check ALL documents, not just ID
+
 ---
 ## [1.3.2] - 2026-02-03
 
@@ -298,7 +312,7 @@ Added new colors to `constants/colors.ts`:
 
 | Version | Date | Highlights |
 |---------|------|------------|
-| 1.3.3 | 2026-02-03 | User Verification redesign, new UI components, DO Spaces fix, resubmission flow fix |
+| 1.3.3 | 2026-02-03 | User Verification redesign, Verification Status screen, single certificate submission, DO Spaces fix |
 | 1.3.2 | 2026-02-03 | Image URL fix with centralized `getStorageUrl()` utility |
 | 1.3.1 | 2026-01-29 | Global search, **HOTFIX: black screen crash fix**, reanimated 4.2.1 |
 | 1.3.0 | 2026-01-28 | DigitalOcean deployment, EAS Build/Update, role switcher fix |
