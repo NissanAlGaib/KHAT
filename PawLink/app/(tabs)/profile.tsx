@@ -25,7 +25,7 @@ import {
   getVerificationStatus,
   type VerificationStatus,
 } from "@/services/verificationService";
-import { API_BASE_URL } from "@/config/env";
+import { getStorageUrl } from "@/utils/imageUrl";
 import { useAlert } from "@/hooks/useAlert";
 import AlertModal from "@/components/core/AlertModal";
 import { LinearGradient } from "expo-linear-gradient";
@@ -220,11 +220,11 @@ export default function ProfileScreen() {
               style={styles.petCardGrid}
               onPress={() => router.push(`/(pet)/pet-profile?id=${pet.pet_id}`)}
             >
-              <Image
+<Image
                 source={
                   pet.photos?.length > 0
                     ? {
-                        uri: `${API_BASE_URL}/storage/${pet.photos.find((p: any) => p.is_primary)?.photo_url || pet.photos[0].photo_url}`,
+                        uri: getStorageUrl(pet.photos.find((p: any) => p.is_primary)?.photo_url || pet.photos[0].photo_url),
                       }
                     : require("@/assets/images/icon.png")
                 }
@@ -354,11 +354,11 @@ export default function ProfileScreen() {
           colors={["#FF6B4A", "#FF9A8B"]}
           style={styles.headerGradient}
         >
-          <Image
+<Image
             source={
               userProfile?.profile_image
                 ? {
-                    uri: `${API_BASE_URL}/storage/${userProfile.profile_image}`,
+                    uri: getStorageUrl(userProfile.profile_image),
                   }
                 : require("@/assets/images/icon.png")
             }

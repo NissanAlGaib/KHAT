@@ -71,10 +71,10 @@ class UserController extends Controller
         if ($request->hasFile('profile_image')) {
             // Delete old profile image if exists
             if ($user->profile_image) {
-                Storage::disk('public')->delete($user->profile_image);
+                Storage::disk('do_spaces')->delete($user->profile_image);
             }
 
-            $path = $request->file('profile_image')->store('profile_images', 'public');
+            $path = $request->file('profile_image')->store('profile_images', 'do_spaces');
             $user->profile_image = $path;
         }
 
@@ -102,10 +102,10 @@ class UserController extends Controller
 
         // Delete old profile image if exists
         if ($user->profile_image) {
-            Storage::disk('public')->delete($user->profile_image);
+            Storage::disk('do_spaces')->delete($user->profile_image);
         }
 
-        $path = $request->file('profile_image')->store('profile_images', 'public');
+        $path = $request->file('profile_image')->store('profile_images', 'do_spaces');
         $user->profile_image = $path;
         $user->save();
 
@@ -244,7 +244,7 @@ class UserController extends Controller
         try {
             // Delete profile image if exists
             if ($user->profile_image) {
-                Storage::disk('public')->delete($user->profile_image);
+                Storage::disk('do_spaces')->delete($user->profile_image);
             }
 
             // Revoke all tokens
