@@ -1117,8 +1117,8 @@ class BreedingContractController extends Controller
                             $filename = 'offspring_' . $litter->litter_id . '_' . uniqid() . '.' . $extension;
 
                             // Save to storage
-                            Storage::disk('public')->put('offspring/' . $filename, $imageData);
-                            $photoUrl = 'storage/offspring/' . $filename;
+                            Storage::disk('do_spaces')->put('offspring/' . $filename, $imageData);
+                            $photoUrl = 'offspring/' . $filename;
                         }
                     } catch (\Exception $e) {
                         \Log::error('Error uploading offspring photo: ' . $e->getMessage());

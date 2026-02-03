@@ -6,6 +6,7 @@ use Illuminate\Http\Request;
 use App\Models\UserAuth;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Storage;
 
 class VerificationController extends Controller
 {
@@ -58,7 +59,7 @@ class VerificationController extends Controller
 
             // Store and create record for ID document
             if ($request->hasFile('id_document')) {
-                $idPath = $request->file('id_document')->store('verification/id/' . $userId, 'public');
+                $idPath = $request->file('id_document')->store('verification/id/' . $userId, 'do_spaces');
                 $createdRecords[] = UserAuth::create([
                     'user_id' => $userId,
                     'auth_type' => 'id',
@@ -73,7 +74,7 @@ class VerificationController extends Controller
 
             // Store and create record for breeder document if provided
             if ($request->hasFile('breeder_document')) {
-                $breederPath = $request->file('breeder_document')->store('verification/breeder/' . $userId, 'public');
+                $breederPath = $request->file('breeder_document')->store('verification/breeder/' . $userId, 'do_spaces');
                 $createdRecords[] = UserAuth::create([
                     'user_id' => $userId,
                     'auth_type' => 'breeder_certificate',
@@ -94,7 +95,7 @@ class VerificationController extends Controller
                     'shooter_name' => $request->input('shooter_name'),
                     'shooter_issuing_authority' => $request->input('shooter_issuing_authority'),
                 ]);
-                $shooterPath = $request->file('shooter_document')->store('verification/shooter/' . $userId, 'public');
+                $shooterPath = $request->file('shooter_document')->store('verification/shooter/' . $userId, 'do_spaces');
                 $createdRecords[] = UserAuth::create([
                     'user_id' => $userId,
                     'auth_type' => 'shooter_certificate',
@@ -252,7 +253,7 @@ class VerificationController extends Controller
 
             // Store the new document
             $folder = 'verification/' . $userAuth->auth_type . '/' . $userAuth->user_id;
-            $documentPath = $request->file('document')->store($folder, 'public');
+            $documentPath = $request->file('document')->store($folder, 'do_spaces');
 
             // Update the verification record
             $userAuth->update([

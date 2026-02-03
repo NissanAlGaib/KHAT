@@ -8,7 +8,7 @@ import {
   Image,
 } from "react-native";
 import { Colors, Spacing, BorderRadius, Shadows, FontSize } from "@/constants";
-import { API_BASE_URL } from "@/config/env";
+import { getStorageUrl } from "@/utils/imageUrl";
 import { ShooterProfile } from "@/services/matchService";
 
 interface HorizontalShooterScrollProps {
@@ -25,11 +25,7 @@ export default function HorizontalShooterScroll({
   onShooterPress,
 }: HorizontalShooterScrollProps) {
   const renderItem = ({ item }: { item: ShooterProfile }) => {
-    const photoUrl = item.profile_image
-      ? item.profile_image.startsWith("http")
-        ? item.profile_image
-        : `${API_BASE_URL}/${item.profile_image.startsWith("storage/") ? item.profile_image : `storage/${item.profile_image}`}`
-      : null;
+    const photoUrl = getStorageUrl(item.profile_image);
 
     const experienceYears = Math.ceil(item.experience_years || 0);
 

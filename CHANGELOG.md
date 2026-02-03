@@ -6,6 +6,59 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ---
+## [1.3.3] - 2026-02-03
+
+### User Verification Redesign
+
+#### New Verification UI Components
+- `StepperProgress` - Visual 3-step progress indicator with animated transitions
+- `IdTypeSelector` - Modal-based Philippine ID type picker with search
+- `DocumentUploader` - Camera/gallery picker with image preview and remove option
+- `AutoFilledInput` - Styled input with floating label and icon support
+- `OcrLoadingOverlay` - AI scanning animation overlay for future OCR integration
+
+#### Verification Flow Redesign
+- Complete redesign of User Verification pages with modern card-based UI
+- Added ScrollView inside KeyboardAvoidingView to fix keyboard covering inputs
+- Added `keyboardVerticalOffset` to account for header height
+
+#### Resubmission Pages Redesign
+- Redesigned `resubmit-user-verification.tsx` to match new verification design
+- Redesigned `resubmit-document.tsx` for pet vaccination/health record resubmissions
+- Both pages now use consistent styling with verification flow
+
+#### Profile Page Resubmission Fix
+- Fixed resubmission routing from Profile page
+- Now correctly routes to resubmit screen instead of full verification flow
+- Updates existing rejected document instead of creating new database rows
+
+#### DigitalOcean Spaces Storage Fix
+- Changed all verification uploads to use `do_spaces` disk instead of `public`
+- Fixed Admin document URLs to use `Storage::disk('do_spaces')->url()`
+- Fixed `uriToFile()` in `verificationService.ts` to extract MIME type from file extension
+
+#### Type Fixes
+- Added missing `active_contracts` and `failed_contracts` to `ShooterProfile.statistics` type
+
+#### Documentation
+- Added OCR implementation plan in `docs/OCR_IMPLEMENTATION_PLAN.md`
+
+---
+## [1.3.2] - 2026-02-03
+
+### Fixed
+- Profile images not displaying correctly due to malformed URLs
+- Double slash in storage URLs caused by trailing slash in API_BASE_URL
+- Inconsistent image URL construction across different screens
+
+### Added
+- Centralized `getStorageUrl()` utility in `utils/imageUrl.ts` for consistent image URL handling
+
+### Changed
+- Removed trailing slash from `API_BASE_URL` in `config/env.ts`
+- Updated `edit-profile.tsx`, `SearchResultCard.tsx`, `search.tsx`, `HorizontalShooterScroll.tsx`, and `[id].tsx` to use the new `getStorageUrl()` utility
+
+---
 
 ## [1.3.1] - 2026-01-29
 
@@ -35,6 +88,43 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 #### Dependencies
 - Added `@react-native-async-storage/async-storage` for recent searches persistence
+
+### 🔥 HOTFIX - Search Screen Black Screen Crash
+
+#### Critical Bug Fixed
+- **Issue**: Search screen displayed black/gray screen when navigating from homepage in production APK builds
+- **Root Cause**: Fabric (New Architecture) synchronization issues + outdated react-native-reanimated with tree-shaking bug
+
+#### Navigation Architecture Fix
+- Changed root layout from `Slot` to `Stack` navigator for proper screen transitions
+- Added `contentStyle: { backgroundColor: '#FFFFFF' }` to all Stack navigators
+- Added `sceneStyle: { backgroundColor: '#FFFFFF' }` to Tabs navigator
+- Added `animation: 'fade'` to root Stack for smoother transitions
+- Prevents native "black hole" during Fabric view synchronization
+
+#### Files Modified
+- `app/_layout.tsx` - Converted from Slot to Stack with explicit screen definitions
+- `app/(tabs)/_layout.tsx` - Added sceneStyle backgroundColor
+- `app/(chat)/_layout.tsx` - Added contentStyle backgroundColor
+- `app/(verification)/_layout.tsx` - Added contentStyle backgroundColor
+- `app/(auth)/_layout.tsx` - Added backgroundColor to root View
+
+#### Search Screen Hardening
+- Wrapped SearchScreen in `ErrorBoundary` component to catch JS crashes gracefully
+- Removed `autoFocus` on TextInput (caused Android production issues)
+- Added null safety checks for pet/user card rendering
+
+#### New Components
+- `components/ErrorBoundary.tsx` - Catches JS errors and displays fallback UI with retry button
+
+#### Dependency Upgrades (Required Rebuild)
+- Upgraded `react-native-reanimated` from 4.1.5 → **4.2.1** (fixes tree-shaking crash)
+- Upgraded `react-native-worklets` from 0.5.1 → **0.7.2** (fixes native initialization stripping)
+
+#### Technical Details
+- Tree-shaking in R8/ProGuard was stripping `react-native-worklets` initialization code in production builds
+- Fabric defaults to transparent/black background, causing "black screen" during navigation transitions
+- Fix requires APK rebuild (not OTA-pushable due to native dependency changes)
 
 ---
 
@@ -208,7 +298,9 @@ Added new colors to `constants/colors.ts`:
 
 | Version | Date | Highlights |
 |---------|------|------------|
-| 1.3.1 | 2026-01-29 | Pet cooldown fixes, global search feature with filters |
+| 1.3.3 | 2026-02-03 | User Verification redesign, new UI components, DO Spaces fix, resubmission flow fix |
+| 1.3.2 | 2026-02-03 | Image URL fix with centralized `getStorageUrl()` utility |
+| 1.3.1 | 2026-01-29 | Global search, **HOTFIX: black screen crash fix**, reanimated 4.2.1 |
 | 1.3.0 | 2026-01-28 | DigitalOcean deployment, EAS Build/Update, role switcher fix |
 | 1.2.0 | 2026-01-27 | Instagram-style header, pet photo in nav bar |
 | 1.1.0 | 2026-01-27 | Match card redesign, breed data fix, button improvements |

@@ -5,6 +5,8 @@ namespace App\Http\Controllers;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\Validator;
+use Illuminate\Support\Facades\Hash;
+use Illuminate\Validation\Rules\Password;
 
 class UserController extends Controller
 {
@@ -69,10 +71,10 @@ class UserController extends Controller
         if ($request->hasFile('profile_image')) {
             // Delete old profile image if exists
             if ($user->profile_image) {
-                Storage::disk('public')->delete($user->profile_image);
+                Storage::disk('do_spaces')->delete($user->profile_image);
             }
 
-            $path = $request->file('profile_image')->store('profile_images', 'public');
+            $path = $request->file('profile_image')->store('profile_images', 'do_spaces');
             $user->profile_image = $path;
         }
 
@@ -100,10 +102,10 @@ class UserController extends Controller
 
         // Delete old profile image if exists
         if ($user->profile_image) {
-            Storage::disk('public')->delete($user->profile_image);
+            Storage::disk('do_spaces')->delete($user->profile_image);
         }
 
-        $path = $request->file('profile_image')->store('profile_images', 'public');
+        $path = $request->file('profile_image')->store('profile_images', 'do_spaces');
         $user->profile_image = $path;
         $user->save();
 
@@ -173,5 +175,102 @@ class UserController extends Controller
             'success_rate' => $successRate,
             'income' => (float) $income,
         ]);
+    }
+
+    /**
+     * Change user password
+     */
+    public function changePassword(Request $request)
+    {
+        $validator = Validator::make($request->all(), [
+            'current_password' => 'required|string',
+            'new_password' => ['required', 'string', 'confirmed', Password::min(8)],
+        ]);
+
+        if ($validator->fails()) {
+            return response()->json([
+                'success' => false,
+                'errors' => $validator->errors()
+            ], 422);
+        }
+
+        $user = $request->user();
+
+        // Check current password
+        if (!Hash::check($request->current_password, $user->password)) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Current password is incorrect'
+            ], 400);
+        }
+
+        // Update password
+        $user->password = Hash::make($request->new_password);
+        $user->save();
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Password changed successfully'
+        ]);
+    }
+
+    /**
+     * Delete user account
+     */
+    public function deleteAccount(Request $request)
+    {
+        $validator = Validator::make($request->all(), [
+            'password' => 'required|string',
+            'confirmation' => 'required|string|in:DELETE',
+        ]);
+
+        if ($validator->fails()) {
+            return response()->json([
+                'success' => false,
+                'errors' => $validator->errors()
+            ], 422);
+        }
+
+        $user = $request->user();
+
+        // Verify password
+        if (!Hash::check($request->password, $user->password)) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Password is incorrect'
+            ], 400);
+        }
+
+        try {
+            // Delete profile image if exists
+            if ($user->profile_image) {
+                Storage::disk('do_spaces')->delete($user->profile_image);
+            }
+
+            // Revoke all tokens
+            $user->tokens()->delete();
+
+            // Soft delete or hard delete based on your preference
+            // For now, we'll do a soft approach: anonymize data
+            $user->name = 'Deleted User';
+            $user->email = 'deleted_' . $user->id . '_' . time() . '@deleted.local';
+            $user->contact_number = null;
+            $user->profile_image = null;
+            $user->save();
+
+            // Alternatively, for hard delete:
+            // $user->delete();
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Account deleted successfully'
+            ]);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to delete account',
+                'error' => $e->getMessage()
+            ], 500);
+        }
     }
 }

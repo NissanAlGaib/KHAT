@@ -12,6 +12,8 @@ export interface Breeder extends User {
   kennel_name?: string;
   experience_years?: number;
   rating?: number;
+  pet_breeds?: string[];
+  pet_count?: number;
 }
 
 export interface SearchFilters {
@@ -19,7 +21,64 @@ export interface SearchFilters {
   sex?: "male" | "female";
 }
 
+// Global search result types
+export interface GlobalSearchPetItem {
+  pet_id: number;
+  name: string;
+  species: string;
+  breed: string;
+  sex: string;
+  age: number | null;
+  profile_image: string | null;
+  owner: { id: number; name: string } | null;
+}
+
+export interface GlobalSearchBreederItem {
+  id: number;
+  name: string;
+  profile_image: string | null;
+  pet_breeds: string[];
+  pet_count: number;
+}
+
+export interface GlobalSearchShooterItem {
+  id: number;
+  name: string;
+  profile_image: string | null;
+  experience_years: number;
+}
+
+export interface GlobalSearchResults {
+  pets: {
+    count: number;
+    items: GlobalSearchPetItem[];
+  };
+  breeders: {
+    count: number;
+    items: GlobalSearchBreederItem[];
+  };
+  shooters: {
+    count: number;
+    items: GlobalSearchShooterItem[];
+  };
+}
+
 export const searchService = {
+  /**
+   * Global search across all categories (pets, breeders, shooters)
+   * Returns unified results with counts for each category
+   */
+  searchGlobal: async (query: string, limit: number = 5): Promise<GlobalSearchResults> => {
+    const response = await axios.get("/api/search/global", { 
+      params: { q: query, limit } 
+    });
+    return response.data.data || {
+      pets: { count: 0, items: [] },
+      breeders: { count: 0, items: [] },
+      shooters: { count: 0, items: [] },
+    };
+  },
+
   /**
    * Search for pets with optional filters
    */

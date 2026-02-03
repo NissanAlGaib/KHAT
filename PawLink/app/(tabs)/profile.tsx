@@ -25,7 +25,7 @@ import {
   getVerificationStatus,
   type VerificationStatus,
 } from "@/services/verificationService";
-import { API_BASE_URL } from "@/config/env";
+import { getStorageUrl } from "@/utils/imageUrl";
 import { useAlert } from "@/hooks/useAlert";
 import AlertModal from "@/components/core/AlertModal";
 import { LinearGradient } from "expo-linear-gradient";
@@ -85,29 +85,51 @@ export default function ProfileScreen() {
 
   const getVerificationDisplay = () => {
     if (!verificationStatus || verificationStatus.length === 0)
-      return { text: "Not Verified", color: "#6B7280", showButton: true };
+      return { text: "Not Verified", color: "#6B7280", showButton: true, hasRejected: false, hasPending: false };
+    
     const idVerification = verificationStatus.find((v) => v.auth_type === "id");
+    const hasAnyRejected = verificationStatus.some((v) => v.status === "rejected");
+    const hasAnyPending = verificationStatus.some((v) => v.status === "pending");
+    const allApproved = verificationStatus.every((v) => v.status === "approved");
+    
+    // ID verification is the primary check
     if (!idVerification)
-      return { text: "Not Verified", color: "#6B7280", showButton: true };
+      return { text: "Not Verified", color: "#6B7280", showButton: true, hasRejected: false, hasPending: false };
 
-    switch (idVerification.status) {
-      case "approved":
-        return { text: "Verified", color: "#16A34A", showButton: false };
-      case "pending":
-        return {
-          text: "Pending Verification",
-          color: "#F59E0B",
-          showButton: false,
-        };
-      case "rejected":
-        return {
-          text: "Verification Rejected",
-          color: "#DC2626",
-          showButton: true,
-        };
-      default:
-        return { text: "Not Verified", color: "#6B7280", showButton: true };
+    // Check for rejected documents first (highest priority)
+    if (hasAnyRejected) {
+      const rejectedCount = verificationStatus.filter((v) => v.status === "rejected").length;
+      return {
+        text: rejectedCount > 1 ? `${rejectedCount} Documents Rejected` : "Document Rejected",
+        color: "#DC2626",
+        showButton: true,
+        hasRejected: true,
+        hasPending: hasAnyPending,
+      };
     }
+
+    // Then check for pending
+    if (hasAnyPending) {
+      return {
+        text: "Pending Verification",
+        color: "#F59E0B",
+        showButton: true,
+        hasRejected: false,
+        hasPending: true,
+      };
+    }
+
+    // All approved
+    if (allApproved && idVerification.status === "approved") {
+      return { text: "Verified", color: "#16A34A", showButton: true, hasRejected: false, hasPending: false };
+    }
+
+    return { text: "Not Verified", color: "#6B7280", showButton: true, hasRejected: false, hasPending: false };
+  };
+
+  const handleVerifyPress = () => {
+    // Always navigate to verification status screen
+    router.push("/(verification)/verification-status");
   };
 
   const handleLogout = async () => {
@@ -124,16 +146,17 @@ export default function ProfileScreen() {
   // Handle add pet button - check verification first
   const handleAddPetPress = () => {
     if (!isIdVerified()) {
+      const verification = getVerificationDisplay();
       showAlert({
         title: "Verification Required",
-        message: "You must complete identity verification before adding a pet",
+        message: verification.hasRejected 
+          ? "Your verification was rejected. Please resubmit your document before adding a pet."
+          : "You must complete identity verification before adding a pet",
         type: "warning",
         buttons: [
           {
-            text: "Verify Now",
-            onPress: () => {
-              router.push("/(verification)/verify");
-            },
+            text: verification.hasRejected ? "View Status" : "Verify Now",
+            onPress: handleVerifyPress,
           },
           { text: "Later" },
         ],
@@ -220,11 +243,11 @@ export default function ProfileScreen() {
               style={styles.petCardGrid}
               onPress={() => router.push(`/(pet)/pet-profile?id=${pet.pet_id}`)}
             >
-              <Image
+<Image
                 source={
                   pet.photos?.length > 0
                     ? {
-                        uri: `${API_BASE_URL}/storage/${pet.photos.find((p: any) => p.is_primary)?.photo_url || pet.photos[0].photo_url}`,
+                        uri: getStorageUrl(pet.photos.find((p: any) => p.is_primary)?.photo_url || pet.photos[0].photo_url),
                       }
                     : require("@/assets/images/icon.png")
                 }
@@ -299,19 +322,19 @@ export default function ProfileScreen() {
           icon="user"
           title="Account"
           description="Update personal information"
-          onPress={() => {}}
+          onPress={() => router.push("/edit-profile")}
         />
         <SettingsItem
           icon="bell"
           title="Notifications"
           description="Manage notifications"
-          onPress={() => {}}
+          onPress={() => router.push("/notifications")}
         />
         <SettingsItem
           icon="shield"
           title="Privacy & Security"
           description="Control your privacy"
-          onPress={() => {}}
+          onPress={() => router.push("/privacy-security")}
         />
         <SettingsItem
           icon="log-out"
@@ -354,11 +377,11 @@ export default function ProfileScreen() {
           colors={["#FF6B4A", "#FF9A8B"]}
           style={styles.headerGradient}
         >
-          <Image
+<Image
             source={
               userProfile?.profile_image
                 ? {
-                    uri: `${API_BASE_URL}/storage/${userProfile.profile_image}`,
+                    uri: getStorageUrl(userProfile.profile_image),
                   }
                 : require("@/assets/images/icon.png")
             }
@@ -377,11 +400,13 @@ export default function ProfileScreen() {
           {verification.showButton && (
             <TouchableOpacity
               style={styles.verifyButton}
-              onPress={() => router.push("/(verification)/verify")}
+              onPress={handleVerifyPress}
             >
               <Text style={styles.verifyButtonText}>
-                {verification.text === "VERIFICATION REJECTED"
-                  ? "Verify Again"
+                {verification.hasRejected
+                  ? "View Status"
+                  : verification.text === "Verified"
+                  ? "View Status"
                   : "Verify Now"}
               </Text>
             </TouchableOpacity>

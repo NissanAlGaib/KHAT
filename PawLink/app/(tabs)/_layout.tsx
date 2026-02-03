@@ -7,6 +7,7 @@ export default function TabLayout() {
       tabBar={(props) => <CurvedTabBar {...props} />}
       screenOptions={{
         headerShown: false,
+        sceneStyle: { backgroundColor: '#FFFFFF' },
       }}
     >
       <Tabs.Screen name="index" options={{ title: "Home" }} />

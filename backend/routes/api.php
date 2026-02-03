@@ -44,6 +44,8 @@ Route::middleware(['auth:sanctum'])
         Route::post('/user/profile', [UserController::class, 'updateProfile']);
         Route::post('/user/profile-image', [UserController::class, 'updateProfileImage']);
         Route::get('/user/statistics', [UserController::class, 'getStatistics']);
+        Route::post('/user/change-password', [UserController::class, 'changePassword']);
+        Route::post('/user/delete-account', [UserController::class, 'deleteAccount']);
 
         // Pet routes
         Route::get('/pets', [PetController::class, 'index']);
@@ -140,6 +142,7 @@ Route::middleware(['auth:sanctum'])
         Route::post('/subscriptions/checkout', [SubscriptionController::class, 'createCheckout']);
 
         // Search routes
+        Route::get('/search/global', [SearchController::class, 'searchGlobal']);
         Route::get('/search/pets', [SearchController::class, 'searchPets']);
         Route::get('/search/breeders', [SearchController::class, 'searchBreeders']);
         Route::get('/search/shooters', [SearchController::class, 'searchShooters']);

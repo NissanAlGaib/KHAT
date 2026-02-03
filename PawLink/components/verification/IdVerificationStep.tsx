@@ -3,83 +3,128 @@ import {
   View,
   Text,
   TouchableOpacity,
-  TextInput,
-  Image,
   Platform,
+  KeyboardAvoidingView,
+  ScrollView,
 } from "react-native";
 import { Feather } from "@expo/vector-icons";
-import * as ImagePicker from "expo-image-picker";
 import DateTimePicker from "@react-native-community/datetimepicker";
 import { useAlert } from "@/hooks/useAlert";
 import AlertModal from "@/components/core/AlertModal";
+import IdTypeSelector from "./IdTypeSelector";
+import DocumentUploader from "./DocumentUploader";
+import AutoFilledInput from "./AutoFilledInput";
+import OcrLoadingOverlay from "./OcrLoadingOverlay";
+import { extractIdInformation, OcrExtractedData } from "@/services/ocrService";
 
 interface IdVerificationStepProps {
-  onNext: (data: any) => void;
-  initialData: any;
+  onNext: (data: Record<string, unknown>) => void;
+  initialData: Record<string, unknown>;
 }
-
-const ID_TYPES = [
-  "Driver's License",
-  "Passport",
-  "National ID",
-  "SSS ID",
-  "PhilHealth ID",
-  "UMID",
-  "Voter's ID",
-  "PRC ID",
-];
 
 export default function IdVerificationStep({
   onNext,
   initialData,
 }: IdVerificationStepProps) {
   const { visible, alertOptions, showAlert, hideAlert } = useAlert();
-  const [idType, setIdType] = useState(initialData.idType || "");
-  const [showIdTypePicker, setShowIdTypePicker] = useState(false);
+  
+  // Form state
+  const [idType, setIdType] = useState<string>((initialData.idType as string) || "");
   const [idPhoto, setIdPhoto] = useState<string | null>(
-    initialData.idPhoto || null
+    (initialData.idPhoto as string) || null
   );
-  const [name, setName] = useState(initialData.idName || "");
-  const [idNumber, setIdNumber] = useState(initialData.idNumber || "");
-  const [birthdate, setBirthdate] = useState(
-    initialData.idBirthdate ? new Date(initialData.idBirthdate) : new Date()
+  const [name, setName] = useState<string>((initialData.idName as string) || "");
+  const [idNumber, setIdNumber] = useState<string>((initialData.idNumber as string) || "");
+  const [birthdate, setBirthdate] = useState<Date>(
+    initialData.idBirthdate ? new Date(initialData.idBirthdate as string) : new Date()
   );
-  const [givenDate, setGivenDate] = useState(
-    initialData.idGivenDate ? new Date(initialData.idGivenDate) : new Date()
+  const [givenDate, setGivenDate] = useState<Date>(
+    initialData.idGivenDate ? new Date(initialData.idGivenDate as string) : new Date()
   );
-  const [expirationDate, setExpirationDate] = useState(
+  const [expirationDate, setExpirationDate] = useState<Date>(
     initialData.idExpirationDate
-      ? new Date(initialData.idExpirationDate)
+      ? new Date(initialData.idExpirationDate as string)
       : new Date()
   );
 
+  // UI state
   const [showBirthdatePicker, setShowBirthdatePicker] = useState(false);
   const [showGivenDatePicker, setShowGivenDatePicker] = useState(false);
-  const [showExpirationDatePicker, setShowExpirationDatePicker] =
-    useState(false);
+  const [showExpirationDatePicker, setShowExpirationDatePicker] = useState(false);
+  
+  // OCR state
+  const [isScanning, setIsScanning] = useState(false);
+  const [scanProgress, setScanProgress] = useState(0);
+  const [autoFilledFields, setAutoFilledFields] = useState<Set<string>>(new Set());
 
-  const pickImage = async () => {
-    const permissionResult =
-      await ImagePicker.requestMediaLibraryPermissionsAsync();
+  // Handle photo upload and OCR
+  const handlePhotoChange = async (uri: string | null) => {
+    setIdPhoto(uri);
+    
+    if (uri && idType) {
+      // Start OCR scanning
+      setIsScanning(true);
+      setScanProgress(0);
 
-    if (permissionResult.granted === false) {
-      showAlert({
-        title: "Permission Required",
-        message: "Permission to access camera roll is required!",
-        type: "warning",
-      });
-      return;
+      // Simulate progress for better UX
+      const progressInterval = setInterval(() => {
+        setScanProgress((prev) => Math.min(prev + 10, 90));
+      }, 200);
+
+      try {
+        const result = await extractIdInformation(uri, idType);
+        
+        clearInterval(progressInterval);
+        setScanProgress(100);
+
+        if (result.success && result.extracted_fields) {
+          applyExtractedData(result.extracted_fields);
+        }
+      } catch (error) {
+        console.error("OCR Error:", error);
+        clearInterval(progressInterval);
+      } finally {
+        setTimeout(() => {
+          setIsScanning(false);
+          setScanProgress(0);
+        }, 500);
+      }
+    }
+  };
+
+  // Apply extracted OCR data to form
+  const applyExtractedData = (data: OcrExtractedData) => {
+    const newAutoFilled = new Set<string>();
+
+    if (data.full_name) {
+      setName(data.full_name);
+      newAutoFilled.add("name");
+    }
+    if (data.id_number) {
+      setIdNumber(data.id_number);
+      newAutoFilled.add("idNumber");
+    }
+    if (data.birthdate) {
+      setBirthdate(new Date(data.birthdate));
+      newAutoFilled.add("birthdate");
+    }
+    if (data.issue_date) {
+      setGivenDate(new Date(data.issue_date));
+      newAutoFilled.add("givenDate");
+    }
+    if (data.expiration_date) {
+      setExpirationDate(new Date(data.expiration_date));
+      newAutoFilled.add("expirationDate");
     }
 
-    const result = await ImagePicker.launchImageLibraryAsync({
-      mediaTypes: ImagePicker.MediaTypeOptions.Images,
-      allowsEditing: true,
-      aspect: [4, 3],
-      quality: 1,
-    });
+    setAutoFilledFields(newAutoFilled);
 
-    if (!result.canceled) {
-      setIdPhoto(result.assets[0].uri);
+    if (newAutoFilled.size > 0) {
+      showAlert({
+        title: "Information Extracted",
+        message: `AI successfully extracted ${newAutoFilled.size} field(s) from your ID. Please verify the information is correct.`,
+        type: "success",
+      });
     }
   };
 
@@ -91,10 +136,37 @@ export default function IdVerificationStep({
   };
 
   const handleNext = () => {
-    if (!idType || !name || !idNumber) {
+    if (!idType) {
       showAlert({
-        title: "Missing Information",
-        message: "Please fill in all required fields",
+        title: "ID Type Required",
+        message: "Please select the type of ID you're uploading",
+        type: "warning",
+      });
+      return;
+    }
+
+    if (!idPhoto) {
+      showAlert({
+        title: "ID Photo Required",
+        message: "Please upload a photo of your ID",
+        type: "warning",
+      });
+      return;
+    }
+
+    if (!name.trim()) {
+      showAlert({
+        title: "Name Required",
+        message: "Please enter the name as it appears on your ID",
+        type: "warning",
+      });
+      return;
+    }
+
+    if (!idNumber.trim()) {
+      showAlert({
+        title: "ID Number Required",
+        message: "Please enter your ID number",
         type: "warning",
       });
       return;
@@ -112,170 +184,243 @@ export default function IdVerificationStep({
   };
 
   return (
-    <View className="px-6">
-      {/* ID Type Selector */}
-      <Text className="text-black font-semibold mb-2">id type</Text>
-      <TouchableOpacity
-        className="bg-white border border-gray-300 rounded-lg px-4 py-4 mb-4 flex-row justify-between items-center"
-        onPress={() => setShowIdTypePicker(!showIdTypePicker)}
+    <KeyboardAvoidingView
+      behavior={Platform.OS === "ios" ? "padding" : "height"}
+      className="flex-1"
+      keyboardVerticalOffset={Platform.OS === "ios" ? 180 : 0}
+    >
+      <ScrollView
+        className="flex-1"
+        contentContainerStyle={{ paddingBottom: 40 }}
+        keyboardShouldPersistTaps="handled"
+        showsVerticalScrollIndicator={false}
       >
-        <Text className={idType ? "text-black" : "text-gray-400"}>
-          {idType || "Select"}
-        </Text>
-        <Feather name="chevron-down" size={20} color="gray" />
-      </TouchableOpacity>
-
-      {showIdTypePicker && (
-        <View className="bg-white border border-gray-300 rounded-lg mb-4 overflow-hidden">
-          {ID_TYPES.map((type) => (
-            <TouchableOpacity
-              key={type}
-              className="px-4 py-3 border-b border-gray-200"
-              onPress={() => {
-                setIdType(type);
-                setShowIdTypePicker(false);
-              }}
-            >
-              <Text className="text-black">{type}</Text>
-            </TouchableOpacity>
-          ))}
+        <View className="px-5 pb-6">
+        {/* Section: ID Type Selection */}
+        <View className="mb-6">
+          <Text className="text-lg font-bold text-gray-900 mb-3">
+            Select ID Type
+          </Text>
+          <IdTypeSelector value={idType} onSelect={setIdType} />
         </View>
-      )}
 
-      {/* Upload Picture Section */}
-      <Text className="text-xl font-bold text-black mb-2">Upload Picture</Text>
-      <Text className="text-gray-600 mb-4">
-        Upload picture of your valid ID and selfie of yourself holding your ID
-      </Text>
-
-      <TouchableOpacity
-        className="bg-gray-100 border-2 border-dashed border-gray-300 rounded-2xl p-8 items-center mb-6"
-        onPress={pickImage}
-      >
-        {idPhoto ? (
-          <Image
-            source={{ uri: idPhoto }}
-            className="w-full h-40 rounded-lg"
-            resizeMode="cover"
+        {/* Section: Document Upload */}
+        <View className="mb-6">
+          <DocumentUploader
+            value={idPhoto}
+            onChange={handlePhotoChange}
+            isScanning={isScanning}
+            label="Upload ID Photo"
+            placeholder="Take a clear photo of your ID"
           />
-        ) : (
-          <>
-            <Feather name="upload" size={40} color="#9CA3AF" />
-            <Text className="text-gray-500 font-semibold mt-2">
-              Upload Photos
+        </View>
+
+        {/* Section: ID Information */}
+        <View className="bg-white rounded-3xl p-5 shadow-sm mb-6">
+          <View className="flex-row items-center justify-between mb-4">
+            <Text className="text-lg font-bold text-gray-900">
+              ID Information
             </Text>
-          </>
-        )}
-      </TouchableOpacity>
+            {autoFilledFields.size > 0 && (
+              <View className="flex-row items-center bg-[#FF6B4A]/10 px-3 py-1.5 rounded-full">
+                <Feather name="zap" size={14} color="#FF6B4A" />
+                <Text className="text-xs font-semibold text-[#FF6B4A] ml-1">
+                  AI Auto-filled
+                </Text>
+              </View>
+            )}
+          </View>
 
-      {/* Name Input */}
-      <Text className="text-black font-semibold mb-2">Name</Text>
-      <TextInput
-        className="bg-white border border-gray-300 rounded-lg px-4 py-4 mb-4"
-        placeholder="Enter name"
-        value={name}
-        onChangeText={setName}
-      />
+          {/* Name Input */}
+          <AutoFilledInput
+            label="Full Name"
+            value={name}
+            onChangeText={setName}
+            isAutoFilled={autoFilledFields.has("name")}
+            required
+            leftIcon="user"
+            placeholder="Enter name as shown on ID"
+            autoCapitalize="words"
+          />
 
-      {/* ID Number Input */}
-      <Text className="text-black font-semibold mb-2">ID number</Text>
-      <TextInput
-        className="bg-white border border-gray-300 rounded-lg px-4 py-4 mb-4"
-        placeholder="Enter Id number"
-        value={idNumber}
-        onChangeText={setIdNumber}
-      />
+          {/* ID Number Input */}
+          <AutoFilledInput
+            label="ID Number"
+            value={idNumber}
+            onChangeText={setIdNumber}
+            isAutoFilled={autoFilledFields.has("idNumber")}
+            required
+            leftIcon="hash"
+            placeholder="Enter ID number"
+            autoCapitalize="characters"
+          />
 
-      {/* Birthdate Input */}
-      <Text className="text-black font-semibold mb-2">Birthdate</Text>
-      <TouchableOpacity
-        className="bg-white border border-gray-300 rounded-lg px-4 py-4 mb-4 flex-row justify-between items-center"
-        onPress={() => setShowBirthdatePicker(true)}
-      >
-        <Text className="text-gray-700">{formatDate(birthdate)}</Text>
-        <Feather name="calendar" size={20} color="gray" />
-      </TouchableOpacity>
-
-      {showBirthdatePicker && (
-        <DateTimePicker
-          value={birthdate}
-          mode="date"
-          display={Platform.OS === "ios" ? "spinner" : "default"}
-          onChange={(event, selectedDate) => {
-            setShowBirthdatePicker(Platform.OS === "ios");
-            if (selectedDate) {
-              setBirthdate(selectedDate);
-            }
-          }}
-        />
-      )}
-
-      {/* Given Date and Expiration Date Row */}
-      <View className="flex-row gap-4 mb-6">
-        {/* Given Date */}
-        <View className="flex-1">
-          <Text className="text-black font-semibold mb-2">Given Date</Text>
-          <TouchableOpacity
-            className="bg-white border border-gray-300 rounded-lg px-4 py-4 flex-row justify-between items-center"
-            onPress={() => setShowGivenDatePicker(true)}
-          >
-            <Text className="text-gray-700 text-sm">
-              {formatDate(givenDate)}
+          {/* Birthdate */}
+          <View className="mb-4">
+            <Text className="text-sm font-semibold text-gray-700 mb-2 uppercase tracking-wide">
+              Birthdate
             </Text>
-            <Feather name="calendar" size={20} color="gray" />
-          </TouchableOpacity>
+            <TouchableOpacity
+              className={`bg-white rounded-2xl border-2 px-4 py-4 flex-row justify-between items-center ${
+                autoFilledFields.has("birthdate")
+                  ? "border-[#FF6B4A] bg-orange-50"
+                  : "border-gray-200"
+              }`}
+              onPress={() => setShowBirthdatePicker(true)}
+            >
+              <View className="flex-row items-center">
+                <Feather name="calendar" size={18} color="#9CA3AF" />
+                <Text className="text-base text-gray-900 ml-3">
+                  {formatDate(birthdate)}
+                </Text>
+              </View>
+              {autoFilledFields.has("birthdate") && (
+                <View className="flex-row items-center bg-[#FF6B4A]/10 px-2 py-1 rounded-full">
+                  <Feather name="zap" size={12} color="#FF6B4A" />
+                  <Text className="text-xs font-medium text-[#FF6B4A] ml-1">
+                    AI
+                  </Text>
+                </View>
+              )}
+            </TouchableOpacity>
+          </View>
 
-          {showGivenDatePicker && (
+          {showBirthdatePicker && (
             <DateTimePicker
-              value={givenDate}
+              value={birthdate}
               mode="date"
               display={Platform.OS === "ios" ? "spinner" : "default"}
+              maximumDate={new Date()}
               onChange={(event, selectedDate) => {
-                setShowGivenDatePicker(Platform.OS === "ios");
+                setShowBirthdatePicker(Platform.OS === "ios");
                 if (selectedDate) {
-                  setGivenDate(selectedDate);
+                  setBirthdate(selectedDate);
+                  setAutoFilledFields((prev) => {
+                    const next = new Set(prev);
+                    next.delete("birthdate");
+                    return next;
+                  });
                 }
               }}
             />
           )}
+
+          {/* Issue & Expiration Dates */}
+          <View className="flex-row gap-3">
+            {/* Issue Date */}
+            <View className="flex-1">
+              <Text className="text-sm font-semibold text-gray-700 mb-2 uppercase tracking-wide">
+                Issue Date
+              </Text>
+              <TouchableOpacity
+                className={`bg-white rounded-2xl border-2 px-3 py-4 flex-row justify-between items-center ${
+                  autoFilledFields.has("givenDate")
+                    ? "border-[#FF6B4A] bg-orange-50"
+                    : "border-gray-200"
+                }`}
+                onPress={() => setShowGivenDatePicker(true)}
+              >
+                <View className="flex-row items-center flex-1">
+                  <Feather name="calendar" size={16} color="#9CA3AF" />
+                  <Text className="text-sm text-gray-900 ml-2" numberOfLines={1}>
+                    {formatDate(givenDate)}
+                  </Text>
+                </View>
+              </TouchableOpacity>
+            </View>
+
+            {showGivenDatePicker && (
+              <DateTimePicker
+                value={givenDate}
+                mode="date"
+                display={Platform.OS === "ios" ? "spinner" : "default"}
+                maximumDate={new Date()}
+                onChange={(event, selectedDate) => {
+                  setShowGivenDatePicker(Platform.OS === "ios");
+                  if (selectedDate) {
+                    setGivenDate(selectedDate);
+                    setAutoFilledFields((prev) => {
+                      const next = new Set(prev);
+                      next.delete("givenDate");
+                      return next;
+                    });
+                  }
+                }}
+              />
+            )}
+
+            {/* Expiration Date */}
+            <View className="flex-1">
+              <Text className="text-sm font-semibold text-gray-700 mb-2 uppercase tracking-wide">
+                Expiration
+              </Text>
+              <TouchableOpacity
+                className={`bg-white rounded-2xl border-2 px-3 py-4 flex-row justify-between items-center ${
+                  autoFilledFields.has("expirationDate")
+                    ? "border-[#FF6B4A] bg-orange-50"
+                    : "border-gray-200"
+                }`}
+                onPress={() => setShowExpirationDatePicker(true)}
+              >
+                <View className="flex-row items-center flex-1">
+                  <Feather name="calendar" size={16} color="#9CA3AF" />
+                  <Text className="text-sm text-gray-900 ml-2" numberOfLines={1}>
+                    {formatDate(expirationDate)}
+                  </Text>
+                </View>
+              </TouchableOpacity>
+            </View>
+
+            {showExpirationDatePicker && (
+              <DateTimePicker
+                value={expirationDate}
+                mode="date"
+                display={Platform.OS === "ios" ? "spinner" : "default"}
+                minimumDate={new Date()}
+                onChange={(event, selectedDate) => {
+                  setShowExpirationDatePicker(Platform.OS === "ios");
+                  if (selectedDate) {
+                    setExpirationDate(selectedDate);
+                    setAutoFilledFields((prev) => {
+                      const next = new Set(prev);
+                      next.delete("expirationDate");
+                      return next;
+                    });
+                  }
+                }}
+              />
+            )}
+          </View>
         </View>
 
-        {/* Expiration Date */}
-        <View className="flex-1">
-          <Text className="text-black font-semibold mb-2">Expiration Date</Text>
-          <TouchableOpacity
-            className="bg-white border border-gray-300 rounded-lg px-4 py-4 flex-row justify-between items-center"
-            onPress={() => setShowExpirationDatePicker(true)}
-          >
-            <Text className="text-gray-700 text-sm">
-              {formatDate(expirationDate)}
-            </Text>
-            <Feather name="calendar" size={20} color="gray" />
-          </TouchableOpacity>
+        {/* Continue Button */}
+        <TouchableOpacity
+          className="bg-[#FF6B4A] rounded-2xl py-4 shadow-lg shadow-[#FF6B4A]/30"
+          onPress={handleNext}
+          activeOpacity={0.8}
+        >
+          <View className="flex-row items-center justify-center">
+            <Text className="text-white font-bold text-lg mr-2">Continue</Text>
+            <Feather name="arrow-right" size={20} color="white" />
+          </View>
+        </TouchableOpacity>
 
-          {showExpirationDatePicker && (
-            <DateTimePicker
-              value={expirationDate}
-              mode="date"
-              display={Platform.OS === "ios" ? "spinner" : "default"}
-              onChange={(event, selectedDate) => {
-                setShowExpirationDatePicker(Platform.OS === "ios");
-                if (selectedDate) {
-                  setExpirationDate(selectedDate);
-                }
-              }}
-            />
-          )}
+        {/* Help Text */}
+        <View className="flex-row items-center justify-center mt-4 px-4">
+          <Feather name="shield" size={14} color="#9CA3AF" />
+          <Text className="text-xs text-gray-400 ml-2 text-center">
+            Your information is encrypted and securely stored
+          </Text>
         </View>
-      </View>
+        </View>
+      </ScrollView>
 
-      {/* Next Button */}
-      <TouchableOpacity
-        className="bg-[#FF6B4A] rounded-lg py-4 items-center mb-8"
-        onPress={handleNext}
-      >
-        <Text className="text-white font-bold text-lg">Next</Text>
-      </TouchableOpacity>
+      {/* OCR Loading Overlay */}
+      <OcrLoadingOverlay
+        visible={isScanning}
+        progress={scanProgress}
+        message="Extracting information from your ID..."
+      />
 
       <AlertModal
         visible={visible}
@@ -285,6 +430,6 @@ export default function IdVerificationStep({
         buttons={alertOptions.buttons}
         onClose={hideAlert}
       />
-    </View>
+    </KeyboardAvoidingView>
   );
 }

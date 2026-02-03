@@ -8,6 +8,10 @@ import CustomInput from "@/components/app/CustomInput";
 import CustomButton from "@/components/app/CustomButton";
 import { useAlert } from "@/hooks/useAlert";
 import AlertModal from "@/components/core/AlertModal";
+import Constants from "expo-constants";
+
+// Get version from app.json
+const appVersion = Constants.expoConfig?.version || "1.0.0";
 
 /**
  * Login Screen
@@ -112,6 +116,11 @@ const Login = () => {
         <Link href="/register">
           <Text className="text-primary-dark font-roboto">Create Account</Text>
         </Link>
+      </Text>
+
+      {/* Version number */}
+      <Text className="text-xs text-text-disabled text-center mb-2 font-roboto">
+        Version {appVersion}
       </Text>
 
       <AlertModal
