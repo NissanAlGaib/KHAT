@@ -85,54 +85,51 @@ export default function ProfileScreen() {
 
   const getVerificationDisplay = () => {
     if (!verificationStatus || verificationStatus.length === 0)
-      return { text: "Not Verified", color: "#6B7280", showButton: true, isRejected: false, rejectedDoc: null };
+      return { text: "Not Verified", color: "#6B7280", showButton: true, hasRejected: false, hasPending: false };
+    
     const idVerification = verificationStatus.find((v) => v.auth_type === "id");
+    const hasAnyRejected = verificationStatus.some((v) => v.status === "rejected");
+    const hasAnyPending = verificationStatus.some((v) => v.status === "pending");
+    const allApproved = verificationStatus.every((v) => v.status === "approved");
+    
+    // ID verification is the primary check
     if (!idVerification)
-      return { text: "Not Verified", color: "#6B7280", showButton: true, isRejected: false, rejectedDoc: null };
+      return { text: "Not Verified", color: "#6B7280", showButton: true, hasRejected: false, hasPending: false };
 
-    switch (idVerification.status) {
-      case "approved":
-        return { text: "Verified", color: "#16A34A", showButton: false, isRejected: false, rejectedDoc: null };
-      case "pending":
-        return {
-          text: "Pending Verification",
-          color: "#F59E0B",
-          showButton: false,
-          isRejected: false,
-          rejectedDoc: null,
-        };
-      case "rejected":
-        return {
-          text: "Verification Rejected",
-          color: "#DC2626",
-          showButton: true,
-          isRejected: true,
-          rejectedDoc: idVerification,
-        };
-      default:
-        return { text: "Not Verified", color: "#6B7280", showButton: true, isRejected: false, rejectedDoc: null };
+    // Check for rejected documents first (highest priority)
+    if (hasAnyRejected) {
+      const rejectedCount = verificationStatus.filter((v) => v.status === "rejected").length;
+      return {
+        text: rejectedCount > 1 ? `${rejectedCount} Documents Rejected` : "Document Rejected",
+        color: "#DC2626",
+        showButton: true,
+        hasRejected: true,
+        hasPending: hasAnyPending,
+      };
     }
+
+    // Then check for pending
+    if (hasAnyPending) {
+      return {
+        text: "Pending Verification",
+        color: "#F59E0B",
+        showButton: true,
+        hasRejected: false,
+        hasPending: true,
+      };
+    }
+
+    // All approved
+    if (allApproved && idVerification.status === "approved") {
+      return { text: "Verified", color: "#16A34A", showButton: true, hasRejected: false, hasPending: false };
+    }
+
+    return { text: "Not Verified", color: "#6B7280", showButton: true, hasRejected: false, hasPending: false };
   };
 
   const handleVerifyPress = () => {
-    const verification = getVerificationDisplay();
-    
-    if (verification.isRejected && verification.rejectedDoc) {
-      // Navigate to resubmit screen for the rejected document
-      router.push({
-        pathname: "/(verification)/resubmit-user-verification",
-        params: {
-          authId: verification.rejectedDoc.auth_id,
-          authType: verification.rejectedDoc.auth_type,
-          documentType: verification.rejectedDoc.auth_type === "id" ? "ID Document" : 
-                        verification.rejectedDoc.auth_type === "breeder_certificate" ? "Breeder Certificate" : 
-                        "Shooter Certificate",
-        },
-      });
-    } else {
-      // Navigate to full verification flow for new verification
-      router.push("/(verification)/verify");
-    }
+    // Always navigate to verification status screen
+    router.push("/(verification)/verification-status");
   };
 
   const handleLogout = async () => {
@@ -152,13 +149,13 @@ export default function ProfileScreen() {
       const verification = getVerificationDisplay();
       showAlert({
         title: "Verification Required",
-        message: verification.isRejected 
+        message: verification.hasRejected 
           ? "Your verification was rejected. Please resubmit your document before adding a pet."
           : "You must complete identity verification before adding a pet",
         type: "warning",
         buttons: [
           {
-            text: verification.isRejected ? "Resubmit Document" : "Verify Now",
+            text: verification.hasRejected ? "View Status" : "Verify Now",
             onPress: handleVerifyPress,
           },
           { text: "Later" },
@@ -406,8 +403,10 @@ export default function ProfileScreen() {
               onPress={handleVerifyPress}
             >
               <Text style={styles.verifyButtonText}>
-                {verification.text === "Verification Rejected"
-                  ? "Resubmit Document"
+                {verification.hasRejected
+                  ? "View Status"
+                  : verification.text === "Verified"
+                  ? "View Status"
                   : "Verify Now"}
               </Text>
             </TouchableOpacity>

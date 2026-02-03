@@ -298,6 +298,8 @@ Added new colors to `constants/colors.ts`:
 
 | Version | Date | Highlights |
 |---------|------|------------|
+| 1.3.3 | 2026-02-03 | User Verification redesign, new UI components, DO Spaces fix, resubmission flow fix |
+| 1.3.2 | 2026-02-03 | Image URL fix with centralized `getStorageUrl()` utility |
 | 1.3.1 | 2026-01-29 | Global search, **HOTFIX: black screen crash fix**, reanimated 4.2.1 |
 | 1.3.0 | 2026-01-28 | DigitalOcean deployment, EAS Build/Update, role switcher fix |
 | 1.2.0 | 2026-01-27 | Instagram-style header, pet photo in nav bar |

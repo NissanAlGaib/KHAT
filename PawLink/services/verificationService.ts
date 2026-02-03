@@ -24,9 +24,15 @@ export interface VerificationData {
 export interface VerificationStatus {
   auth_id: number;
   user_id: number;
-  auth_type: string; // 'id', 'breeder_certificate', or 'shooter_certificate'
+  auth_type: "id" | "breeder_certificate" | "shooter_certificate";
   document_path: string;
+  document_number?: string;
+  document_name?: string;
+  issue_date?: string;
+  expiry_date?: string;
+  issuing_authority?: string;
   status: "pending" | "approved" | "rejected";
+  rejection_reason?: string;
   date_created: string;
 }
 
