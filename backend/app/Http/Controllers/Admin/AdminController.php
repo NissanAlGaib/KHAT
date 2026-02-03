@@ -13,6 +13,7 @@ use App\Models\AuditLog;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Storage;
 use Illuminate\Validation\ValidationException;
 use Carbon\Carbon;
 
@@ -894,7 +895,7 @@ class AdminController extends Controller
                     return [
                         'auth_id' => $auth->auth_id,
                         'auth_type' => $auth->auth_type,
-                        'document_path' => $auth->document_path ? asset('storage/' . $auth->document_path) : null,
+                        'document_path' => $auth->document_path ? Storage::disk('do_spaces')->url($auth->document_path) : null,
                         'status' => $auth->status,
                         'date_created' => $auth->date_created ? $auth->date_created->format('M d, Y') : null,
                         'date_submitted' => $auth->created_at->format('M d, Y h:i A'),

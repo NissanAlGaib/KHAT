@@ -172,13 +172,25 @@ export const updateVerificationStatus = async (
  */
 const uriToFile = async (uri: string, name: string) => {
   try {
-    const response = await fetch(uri);
-    const blob = await response.blob();
-    const filename = `${name}_${Date.now()}.${blob.type.split("/")[1] || "jpg"}`;
+    // Get file extension from URI
+    const uriParts = uri.split('.');
+    const fileExtension = uriParts[uriParts.length - 1].toLowerCase();
+    
+    // Map extension to MIME type
+    const mimeTypes: Record<string, string> = {
+      jpg: 'image/jpeg',
+      jpeg: 'image/jpeg',
+      png: 'image/png',
+      pdf: 'application/pdf',
+    };
+    
+    const mimeType = mimeTypes[fileExtension] || 'image/jpeg';
+    const filename = `${name}_${Date.now()}.${fileExtension || 'jpg'}`;
+    
     return {
       uri,
       name: filename,
-      type: blob.type,
+      type: mimeType,
     };
   } catch (error) {
     console.error("Error converting URI to file:", error);
