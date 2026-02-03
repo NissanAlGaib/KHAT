@@ -299,19 +299,19 @@ export default function ProfileScreen() {
           icon="user"
           title="Account"
           description="Update personal information"
-          onPress={() => {}}
+          onPress={() => router.push("/edit-profile")}
         />
         <SettingsItem
           icon="bell"
           title="Notifications"
           description="Manage notifications"
-          onPress={() => {}}
+          onPress={() => router.push("/notifications")}
         />
         <SettingsItem
           icon="shield"
           title="Privacy & Security"
           description="Control your privacy"
-          onPress={() => {}}
+          onPress={() => router.push("/privacy-security")}
         />
         <SettingsItem
           icon="log-out"

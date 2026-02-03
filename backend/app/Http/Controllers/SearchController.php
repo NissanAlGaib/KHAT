@@ -168,6 +168,155 @@ class SearchController extends Controller
     }
 
     /**
+     * Global search across all categories (pets, breeders, shooters)
+     * Returns unified results with counts for each category
+     */
+    public function searchGlobal(Request $request)
+    {
+        try {
+            $query = $request->input('q', '');
+            $limit = $request->input('limit', 5); // Limit per category for preview
+
+            if (empty($query)) {
+                return response()->json([
+                    'success' => true,
+                    'data' => [
+                        'pets' => ['count' => 0, 'items' => []],
+                        'breeders' => ['count' => 0, 'items' => []],
+                        'shooters' => ['count' => 0, 'items' => []],
+                    ]
+                ]);
+            }
+
+            // Search Pets
+            $petsQuery = Pet::where('status', 'approved')
+                ->where(function ($q) {
+                    $q->whereNull('cooldown_until')
+                      ->orWhere('cooldown_until', '<=', now());
+                })
+                ->where(function ($q) use ($query) {
+                    $q->where('name', 'like', "%{$query}%")
+                      ->orWhere('breed', 'like', "%{$query}%")
+                      ->orWhere('species', 'like', "%{$query}%");
+                })
+                ->with(['owner:id,name,profile_image', 'photos']);
+
+            $petsCount = $petsQuery->count();
+            $pets = $petsQuery->limit($limit)->get();
+
+            $formattedPets = $pets->map(function ($pet) {
+                $primaryPhoto = $pet->photos->where('is_primary', true)->first();
+                return [
+                    'pet_id' => $pet->pet_id,
+                    'name' => $pet->name,
+                    'species' => $pet->species,
+                    'breed' => $pet->breed,
+                    'sex' => $pet->sex,
+                    'age' => $pet->age,
+                    'profile_image' => $primaryPhoto ? $primaryPhoto->photo_url : $pet->profile_image,
+                    'owner' => $pet->owner ? [
+                        'id' => $pet->owner->id,
+                        'name' => $pet->owner->name,
+                    ] : null,
+                ];
+            });
+
+            // Search Breeders
+            $breederRole = Role::where('role_type', 'Breeder')->first();
+            $breedersCount = 0;
+            $formattedBreeders = collect([]);
+
+            if ($breederRole) {
+                $breedersQuery = User::whereHas('roles', function ($q) use ($breederRole) {
+                    $q->where('roles.role_id', $breederRole->role_id);
+                })
+                ->whereHas('userAuth', function ($q) {
+                    $q->where('auth_type', 'id')
+                      ->where('status', 'approved');
+                })
+                ->where(function ($q) use ($query) {
+                    $q->where('name', 'like', "%{$query}%")
+                      ->orWhere('email', 'like', "%{$query}%")
+                      ->orWhereHas('pets', function ($petQuery) use ($query) {
+                          $petQuery->where('breed', 'like', "%{$query}%");
+                      });
+                })
+                ->with(['pets.photos']);
+
+                $breedersCount = $breedersQuery->count();
+                $breeders = $breedersQuery->limit($limit)->get();
+
+                $formattedBreeders = $breeders->map(function ($user) {
+                    $petBreeds = $user->pets->pluck('breed')->unique()->filter()->values()->toArray();
+                    return [
+                        'id' => $user->id,
+                        'name' => $user->name,
+                        'profile_image' => $user->profile_image,
+                        'pet_breeds' => $petBreeds,
+                        'pet_count' => $user->pets->count(),
+                    ];
+                });
+            }
+
+            // Search Shooters
+            $shooterRole = Role::where('role_type', 'Shooter')->first();
+            $shootersCount = 0;
+            $formattedShooters = collect([]);
+
+            if ($shooterRole) {
+                $shootersQuery = User::whereHas('roles', function ($q) use ($shooterRole) {
+                    $q->where('roles.role_id', $shooterRole->role_id);
+                })
+                ->whereHas('userAuth', function ($q) {
+                    $q->where('auth_type', 'shooter_certificate')
+                      ->where('status', 'approved');
+                })
+                ->where(function ($q) use ($query) {
+                    $q->where('name', 'like', "%{$query}%")
+                      ->orWhere('email', 'like', "%{$query}%");
+                });
+
+                $shootersCount = $shootersQuery->count();
+                $shooters = $shootersQuery->limit($limit)->get();
+
+                $formattedShooters = $shooters->map(function ($user) {
+                    $experienceYears = $user->created_at ? ceil($user->created_at->diffInYears(now())) : 0;
+                    return [
+                        'id' => $user->id,
+                        'name' => $user->name,
+                        'profile_image' => $user->profile_image,
+                        'experience_years' => $experienceYears,
+                    ];
+                });
+            }
+
+            return response()->json([
+                'success' => true,
+                'data' => [
+                    'pets' => [
+                        'count' => $petsCount,
+                        'items' => $formattedPets,
+                    ],
+                    'breeders' => [
+                        'count' => $breedersCount,
+                        'items' => $formattedBreeders,
+                    ],
+                    'shooters' => [
+                        'count' => $shootersCount,
+                        'items' => $formattedShooters,
+                    ],
+                ]
+            ]);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to perform global search',
+                'error' => $e->getMessage()
+            ], 500);
+        }
+    }
+
+    /**
      * Search for shooters (users with Shooter role)
      */
     public function searchShooters(Request $request)

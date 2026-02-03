@@ -64,6 +64,8 @@ function RootNavigator() {
       <Stack.Screen name="settings" />
       <Stack.Screen name="notifications" />
       <Stack.Screen name="subscription" />
+      <Stack.Screen name="edit-profile" />
+      <Stack.Screen name="privacy-security" />
     </Stack>
   );
 }
