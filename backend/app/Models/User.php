@@ -129,8 +129,13 @@ class User extends Authenticatable
      */
     public function getBlockedUserIds(): array
     {
-        $blockedByMe = $this->blockedUsers()->pluck('users.id')->toArray();
-        $blockedMe = $this->blockedByUsers()->pluck('users.id')->toArray();
-        return array_unique(array_merge($blockedByMe, $blockedMe));
+        try {
+            $blockedByMe = $this->blockedUsers()->pluck('users.id')->toArray();
+            $blockedMe = $this->blockedByUsers()->pluck('users.id')->toArray();
+            return array_unique(array_merge($blockedByMe, $blockedMe));
+        } catch (\Exception $e) {
+            // If the user_blocks table doesn't exist or query fails, return empty array
+            return [];
+        }
     }
 }

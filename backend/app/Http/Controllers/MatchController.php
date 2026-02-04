@@ -34,11 +34,16 @@ class MatchController extends Controller
             }
 
             // Get all other pets available for matching (not owned by the user, not on cooldown, not owned by blocked users)
-            $potentialMatches = Pet::where('user_id', '!=', $user->id)
-                ->whereNotIn('user_id', $blockedUserIds)
+            $query = Pet::where('user_id', '!=', $user->id)
                 ->availableForMatching()
-                ->with(['owner:id,name,profile_image', 'photos'])
-                ->get();
+                ->with(['owner:id,name,profile_image', 'photos']);
+
+            // Only add whereNotIn if there are blocked users
+            if (!empty($blockedUserIds)) {
+                $query->whereNotIn('user_id', $blockedUserIds);
+            }
+
+            $potentialMatches = $query->get();
 
             // Calculate compatibility scores
             $matches = $potentialMatches->map(function ($pet) use ($userPets) {
@@ -113,11 +118,16 @@ class MatchController extends Controller
             }
 
             // Get potential matches (not owned by user, not on cooldown, not owned by blocked users)
-            $potentialMatches = Pet::where('user_id', '!=', $user->id)
-                ->whereNotIn('user_id', $blockedUserIds)
+            $query = Pet::where('user_id', '!=', $user->id)
                 ->availableForMatching()
-                ->with('photos')
-                ->get();
+                ->with('photos');
+
+            // Only add whereNotIn if there are blocked users
+            if (!empty($blockedUserIds)) {
+                $query->whereNotIn('user_id', $blockedUserIds);
+            }
+
+            $potentialMatches = $query->get();
 
             $topMatches = [];
 
