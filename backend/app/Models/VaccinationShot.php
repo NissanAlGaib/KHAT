@@ -117,6 +117,7 @@ class VaccinationShot extends Model
     /**
      * Create a new shot for a vaccination card
      * Automatically calculates shot number and dates
+     * Next shot date is based on when this shot expires (user-provided expiration)
      */
     public static function createForCard(
         VaccinationCard $card,
@@ -129,22 +130,25 @@ class VaccinationShot extends Model
         $latestShot = $card->latestShot();
         $nextShotNumber = $latestShot ? $latestShot->shot_number + 1 : 1;
 
-        // Calculate next shot date if applicable
+        // Calculate next shot date based on expiration
+        // Next shot is due when this shot expires
         $nextShotDate = null;
-        if ($card->interval_days) {
-            // Check if more shots are needed
-            $willNeedMore = true;
-            if ($card->total_shots_required && $nextShotNumber >= $card->total_shots_required) {
+        
+        // Determine if more shots will be needed
+        $willNeedMore = true;
+        
+        // For non-recurring vaccines with a fixed series (e.g., Parvo 6-shot)
+        // No next shot after series is complete
+        if ($card->recurrence_type === 'none' && $card->total_shots_required) {
+            if ($nextShotNumber >= $card->total_shots_required) {
                 $willNeedMore = false;
             }
-            // For recurring vaccines, always calculate next shot date
-            if ($card->recurrence_type !== 'none') {
-                $willNeedMore = true;
-            }
-
-            if ($willNeedMore) {
-                $nextShotDate = Carbon::parse($dateAdministered)->addDays($card->interval_days);
-            }
+        }
+        
+        // For recurring vaccines (yearly, biannual) or incomplete series,
+        // next shot is due when this one expires
+        if ($willNeedMore) {
+            $nextShotDate = Carbon::parse($expirationDate);
         }
 
         $shot = self::create([

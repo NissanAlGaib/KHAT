@@ -104,14 +104,27 @@ export default function VaccinationCardComponent({
   const [expanded, setExpanded] = React.useState(isExpanded);
   const statusColor = getStatusColor(card.status);
 
-  const canAddShot = !card.is_series_complete || card.recurrence_type !== "none";
-  const progressText = card.total_shots_required
-    ? `${card.completed_shots_count}/${card.total_shots_required} shots`
-    : card.recurrence_type === "yearly"
-      ? "Annual"
-      : card.recurrence_type === "biannual"
-        ? "Every 6 months"
-        : "";
+  // Always allow adding shots - users may need boosters or have incomplete historical records
+  const canAddShot = true;
+  const isExtraShot = card.is_series_complete && card.recurrence_type === "none";
+  
+  // Determine progress text based on vaccine type
+  const getProgressText = () => {
+    if (card.total_shots_required) {
+      return `${card.completed_shots_count}/${card.total_shots_required} shots`;
+    }
+    switch (card.recurrence_type) {
+      case "yearly":
+        return "Annual";
+      case "biannual":
+        return "Every 6 months";
+      case "recurring":
+        return "Recurring";
+      default:
+        return "";
+    }
+  };
+  const progressText = getProgressText();
 
   return (
     <View style={styles.cardContainer}>
@@ -193,7 +206,10 @@ export default function VaccinationCardComponent({
           {card.is_series_complete && card.recurrence_type === "none" && (
             <View style={styles.completionMessage}>
               <Ionicons name="checkmark-circle" size={20} color={Colors.success} />
-              <Text style={styles.completionText}>Vaccination series completed!</Text>
+              <View style={{ flex: 1 }}>
+                <Text style={styles.completionText}>Vaccination series completed!</Text>
+                <Text style={styles.completionSubtext}>You can still add booster shots if needed.</Text>
+              </View>
             </View>
           )}
 
@@ -403,6 +419,12 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: "600",
     color: Colors.success,
+  },
+  completionSubtext: {
+    fontSize: 12,
+    color: Colors.success,
+    opacity: 0.8,
+    marginTop: 2,
   },
   nextShotInfo: {
     flexDirection: "row",

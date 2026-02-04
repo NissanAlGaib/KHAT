@@ -49,6 +49,7 @@ export default function AddShotModal({
   const [errors, setErrors] = useState<Record<string, string>>({});
 
   const nextShotNumber = card ? card.completed_shots_count + 1 : 1;
+  const isBoosterShot = card?.total_shots_required && nextShotNumber > card.total_shots_required;
 
   const resetForm = () => {
     setDocument(null);
@@ -196,8 +197,8 @@ export default function AddShotModal({
             <View>
               <Text style={styles.headerTitle}>Add Shot Record</Text>
               <Text style={styles.headerSubtitle}>
-                {card.vaccine_name} - Shot {nextShotNumber}
-                {card.total_shots_required ? ` of ${card.total_shots_required}` : ""}
+                {card.vaccine_name} - {isBoosterShot ? "Booster Shot" : `Shot ${nextShotNumber}`}
+                {card.total_shots_required && !isBoosterShot ? ` of ${card.total_shots_required}` : ""}
               </Text>
             </View>
             <TouchableOpacity onPress={handleClose} style={styles.closeButton}>
@@ -207,10 +208,22 @@ export default function AddShotModal({
 
           <ScrollView style={styles.content} keyboardShouldPersistTaps="handled">
             {/* Shot Number Display */}
-            <View style={styles.shotNumberBadge}>
-              <Ionicons name="medical" size={24} color={Colors.primary} />
-              <Text style={styles.shotNumberText}>Shot {nextShotNumber}</Text>
+            <View style={[styles.shotNumberBadge, isBoosterShot && styles.boosterBadge]}>
+              <Ionicons name={isBoosterShot ? "shield-checkmark" : "medical"} size={24} color={isBoosterShot ? Colors.success : Colors.primary} />
+              <Text style={[styles.shotNumberText, isBoosterShot && styles.boosterText]}>
+                {isBoosterShot ? "Booster Shot" : `Shot ${nextShotNumber}`}
+              </Text>
             </View>
+
+            {/* Booster Info Note */}
+            {isBoosterShot && (
+              <View style={styles.boosterNote}>
+                <Ionicons name="information-circle-outline" size={18} color={Colors.success} />
+                <Text style={styles.boosterNoteText}>
+                  This is an additional booster shot beyond the required {card.total_shots_required}-shot series.
+                </Text>
+              </View>
+            )}
 
             {/* Document Upload */}
             <View style={styles.inputGroup}>
@@ -420,6 +433,26 @@ const styles = StyleSheet.create({
     fontSize: 18,
     fontWeight: "700",
     color: Colors.primary,
+  },
+  boosterBadge: {
+    backgroundColor: Colors.success + "15",
+  },
+  boosterText: {
+    color: Colors.success,
+  },
+  boosterNote: {
+    flexDirection: "row",
+    backgroundColor: Colors.successBg,
+    padding: Spacing.md,
+    borderRadius: BorderRadius.lg,
+    marginBottom: Spacing.lg,
+    gap: Spacing.sm,
+    alignItems: "flex-start",
+  },
+  boosterNoteText: {
+    flex: 1,
+    fontSize: 13,
+    color: Colors.success,
   },
   inputGroup: {
     marginBottom: Spacing.lg,

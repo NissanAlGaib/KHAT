@@ -157,7 +157,8 @@ class VaccinationCard extends Model
     }
 
     /**
-     * Calculate the next shot date based on the last administered shot
+     * Calculate the next shot date based on the latest shot's expiration
+     * Returns the expiration date of the most recent shot (when next shot is due)
      */
     public function calculateNextShotDate(): ?Carbon
     {
@@ -167,11 +168,15 @@ class VaccinationCard extends Model
             return null;
         }
 
-        if (!$this->interval_days) {
-            return null;
+        // For non-recurring vaccines with completed series, no next shot needed
+        if ($this->recurrence_type === 'none' && $this->total_shots_required) {
+            if ($this->completedShots()->count() >= $this->total_shots_required) {
+                return null;
+            }
         }
 
-        return Carbon::parse($latestShot->date_administered)->addDays($this->interval_days);
+        // Next shot is due when the current shot expires
+        return $latestShot->expiration_date ? Carbon::parse($latestShot->expiration_date) : null;
     }
 
     /**
@@ -241,7 +246,6 @@ class VaccinationCard extends Model
         int $petId,
         string $vaccineName,
         ?int $totalShots = 1,
-        ?int $intervalDays = null,
         string $recurrenceType = 'none'
     ): self {
         $type = 'custom_' . strtolower(str_replace(' ', '_', $vaccineName)) . '_' . time();
@@ -252,7 +256,7 @@ class VaccinationCard extends Model
             'vaccine_name' => $vaccineName,
             'is_required' => false,
             'total_shots_required' => $totalShots,
-            'interval_days' => $intervalDays,
+            'interval_days' => null, // No longer used for scheduling - expiration date determines next shot
             'recurrence_type' => $recurrenceType,
             'status' => self::STATUS_NOT_STARTED,
         ]);

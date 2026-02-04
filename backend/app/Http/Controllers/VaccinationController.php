@@ -142,8 +142,7 @@ class VaccinationController extends Controller
         $validated = $request->validate([
             'vaccine_name' => 'required|string|max:255',
             'total_shots' => 'nullable|integer|min:1|max:20',
-            'interval_days' => 'nullable|integer|min:1',
-            'recurrence_type' => 'nullable|in:none,yearly,biannual',
+            'recurrence_type' => 'nullable|in:none,recurring,yearly,biannual',
         ]);
 
         $pet = Pet::where('pet_id', $petId)
@@ -155,7 +154,6 @@ class VaccinationController extends Controller
                 $petId,
                 $validated['vaccine_name'],
                 $validated['total_shots'] ?? 1,
-                $validated['interval_days'] ?? null,
                 $validated['recurrence_type'] ?? 'none'
             );
 

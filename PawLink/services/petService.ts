@@ -563,8 +563,7 @@ export const createCustomVaccinationCard = async (
   cardData: {
     vaccine_name: string;
     total_shots?: number;
-    interval_days?: number;
-    recurrence_type?: "none" | "yearly" | "biannual";
+    recurrence_type?: "none" | "recurring";
   }
 ): Promise<VaccinationCard> => {
   const response = await axiosInstance.post(
