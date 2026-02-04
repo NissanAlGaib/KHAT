@@ -77,19 +77,19 @@ class PetController extends Controller
             'attributes.*' => 'string',
             'description' => 'required|string|max:200',
 
-            // Step 3 - Vaccinations (Rabies)
-            'rabies_vaccination_record' => 'required|file|mimes:jpg,jpeg,png,pdf|max:20480',
-            'rabies_clinic_name' => 'required|string|max:255',
-            'rabies_veterinarian_name' => 'required|string|max:255',
-            'rabies_given_date' => 'required|date|before_or_equal:today',
-            'rabies_expiration_date' => 'required|date|after:rabies_given_date',
+            // Step 3 - Vaccinations (Rabies) - Optional, added via card system after registration
+            'rabies_vaccination_record' => 'nullable|file|mimes:jpg,jpeg,png,pdf|max:20480',
+            'rabies_clinic_name' => 'required_with:rabies_vaccination_record|nullable|string|max:255',
+            'rabies_veterinarian_name' => 'required_with:rabies_vaccination_record|nullable|string|max:255',
+            'rabies_given_date' => 'required_with:rabies_vaccination_record|nullable|date|before_or_equal:today',
+            'rabies_expiration_date' => 'required_with:rabies_vaccination_record|nullable|date|after:rabies_given_date',
 
-            // Step 3 - Vaccinations (DHPP)
-            'dhpp_vaccination_record' => 'required|file|mimes:jpg,jpeg,png,pdf|max:20480',
-            'dhpp_clinic_name' => 'required|string|max:255',
-            'dhpp_veterinarian_name' => 'required|string|max:255',
-            'dhpp_given_date' => 'required|date|before_or_equal:today',
-            'dhpp_expiration_date' => 'required|date|after:dhpp_given_date',
+            // Step 3 - Vaccinations (DHPP) - Optional, added via card system after registration
+            'dhpp_vaccination_record' => 'nullable|file|mimes:jpg,jpeg,png,pdf|max:20480',
+            'dhpp_clinic_name' => 'required_with:dhpp_vaccination_record|nullable|string|max:255',
+            'dhpp_veterinarian_name' => 'required_with:dhpp_vaccination_record|nullable|string|max:255',
+            'dhpp_given_date' => 'required_with:dhpp_vaccination_record|nullable|date|before_or_equal:today',
+            'dhpp_expiration_date' => 'required_with:dhpp_vaccination_record|nullable|date|after:dhpp_given_date',
 
             // Step 3 - Additional Vaccinations (optional)
             'additional_vaccinations' => 'nullable|array',
@@ -143,19 +143,18 @@ class PetController extends Controller
             'description.required' => 'Description is required.',
             'description.max' => 'Description cannot exceed 200 characters.',
 
-            'rabies_vaccination_record.required' => 'Rabies vaccination record is required.',
             'rabies_vaccination_record.mimes' => 'Rabies vaccination record must be an image or PDF.',
-            'rabies_clinic_name.required' => 'Clinic name is required for Rabies vaccination.',
-            'rabies_veterinarian_name.required' => 'Veterinarian name is required for Rabies vaccination.',
-            'rabies_given_date.required' => 'Given date is required for Rabies vaccination.',
-            'rabies_expiration_date.required' => 'Expiration date is required for Rabies vaccination.',
+            'rabies_clinic_name.required_with' => 'Clinic name is required when providing Rabies vaccination.',
+            'rabies_veterinarian_name.required_with' => 'Veterinarian name is required when providing Rabies vaccination.',
+            'rabies_given_date.required_with' => 'Given date is required when providing Rabies vaccination.',
+            'rabies_expiration_date.required_with' => 'Expiration date is required when providing Rabies vaccination.',
             'rabies_expiration_date.after' => 'Rabies expiration date must be after given date.',
 
-            'dhpp_vaccination_record.required' => 'DHPP vaccination record is required.',
-            'dhpp_clinic_name.required' => 'Clinic name is required for DHPP vaccination.',
-            'dhpp_veterinarian_name.required' => 'Veterinarian name is required for DHPP vaccination.',
-            'dhpp_given_date.required' => 'Given date is required for DHPP vaccination.',
-            'dhpp_expiration_date.required' => 'Expiration date is required for DHPP vaccination.',
+            'dhpp_vaccination_record.mimes' => 'DHPP vaccination record must be an image or PDF.',
+            'dhpp_clinic_name.required_with' => 'Clinic name is required when providing DHPP vaccination.',
+            'dhpp_veterinarian_name.required_with' => 'Veterinarian name is required when providing DHPP vaccination.',
+            'dhpp_given_date.required_with' => 'Given date is required when providing DHPP vaccination.',
+            'dhpp_expiration_date.required_with' => 'Expiration date is required when providing DHPP vaccination.',
             'dhpp_expiration_date.after' => 'DHPP expiration date must be after given date.',
 
             'health_certificate.required' => 'Health certificate is required.',
@@ -222,31 +221,35 @@ class PetController extends Controller
                 'status' => 'pending',
             ]);
 
-            // Store Rabies vaccination
-            $rabiesVaccinationPath = $request->file('rabies_vaccination_record')->store('vaccinations', 'public');
-            Vaccination::create([
-                'pet_id' => $pet->pet_id,
-                'vaccine_name' => 'Rabies',
-                'vaccination_record' => $rabiesVaccinationPath,
-                'clinic_name' => $validated['rabies_clinic_name'],
-                'veterinarian_name' => $validated['rabies_veterinarian_name'],
-                'given_date' => $validated['rabies_given_date'],
-                'expiration_date' => $validated['rabies_expiration_date'],
-                'status' => 'pending',
-            ]);
+            // Store Rabies vaccination (if provided)
+            if ($request->hasFile('rabies_vaccination_record')) {
+                $rabiesVaccinationPath = $request->file('rabies_vaccination_record')->store('vaccinations', 'public');
+                Vaccination::create([
+                    'pet_id' => $pet->pet_id,
+                    'vaccine_name' => 'Rabies',
+                    'vaccination_record' => $rabiesVaccinationPath,
+                    'clinic_name' => $validated['rabies_clinic_name'],
+                    'veterinarian_name' => $validated['rabies_veterinarian_name'],
+                    'given_date' => $validated['rabies_given_date'],
+                    'expiration_date' => $validated['rabies_expiration_date'],
+                    'status' => 'pending',
+                ]);
+            }
 
-            // Store DHPP vaccination
-            $dhppVaccinationPath = $request->file('dhpp_vaccination_record')->store('vaccinations', 'public');
-            Vaccination::create([
-                'pet_id' => $pet->pet_id,
-                'vaccine_name' => 'DHPP',
-                'vaccination_record' => $dhppVaccinationPath,
-                'clinic_name' => $validated['dhpp_clinic_name'],
-                'veterinarian_name' => $validated['dhpp_veterinarian_name'],
-                'given_date' => $validated['dhpp_given_date'],
-                'expiration_date' => $validated['dhpp_expiration_date'],
-                'status' => 'pending',
-            ]);
+            // Store DHPP vaccination (if provided)
+            if ($request->hasFile('dhpp_vaccination_record')) {
+                $dhppVaccinationPath = $request->file('dhpp_vaccination_record')->store('vaccinations', 'public');
+                Vaccination::create([
+                    'pet_id' => $pet->pet_id,
+                    'vaccine_name' => 'DHPP',
+                    'vaccination_record' => $dhppVaccinationPath,
+                    'clinic_name' => $validated['dhpp_clinic_name'],
+                    'veterinarian_name' => $validated['dhpp_veterinarian_name'],
+                    'given_date' => $validated['dhpp_given_date'],
+                    'expiration_date' => $validated['dhpp_expiration_date'],
+                    'status' => 'pending',
+                ]);
+            }
 
             // Store additional vaccinations
             if (!empty($validated['additional_vaccinations'])) {

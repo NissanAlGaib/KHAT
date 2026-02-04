@@ -20,19 +20,19 @@ export interface PetFormData {
   attribute_tags?: string;
   description: string;
 
-  // Step 3 - Rabies Vaccination
-  rabies_vaccination_record: File;
-  rabies_clinic_name: string;
-  rabies_veterinarian_name: string;
-  rabies_given_date: string;
-  rabies_expiration_date: string;
+  // Step 3 - Rabies Vaccination (optional - added via card system after registration)
+  rabies_vaccination_record?: File;
+  rabies_clinic_name?: string;
+  rabies_veterinarian_name?: string;
+  rabies_given_date?: string;
+  rabies_expiration_date?: string;
 
-  // Step 3 - DHPP Vaccination
-  dhpp_vaccination_record: File;
-  dhpp_clinic_name: string;
-  dhpp_veterinarian_name: string;
-  dhpp_given_date: string;
-  dhpp_expiration_date: string;
+  // Step 3 - DHPP Vaccination (optional - added via card system after registration)
+  dhpp_vaccination_record?: File;
+  dhpp_clinic_name?: string;
+  dhpp_veterinarian_name?: string;
+  dhpp_given_date?: string;
+  dhpp_expiration_date?: string;
 
   // Step 3 - Additional vaccinations (optional)
   additional_vaccinations?: Array<{
@@ -98,22 +98,26 @@ export const createPet = async (petData: PetFormData) => {
   }
   formData.append("description", petData.description);
 
-  // Step 3 - Rabies Vaccination
-  formData.append(
-    "rabies_vaccination_record",
-    petData.rabies_vaccination_record
-  );
-  formData.append("rabies_clinic_name", petData.rabies_clinic_name);
-  formData.append("rabies_veterinarian_name", petData.rabies_veterinarian_name);
-  formData.append("rabies_given_date", petData.rabies_given_date);
-  formData.append("rabies_expiration_date", petData.rabies_expiration_date);
+  // Step 3 - Rabies Vaccination (optional - added via card system)
+  if (petData.rabies_vaccination_record && (petData.rabies_vaccination_record as any).uri) {
+    formData.append(
+      "rabies_vaccination_record",
+      petData.rabies_vaccination_record
+    );
+    formData.append("rabies_clinic_name", petData.rabies_clinic_name);
+    formData.append("rabies_veterinarian_name", petData.rabies_veterinarian_name);
+    formData.append("rabies_given_date", petData.rabies_given_date);
+    formData.append("rabies_expiration_date", petData.rabies_expiration_date);
+  }
 
-  // Step 3 - DHPP Vaccination
-  formData.append("dhpp_vaccination_record", petData.dhpp_vaccination_record);
-  formData.append("dhpp_clinic_name", petData.dhpp_clinic_name);
-  formData.append("dhpp_veterinarian_name", petData.dhpp_veterinarian_name);
-  formData.append("dhpp_given_date", petData.dhpp_given_date);
-  formData.append("dhpp_expiration_date", petData.dhpp_expiration_date);
+  // Step 3 - DHPP Vaccination (optional - added via card system)
+  if (petData.dhpp_vaccination_record && (petData.dhpp_vaccination_record as any).uri) {
+    formData.append("dhpp_vaccination_record", petData.dhpp_vaccination_record);
+    formData.append("dhpp_clinic_name", petData.dhpp_clinic_name);
+    formData.append("dhpp_veterinarian_name", petData.dhpp_veterinarian_name);
+    formData.append("dhpp_given_date", petData.dhpp_given_date);
+    formData.append("dhpp_expiration_date", petData.dhpp_expiration_date);
+  }
 
   // Step 3 - Additional Vaccinations (optional)
   if (

@@ -71,6 +71,7 @@ export default function AddPetScreen() {
   const [datePickerField, setDatePickerField] = useState<string | null>(null);
   const [showBreedSearch, setShowBreedSearch] = useState(false);
   const [breedSearchQuery, setBreedSearchQuery] = useState("");
+  const [activeBreedField, setActiveBreedField] = useState<"breed" | "preferredBreed">("breed");
   
   // Form data
   const [formData, setFormData] = useState<Record<string, any>>({
@@ -246,17 +247,7 @@ export default function AddPetScreen() {
         partner_attributes: formData.partnerAttributes,
         min_age: formData.minAge || "",
         max_age: formData.maxAge || "",
-        // Placeholder vaccinations (will be added via cards later)
-        rabies_vaccination_record: { uri: "", name: "", type: "" },
-        rabies_clinic_name: "TBD",
-        rabies_veterinarian_name: "TBD",
-        rabies_given_date: new Date().toISOString().split("T")[0],
-        rabies_expiration_date: new Date(Date.now() + 365 * 24 * 60 * 60 * 1000).toISOString().split("T")[0],
-        dhpp_vaccination_record: { uri: "", name: "", type: "" },
-        dhpp_clinic_name: "TBD",
-        dhpp_veterinarian_name: "TBD",
-        dhpp_given_date: new Date().toISOString().split("T")[0],
-        dhpp_expiration_date: new Date(Date.now() + 365 * 24 * 60 * 60 * 1000).toISOString().split("T")[0],
+        // Note: Vaccination records are added via the card system after registration
       };
 
       const result = await createPet(petData as any);
@@ -497,7 +488,12 @@ export default function AddPetScreen() {
         <Text style={styles.label}>Breed *</Text>
         <TouchableOpacity
           style={[styles.selectInput, validationErrors.breed && styles.inputError]}
-          onPress={() => formData.species && setShowBreedSearch(true)}
+          onPress={() => {
+            if (formData.species) {
+              setActiveBreedField("breed");
+              setShowBreedSearch(true);
+            }
+          }}
           disabled={!formData.species}
         >
           <Ionicons name="search-outline" size={20} color={Colors.textMuted} />
@@ -896,7 +892,12 @@ export default function AddPetScreen() {
         <Text style={styles.label}>Preferred Breed</Text>
         <TouchableOpacity
           style={styles.selectInput}
-          onPress={() => formData.species && setShowBreedSearch(true)}
+          onPress={() => {
+            if (formData.species) {
+              setActiveBreedField("preferredBreed");
+              setShowBreedSearch(true);
+            }
+          }}
         >
           <Text style={[styles.selectText, !formData.preferredBreed && styles.placeholder]}>
             {formData.preferredBreed || "Any breed"}
@@ -1071,7 +1072,7 @@ export default function AddPetScreen() {
           setShowBreedSearch(false);
           setBreedSearchQuery("");
         }}
-        title={`Select ${formData.species} Breed`}
+        title={activeBreedField === "preferredBreed" ? `Preferred ${formData.species} Breed` : `Select ${formData.species} Breed`}
         content={() => (
           <View>
             <TextInput
@@ -1088,14 +1089,16 @@ export default function AddPetScreen() {
                   key={breed}
                   style={styles.breedOption}
                   onPress={() => {
-                    setFormData({ ...formData, breed });
+                    setFormData({ ...formData, [activeBreedField]: breed });
                     setShowBreedSearch(false);
                     setBreedSearchQuery("");
-                    setValidationErrors((prev) => ({ ...prev, breed: "" }));
+                    if (activeBreedField === "breed") {
+                      setValidationErrors((prev) => ({ ...prev, breed: "" }));
+                    }
                   }}
                 >
                   <Text style={styles.breedOptionText}>{breed}</Text>
-                  {formData.breed === breed && (
+                  {formData[activeBreedField] === breed && (
                     <Ionicons name="checkmark" size={20} color={Colors.primary} />
                   )}
                 </TouchableOpacity>
