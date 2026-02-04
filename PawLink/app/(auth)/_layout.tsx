@@ -10,7 +10,7 @@ import {
 
 export default function AuthLayout() {
   return (
-    <View style={{ flex: 1 }}>
+    <View style={{ flex: 1, backgroundColor: '#FFFFFF' }}>
       {/* Animated Background */}
       <View style={[StyleSheet.absoluteFillObject, { zIndex: 0 }]}>
         <BubbleBackgroundRe />

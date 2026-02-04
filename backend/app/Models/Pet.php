@@ -19,6 +19,24 @@ class Pet extends Model
      */
     const DEFAULT_COOLDOWN_DAYS = 90; // 3 months
 
+    /**
+     * Pet status constants
+     */
+    const STATUS_PENDING_VERIFICATION = 'pending_verification';
+    const STATUS_ACTIVE = 'active';
+    const STATUS_DISABLED = 'disabled';
+    const STATUS_REJECTED = 'rejected';
+
+    /**
+     * All available pet statuses
+     */
+    const STATUSES = [
+        self::STATUS_PENDING_VERIFICATION,
+        self::STATUS_ACTIVE,
+        self::STATUS_DISABLED,
+        self::STATUS_REJECTED,
+    ];
+
     protected $fillable = [
         'user_id',
         'rec_id',
@@ -78,11 +96,37 @@ class Pet extends Model
     }
 
     /**
-     * Get the vaccinations for the pet
+     * Get the vaccinations for the pet (legacy - for backward compatibility)
      */
     public function vaccinations(): HasMany
     {
         return $this->hasMany(Vaccination::class, 'pet_id', 'pet_id');
+    }
+
+    /**
+     * Get the vaccination cards for the pet (new card-based system)
+     */
+    public function vaccinationCards(): HasMany
+    {
+        return $this->hasMany(VaccinationCard::class, 'pet_id', 'pet_id');
+    }
+
+    /**
+     * Get required vaccination cards
+     */
+    public function requiredVaccinationCards(): HasMany
+    {
+        return $this->hasMany(VaccinationCard::class, 'pet_id', 'pet_id')
+            ->where('is_required', true);
+    }
+
+    /**
+     * Get optional vaccination cards
+     */
+    public function optionalVaccinationCards(): HasMany
+    {
+        return $this->hasMany(VaccinationCard::class, 'pet_id', 'pet_id')
+            ->where('is_required', false);
     }
 
     /**
@@ -240,5 +284,24 @@ class Pet extends Model
     public function scopeOnCooldown($query)
     {
         return $query->where('cooldown_until', '>', Carbon::now());
+    }
+
+    /**
+     * Get the primary photo URL for the pet.
+     * Returns the primary photo if set, otherwise the first photo, otherwise null.
+     *
+     * @return string|null
+     */
+    public function getPrimaryPhotoUrlAttribute(): ?string
+    {
+        $primaryPhoto = $this->photos->firstWhere('is_primary', true);
+
+        if ($primaryPhoto) {
+            return $primaryPhoto->photo_url;
+        }
+
+        $firstPhoto = $this->photos->first();
+
+        return $firstPhoto?->photo_url;
     }
 }

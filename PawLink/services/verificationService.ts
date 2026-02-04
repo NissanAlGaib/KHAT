@@ -24,9 +24,15 @@ export interface VerificationData {
 export interface VerificationStatus {
   auth_id: number;
   user_id: number;
-  auth_type: string; // 'id', 'breeder_certificate', or 'shooter_certificate'
+  auth_type: "id" | "breeder_certificate" | "shooter_certificate";
   document_path: string;
+  document_number?: string;
+  document_name?: string;
+  issue_date?: string;
+  expiry_date?: string;
+  issuing_authority?: string;
   status: "pending" | "approved" | "rejected";
+  rejection_reason?: string;
   date_created: string;
 }
 
@@ -172,13 +178,25 @@ export const updateVerificationStatus = async (
  */
 const uriToFile = async (uri: string, name: string) => {
   try {
-    const response = await fetch(uri);
-    const blob = await response.blob();
-    const filename = `${name}_${Date.now()}.${blob.type.split("/")[1] || "jpg"}`;
+    // Get file extension from URI
+    const uriParts = uri.split('.');
+    const fileExtension = uriParts[uriParts.length - 1].toLowerCase();
+    
+    // Map extension to MIME type
+    const mimeTypes: Record<string, string> = {
+      jpg: 'image/jpeg',
+      jpeg: 'image/jpeg',
+      png: 'image/png',
+      pdf: 'application/pdf',
+    };
+    
+    const mimeType = mimeTypes[fileExtension] || 'image/jpeg';
+    const filename = `${name}_${Date.now()}.${fileExtension || 'jpg'}`;
+    
     return {
       uri,
       name: filename,
-      type: blob.type,
+      type: mimeType,
     };
   } catch (error) {
     console.error("Error converting URI to file:", error);

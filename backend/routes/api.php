@@ -13,6 +13,8 @@ use App\Http\Controllers\ShooterController;
 use App\Http\Controllers\SubscriptionController;
 use App\Http\Controllers\UserController;
 use App\Http\Controllers\VerificationController;
+use App\Http\Controllers\VaccinationController;
+use App\Http\Controllers\SearchController;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
 
@@ -43,6 +45,8 @@ Route::middleware(['auth:sanctum'])
         Route::post('/user/profile', [UserController::class, 'updateProfile']);
         Route::post('/user/profile-image', [UserController::class, 'updateProfileImage']);
         Route::get('/user/statistics', [UserController::class, 'getStatistics']);
+        Route::post('/user/change-password', [UserController::class, 'changePassword']);
+        Route::post('/user/delete-account', [UserController::class, 'deleteAccount']);
 
         // Pet routes
         Route::get('/pets', [PetController::class, 'index']);
@@ -52,6 +56,15 @@ Route::middleware(['auth:sanctum'])
         Route::get('/pets/{id}/profile', [PetController::class, 'getPublicProfile']);
         Route::post('/pets/{petId}/vaccinations/{vaccinationId}/resubmit', [PetController::class, 'resubmitVaccination']);
         Route::post('/pets/{petId}/health-records/{healthRecordId}/resubmit', [PetController::class, 'resubmitHealthRecord']);
+
+        // Vaccination card routes (new card-based system)
+        Route::get('/pets/{petId}/vaccination-cards', [VaccinationController::class, 'getCards']);
+        Route::get('/pets/{petId}/vaccination-cards/{cardId}', [VaccinationController::class, 'getCard']);
+        Route::post('/pets/{petId}/vaccination-cards', [VaccinationController::class, 'createCustomCard']);
+        Route::delete('/pets/{petId}/vaccination-cards/{cardId}', [VaccinationController::class, 'deleteCard']);
+        Route::post('/pets/{petId}/vaccination-cards/{cardId}/shots', [VaccinationController::class, 'addShot']);
+        Route::get('/pets/{petId}/vaccination-summary', [VaccinationController::class, 'getSummary']);
+        Route::post('/pets/{petId}/vaccination-cards/initialize', [VaccinationController::class, 'initializeRequiredCards']);
 
         // Litter routes
         Route::get('/pets/{petId}/litters', [LitterController::class, 'getPetLitters']);
@@ -71,10 +84,6 @@ Route::middleware(['auth:sanctum'])
         Route::get('/shooter/offers/{id}', [ShooterController::class, 'getOfferDetails']);
         Route::put('/shooter/offers/{id}/accept', [ShooterController::class, 'acceptOffer']);
         Route::get('/shooter/my-offers', [ShooterController::class, 'getMyOffers']);
-
-        // Debug routes for shooter offers
-        Route::get('/shooter/debug/contracts', [ShooterController::class, 'debugContracts']);
-        Route::post('/shooter/debug/fix-status', [ShooterController::class, 'fixShooterStatus']);
 
         // Verification routes
         Route::post('/verification/submit', [VerificationController::class, 'submitVerification']);
@@ -141,4 +150,10 @@ Route::middleware(['auth:sanctum'])
         // Subscription routes
         Route::get('/subscriptions/plans', [SubscriptionController::class, 'getPlans']);
         Route::post('/subscriptions/checkout', [SubscriptionController::class, 'createCheckout']);
+
+        // Search routes
+        Route::get('/search/global', [SearchController::class, 'searchGlobal']);
+        Route::get('/search/pets', [SearchController::class, 'searchPets']);
+        Route::get('/search/breeders', [SearchController::class, 'searchBreeders']);
+        Route::get('/search/shooters', [SearchController::class, 'searchShooters']);
     });

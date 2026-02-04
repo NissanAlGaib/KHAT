@@ -63,6 +63,8 @@ export interface ShooterProfile {
     cat_count: number;
     breeders_handled: number;
     successful_shoots: number;
+    active_contracts: number;
+    failed_contracts: number;
   };
 }
 
@@ -71,11 +73,17 @@ export interface TopMatch {
     pet_id: number;
     name: string;
     photo_url?: string;
+    breed?: string;
+    sex?: string;
+    birthdate?: string;
   };
   pet2: {
     pet_id: number;
     name: string;
     photo_url?: string;
+    breed?: string;
+    sex?: string;
+    birthdate?: string;
   };
   compatibility_score: number;
   match_reasons?: string[];

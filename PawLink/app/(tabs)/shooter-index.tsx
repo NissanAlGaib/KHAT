@@ -12,7 +12,7 @@ import {
 import { useRouter } from "expo-router";
 import { AnimatedSearchBar } from "@/components/app/AnimatedSearchBar";
 import SettingsDropdown from "@/components/app/SettingsDropdown";
-import { API_BASE_URL } from "@/config/env";
+import { getStorageUrl } from "@/utils/imageUrl";
 import {
   getShooterOffers,
   getMyShooterOffers,
@@ -109,7 +109,7 @@ export default function ShooterHomepage() {
   const getImageUrl = (path?: string) => {
     if (!path) return null;
     if (path.startsWith("http")) return path;
-    return `${API_BASE_URL}/storage/${path}`;
+    return getStorageUrl(path);
   };
 
   const formatDate = (dateString?: string) => {

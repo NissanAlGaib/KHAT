@@ -11,7 +11,7 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { Feather } from "@expo/vector-icons";
 import { useRouter, useLocalSearchParams } from "expo-router";
 import { getLitterDetail, type LitterDetail } from "@/services/petService";
-import { API_BASE_URL } from "@/config/env";
+import { getStorageUrl } from "@/utils/imageUrl";
 
 export default function LitterDetailScreen() {
   const router = useRouter();
@@ -40,8 +40,7 @@ export default function LitterDetailScreen() {
   }, [litterId, fetchLitterDetail]);
 
   const getImageUrl = (path: string | null | undefined) => {
-    if (!path) return null;
-    return `${API_BASE_URL}/storage/${path}`;
+    return getStorageUrl(path);
   };
 
   if (loading) {

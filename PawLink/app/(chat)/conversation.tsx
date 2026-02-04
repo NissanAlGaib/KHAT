@@ -21,7 +21,7 @@ import {
   type Message,
 } from "@/services/matchRequestService";
 import { getContract, type BreedingContract } from "@/services/contractService";
-import { API_BASE_URL } from "@/config/env";
+import { getStorageUrl } from "@/utils/imageUrl";
 import {
   ContractPrompt,
   ContractModal,
@@ -48,8 +48,7 @@ export default function ConversationScreen() {
   const [isEditingContract, setIsEditingContract] = useState(false);
 
   const getImageUrl = (path: string | null | undefined) => {
-    if (!path) return null;
-    return `${API_BASE_URL}/storage/${path}`;
+    return getStorageUrl(path);
   };
 
   const fetchMessages = useCallback(async () => {
