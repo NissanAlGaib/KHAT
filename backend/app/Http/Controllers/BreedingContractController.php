@@ -9,6 +9,7 @@ use App\Models\LitterOffspring;
 use App\Models\Pet;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
 
 class BreedingContractController extends Controller
@@ -1116,8 +1117,8 @@ class BreedingContractController extends Controller
                             $filename = 'offspring_' . $litter->litter_id . '_' . uniqid() . '.' . $extension;
 
                             // Save to storage
-                            Storage::disk('public')->put('offspring/' . $filename, $imageData);
-                            $photoUrl = 'storage/offspring/' . $filename;
+                            Storage::disk('do_spaces')->put('offspring/' . $filename, $imageData);
+                            $photoUrl = 'offspring/' . $filename;
                         }
                     } catch (\Exception $e) {
                         \Log::error('Error uploading offspring photo: ' . $e->getMessage());
@@ -1827,7 +1828,7 @@ class BreedingContractController extends Controller
             // Handle photo upload if provided
             $photoUrl = null;
             if ($request->hasFile('photo')) {
-                $photoUrl = $request->file('photo')->store('daily_report_photos', 'public');
+                $photoUrl = $request->file('photo')->store('daily_report_photos', 'do_spaces');
             }
 
             $report = \App\Models\DailyReport::create([

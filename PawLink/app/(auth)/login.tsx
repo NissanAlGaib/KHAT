@@ -8,7 +8,15 @@ import CustomInput from "@/components/app/CustomInput";
 import CustomButton from "@/components/app/CustomButton";
 import { useAlert } from "@/hooks/useAlert";
 import AlertModal from "@/components/core/AlertModal";
+import Constants from "expo-constants";
 
+// Get version from app.json
+const appVersion = Constants.expoConfig?.version || "1.0.0";
+
+/**
+ * Login Screen
+ * VERSION 1.1 - Uses theme colors from Tailwind config
+ */
 const Login = () => {
   const { signIn } = useSession();
   const { visible, alertOptions, showAlert, hideAlert } = useAlert();
@@ -61,7 +69,6 @@ const Login = () => {
           });
         }
       } else {
-        console.error("Login Error:", error);
         showAlert({
           title: "Login Error",
           message: "Unable to connect to the server.",
@@ -74,16 +81,16 @@ const Login = () => {
   };
 
   return (
-    <View className="gap-6 rounded-t-[45px] bg-[#FEFEFE] p-5 mt-5">
+    <View className="gap-6 rounded-t-3xl bg-bg-primary p-5 mt-5">
       <Image
         className="absolute -top-64 -right-4"
         source={require("../../assets/images/login_dog.png")}
       />
       <View className="w-full px-4 mt-6 mb-4">
-        <Text className="font-baloo text-3xl text-center uppercase">
+        <Text className="font-baloo text-3xl text-center uppercase text-text-primary">
           Login To Your Account
         </Text>
-        <Text className="text-[#6D6A6A] text-center font-roboto-condensed-extralight text-sm">
+        <Text className="text-text-muted text-center font-roboto-condensed-extralight text-sm">
           Enter your email and password below
         </Text>
       </View>
@@ -104,11 +111,16 @@ const Login = () => {
         secureTextEntry
       />
       <CustomButton title="Login" onPress={handleLogin} isLoading={loading} />
-      <Text className="text-sm text-[#6B7280] text-center mb-6 font-roboto">
+      <Text className="text-sm text-text-muted text-center mb-6 font-roboto">
         Not registered yet?{" "}
         <Link href="/register">
-          <Text className="text-[#E4492E] font-roboto">Create Account</Text>
+          <Text className="text-primary-dark font-roboto">Create Account</Text>
         </Link>
+      </Text>
+
+      {/* Version number */}
+      <Text className="text-xs text-text-disabled text-center mb-2 font-roboto">
+        Version {appVersion}
       </Text>
 
       <AlertModal

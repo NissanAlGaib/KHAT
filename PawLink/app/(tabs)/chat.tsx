@@ -18,7 +18,7 @@ import {
   getConversations,
   type ConversationPreview,
 } from "@/services/matchRequestService";
-import { API_BASE_URL } from "@/config/env";
+import { getStorageUrl } from "@/utils/imageUrl";
 
 export default function ChatScreen() {
   const router = useRouter();
@@ -29,7 +29,7 @@ export default function ChatScreen() {
 
   const getImageUrl = (path: string | null | undefined): string | undefined => {
     if (!path) return undefined;
-    return `${API_BASE_URL}/storage/${path}`;
+    return getStorageUrl(path) ?? undefined;
   };
 
   const fetchConversations = useCallback(async () => {

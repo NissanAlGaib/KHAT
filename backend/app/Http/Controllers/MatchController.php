@@ -3,7 +3,6 @@
 namespace App\Http\Controllers;
 
 use App\Models\Pet;
-use App\Models\User;
 use Illuminate\Http\Request;
 
 class MatchController extends Controller
@@ -17,9 +16,9 @@ class MatchController extends Controller
         try {
             $user = $request->user();
 
-            // Get user's active pets with partner preferences
+            // Get user's active pets with partner preferences (excluding pets on cooldown)
             $userPets = Pet::where('user_id', $user->id)
-                ->where('status', 'active')
+                ->availableForMatching()
                 ->with('partnerPreferences')
                 ->get();
 
@@ -31,9 +30,9 @@ class MatchController extends Controller
                 ]);
             }
 
-            // Get all other active pets (not owned by the user)
+            // Get all other pets available for matching (not owned by the user, not on cooldown)
             $potentialMatches = Pet::where('user_id', '!=', $user->id)
-                ->where('status', 'active')
+                ->availableForMatching()
                 ->with(['owner:id,name,profile_image', 'photos'])
                 ->get();
 
@@ -92,9 +91,9 @@ class MatchController extends Controller
         try {
             $user = $request->user();
 
-            // Get user's active pets
+            // Get user's active pets (excluding pets on cooldown)
             $userPets = Pet::where('user_id', $user->id)
-                ->where('status', 'active')
+                ->availableForMatching()
                 ->with(['partnerPreferences', 'photos'])
                 ->get();
 
@@ -106,9 +105,9 @@ class MatchController extends Controller
                 ]);
             }
 
-            // Get potential matches
+            // Get potential matches (not owned by user, not on cooldown)
             $potentialMatches = Pet::where('user_id', '!=', $user->id)
-                ->where('status', 'active')
+                ->availableForMatching()
                 ->with('photos')
                 ->get();
 
@@ -137,11 +136,17 @@ class MatchController extends Controller
                             'pet_id' => $userPet->pet_id,
                             'name' => $userPet->name,
                             'photo_url' => $primaryPhoto1?->photo_url,
+                            'breed' => $userPet->breed,
+                            'sex' => $userPet->sex,
+                            'birthdate' => $userPet->birthdate,
                         ],
                         'pet2' => [
                             'pet_id' => $bestMatch->pet_id,
                             'name' => $bestMatch->name,
                             'photo_url' => $primaryPhoto2?->photo_url,
+                            'breed' => $bestMatch->breed,
+                            'sex' => $bestMatch->sex,
+                            'birthdate' => $bestMatch->birthdate,
                         ],
                         'compatibility_score' => $bestScore,
                         'match_reasons' => $compatibility['reasons'],

@@ -4,6 +4,7 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Builder;
 
 class BreedingContract extends Model
 {
@@ -307,5 +308,51 @@ class BreedingContract extends Model
         }
         
         return ['sire' => $targetPet, 'dam' => $requesterPet];
+    }
+
+    /**
+     * Scope to filter contracts accessible by a specific user.
+     * A user can access a contract if they own one of the pets involved in the match request.
+     *
+     * @param Builder $query
+     * @param int $userId
+     * @return Builder
+     */
+    public function scopeAccessibleByUser(Builder $query, int $userId): Builder
+    {
+        $userPetIds = Pet::where('user_id', $userId)->pluck('pet_id');
+
+        return $query->whereHas('conversation.matchRequest', function ($q) use ($userPetIds) {
+            $q->where(function ($subQuery) use ($userPetIds) {
+                $subQuery->whereIn('requester_pet_id', $userPetIds)
+                    ->orWhereIn('target_pet_id', $userPetIds);
+            });
+        });
+    }
+
+    /**
+     * Find a contract by ID that is accessible by a specific user.
+     *
+     * @param int $contractId
+     * @param int $userId
+     * @return BreedingContract|null
+     */
+    public static function findAccessibleByUser(int $contractId, int $userId): ?BreedingContract
+    {
+        return static::accessibleByUser($userId)->find($contractId);
+    }
+
+    /**
+     * Find a conversation's contract that is accessible by a specific user.
+     *
+     * @param int $conversationId
+     * @param int $userId
+     * @return BreedingContract|null
+     */
+    public static function findByConversationForUser(int $conversationId, int $userId): ?BreedingContract
+    {
+        return static::accessibleByUser($userId)
+            ->where('conversation_id', $conversationId)
+            ->first();
     }
 }

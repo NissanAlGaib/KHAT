@@ -12,6 +12,7 @@ export interface UserProfile {
   address?: any;
   profile_image?: string;
   email_verified_at?: string | null;
+  roles?: { role_id: number; role_type: string }[];
 }
 
 export interface UserStatistics {
@@ -145,6 +146,51 @@ export const uploadProfileImage = async (imageUri: string): Promise<string> => {
   } catch (error: any) {
     console.error(
       "Error uploading profile image:",
+      error.response?.data || error.message
+    );
+    throw error;
+  }
+};
+
+/**
+ * Change user password
+ */
+export const changePassword = async (
+  currentPassword: string,
+  newPassword: string,
+  confirmPassword: string
+): Promise<{ success: boolean; message: string }> => {
+  try {
+    const response = await axiosInstance.post("/api/user/change-password", {
+      current_password: currentPassword,
+      new_password: newPassword,
+      new_password_confirmation: confirmPassword,
+    });
+    return response.data;
+  } catch (error: any) {
+    console.error(
+      "Error changing password:",
+      error.response?.data || error.message
+    );
+    throw error;
+  }
+};
+
+/**
+ * Delete user account
+ */
+export const deleteAccount = async (
+  password: string
+): Promise<{ success: boolean; message: string }> => {
+  try {
+    const response = await axiosInstance.post("/api/user/delete-account", {
+      password,
+      confirmation: "DELETE",
+    });
+    return response.data;
+  } catch (error: any) {
+    console.error(
+      "Error deleting account:",
       error.response?.data || error.message
     );
     throw error;

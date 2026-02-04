@@ -13,7 +13,7 @@ import { useAlert } from "@/hooks/useAlert";
 import AlertModal from "@/components/core/AlertModal";
 import { useRouter, useLocalSearchParams } from "expo-router";
 import { getPetLitters, type Litter } from "@/services/petService";
-import { API_BASE_URL } from "@/config/env";
+import { getStorageUrl } from "@/utils/imageUrl";
 
 export default function PetLittersScreen() {
   const router = useRouter();
@@ -48,8 +48,7 @@ export default function PetLittersScreen() {
   }, [petId, fetchLitters]);
 
   const getImageUrl = (path: string | null | undefined) => {
-    if (!path) return null;
-    return `${API_BASE_URL}/storage/${path}`;
+    return getStorageUrl(path);
   };
 
   if (loading) {

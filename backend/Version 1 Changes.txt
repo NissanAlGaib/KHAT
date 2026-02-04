@@ -1,0 +1,402 @@
+================================================================================
+                         KHAT (PawLink) - VERSION 1 CHANGES
+                              Date: January 27, 2026
+                    Code Review Implementation - Laravel Backend
+================================================================================
+
+OVERVIEW
+================================================================================
+
+This document details all changes made to the Laravel backend codebase as part
+of the code review implementation. Changes are organized by priority level and
+include security fixes, maintainability improvements, and code quality updates.
+
+Total Files Modified: 9
+Total Files Created: 3
+Estimated Code Reduction: ~100 lines (removed duplicate/debug code)
+
+
+================================================================================
+PRIORITY 1 - CRITICAL (Security/Production Issues)
+================================================================================
+
+1.1 REMOVED DEBUG ROUTES FROM API
+--------------------------------------------------------------------------------
+File: routes/api.php
+Action: DELETED lines 76-77
+
+Removed Routes:
+  - GET  /shooter/debug/contracts
+  - POST /shooter/debug/fix-status
+
+Reason: These debug endpoints exposed internal contract state and allowed
+        manual data manipulation in production. Security risk.
+
+
+1.2 REMOVED DEBUG METHODS FROM SHOOTERCONTROLLER
+--------------------------------------------------------------------------------
+File: app/Http/Controllers/ShooterController.php
+Action: DELETED ~90 lines (methods debugContracts and fixShooterStatus)
+
+Removed Methods:
+  - debugContracts(Request $request) - Lines 694-743
+  - fixShooterStatus(Request $request) - Lines 748-779
+
+Reason: Debug utilities should not exist in controller code. If needed,
+        these should be Artisan commands or run via Tinker.
+
+
+1.3 ADDED MISSING LOG FACADE IMPORTS
+--------------------------------------------------------------------------------
+Files Modified:
+  - app/Http/Controllers/ShooterController.php (Line 6)
+  - app/Http/Controllers/BreedingContractController.php (Line 12)
+
+Added Import:
+  use Illuminate\Support\Facades\Log;
+
+Reason: Controllers were using Log:: without importing the facade,
+        causing potential runtime errors.
+
+
+1.4 EXTRACTED ACCESS CHECK LOGIC TO MODEL SCOPE
+--------------------------------------------------------------------------------
+File: app/Models/BreedingContract.php
+Action: ADDED 3 new methods
+
+New Methods Added:
+
+  /**
+   * Scope to filter contracts accessible by a specific user.
+   * @param Builder $query
+   * @param int $userId
+   * @return Builder
+   */
+  public function scopeAccessibleByUser(Builder $query, int $userId): Builder
+
+  /**
+   * Find a contract by ID that is accessible by a specific user.
+   * @param int $contractId
+   * @param int $userId
+   * @return BreedingContract|null
+   */
+  public static function findAccessibleByUser(int $contractId, int $userId): ?BreedingContract
+
+  /**
+   * Find a conversation's contract that is accessible by a specific user.
+   * @param int $conversationId
+   * @param int $userId
+   * @return BreedingContract|null
+   */
+  public static function findByConversationForUser(int $conversationId, int $userId): ?BreedingContract
+
+Usage Example (Before):
+  $userPetIds = Pet::where('user_id', $user->id)->pluck('pet_id');
+  $contract = BreedingContract::whereHas('conversation.matchRequest', function ($query) use ($userPetIds) {
+      $query->where(function ($q) use ($userPetIds) {
+          $q->whereIn('requester_pet_id', $userPetIds)
+              ->orWhereIn('target_pet_id', $userPetIds);
+      });
+  })->find($contractId);
+
+Usage Example (After):
+  $contract = BreedingContract::findAccessibleByUser($contractId, $user->id);
+
+Reason: This pattern was duplicated 9 times across BreedingContractController.
+        Centralizing it reduces bugs and improves maintainability.
+
+
+================================================================================
+PRIORITY 2 - HIGH (Maintainability)
+================================================================================
+
+2.1 CREATED CHECKSHOOTERROLE MIDDLEWARE
+--------------------------------------------------------------------------------
+File: app/Http/Middleware/CheckShooterRole.php (NEW FILE)
+Action: CREATED
+
+Purpose: Centralizes shooter role verification that was duplicated 4 times
+         in ShooterController.
+
+Features:
+  - Verifies user is authenticated
+  - Checks if Shooter role exists in system
+  - Verifies user has Shooter role
+  - Returns appropriate JSON error responses
+
+Usage:
+  // In routes/api.php or controller constructor
+  Route::middleware(['auth:sanctum', 'shooter'])->group(function () {
+      // Shooter-only routes
+  });
+
+  // Register in bootstrap/app.php or Kernel.php
+  'shooter' => \App\Http\Middleware\CheckShooterRole::class,
+
+
+2.2 ADDED PRIMARY_PHOTO_URL ACCESSOR TO PET MODEL
+--------------------------------------------------------------------------------
+File: app/Models/Pet.php
+Action: ADDED new accessor method
+
+New Method:
+  /**
+   * Get the primary photo URL for the pet.
+   * Returns the primary photo if set, otherwise the first photo, otherwise null.
+   * @return string|null
+   */
+  public function getPrimaryPhotoUrlAttribute(): ?string
+
+Usage Example (Before):
+  $primaryPhoto = $pet->photos->firstWhere('is_primary', true) ?? $pet->photos->first();
+  $photoUrl = $primaryPhoto?->photo_url;
+
+Usage Example (After):
+  $photoUrl = $pet->primary_photo_url;
+
+Reason: This pattern was duplicated 7 times across multiple controllers.
+
+
+2.3 CREATED SUBSCRIPTION CONFIGURATION FILE
+--------------------------------------------------------------------------------
+File: config/subscription.php (NEW FILE)
+Action: CREATED
+
+Contents:
+  - prices.basic: 199 (PHP)
+  - prices.premium: 499 (PHP)
+  - tiers.free: name, price, features (max_pets, max_matches_per_month)
+  - tiers.basic: name, price, features
+  - tiers.premium: name, price, features (unlimited)
+
+Environment Variables Supported:
+  - SUBSCRIPTION_PRICE_BASIC
+  - SUBSCRIPTION_PRICE_PREMIUM
+
+Usage:
+  $basicPrice = config('subscription.prices.basic');
+  $premiumFeatures = config('subscription.tiers.premium.features');
+
+
+2.4 CREATED MATCHING CONFIGURATION FILE
+--------------------------------------------------------------------------------
+File: config/matching.php (NEW FILE)
+Action: CREATED
+
+Contents:
+  - weights.breed: 0.35
+  - weights.age: 0.15
+  - weights.behaviors: 0.20
+  - weights.attributes: 0.15
+  - weights.preferences: 0.15
+  - thresholds.minimum_match: 0.3
+  - thresholds.high_compatibility: 0.8
+  - thresholds.excellent_compatibility: 0.9
+  - thresholds.top_match: 0.5
+  - scoring.age_tolerance_years: 2
+  - scoring.age_max_difference_years: 5
+  - scoring.exact_breed_bonus: 1.0
+  - scoring.same_species_score: 0.5
+
+Environment Variables Supported:
+  - MATCHING_WEIGHT_BREED, MATCHING_WEIGHT_AGE, etc.
+  - MATCHING_THRESHOLD_MINIMUM, MATCHING_THRESHOLD_HIGH, etc.
+
+Usage:
+  $breedWeight = config('matching.weights.breed');
+  $minThreshold = config('matching.thresholds.minimum_match');
+
+
+================================================================================
+PRIORITY 3 - MEDIUM (Code Quality)
+================================================================================
+
+3.1 ADDED STATUS CONSTANTS TO PET MODEL
+--------------------------------------------------------------------------------
+File: app/Models/Pet.php
+Action: ADDED constants
+
+New Constants:
+  const STATUS_PENDING_VERIFICATION = 'pending_verification';
+  const STATUS_ACTIVE = 'active';
+  const STATUS_DISABLED = 'disabled';
+  const STATUS_REJECTED = 'rejected';
+
+  const STATUSES = [
+      self::STATUS_PENDING_VERIFICATION,
+      self::STATUS_ACTIVE,
+      self::STATUS_DISABLED,
+      self::STATUS_REJECTED,
+  ];
+
+Usage Example (Before):
+  if ($pet->status === 'active') { ... }
+
+Usage Example (After):
+  if ($pet->status === Pet::STATUS_ACTIVE) { ... }
+
+Reason: Hardcoded strings are error-prone. Constants provide IDE autocomplete
+        and catch typos at compile time.
+
+
+3.2 REMOVED UNUSED IMPORTS AND COMMENTED CODE
+--------------------------------------------------------------------------------
+Files Modified:
+
+1. app/Models/User.php (Line 5)
+   Removed: // use Illuminate\Contracts\Auth\MustVerifyEmail;
+
+2. app/Http/Controllers/MatchController.php (Line 6)
+   Removed: use App\Models\User;
+   Reason: User model was imported but never used (uses $request->user())
+
+3. app/Http/Controllers/VerificationController.php (Line 7)
+   Removed: use Illuminate\Support\Facades\Storage;
+   Reason: Storage facade was imported but never used
+
+
+3.3 EXTRACTED CALCULATEGROWTH() HELPER IN ADMINCONTROLLER
+--------------------------------------------------------------------------------
+File: app/Http/Controllers/Admin/AdminController.php
+Action: ADDED helper method, REFACTORED 12 occurrences
+
+New Method:
+  /**
+   * Calculate percentage growth between two values.
+   *
+   * @param int|float $current Current value
+   * @param int|float $previous Previous value
+   * @return float Growth percentage rounded to 1 decimal place
+   */
+  private function calculateGrowth(int|float $current, int|float $previous): float
+  {
+      if ($previous <= 0) {
+          return 0.0;
+      }
+      return round((($current - $previous) / $previous) * 100, 1);
+  }
+
+Refactored Occurrences (12 total):
+  - Line 95: $usersGrowth
+  - Line 107: $breedersGrowth
+  - Line 135: $shootersGrowth
+  - Line 143: $activePetsGrowth
+  - Line 150: $disabledPetsGrowth
+  - Line 159: $cooldownPetsGrowth
+  - Line 167: $standardGrowth
+  - Line 174: $premiumGrowth
+  - Line 584: $revenueGrowth
+  - Line 591: $activeUsersGrowth
+  - Line 599: $matchesGrowth
+  - Line 669: $standardGrowth (billing)
+  - Line 675: $premiumGrowth (billing)
+  - Line 701: $matchRequestGrowth
+
+Usage Example (Before):
+  $usersGrowth = $usersLastMonth > 0 
+      ? round((($totalUsers - $usersLastMonth) / $usersLastMonth) * 100, 1)
+      : 0;
+
+Usage Example (After):
+  $usersGrowth = $this->calculateGrowth($totalUsers, $usersLastMonth);
+
+
+================================================================================
+FILES SUMMARY
+================================================================================
+
+MODIFIED FILES (9):
+--------------------------------------------------------------------------------
+1. routes/api.php
+   - Removed 4 lines (debug routes)
+
+2. app/Http/Controllers/ShooterController.php
+   - Added Log import
+   - Removed ~90 lines (debug methods)
+
+3. app/Http/Controllers/BreedingContractController.php
+   - Added Log import
+
+4. app/Http/Controllers/MatchController.php
+   - Removed unused User import
+
+5. app/Http/Controllers/VerificationController.php
+   - Removed unused Storage import
+
+6. app/Http/Controllers/Admin/AdminController.php
+   - Added calculateGrowth() helper method
+   - Refactored 12 growth calculations
+
+7. app/Models/BreedingContract.php
+   - Added Builder import
+   - Added scopeAccessibleByUser()
+   - Added findAccessibleByUser()
+   - Added findByConversationForUser()
+
+8. app/Models/Pet.php
+   - Added STATUS_* constants
+   - Added STATUSES array
+   - Added getPrimaryPhotoUrlAttribute()
+
+9. app/Models/User.php
+   - Removed commented import line
+
+
+CREATED FILES (3):
+--------------------------------------------------------------------------------
+1. app/Http/Middleware/CheckShooterRole.php
+   - New middleware for shooter role verification
+   - 48 lines
+
+2. config/subscription.php
+   - Subscription pricing and tier configuration
+   - 55 lines
+
+3. config/matching.php
+   - Matching algorithm weights and thresholds
+   - 72 lines
+
+
+================================================================================
+MIGRATION / DEPLOYMENT NOTES
+================================================================================
+
+1. MIDDLEWARE REGISTRATION (Required)
+   Add to bootstrap/app.php or app/Http/Kernel.php:
+   
+   'shooter' => \App\Http\Middleware\CheckShooterRole::class,
+
+2. CACHE CLEAR (Recommended)
+   After deployment, run:
+   
+   php artisan config:clear
+   php artisan cache:clear
+   php artisan route:clear
+
+3. NO DATABASE MIGRATIONS REQUIRED
+   All changes are code-only. No schema changes.
+
+4. BACKWARD COMPATIBLE
+   All changes maintain backward compatibility with existing API contracts.
+
+
+================================================================================
+REMAINING WORK (Not Implemented - Lower Priority)
+================================================================================
+
+The following items from the code review were NOT implemented in this version:
+
+Priority 4 - Low:
+  [ ] Break down AdminController into domain-specific services
+  [ ] Rename rec_id to recommender_id (requires migration)
+  [ ] Standardize naming convention (camelCase vs snake_case)
+  [ ] Replace raw SQL date formatting with Eloquent methods
+  [ ] Create Form Request classes (BreedingContractRequest, etc.)
+  [ ] Refactor BreedingContractController to use new scope methods
+
+These can be addressed in future versions as needed.
+
+
+================================================================================
+                              END OF CHANGELOG
+================================================================================

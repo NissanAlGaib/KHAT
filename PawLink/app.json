@@ -2,7 +2,7 @@
   "expo": {
     "name": "PawLink",
     "slug": "PawLink",
-    "version": "1.0.0",
+    "version": "1.4.0",
     "assetBundlePatterns": [
       "**/*"
     ],
@@ -12,7 +12,11 @@
     "userInterfaceStyle": "automatic",
     "newArchEnabled": true,
     "ios": {
-      "supportsTablet": true
+      "supportsTablet": true,
+      "bundleIdentifier": "com.khat.pawlink",
+      "infoPlist": {
+        "ITSAppUsesNonExemptEncryption": false
+      }
     },
     "android": {
       "softwareKeyboardLayoutMode": "resize",
@@ -24,7 +28,7 @@
       },
       "edgeToEdgeEnabled": true,
       "predictiveBackGestureEnabled": false,
-      "package": "com.anonymous.PawLink"
+      "package": "com.khat.pawlink"
     },
     "web": {
       "bundler": "metro",
@@ -45,11 +49,26 @@
           }
         }
       ],
-      "expo-font"
+      "expo-font",
+      "@react-native-community/datetimepicker",
+      "expo-secure-store",
+      "expo-web-browser"
     ],
     "experiments": {
       "typedRoutes": true,
       "reactCompiler": true
+    },
+    "extra": {
+      "router": {},
+      "eas": {
+        "projectId": "7e943f80-fb61-42eb-a1bb-1a8043d09381"
+      }
+    },
+    "runtimeVersion": {
+      "policy": "appVersion"
+    },
+    "updates": {
+      "url": "https://u.expo.dev/7e943f80-fb61-42eb-a1bb-1a8043d09381"
     }
   }
 }

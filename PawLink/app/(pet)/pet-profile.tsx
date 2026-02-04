@@ -14,8 +14,16 @@ import { Feather, Ionicons } from "@expo/vector-icons";
 import { useAlert } from "@/hooks/useAlert";
 import AlertModal from "@/components/core/AlertModal";
 import { useRouter, useLocalSearchParams } from "expo-router";
-import { getPet } from "@/services/petService";
-import { API_BASE_URL } from "@/config/env";
+import {
+  getPet,
+  getVaccinationCards,
+  addVaccinationShot,
+  VaccinationCard as VaccinationCardType,
+  VaccinationCardsResponse,
+} from "@/services/petService";
+import VaccinationCardComponent from "@/components/pet/VaccinationCard";
+import AddShotModal from "@/components/pet/AddShotModal";
+import { getStorageUrl } from "@/utils/imageUrl";
 import dayjs from "dayjs";
 import { LinearGradient } from "expo-linear-gradient";
 
@@ -94,9 +102,24 @@ export default function PetProfileScreen() {
   const [isEnabled, setIsEnabled] = useState(true);
   const [petData, setPetData] = useState<any>(null);
   const [loading, setLoading] = useState(true);
-  const [activeTab, setActiveTab] = useState<"about" | "health" | "gallery">(
+const [activeTab, setActiveTab] = useState<"about" | "health" | "gallery">(
     "about"
   );
+
+  // Vaccination card system state
+  const [vaccinationCards, setVaccinationCards] = useState<VaccinationCardsResponse>({ required: [], optional: [] });
+  const [showAddShotModal, setShowAddShotModal] = useState(false);
+  const [selectedCard, setSelectedCard] = useState<VaccinationCardType | null>(null);
+  const [addingShotLoading, setAddingShotLoading] = useState(false);
+
+  const fetchVaccinationCards = useCallback(async () => {
+    try {
+      const cards = await getVaccinationCards(parseInt(petId));
+      setVaccinationCards(cards);
+    } catch (error) {
+      console.error("Error fetching vaccination cards:", error);
+    }
+  }, [petId]);
 
   const fetchPetData = useCallback(async () => {
     try {
@@ -116,9 +139,12 @@ export default function PetProfileScreen() {
     }
   }, [petId, showAlert]);
 
-  useEffect(() => {
-    if (petId) fetchPetData();
-  }, [petId, fetchPetData]);
+useEffect(() => {
+    if (petId) {
+      fetchPetData();
+      fetchVaccinationCards();
+    }
+  }, [petId, fetchPetData, fetchVaccinationCards]);
 
   const documentStats = useMemo(() => {
     if (!petData) return { expiredCount: 0, expiringSoonCount: 0 };
@@ -161,8 +187,51 @@ export default function PetProfileScreen() {
       `/(verification)/resubmit-document?type=health_record&petId=${petId}&petName=${petData.name}&healthRecordId=${record.health_record_id}&recordType=${record.record_type}`
     );
   };
-  const handleAddPhoto = () => {
+const handleAddPhoto = () => {
     console.log("Add photo");
+  };
+
+  // Vaccination card handlers
+  const handleOpenAddShotModal = (cardId: number) => {
+    const allCards = [...vaccinationCards.required, ...vaccinationCards.optional];
+    const card = allCards.find(c => c.card_id === cardId);
+    if (card) {
+      setSelectedCard(card);
+      setShowAddShotModal(true);
+    }
+  };
+
+  const handleAddShot = async (shotData: {
+    vaccination_record: any;
+    clinic_name: string;
+    veterinarian_name: string;
+    date_administered: string;
+    expiration_date: string;
+  }) => {
+    if (!selectedCard) return;
+    setAddingShotLoading(true);
+    try {
+      await addVaccinationShot(parseInt(petId), selectedCard.card_id, shotData);
+      await fetchVaccinationCards();
+      showAlert({
+        title: "Success",
+        message: "Shot record added successfully!",
+        type: "success",
+      });
+    } catch (error: any) {
+      showAlert({
+        title: "Error",
+        message: error.response?.data?.message || "Failed to add shot record",
+        type: "error",
+      });
+      throw error;
+    } finally {
+      setAddingShotLoading(false);
+    }
+  };
+
+  const handleViewAllVaccinations = () => {
+    router.push(`/(pet)/vaccinations?petId=${petId}`);
   };
 
   if (loading) {
@@ -255,27 +324,56 @@ export default function PetProfileScreen() {
         />
       </InfoCard>
 
-      {/* Vaccinations */}
-      <InfoCard icon="eyedrop-outline" title="Vaccinations">
-        {petData.vaccinations && petData.vaccinations.length > 0 ? (
-          petData.vaccinations.map((v: any, i: number) => {
-            const status = getDocumentStatus(v.expiration_date);
-            return (
-              <DocumentRow
-                key={`vacc-${i}`}
-                item={v}
-                title={v.vaccine_name}
-                expiry={v.expiration_date}
-                status={status}
-                onPress={() => handleVaccinationPress(v.vaccine_name)}
-                onResubmit={() => handleResubmitVaccination(v)}
+{/* Vaccinations - Card-based system */}
+      <View style={styles.card}>
+        <View style={styles.cardHeader}>
+          <Ionicons name="eyedrop-outline" size={22} color="#FF6B4A" />
+          <Text style={styles.cardTitle}>Vaccinations</Text>
+          <TouchableOpacity 
+            onPress={handleViewAllVaccinations}
+            style={styles.viewAllButton}
+          >
+            <Text style={styles.viewAllText}>View All</Text>
+            <Feather name="chevron-right" size={16} color="#FF6B4A" />
+          </TouchableOpacity>
+        </View>
+        
+        {vaccinationCards.required.length > 0 || vaccinationCards.optional.length > 0 ? (
+          <View style={styles.vaccinationCardsContainer}>
+            {/* Required Cards */}
+            {vaccinationCards.required.slice(0, 3).map((card) => (
+              <VaccinationCardComponent
+                key={card.card_id}
+                card={card}
+                onAddShot={handleOpenAddShotModal}
               />
-            );
-          })
+            ))}
+            
+            {/* Show count of additional cards if more than 3 */}
+            {vaccinationCards.required.length + vaccinationCards.optional.length > 3 && (
+              <TouchableOpacity 
+                onPress={handleViewAllVaccinations}
+                style={styles.moreCardsButton}
+              >
+                <Text style={styles.moreCardsText}>
+                  +{vaccinationCards.required.length + vaccinationCards.optional.length - 3} more vaccination cards
+                </Text>
+                <Feather name="arrow-right" size={16} color="#FF6B4A" />
+              </TouchableOpacity>
+            )}
+          </View>
         ) : (
-          <Text style={styles.cardText}>No vaccination records.</Text>
+          <View style={styles.emptyVaccinations}>
+            <Ionicons name="medical-outline" size={40} color="#9CA3AF" />
+            <Text style={styles.emptyVaccinationsText}>
+              No vaccination cards found
+            </Text>
+            <Text style={styles.emptyVaccinationsSubtext}>
+              Vaccination cards will be initialized when available
+            </Text>
+          </View>
         )}
-      </InfoCard>
+      </View>
 
       {/* Health Records */}
       <InfoCard icon="document-text-outline" title="Health Records">
@@ -314,7 +412,7 @@ export default function PetProfileScreen() {
           {petData.photos.map((photo: any, index: number) => (
             <View key={`photo-${index}`} style={styles.photoContainer}>
               <Image
-                source={{ uri: `${API_BASE_URL}/storage/${photo.photo_url}` }}
+                source={{ uri: getStorageUrl(photo.photo_url)! }}
                 style={styles.photo}
               />
             </View>
@@ -386,7 +484,7 @@ export default function PetProfileScreen() {
             <Image
               source={
                 petData.profile_image
-                  ? { uri: `${API_BASE_URL}/storage/${petData.profile_image}` }
+                  ? { uri: getStorageUrl(petData.profile_image)! }
                   : require("@/assets/images/icon.png")
               }
               style={styles.profilePic}
@@ -456,8 +554,19 @@ export default function PetProfileScreen() {
           />
         </View>
 
-        {renderTabContent()}
+{renderTabContent()}
       </ScrollView>
+
+      <AddShotModal
+        visible={showAddShotModal}
+        onClose={() => {
+          setShowAddShotModal(false);
+          setSelectedCard(null);
+        }}
+        card={selectedCard}
+        onSubmit={handleAddShot}
+        isLoading={addingShotLoading}
+      />
 
       <AlertModal
         visible={visible}
@@ -909,10 +1018,55 @@ const styles = StyleSheet.create({
     alignItems: "center",
     padding: 20,
   },
-  emptyGalleryText: {
+emptyGalleryText: {
     marginTop: 15,
     fontSize: 16,
     color: "#888",
+    textAlign: "center",
+  },
+  // Vaccination card styles
+  viewAllButton: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginLeft: "auto",
+  },
+  viewAllText: {
+    color: "#FF6B4A",
+    fontSize: 14,
+    fontWeight: "600",
+  },
+  vaccinationCardsContainer: {
+    marginTop: 8,
+  },
+  moreCardsButton: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    paddingVertical: 12,
+    backgroundColor: "#FFF5F3",
+    borderRadius: 12,
+    marginTop: 8,
+  },
+  moreCardsText: {
+    color: "#FF6B4A",
+    fontSize: 14,
+    fontWeight: "600",
+    marginRight: 8,
+  },
+  emptyVaccinations: {
+    alignItems: "center",
+    paddingVertical: 24,
+  },
+  emptyVaccinationsText: {
+    fontSize: 16,
+    fontWeight: "600",
+    color: "#6B7280",
+    marginTop: 12,
+  },
+  emptyVaccinationsSubtext: {
+    fontSize: 13,
+    color: "#9CA3AF",
+    marginTop: 4,
     textAlign: "center",
   },
 });

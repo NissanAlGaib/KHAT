@@ -36,7 +36,7 @@ import {
   submitDailyReport,
   getDailyReports,
 } from "@/services/contractService";
-import { API_BASE_URL } from "@/config/env";
+import { getStorageUrl } from "@/utils/imageUrl";
 
 interface DailyReportModalProps {
   visible: boolean;
@@ -659,7 +659,7 @@ function ReportCard({ report, isExpanded, onToggle }: ReportCardProps) {
             <View className="py-3 border-b border-gray-100">
               <Text className="text-gray-500 text-sm mb-2">Photo:</Text>
               <Image
-                source={{ uri: `${API_BASE_URL}/storage/${report.photo_url}` }}
+                source={{ uri: getStorageUrl(report.photo_url)! }}
                 className="w-full h-48 rounded-xl"
                 resizeMode="cover"
               />

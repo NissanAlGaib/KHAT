@@ -19,7 +19,7 @@ import {
   type ShooterProfile,
   type ShooterPet,
 } from "@/services/matchService";
-import { API_BASE_URL } from "@/config/env";
+import { getStorageUrl } from "@/utils/imageUrl";
 import { LinearGradient } from "expo-linear-gradient";
 
 // Section subtitle text constants
@@ -75,16 +75,8 @@ export default function ShooterProfileScreen() {
     }
   }, [shooterId, fetchShooterData]);
 
-  const getImageUrl = (path: string | null | undefined) => {
-    if (!path) return null;
-    if (path.startsWith("http://") || path.startsWith("https://")) {
-      return path;
-    }
-    const cleanPath = path.startsWith("/") ? path.substring(1) : path;
-    const finalPath = cleanPath.startsWith("storage/")
-      ? cleanPath
-      : `storage/${cleanPath}`;
-    return `${API_BASE_URL}/${finalPath}`;
+const getImageUrl = (path: string | null | undefined) => {
+    return getStorageUrl(path);
   };
 
   if (loading) {

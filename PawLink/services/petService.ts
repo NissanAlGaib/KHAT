@@ -20,19 +20,19 @@ export interface PetFormData {
   attribute_tags?: string;
   description: string;
 
-  // Step 3 - Rabies Vaccination
-  rabies_vaccination_record: File;
-  rabies_clinic_name: string;
-  rabies_veterinarian_name: string;
-  rabies_given_date: string;
-  rabies_expiration_date: string;
+  // Step 3 - Rabies Vaccination (optional - added via card system after registration)
+  rabies_vaccination_record?: File;
+  rabies_clinic_name?: string;
+  rabies_veterinarian_name?: string;
+  rabies_given_date?: string;
+  rabies_expiration_date?: string;
 
-  // Step 3 - DHPP Vaccination
-  dhpp_vaccination_record: File;
-  dhpp_clinic_name: string;
-  dhpp_veterinarian_name: string;
-  dhpp_given_date: string;
-  dhpp_expiration_date: string;
+  // Step 3 - DHPP Vaccination (optional - added via card system after registration)
+  dhpp_vaccination_record?: File;
+  dhpp_clinic_name?: string;
+  dhpp_veterinarian_name?: string;
+  dhpp_given_date?: string;
+  dhpp_expiration_date?: string;
 
   // Step 3 - Additional vaccinations (optional)
   additional_vaccinations?: Array<{
@@ -98,22 +98,26 @@ export const createPet = async (petData: PetFormData) => {
   }
   formData.append("description", petData.description);
 
-  // Step 3 - Rabies Vaccination
-  formData.append(
-    "rabies_vaccination_record",
-    petData.rabies_vaccination_record
-  );
-  formData.append("rabies_clinic_name", petData.rabies_clinic_name);
-  formData.append("rabies_veterinarian_name", petData.rabies_veterinarian_name);
-  formData.append("rabies_given_date", petData.rabies_given_date);
-  formData.append("rabies_expiration_date", petData.rabies_expiration_date);
+  // Step 3 - Rabies Vaccination (optional - added via card system)
+  if (petData.rabies_vaccination_record && (petData.rabies_vaccination_record as any).uri) {
+    formData.append(
+      "rabies_vaccination_record",
+      petData.rabies_vaccination_record
+    );
+    formData.append("rabies_clinic_name", petData.rabies_clinic_name);
+    formData.append("rabies_veterinarian_name", petData.rabies_veterinarian_name);
+    formData.append("rabies_given_date", petData.rabies_given_date);
+    formData.append("rabies_expiration_date", petData.rabies_expiration_date);
+  }
 
-  // Step 3 - DHPP Vaccination
-  formData.append("dhpp_vaccination_record", petData.dhpp_vaccination_record);
-  formData.append("dhpp_clinic_name", petData.dhpp_clinic_name);
-  formData.append("dhpp_veterinarian_name", petData.dhpp_veterinarian_name);
-  formData.append("dhpp_given_date", petData.dhpp_given_date);
-  formData.append("dhpp_expiration_date", petData.dhpp_expiration_date);
+  // Step 3 - DHPP Vaccination (optional - added via card system)
+  if (petData.dhpp_vaccination_record && (petData.dhpp_vaccination_record as any).uri) {
+    formData.append("dhpp_vaccination_record", petData.dhpp_vaccination_record);
+    formData.append("dhpp_clinic_name", petData.dhpp_clinic_name);
+    formData.append("dhpp_veterinarian_name", petData.dhpp_veterinarian_name);
+    formData.append("dhpp_given_date", petData.dhpp_given_date);
+    formData.append("dhpp_expiration_date", petData.dhpp_expiration_date);
+  }
 
   // Step 3 - Additional Vaccinations (optional)
   if (
@@ -426,4 +430,179 @@ export const createLitter = async (litterData: CreateLitterData) => {
   });
 
   return response.data;
+};
+
+// ===========================================
+// VACCINATION CARD SYSTEM (New Card-Based API)
+// ===========================================
+
+export interface VaccinationShot {
+  shot_id: number;
+  shot_number: number;
+  vaccination_record: string;
+  clinic_name: string;
+  veterinarian_name: string;
+  date_administered: string;
+  date_administered_display: string;
+  expiration_date: string;
+  expiration_date_display: string;
+  next_shot_date?: string;
+  next_shot_date_display?: string;
+  status: "completed" | "pending" | "overdue" | "verified";
+  verification_status: "pending" | "approved" | "rejected";
+  display_status: string;
+  rejection_reason?: string;
+  is_expired: boolean;
+  is_expiring_soon: boolean;
+}
+
+export interface VaccinationCard {
+  card_id: number;
+  pet_id: number;
+  vaccine_type: string;
+  vaccine_name: string;
+  is_required: boolean;
+  total_shots_required: number | null;
+  interval_days: number | null;
+  recurrence_type: "none" | "yearly" | "biannual";
+  status: "not_started" | "in_progress" | "completed" | "overdue";
+  progress_percentage: number;
+  completed_shots_count: number;
+  is_series_complete: boolean;
+  next_shot_date?: string;
+  next_shot_date_display?: string;
+  shots: VaccinationShot[];
+}
+
+export interface VaccinationCardsResponse {
+  required: VaccinationCard[];
+  optional: VaccinationCard[];
+}
+
+export interface VaccinationSummary {
+  total_cards: number;
+  completed_cards: number;
+  in_progress_cards: number;
+  overdue_cards: number;
+  overall_status: string;
+  cards: Array<{
+    card_id: number;
+    vaccine_name: string;
+    is_required: boolean;
+    status: string;
+    progress: number;
+    completed_shots: number;
+    total_shots: number | null;
+    next_shot_date?: string;
+  }>;
+}
+
+/**
+ * Get all vaccination cards for a pet
+ */
+export const getVaccinationCards = async (
+  petId: number
+): Promise<VaccinationCardsResponse> => {
+  const response = await axiosInstance.get(
+    `/api/pets/${petId}/vaccination-cards`
+  );
+  return response.data.data;
+};
+
+/**
+ * Get a specific vaccination card with all shots
+ */
+export const getVaccinationCard = async (
+  petId: number,
+  cardId: number
+): Promise<VaccinationCard> => {
+  const response = await axiosInstance.get(
+    `/api/pets/${petId}/vaccination-cards/${cardId}`
+  );
+  return response.data.data;
+};
+
+/**
+ * Add a new shot to a vaccination card
+ */
+export const addVaccinationShot = async (
+  petId: number,
+  cardId: number,
+  shotData: {
+    vaccination_record: File;
+    clinic_name: string;
+    veterinarian_name: string;
+    date_administered: string;
+    expiration_date: string;
+  }
+): Promise<{ shot: VaccinationShot; card: VaccinationCard }> => {
+  const formData = new FormData();
+  formData.append("vaccination_record", shotData.vaccination_record);
+  formData.append("clinic_name", shotData.clinic_name);
+  formData.append("veterinarian_name", shotData.veterinarian_name);
+  formData.append("date_administered", shotData.date_administered);
+  formData.append("expiration_date", shotData.expiration_date);
+
+  const response = await axiosInstance.post(
+    `/api/pets/${petId}/vaccination-cards/${cardId}/shots`,
+    formData,
+    {
+      headers: {
+        "Content-Type": "multipart/form-data",
+      },
+    }
+  );
+  return response.data.data;
+};
+
+/**
+ * Create a custom (optional) vaccination card
+ */
+export const createCustomVaccinationCard = async (
+  petId: number,
+  cardData: {
+    vaccine_name: string;
+    total_shots?: number;
+    recurrence_type?: "none" | "recurring";
+  }
+): Promise<VaccinationCard> => {
+  const response = await axiosInstance.post(
+    `/api/pets/${petId}/vaccination-cards`,
+    cardData
+  );
+  return response.data.data;
+};
+
+/**
+ * Delete a custom vaccination card (only optional cards can be deleted)
+ */
+export const deleteVaccinationCard = async (
+  petId: number,
+  cardId: number
+): Promise<void> => {
+  await axiosInstance.delete(`/api/pets/${petId}/vaccination-cards/${cardId}`);
+};
+
+/**
+ * Get vaccination summary for a pet
+ */
+export const getVaccinationSummary = async (
+  petId: number
+): Promise<VaccinationSummary> => {
+  const response = await axiosInstance.get(
+    `/api/pets/${petId}/vaccination-summary`
+  );
+  return response.data.data;
+};
+
+/**
+ * Initialize required vaccination cards for a pet
+ */
+export const initializeVaccinationCards = async (
+  petId: number
+): Promise<VaccinationCard[]> => {
+  const response = await axiosInstance.post(
+    `/api/pets/${petId}/vaccination-cards/initialize`
+  );
+  return response.data.data;
 };

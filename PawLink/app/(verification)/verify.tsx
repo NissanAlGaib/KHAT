@@ -3,7 +3,6 @@ import {
   View,
   Text,
   TouchableOpacity,
-  ScrollView,
   ActivityIndicator,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
@@ -12,6 +11,7 @@ import { Feather } from "@expo/vector-icons";
 import IdVerificationStep from "@/components/verification/IdVerificationStep";
 import LicensedBreederStep from "@/components/verification/LicensedBreederStep";
 import ShooterCertificateStep from "@/components/verification/ShooterCertificateStep";
+import StepperProgress from "@/components/verification/StepperProgress";
 import { submitVerification } from "@/services/verificationService";
 import { useSession } from "@/context/AuthContext";
 import { useAlert } from "@/hooks/useAlert";
@@ -182,37 +182,33 @@ export default function VerifyScreen() {
     }
   };
 
-  const renderProgressBar = () => {
-    const progress = (currentStep / 3) * 100;
-    return (
-      <View className="px-6 mb-6">
-        <Text className="text-gray-600 text-sm mb-2 text-right">
-          {currentStep} of 3
-        </Text>
-        <View className="w-full h-2 bg-gray-300 rounded-full overflow-hidden">
-          <View
-            className="h-full bg-[#FF6B4A]"
-            style={{ width: `${progress}%` }}
-          />
-        </View>
-      </View>
-    );
-  };
-
   return (
     <SafeAreaView className="flex-1 bg-[#FFF5F5]" edges={["top"]}>
       {/* Header */}
       <View className="px-6 pt-4 pb-6 bg-white rounded-b-[35] shadow-lg">
-        <View className="flex-row items-center">
-          <TouchableOpacity onPress={() => router.back()}>
-            <Feather name="arrow-left" size={24} color="black" />
-          </TouchableOpacity>
-          <Text className="text-2xl font-bold text-black ml-4">VERIFY</Text>
+        <View className="flex-row items-center justify-between">
+          <View className="flex-row items-center">
+            <TouchableOpacity
+              onPress={() => router.back()}
+              className="w-10 h-10 rounded-full bg-gray-100 items-center justify-center"
+            >
+              <Feather name="arrow-left" size={20} color="#374151" />
+            </TouchableOpacity>
+            <View className="ml-4">
+              <Text className="text-2xl font-bold text-gray-900">Verification</Text>
+              <Text className="text-sm text-gray-500">Complete all steps to verify</Text>
+            </View>
+          </View>
+          <View className="w-10 h-10 rounded-full bg-[#FF6B4A]/10 items-center justify-center">
+            <Feather name="shield" size={20} color="#FF6B4A" />
+          </View>
         </View>
       </View>
 
-      {/* Progress Bar */}
-      <View className="mt-6">{renderProgressBar()}</View>
+      {/* Stepper Progress */}
+      <View className="mt-6 mb-2">
+        <StepperProgress currentStep={currentStep} />
+      </View>
 
       {/* Loading Overlay */}
       {isSubmitting && (
@@ -227,12 +223,7 @@ export default function VerifyScreen() {
       )}
 
       {/* Form Steps */}
-      <ScrollView
-        className="flex-1"
-        keyboardShouldPersistTaps="handled"
-        keyboardDismissMode="interactive"
-        contentContainerStyle={{ flexGrow: 1 }}
-      >
+      <View className="flex-1">
         {currentStep === 1 && (
           <IdVerificationStep onNext={handleNext} initialData={formData} />
         )}
@@ -250,7 +241,7 @@ export default function VerifyScreen() {
             initialData={formData}
           />
         )}
-      </ScrollView>
+      </View>
 
       <AlertModal
         visible={visible}
