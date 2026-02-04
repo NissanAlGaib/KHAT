@@ -9,7 +9,7 @@ import {
 import { LinearGradient } from "expo-linear-gradient";
 import { Feather } from "@expo/vector-icons";
 import { Colors, Shadows, BorderRadius } from "@/constants";
-import { API_BASE_URL } from "@/config/env";
+import { getStorageUrl } from "@/utils/imageUrl";
 
 const { width: SCREEN_WIDTH } = Dimensions.get("window");
 const CARD_WIDTH = SCREEN_WIDTH - 32;
@@ -59,9 +59,7 @@ export default function MatchCard({ match, selectedPetId }: MatchCardProps) {
   const displayPet = 
     match.pet1.pet_id === selectedPetId ? match.pet2 : match.pet1;
 
-  const photoUrl = displayPet.photo_url
-    ? `${API_BASE_URL}/storage/${displayPet.photo_url}`
-    : null;
+  const photoUrl = getStorageUrl(displayPet.photo_url);
 
   const age = getAge(displayPet.birthdate);
 

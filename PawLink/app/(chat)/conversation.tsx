@@ -20,12 +20,12 @@ import {
   type ConversationDetail,
   type Message,
 } from "@/services/matchRequestService";
-import { getContract, type BreedingContract } from "@/services/contractService";
-import { API_BASE_URL } from "@/config/env";
-import {
-  ContractPrompt,
-  ContractModal,
-  ContractCard,
+import { getContract, type BreedingContract } from "@/services/contractService";\r
+import { getStorageUrl } from "@/utils/imageUrl";\r
+import {\r
+  ContractPrompt,\r
+  ContractModal,\r
+  ContractCard,\r
 } from "@/components/contracts";
 
 export default function ConversationScreen() {
@@ -48,8 +48,7 @@ export default function ConversationScreen() {
   const [isEditingContract, setIsEditingContract] = useState(false);
 
   const getImageUrl = (path: string | null | undefined) => {
-    if (!path) return null;
-    return `${API_BASE_URL}/storage/${path}`;
+    return getStorageUrl(path);
   };
 
   const fetchMessages = useCallback(async () => {

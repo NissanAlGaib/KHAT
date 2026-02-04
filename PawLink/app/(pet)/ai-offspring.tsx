@@ -11,8 +11,8 @@ import {
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Feather, Ionicons } from "@expo/vector-icons";
 import { useRouter, useLocalSearchParams } from "expo-router";
-import { LinearGradient } from "expo-linear-gradient";
-import { API_BASE_URL } from "@/config/env";
+import { LinearGradient } from "expo-linear-gradient";\r
+import { getStorageUrl } from "@/utils/imageUrl";
 
 const { width } = Dimensions.get("window");
 
@@ -42,7 +42,7 @@ export default function AIOffspringScreen() {
   const getImageUrl = (path: string | null | undefined) => {
     if (!path) return undefined;
     if (path.startsWith("http")) return path;
-    return `${API_BASE_URL}/storage/${path}`;
+    return getStorageUrl(path) ?? undefined;
   };
 
   return (

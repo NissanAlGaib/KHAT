@@ -8,7 +8,7 @@ import {
   Image,
 } from "react-native";
 import { Colors, Spacing, BorderRadius, Shadows, FontSize } from "@/constants";
-import { API_BASE_URL } from "@/config/env";
+import { getStorageUrl } from "@/utils/imageUrl";
 import { PetMatch } from "@/services/matchService";
 
 interface HorizontalPetScrollProps {
@@ -25,9 +25,8 @@ export default function HorizontalPetScroll({
   onPetPress,
 }: HorizontalPetScrollProps) {
   const renderItem = ({ item }: { item: PetMatch }) => {
-    const photoUrl = item.photos?.find((p) => p.is_primary)?.photo_url
-      ? `${API_BASE_URL}/storage/${item.photos.find((p) => p.is_primary)?.photo_url}`
-      : null;
+    const primaryPhotoUrl = item.photos?.find((p) => p.is_primary)?.photo_url;
+    const photoUrl = getStorageUrl(primaryPhotoUrl);
 
     return (
       <TouchableOpacity

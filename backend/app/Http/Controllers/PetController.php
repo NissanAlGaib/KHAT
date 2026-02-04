@@ -101,7 +101,7 @@ class PetController extends Controller
             'additional_vaccinations.*.expiration_date' => 'required|date|after:additional_vaccinations.*.given_date',
 
             // Step 4 - Health Certificate
-            'health_certificate' => 'required|file|mimes:jpg,jpeg,png,pdf|max:20480',
+            'health_certificate' => 'required|file|mimes:jpg,jpeg,png,pdf,heic,heif|max:20480',
             'health_clinic_name' => 'required|string|max:255',
             'health_veterinarian_name' => 'required|string|max:255',
             'health_given_date' => 'required|date|before_or_equal:today',
@@ -109,7 +109,7 @@ class PetController extends Controller
 
             // Step 5 - Pet Photos
             'pet_photos' => 'required|array|min:3',
-            'pet_photos.*' => 'required|image|mimes:jpg,jpeg,png|max:20480',
+            'pet_photos.*' => 'required|image|mimes:jpg,jpeg,png,heic,heif|max:20480',
 
             // Step 6 - Partner Preferences (optional)
             'preferred_breed' => 'nullable|string|max:255',

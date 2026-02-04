@@ -23,8 +23,8 @@ import {
 } from "@/services/petService";
 import { sendMatchRequest, createMatchPayment } from "@/services/matchRequestService";
 import { verifyPayment } from "@/services/paymentService";
-import { usePet } from "@/context/PetContext";
-import { API_BASE_URL } from "@/config/env";
+import { usePet } from "@/context/PetContext";\r
+import { getStorageUrl } from "@/utils/imageUrl";\r
 import dayjs from "dayjs";
 import { LinearGradient } from "expo-linear-gradient";
 
@@ -94,7 +94,7 @@ export default function ViewPetProfileScreen() {
 
   const getImageUrl = (path: string | null | undefined) => {
     if (!path) return undefined;
-    return `${API_BASE_URL}/storage/${path}`;
+    return getStorageUrl(path) ?? undefined;
   };
 
   const calculateAge = (birthdate: string) => {

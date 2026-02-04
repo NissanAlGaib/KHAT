@@ -14,15 +14,15 @@ import { useRouter } from "expo-router";
 import { useFocusEffect } from "@react-navigation/native";
 import { useAlert } from "@/hooks/useAlert";
 import AlertModal from "@/components/core/AlertModal";
-import {
-  getIncomingRequests,
-  getAcceptedMatches,
-  acceptMatchRequest,
-  declineMatchRequest,
-  type MatchRequest,
-  type AcceptedMatch,
-} from "@/services/matchRequestService";
-import { API_BASE_URL } from "@/config/env";
+import {\r
+  getIncomingRequests,\r
+  getAcceptedMatches,\r
+  acceptMatchRequest,\r
+  declineMatchRequest,\r
+  type MatchRequest,\r
+  type AcceptedMatch,\r
+} from "@/services/matchRequestService";\r
+import { getStorageUrl } from "@/utils/imageUrl";
 
 type TabType = "PET" | "SHOOTER";
 type SubTabType = "REQUESTS" | "MATCH";
@@ -40,8 +40,7 @@ const Favorites = () => {
   const [processingId, setProcessingId] = useState<number | null>(null);
 
   const getImageUrl = (path: string | null | undefined) => {
-    if (!path) return null;
-    return `${API_BASE_URL}/storage/${path}`;
+    return getStorageUrl(path);
   };
 
   const fetchData = useCallback(async () => {
