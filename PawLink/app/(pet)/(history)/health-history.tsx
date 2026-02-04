@@ -13,7 +13,7 @@ import { useAlert } from "@/hooks/useAlert";
 import AlertModal from "@/components/core/AlertModal";
 import { useRouter, useLocalSearchParams } from "expo-router";
 import { getPet } from "@/services/petService";
-import { API_BASE_URL } from "@/config/env";
+import { getStorageUrl } from "@/utils/imageUrl";
 import dayjs from "dayjs";
 
 export default function HealthHistoryScreen() {
@@ -51,7 +51,7 @@ export default function HealthHistoryScreen() {
 
   const handleViewCertificate = (certificateUrl: string | null) => {
     if (certificateUrl) {
-      const fullUrl = `${API_BASE_URL}/storage/${certificateUrl}`;
+      const fullUrl = getStorageUrl(certificateUrl);
       Linking.openURL(fullUrl).catch(() => {
         showAlert({
           title: "Error",

@@ -6,6 +6,57 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ---
+## [1.4.0] - 2026-02-04
+
+### Pet Creation & Vaccination Rework
+
+#### Vaccination Card System
+- **New Component**: `VaccinationCard.tsx` - Expandable card with progress bar, shot timeline, and status indicators
+- **New Component**: `AddShotModal.tsx` - Modal form for adding shot records with file upload, date pickers, and auto-calculated expiration
+- **New Screen**: `vaccinations.tsx` - Dedicated vaccination management screen with stats summary, required/optional sections
+- Integrated vaccination cards into Pet Profile Health tab
+- Cards auto-initialize on pet registration (Parvo, Distemper, Rabies, Leptospirosis)
+
+#### Vaccination Logic Rework
+- **Breaking Change**: Next shot date now based on **expiration date** instead of fixed intervals
+- User provides actual expiration from vet documentation
+- System shows "Next shot due: [expiration date]" for accurate scheduling
+- Removed `interval_days` dependency from shot scheduling
+
+#### Booster Shot Support
+- Users can now add shots **beyond required series** (previously blocked)
+- Completion message updated: "Vaccination series completed! You can still add booster shots if needed."
+- Modal shows "Booster Shot" label with green badge when adding beyond required count
+- Info note explains booster context to users
+
+#### Simplified Recurrence Types
+- Changed custom card creation from `none/yearly/biannual` to `none/recurring`
+- **One-time Series**: No renewal after completing required shots
+- **Recurring**: Renew when expired (user provides expiration date)
+- Cleaner UI with helpful descriptions for each option
+
+#### File Storage Fix
+- Changed all file uploads to use `do_spaces` disk instead of `public`
+- Fixed 15 storage locations across `PetController`, `VaccinationController`, `BreedingContractController`
+- All vaccination records, pet photos, health certificates now upload to DigitalOcean Spaces
+
+#### Code Quality Fixes
+- Removed stray `\r` characters from 7 source files
+- Fixed custom vaccination modal to use proper `TextInput` instead of `Text` placeholder
+
+#### Backend Changes
+- `VaccinationShot::createForCard()` - Uses `$expirationDate` for `$nextShotDate`
+- `VaccinationCard::calculateNextShotDate()` - Returns latest shot's expiration date
+- `VaccinationCard::createCustomCard()` - Removed `$intervalDays` parameter
+- `VaccinationController::createCustomCard()` - Added `recurring` to valid recurrence types, removed `interval_days` validation
+
+#### Frontend Changes
+- `petService.ts` - Updated `createCustomVaccinationCard` type signature
+- `VaccinationCard.tsx` - Always allow adding shots, added `recurring` case in progress text
+- `vaccinations.tsx` - New renewal type UI with descriptions
+- `AddShotModal.tsx` - Booster shot detection and UI differentiation
+
+---
 ## [1.3.3] - 2026-02-03
 
 ### User Verification Redesign
@@ -312,6 +363,7 @@ Added new colors to `constants/colors.ts`:
 
 | Version | Date | Highlights |
 |---------|------|------------|
+| 1.4.0 | 2026-02-04 | Pet Creation & Vaccination Rework - card system, expiration-based scheduling, booster support, DO Spaces fix |
 | 1.3.3 | 2026-02-03 | User Verification redesign, Verification Status screen, single certificate submission, DO Spaces fix |
 | 1.3.2 | 2026-02-03 | Image URL fix with centralized `getStorageUrl()` utility |
 | 1.3.1 | 2026-01-29 | Global search, **HOTFIX: black screen crash fix**, reanimated 4.2.1 |

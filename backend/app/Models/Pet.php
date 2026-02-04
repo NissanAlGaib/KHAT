@@ -96,11 +96,37 @@ class Pet extends Model
     }
 
     /**
-     * Get the vaccinations for the pet
+     * Get the vaccinations for the pet (legacy - for backward compatibility)
      */
     public function vaccinations(): HasMany
     {
         return $this->hasMany(Vaccination::class, 'pet_id', 'pet_id');
+    }
+
+    /**
+     * Get the vaccination cards for the pet (new card-based system)
+     */
+    public function vaccinationCards(): HasMany
+    {
+        return $this->hasMany(VaccinationCard::class, 'pet_id', 'pet_id');
+    }
+
+    /**
+     * Get required vaccination cards
+     */
+    public function requiredVaccinationCards(): HasMany
+    {
+        return $this->hasMany(VaccinationCard::class, 'pet_id', 'pet_id')
+            ->where('is_required', true);
+    }
+
+    /**
+     * Get optional vaccination cards
+     */
+    public function optionalVaccinationCards(): HasMany
+    {
+        return $this->hasMany(VaccinationCard::class, 'pet_id', 'pet_id')
+            ->where('is_required', false);
     }
 
     /**

@@ -14,7 +14,7 @@ import PetSelectionModal from "./PetSelectionModal";
 import { useRole } from "@/context/RoleContext";
 import { usePet } from "@/context/PetContext";
 import { getPendingShooterRequestsCount } from "@/services/contractService";
-import { API_BASE_URL } from "@/config/env";
+import { getStorageUrl } from "@/utils/imageUrl";
 
 const { width } = Dimensions.get("window");
 const TAB_BAR_WIDTH = width * 0.9;
@@ -42,10 +42,7 @@ export default function CurvedTabBar({
   const getSelectedPetPhoto = () => {
     if (!selectedPet) return null;
     const primaryPhoto = selectedPet.photos?.find((p) => p.is_primary);
-    if (primaryPhoto?.photo_url) {
-      return `${API_BASE_URL}/storage/${primaryPhoto.photo_url}`;
-    }
-    return null;
+    return getStorageUrl(primaryPhoto?.photo_url);
   };
 
   const petPhotoUrl = getSelectedPetPhoto();

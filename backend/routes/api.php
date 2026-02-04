@@ -13,6 +13,7 @@ use App\Http\Controllers\ShooterController;
 use App\Http\Controllers\SubscriptionController;
 use App\Http\Controllers\UserController;
 use App\Http\Controllers\VerificationController;
+use App\Http\Controllers\VaccinationController;
 use App\Http\Controllers\SearchController;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
@@ -55,6 +56,15 @@ Route::middleware(['auth:sanctum'])
         Route::get('/pets/{id}/profile', [PetController::class, 'getPublicProfile']);
         Route::post('/pets/{petId}/vaccinations/{vaccinationId}/resubmit', [PetController::class, 'resubmitVaccination']);
         Route::post('/pets/{petId}/health-records/{healthRecordId}/resubmit', [PetController::class, 'resubmitHealthRecord']);
+
+        // Vaccination card routes (new card-based system)
+        Route::get('/pets/{petId}/vaccination-cards', [VaccinationController::class, 'getCards']);
+        Route::get('/pets/{petId}/vaccination-cards/{cardId}', [VaccinationController::class, 'getCard']);
+        Route::post('/pets/{petId}/vaccination-cards', [VaccinationController::class, 'createCustomCard']);
+        Route::delete('/pets/{petId}/vaccination-cards/{cardId}', [VaccinationController::class, 'deleteCard']);
+        Route::post('/pets/{petId}/vaccination-cards/{cardId}/shots', [VaccinationController::class, 'addShot']);
+        Route::get('/pets/{petId}/vaccination-summary', [VaccinationController::class, 'getSummary']);
+        Route::post('/pets/{petId}/vaccination-cards/initialize', [VaccinationController::class, 'initializeRequiredCards']);
 
         // Litter routes
         Route::get('/pets/{petId}/litters', [LitterController::class, 'getPetLitters']);

@@ -12,7 +12,7 @@ import {
 import { Feather } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
 import { Colors, Shadows, BorderRadius, Spacing } from "@/constants";
-import { API_BASE_URL } from "@/config/env";
+import { getStorageUrl } from "@/utils/imageUrl";
 import dayjs from "dayjs";
 
 interface Pet {
@@ -121,7 +121,7 @@ export default function ActivePetPill({
       >
         {photo?.photo_url ? (
           <Image
-            source={{ uri: `${API_BASE_URL}/storage/${photo.photo_url}` }}
+            source={{ uri: getStorageUrl(photo.photo_url)! }}
             style={[styles.petOptionAvatar, isOnCooldown && styles.avatarDisabled]}
           />
         ) : (
@@ -176,7 +176,7 @@ export default function ActivePetPill({
           <View style={styles.avatarContainer}>
             {primaryPhoto?.photo_url ? (
               <Image
-                source={{ uri: `${API_BASE_URL}/storage/${primaryPhoto.photo_url}` }}
+                source={{ uri: getStorageUrl(primaryPhoto.photo_url)! }}
                 style={styles.avatar}
               />
             ) : (

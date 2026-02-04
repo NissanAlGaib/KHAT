@@ -10,7 +10,7 @@ import {
 } from "react-native";
 import { X } from "lucide-react-native";
 import { usePet } from "@/context/PetContext";
-import { API_BASE_URL } from "@/config/env";
+import { getStorageUrl } from "@/utils/imageUrl";
 import dayjs from "dayjs";
 
 interface PetSelectionModalProps {
@@ -180,7 +180,7 @@ export default function PetSelectionModal({
                       {photoUrl ? (
                         <Image
                           source={{
-                            uri: `${API_BASE_URL}/storage/${photoUrl}`,
+                            uri: getStorageUrl(photoUrl)!,
                           }}
                           className="w-16 h-16 rounded-full"
                           resizeMode="cover"
