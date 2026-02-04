@@ -879,12 +879,13 @@ class MatchRequestController extends Controller
             $pet1Photo = $pet1->photos->firstWhere('is_primary', true) ?? $pet1->photos->first();
             $pet2Photo = $pet2->photos->firstWhere('is_primary', true) ?? $pet2->photos->first();
 
-            return response()->json([
-                'success' => true,
-                'data' => [
-                    'conversation_id' => $conversation->id,
-                    'is_shooter_view' => true,
-                    'pet1' => [
+        return response()->json([
+            'success' => true,
+            'data' => [
+                'conversation_id' => $conversation->id,
+                'is_shooter_view' => true,
+                'match_accepted_at' => $matchRequest->updated_at,
+                'pet1' => [
                         'pet_id' => $pet1->pet_id,
                         'name' => $pet1->name,
                         'photo_url' => $pet1Photo?->photo_url,
@@ -919,6 +920,7 @@ class MatchRequestController extends Controller
             'data' => [
                 'conversation_id' => $conversation->id,
                 'is_shooter_view' => false,
+                'match_accepted_at' => $matchRequest->updated_at,
                 'matched_pet' => [
                     'pet_id' => $otherPet->pet_id,
                     'name' => $otherPet->name,

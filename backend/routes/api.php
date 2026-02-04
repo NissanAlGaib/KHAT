@@ -14,6 +14,7 @@ use App\Http\Controllers\SubscriptionController;
 use App\Http\Controllers\UserController;
 use App\Http\Controllers\VerificationController;
 use App\Http\Controllers\VaccinationController;
+use App\Http\Controllers\SafetyController;
 use App\Http\Controllers\SearchController;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
@@ -159,4 +160,12 @@ Route::middleware(['auth:sanctum'])
         Route::get('/search/pets', [SearchController::class, 'searchPets']);
         Route::get('/search/breeders', [SearchController::class, 'searchBreeders']);
         Route::get('/search/shooters', [SearchController::class, 'searchShooters']);
+
+        // Safety routes (Block & Report)
+        Route::post('/users/{id}/block', [SafetyController::class, 'blockUser']);
+        Route::delete('/users/{id}/block', [SafetyController::class, 'unblockUser']);
+        Route::get('/users/blocked', [SafetyController::class, 'getBlockedUsers']);
+        Route::get('/users/{id}/blocked-status', [SafetyController::class, 'isBlocked']);
+        Route::post('/users/{id}/report', [SafetyController::class, 'reportUser']);
+        Route::get('/report-reasons', [SafetyController::class, 'getReportReasons']);
     });

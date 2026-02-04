@@ -98,6 +98,7 @@ export interface Message {
 export interface ConversationDetail {
   conversation_id: number;
   is_shooter_view?: boolean;
+  match_accepted_at?: string;
   // For owner view
   matched_pet?: MatchRequestPet;
   owner?: MatchRequestOwner;
