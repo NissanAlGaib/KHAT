@@ -95,8 +95,7 @@ class User extends Authenticatable
      */
     public function blockedUsers()
     {
-        return $this->belongsToMany(User::class, 'user_blocks', 'blocker_id', 'blocked_id')
-            ->withTimestamps();
+        return $this->belongsToMany(User::class, 'user_blocks', 'blocker_id', 'blocked_id');
     }
 
     /**
@@ -104,8 +103,7 @@ class User extends Authenticatable
      */
     public function blockedByUsers()
     {
-        return $this->belongsToMany(User::class, 'user_blocks', 'blocked_id', 'blocker_id')
-            ->withTimestamps();
+        return $this->belongsToMany(User::class, 'user_blocks', 'blocked_id', 'blocker_id');
     }
 
     /**

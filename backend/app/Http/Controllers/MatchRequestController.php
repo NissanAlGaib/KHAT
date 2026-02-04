@@ -84,7 +84,7 @@ class MatchRequestController extends Controller
         $user = $request->user();
 
         // Check if user has verified ID
-        $hasVerifiedId = $user->authentications()
+        $hasVerifiedId = $user->userAuth()
             ->where('auth_type', 'id')
             ->where('status', 'approved')
             ->exists();
