@@ -217,7 +217,7 @@ export default function AddShotModal({
             <View>
               <Text style={styles.headerTitle}>Add Shot Record</Text>
               <Text style={styles.headerSubtitle}>
-                {card.vaccine_name} - {isBoosterShot ? "Booster Shot" : `Shot ${nextShotNumber}`}
+                {card.vaccine_name} - {isBoosterShot ? "Booster Shot" : `Shot ${currentShotNumber}`}
                 {card.total_shots_required && !isBoosterShot ? ` of ${card.total_shots_required}` : ""}
               </Text>
             </View>

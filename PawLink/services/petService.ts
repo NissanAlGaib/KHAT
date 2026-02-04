@@ -249,6 +249,36 @@ export interface PetPhoto {
   is_primary: boolean;
 }
 
+export interface PublicVaccinationShot {
+  shot_id: number;
+  shot_number: number;
+  date_administered: string;
+  date_administered_display: string;
+  expiration_date: string;
+  expiration_date_display: string;
+  status: string;
+  display_status: string;
+  is_expired: boolean;
+  is_expiring_soon: boolean;
+}
+
+export interface PublicVaccinationCard {
+  card_id: number;
+  vaccine_type: string;
+  vaccine_name: string;
+  is_required: boolean;
+  total_shots_required: number | null;
+  interval_days: number | null;
+  recurrence_type: "none" | "yearly" | "biannual" | "recurring";
+  status: "not_started" | "in_progress" | "completed" | "overdue";
+  progress_percentage: number;
+  completed_shots_count: number;
+  is_series_complete: boolean;
+  next_shot_date?: string;
+  next_shot_date_display?: string;
+  shots: PublicVaccinationShot[];
+}
+
 export interface PetPublicProfile {
   pet_id: number;
   name: string;
@@ -279,6 +309,10 @@ export interface PetPublicProfile {
   photos: PetPhoto[];
   preferences: string[];
   vaccinations: Vaccination[];
+  vaccination_cards: {
+    required: PublicVaccinationCard[];
+    optional: PublicVaccinationCard[];
+  };
   health_records: HealthRecord[];
   breeding_partners: BreedingPartner[];
   litter_count: number;
@@ -538,7 +572,14 @@ export const addVaccinationShot = async (
   }
 ): Promise<{ shot: VaccinationShot; card: VaccinationCard }> => {
   const formData = new FormData();
-  formData.append("vaccination_record", shotData.vaccination_record);
+  
+  // Format file for React Native FormData upload
+  const fileData = shotData.vaccination_record as any;
+  formData.append("vaccination_record", {
+    uri: fileData.uri,
+    name: fileData.name || `vaccination_${Date.now()}.jpg`,
+    type: fileData.mimeType || fileData.type || "image/jpeg",
+  } as any);
   formData.append("clinic_name", shotData.clinic_name);
   formData.append("veterinarian_name", shotData.veterinarian_name);
   formData.append("date_administered", shotData.date_administered);
