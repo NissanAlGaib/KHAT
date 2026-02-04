@@ -101,7 +101,7 @@ export default function CurvedTabBar({
       `;
     }
 
-    // Default path with center cutout for Pet Owner mode
+    // Default path with center cutout for Breeder mode
     return `
       M ${radius} 0
       L ${centerX - cutoutRadius - 20} 0

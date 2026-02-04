@@ -83,6 +83,20 @@ class MatchRequestController extends Controller
 
         $user = $request->user();
 
+        // Check if user has verified ID
+        $hasVerifiedId = $user->authentications()
+            ->where('auth_type', 'id')
+            ->where('status', 'approved')
+            ->exists();
+
+        if (!$hasVerifiedId) {
+            return response()->json([
+                'success' => false,
+                'message' => 'ID verification required to send match requests. Please verify your identity first.',
+                'requires_verification' => true,
+            ], 403);
+        }
+
         // Verify the requester pet belongs to the authenticated user
         $requesterPet = Pet::where('pet_id', $validated['requester_pet_id'])
             ->where('user_id', $user->id)

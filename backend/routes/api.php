@@ -37,7 +37,7 @@ Route::middleware(['auth:sanctum'])
             ->name('logout');
 
         Route::get('/user', function (Request $request) {
-            return $request->user();
+            return $request->user()->load('roles');
         });
 
         // User profile routes
@@ -78,6 +78,9 @@ Route::middleware(['auth:sanctum'])
         // Shooter routes
         Route::get('/shooters', [ShooterController::class, 'index']);
         Route::get('/shooters/{id}', [ShooterController::class, 'show']);
+
+        // Breeder routes
+        Route::get('/breeders/{id}', [SearchController::class, 'getBreederProfile']);
 
         // Shooter offer routes (for shooters)
         Route::get('/shooter/offers', [ShooterController::class, 'getOffers']);

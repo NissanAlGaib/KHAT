@@ -118,6 +118,14 @@ class VaccinationShot extends Model
      * Create a new shot for a vaccination card
      * Automatically calculates shot number and dates
      * Next shot date is based on when this shot expires (user-provided expiration)
+     * 
+     * @param VaccinationCard $card
+     * @param string $documentPath
+     * @param string $clinicName
+     * @param string $veterinarianName
+     * @param string $dateAdministered
+     * @param string $expirationDate
+     * @param int|null $shotNumber Optional shot number (for historical records)
      */
     public static function createForCard(
         VaccinationCard $card,
@@ -125,10 +133,16 @@ class VaccinationShot extends Model
         string $clinicName,
         string $veterinarianName,
         string $dateAdministered,
-        string $expirationDate
+        string $expirationDate,
+        ?int $shotNumber = null
     ): self {
-        $latestShot = $card->latestShot();
-        $nextShotNumber = $latestShot ? $latestShot->shot_number + 1 : 1;
+        // Use provided shot number or auto-calculate
+        if ($shotNumber !== null) {
+            $nextShotNumber = $shotNumber;
+        } else {
+            $latestShot = $card->latestShot();
+            $nextShotNumber = $latestShot ? $latestShot->shot_number + 1 : 1;
+        }
 
         // Calculate next shot date based on expiration
         // Next shot is due when this shot expires

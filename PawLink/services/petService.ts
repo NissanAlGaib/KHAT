@@ -534,6 +534,7 @@ export const addVaccinationShot = async (
     veterinarian_name: string;
     date_administered: string;
     expiration_date: string;
+    shot_number?: number;
   }
 ): Promise<{ shot: VaccinationShot; card: VaccinationCard }> => {
   const formData = new FormData();
@@ -542,6 +543,11 @@ export const addVaccinationShot = async (
   formData.append("veterinarian_name", shotData.veterinarian_name);
   formData.append("date_administered", shotData.date_administered);
   formData.append("expiration_date", shotData.expiration_date);
+  
+  // Include shot_number if provided (for historical records)
+  if (shotData.shot_number !== undefined) {
+    formData.append("shot_number", shotData.shot_number.toString());
+  }
 
   const response = await axiosInstance.post(
     `/api/pets/${petId}/vaccination-cards/${cardId}/shots`,

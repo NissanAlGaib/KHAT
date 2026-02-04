@@ -56,6 +56,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `vaccinations.tsx` - New renewal type UI with descriptions
 - `AddShotModal.tsx` - Booster shot detection and UI differentiation
 
+#### Match Request Verification Requirement
+- **Backend**: Added ID verification check in `MatchRequestController::store()` - unverified users receive 403 with `requires_verification: true`
+- **Frontend**: Updated `sendMatchRequest()` to handle verification error response
+- **UX**: Shows alert with "Verify Now" button that navigates to verification status screen
+- Users must have approved ID verification before sending match requests
+
 ---
 ## [1.3.3] - 2026-02-03
 

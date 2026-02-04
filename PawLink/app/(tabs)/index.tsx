@@ -146,6 +146,19 @@ export default function Homepage() {
           "Match Request Sent! 💕",
           `Your request to match with ${targetPetName} has been sent to their owner.`
         );
+      } else if (result.requires_verification) {
+        // Handle unverified users
+        Alert.alert(
+          "Verification Required",
+          "You need to verify your ID before sending match requests. This helps keep our community safe.",
+          [
+            { text: "Later", style: "cancel" },
+            {
+              text: "Verify Now",
+              onPress: () => router.push("/(verification)/verification-status"),
+            },
+          ]
+        );
       } else if (result.requires_payment) {
         // Handle free tier users who need to pay
         // TODO: Implement payment flow screen

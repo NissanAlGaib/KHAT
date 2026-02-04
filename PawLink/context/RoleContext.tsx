@@ -1,6 +1,6 @@
 import React, { createContext, useContext, useState, ReactNode } from "react";
 
-type Role = "Pet Owner" | "Shooter";
+type Role = "Breeder" | "Shooter";
 
 type RoleContextType = {
   role: Role;
@@ -10,7 +10,7 @@ type RoleContextType = {
 const RoleContext = createContext<RoleContextType | undefined>(undefined);
 
 export function RoleProvider({ children }: { children: ReactNode }) {
-  const [role, setRole] = useState<Role>("Pet Owner");
+  const [role, setRole] = useState<Role>("Breeder");
 
   return (
     <RoleContext.Provider value={{ role, setRole }}>

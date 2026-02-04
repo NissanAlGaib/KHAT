@@ -100,6 +100,7 @@ export default function VaccinationsScreen() {
     veterinarian_name: string;
     date_administered: string;
     expiration_date: string;
+    shot_number: number;
   }) => {
     if (!selectedCard) return;
     setAddingShotLoading(true);

@@ -73,6 +73,7 @@ class VaccinationController extends Controller
             'veterinarian_name' => 'required|string|max:255',
             'date_administered' => 'required|date|before_or_equal:today',
             'expiration_date' => 'required|date|after:date_administered',
+            'shot_number' => 'nullable|integer|min:1',
         ], [
             'vaccination_record.required' => 'Proof document is required.',
             'vaccination_record.mimes' => 'Document must be an image (JPG, PNG) or PDF.',
@@ -82,6 +83,8 @@ class VaccinationController extends Controller
             'date_administered.before_or_equal' => 'Date administered cannot be in the future.',
             'expiration_date.required' => 'Expiration date is required.',
             'expiration_date.after' => 'Expiration date must be after date administered.',
+            'shot_number.integer' => 'Shot number must be a valid number.',
+            'shot_number.min' => 'Shot number must be at least 1.',
         ]);
 
         $pet = Pet::where('pet_id', $petId)
@@ -105,7 +108,8 @@ class VaccinationController extends Controller
                 $validated['clinic_name'],
                 $validated['veterinarian_name'],
                 $validated['date_administered'],
-                $validated['expiration_date']
+                $validated['expiration_date'],
+                $validated['shot_number'] ?? null
             );
 
             DB::commit();
