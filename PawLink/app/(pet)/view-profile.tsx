@@ -23,8 +23,8 @@ import {
 } from "@/services/petService";
 import { sendMatchRequest, createMatchPayment } from "@/services/matchRequestService";
 import { verifyPayment } from "@/services/paymentService";
-import { usePet } from "@/context/PetContext";\r
-import { getStorageUrl } from "@/utils/imageUrl";\r
+import { usePet } from "@/context/PetContext";
+import { getStorageUrl } from "@/utils/imageUrl";
 import dayjs from "dayjs";
 import { LinearGradient } from "expo-linear-gradient";
 

@@ -12,7 +12,7 @@ import { Feather } from "@expo/vector-icons";
 import { useAlert } from "@/hooks/useAlert";
 import AlertModal from "@/components/core/AlertModal";
 import { useRouter, useLocalSearchParams } from "expo-router";
-import { getPetLitters, type Litter } from "@/services/petService";\r
+import { getPetLitters, type Litter } from "@/services/petService";
 import { getStorageUrl } from "@/utils/imageUrl";
 
 export default function PetLittersScreen() {

@@ -14,10 +14,10 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { Feather, Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
 import { useFocusEffect } from "@react-navigation/native";
-import {\r
-  getConversations,\r
-  type ConversationPreview,\r
-} from "@/services/matchRequestService";\r
+import {
+  getConversations,
+  type ConversationPreview,
+} from "@/services/matchRequestService";
 import { getStorageUrl } from "@/utils/imageUrl";
 
 export default function ChatScreen() {

@@ -14,14 +14,14 @@ import { useRouter } from "expo-router";
 import { useFocusEffect } from "@react-navigation/native";
 import { useAlert } from "@/hooks/useAlert";
 import AlertModal from "@/components/core/AlertModal";
-import {\r
-  getIncomingRequests,\r
-  getAcceptedMatches,\r
-  acceptMatchRequest,\r
-  declineMatchRequest,\r
-  type MatchRequest,\r
-  type AcceptedMatch,\r
-} from "@/services/matchRequestService";\r
+import {
+  getIncomingRequests,
+  getAcceptedMatches,
+  acceptMatchRequest,
+  declineMatchRequest,
+  type MatchRequest,
+  type AcceptedMatch,
+} from "@/services/matchRequestService";
 import { getStorageUrl } from "@/utils/imageUrl";
 
 type TabType = "PET" | "SHOOTER";

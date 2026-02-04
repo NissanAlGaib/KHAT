@@ -14,8 +14,8 @@ import { Feather, Ionicons } from "@expo/vector-icons";
 import { useAlert } from "@/hooks/useAlert";
 import AlertModal from "@/components/core/AlertModal";
 import { useRouter, useLocalSearchParams } from "expo-router";
-import { getPet } from "@/services/petService";\r
-import { getStorageUrl } from "@/utils/imageUrl";\r
+import { getPet } from "@/services/petService";
+import { getStorageUrl } from "@/utils/imageUrl";
 import dayjs from "dayjs";
 import { LinearGradient } from "expo-linear-gradient";
 
@@ -382,15 +382,15 @@ export default function PetProfileScreen() {
 
         {/* Profile Pic & Name */}
         <View style={styles.profileHeader}>
-          <View style={styles.profilePicContainer}>\r
-            <Image\r
-              source={\r
-                petData.profile_image\r
-                  ? { uri: getStorageUrl(petData.profile_image)! }\r
-                  : require("@/assets/images/icon.png")\r
-              }\r
-              style={styles.profilePic}\r
-            />\r
+          <View style={styles.profilePicContainer}>
+            <Image
+              source={
+                petData.profile_image
+                  ? { uri: getStorageUrl(petData.profile_image)! }
+                  : require("@/assets/images/icon.png")
+              }
+              style={styles.profilePic}
+            />
           </View>
           <Text style={styles.petName}>{petData.name}</Text>
           

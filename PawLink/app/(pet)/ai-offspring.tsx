@@ -11,7 +11,7 @@ import {
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Feather, Ionicons } from "@expo/vector-icons";
 import { useRouter, useLocalSearchParams } from "expo-router";
-import { LinearGradient } from "expo-linear-gradient";\r
+import { LinearGradient } from "expo-linear-gradient";
 import { getStorageUrl } from "@/utils/imageUrl";
 
 const { width } = Dimensions.get("window");

@@ -8,9 +8,9 @@ import {
   ScrollView,
   ActivityIndicator,
 } from "react-native";
-import { X } from "lucide-react-native";\r
-import { usePet } from "@/context/PetContext";\r
-import { getStorageUrl } from "@/utils/imageUrl";\r
+import { X } from "lucide-react-native";
+import { usePet } from "@/context/PetContext";
+import { getStorageUrl } from "@/utils/imageUrl";
 import dayjs from "dayjs";
 
 interface PetSelectionModalProps {

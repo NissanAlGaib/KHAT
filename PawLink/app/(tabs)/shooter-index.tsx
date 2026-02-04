@@ -10,9 +10,9 @@ import {
   StyleSheet,
 } from "react-native";
 import { useRouter } from "expo-router";
-import { AnimatedSearchBar } from "@/components/app/AnimatedSearchBar";\r
-import SettingsDropdown from "@/components/app/SettingsDropdown";\r
-import { getStorageUrl } from "@/utils/imageUrl";\r
+import { AnimatedSearchBar } from "@/components/app/AnimatedSearchBar";
+import SettingsDropdown from "@/components/app/SettingsDropdown";
+import { getStorageUrl } from "@/utils/imageUrl";
 import {
   getShooterOffers,
   getMyShooterOffers,

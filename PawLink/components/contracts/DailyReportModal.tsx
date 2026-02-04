@@ -28,14 +28,14 @@ import {
 } from "lucide-react-native";
 import * as ImagePicker from "expo-image-picker";
 import dayjs from "dayjs";
-import {\r
-  BreedingContract,\r
-  DailyReport,\r
-  DailyReportData,\r
-  DailyReportsResponse,\r
-  submitDailyReport,\r
-  getDailyReports,\r
-} from "@/services/contractService";\r
+import {
+  BreedingContract,
+  DailyReport,
+  DailyReportData,
+  DailyReportsResponse,
+  submitDailyReport,
+  getDailyReports,
+} from "@/services/contractService";
 import { getStorageUrl } from "@/utils/imageUrl";
 
 interface DailyReportModalProps {
@@ -654,16 +654,16 @@ function ReportCard({ report, isExpanded, onToggle }: ReportCardProps) {
             </View>
           )}
 
-          {/* Photo */}\r
-          {report.photo_url && (\r
-            <View className="py-3 border-b border-gray-100">\r
-              <Text className="text-gray-500 text-sm mb-2">Photo:</Text>\r
-              <Image\r
-                source={{ uri: getStorageUrl(report.photo_url)! }}\r
-                className="w-full h-48 rounded-xl"\r
-                resizeMode="cover"\r
-              />\r
-            </View>\r
+          {/* Photo */}
+          {report.photo_url && (
+            <View className="py-3 border-b border-gray-100">
+              <Text className="text-gray-500 text-sm mb-2">Photo:</Text>
+              <Image
+                source={{ uri: getStorageUrl(report.photo_url)! }}
+                className="w-full h-48 rounded-xl"
+                resizeMode="cover"
+              />
+            </View>
           )}
 
           {/* Timestamp */}

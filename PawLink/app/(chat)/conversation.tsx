@@ -20,12 +20,12 @@ import {
   type ConversationDetail,
   type Message,
 } from "@/services/matchRequestService";
-import { getContract, type BreedingContract } from "@/services/contractService";\r
-import { getStorageUrl } from "@/utils/imageUrl";\r
-import {\r
-  ContractPrompt,\r
-  ContractModal,\r
-  ContractCard,\r
+import { getContract, type BreedingContract } from "@/services/contractService";
+import { getStorageUrl } from "@/utils/imageUrl";
+import {
+  ContractPrompt,
+  ContractModal,
+  ContractCard,
 } from "@/components/contracts";
 
 export default function ConversationScreen() {

@@ -10,7 +10,7 @@ import {
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Feather } from "@expo/vector-icons";
 import { useRouter, useLocalSearchParams } from "expo-router";
-import { getLitterDetail, type LitterDetail } from "@/services/petService";\r
+import { getLitterDetail, type LitterDetail } from "@/services/petService";
 import { getStorageUrl } from "@/utils/imageUrl";
 
 export default function LitterDetailScreen() {
