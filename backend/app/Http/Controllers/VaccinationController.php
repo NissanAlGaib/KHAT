@@ -96,7 +96,7 @@ class VaccinationController extends Controller
             DB::beginTransaction();
 
             // Store the document
-            $documentPath = $request->file('vaccination_record')->store('vaccinations', 'public');
+            $documentPath = $request->file('vaccination_record')->store('vaccinations', 'do_spaces');
 
             // Create the shot
             $shot = VaccinationShot::createForCard(

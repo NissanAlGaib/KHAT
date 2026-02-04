@@ -188,7 +188,7 @@ class PetController extends Controller
             }
 
             // Store health certificate
-            $healthCertPath = $request->file('health_certificate')->store('health_certificates', 'public');
+            $healthCertPath = $request->file('health_certificate')->store('health_certificates', 'do_spaces');
 
             // Create the pet
             $pet = Pet::create([
@@ -223,7 +223,7 @@ class PetController extends Controller
 
             // Store Rabies vaccination (if provided)
             if ($request->hasFile('rabies_vaccination_record')) {
-                $rabiesVaccinationPath = $request->file('rabies_vaccination_record')->store('vaccinations', 'public');
+                $rabiesVaccinationPath = $request->file('rabies_vaccination_record')->store('vaccinations', 'do_spaces');
                 Vaccination::create([
                     'pet_id' => $pet->pet_id,
                     'vaccine_name' => 'Rabies',
@@ -238,7 +238,7 @@ class PetController extends Controller
 
             // Store DHPP vaccination (if provided)
             if ($request->hasFile('dhpp_vaccination_record')) {
-                $dhppVaccinationPath = $request->file('dhpp_vaccination_record')->store('vaccinations', 'public');
+                $dhppVaccinationPath = $request->file('dhpp_vaccination_record')->store('vaccinations', 'do_spaces');
                 Vaccination::create([
                     'pet_id' => $pet->pet_id,
                     'vaccine_name' => 'DHPP',
@@ -254,7 +254,7 @@ class PetController extends Controller
             // Store additional vaccinations
             if (!empty($validated['additional_vaccinations'])) {
                 foreach ($validated['additional_vaccinations'] as $vaccination) {
-                    $vaccinationPath = $vaccination['vaccination_record']->store('vaccinations', 'public');
+                    $vaccinationPath = $vaccination['vaccination_record']->store('vaccinations', 'do_spaces');
                     Vaccination::create([
                         'pet_id' => $pet->pet_id,
                         'vaccine_name' => $vaccination['vaccination_type'],
@@ -271,7 +271,7 @@ class PetController extends Controller
             // Store pet photos
             $firstPhoto = true;
             foreach ($request->file('pet_photos') as $photo) {
-                $photoPath = $photo->store('pet_photos', 'public');
+                $photoPath = $photo->store('pet_photos', 'do_spaces');
 
                 PetPhoto::create([
                     'pet_id' => $pet->pet_id,
@@ -592,7 +592,7 @@ class PetController extends Controller
             ]);
 
             // Store the new document
-            $documentPath = $request->file('document')->store('vaccinations', 'public');
+            $documentPath = $request->file('document')->store('vaccinations', 'do_spaces');
 
             // Update the vaccination record
             $vaccination->update([
@@ -642,7 +642,7 @@ class PetController extends Controller
             ]);
 
             // Store the new document
-            $documentPath = $request->file('document')->store('health_certificates', 'public');
+            $documentPath = $request->file('document')->store('health_certificates', 'do_spaces');
 
             // Update the health record
             $healthRecord->update([

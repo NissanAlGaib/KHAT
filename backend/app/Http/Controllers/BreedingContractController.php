@@ -1828,7 +1828,7 @@ class BreedingContractController extends Controller
             // Handle photo upload if provided
             $photoUrl = null;
             if ($request->hasFile('photo')) {
-                $photoUrl = $request->file('photo')->store('daily_report_photos', 'public');
+                $photoUrl = $request->file('photo')->store('daily_report_photos', 'do_spaces');
             }
 
             $report = \App\Models\DailyReport::create([
