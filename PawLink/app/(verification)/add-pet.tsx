@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useRef } from "react";
 import {
   View,
   Text,
@@ -8,154 +8,148 @@ import {
   Image,
   StyleSheet,
   Dimensions,
+  KeyboardAvoidingView,
+  Platform,
+  ActivityIndicator,
+  Animated,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useRouter } from "expo-router";
-import { Ionicons } from "@expo/vector-icons";
+import { Ionicons, MaterialCommunityIcons, Feather } from "@expo/vector-icons";
 import { useAlert } from "@/hooks/useAlert";
 import AlertModal from "@/components/core/AlertModal";
 import * as DocumentPicker from "expo-document-picker";
 import * as ImagePicker from "expo-image-picker";
-import { createPet } from "@/services/petService";
+import { createPet, initializeVaccinationCards } from "@/services/petService";
 import DateTimePickerModal from "react-native-modal-datetime-picker";
 import StyledModal from "@/components/core/StyledModal";
 import { LinearGradient } from "expo-linear-gradient";
+import { Colors, BorderRadius, Spacing, Shadows, Gradients } from "@/constants";
+import VaccinationCardComponent from "@/components/pet/VaccinationCard";
+import AddShotModal from "@/components/pet/AddShotModal";
 
-// Interface for validation errors
+const { width: SCREEN_WIDTH } = Dimensions.get("window");
+
+// Dog breeds list for autocomplete
+const DOG_BREEDS = [
+  "Labrador Retriever", "German Shepherd", "Golden Retriever", "French Bulldog",
+  "Bulldog", "Poodle", "Beagle", "Rottweiler", "German Shorthaired Pointer",
+  "Siberian Husky", "Dachshund", "Doberman Pinscher", "Shih Tzu", "Boxer",
+  "Great Dane", "Yorkshire Terrier", "Australian Shepherd", "Cavalier King Charles Spaniel",
+  "Miniature Schnauzer", "Pembroke Welsh Corgi", "Pomeranian", "Boston Terrier",
+  "Havanese", "Bernese Mountain Dog", "Maltese", "English Springer Spaniel",
+  "Shetland Sheepdog", "Brittany", "Cocker Spaniel", "Border Collie",
+  "Aspin", "Askal", "Mixed Breed",
+];
+
+const CAT_BREEDS = [
+  "Siamese", "Persian", "Maine Coon", "Ragdoll", "British Shorthair",
+  "Sphynx", "Scottish Fold", "Bengal", "Abyssinian", "Russian Blue",
+  "Norwegian Forest Cat", "Birman", "Oriental Shorthair", "Devon Rex",
+  "American Shorthair", "Exotic Shorthair", "Burmese", "Himalayan",
+  "Puspin", "Mixed Breed",
+];
+
 interface ValidationErrors {
   [key: string]: string;
 }
 
-// Get screen dimensions
-const { width } = Dimensions.get("window");
-
-// Main component for adding a pet
 export default function AddPetScreen() {
   const router = useRouter();
   const { visible, alertOptions, showAlert, hideAlert } = useAlert();
+  const scrollViewRef = useRef<ScrollView>(null);
+  
+  // Form state
   const [currentStep, setCurrentStep] = useState(1);
-  const [showConfirmModal, setShowConfirmModal] = useState(false);
-  const [showSuccessModal, setShowSuccessModal] = useState(false);
-  const [validationErrors, setValidationErrors] = useState<ValidationErrors>(
-    {}
-  );
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [validationErrors, setValidationErrors] = useState<ValidationErrors>({});
+  
+  // Modal states
   const [showSpeciesModal, setShowSpeciesModal] = useState(false);
   const [showSexModal, setShowSexModal] = useState(false);
   const [showDatePicker, setShowDatePicker] = useState(false);
   const [datePickerField, setDatePickerField] = useState<string | null>(null);
-  const [showPreferredBreedModal, setShowPreferredBreedModal] = useState(false);
-
-  // Options for behavior and attributes
-  const [availableBehaviors, setAvailableBehaviors] = useState([
-    "LOYAL",
-    "SOCIAL",
-    "SNIFF",
-    "SLEEPY",
-    "CALM",
-    "BARK",
-    "SLIM",
-    "PLAYFUL",
-  ]);
-  const [availableAttributes, setAvailableAttributes] = useState([
-    "BLACK",
-    "WHITE",
-    "BROWN",
-    "SPOTTED",
-    "SHORT",
-    "CURLY",
-    "SLIM",
-    "FLOPPY",
-  ]);
-  const [availablePartnerBehaviors, setAvailablePartnerBehaviors] = useState([
-    "LOYAL",
-    "SOCIAL",
-    "SNIFF",
-    "SLEEPY",
-    "CALM",
-    "BARK",
-    "SLIM",
-    "PLAYFUL",
-  ]);
-  const [availablePartnerAttributes, setAvailablePartnerAttributes] = useState([
-    "BLACK",
-    "WHITE",
-    "BROWN",
-    "SPOTTED",
-    "SHORT",
-    "CURLY",
-    "SLIM",
-    "FLOPPY",
-  ]);
-
-  // Form data state
+  const [showBreedSearch, setShowBreedSearch] = useState(false);
+  const [breedSearchQuery, setBreedSearchQuery] = useState("");
+  
+  // Form data
   const [formData, setFormData] = useState<Record<string, any>>({
-    hasBeenBred: false,
-    breedingCount: "",
+    // Step 1 - Pet Info
     name: "",
-    microchip: "",
     species: "",
     breed: "",
     sex: "",
     birthdate: "",
     height: "",
     weight: "",
+    microchip: "",
+    // Step 2 - About
     behaviors: [] as string[],
-    behaviorTags: "",
     attributes: [] as string[],
-    attributeTags: "",
     description: "",
-    rabiesVaccinationRecord: null as any,
-    rabiesClinicName: "",
-    rabiesVeterinarianName: "",
-    rabiesGivenDate: "",
-    rabiesExpirationDate: "",
-    dhppVaccinationRecord: null as any,
-    dhppClinicName: "",
-    dhppVeterinarianName: "",
-    dhppGivenDate: "",
-    dhppExpirationDate: "",
-    vaccinations: [] as any[],
+    // Step 3 - Health Certificate
     healthCertificate: null as any,
     healthClinicName: "",
     healthVeterinarianName: "",
     healthGivenDate: "",
     healthExpirationDate: "",
+    // Step 4 - Photos
     petPhotos: [] as any[],
+    primaryPhotoIndex: 0,
+    // Step 5 - Preferences
     preferredBreed: "",
     partnerBehaviors: [] as string[],
-    partnerBehaviorTags: "",
     partnerAttributes: [] as string[],
-    partnerAttributeTags: "",
     minAge: "",
     maxAge: "",
   });
 
-  // Handle stepping to the next part of the form
-  const handleNext = () => {
-    setValidationErrors({});
-    const errors = validateStep(currentStep);
+  // Behavior and attribute options
+  const behaviorOptions = [
+    { label: "Playful", icon: "football-outline" },
+    { label: "Calm", icon: "leaf-outline" },
+    { label: "Loyal", icon: "heart-outline" },
+    { label: "Social", icon: "people-outline" },
+    { label: "Protective", icon: "shield-outline" },
+    { label: "Energetic", icon: "flash-outline" },
+    { label: "Gentle", icon: "flower-outline" },
+    { label: "Independent", icon: "walk-outline" },
+  ];
 
-    if (Object.keys(errors).length > 0) {
-      setValidationErrors(errors);
-      return;
-    }
+  const attributeOptions = [
+    { label: "Short Coat", icon: "cut-outline" },
+    { label: "Long Coat", icon: "brush-outline" },
+    { label: "Curly", icon: "sync-outline" },
+    { label: "Spotted", icon: "ellipse-outline" },
+    { label: "Solid Color", icon: "square-outline" },
+    { label: "Large", icon: "resize-outline" },
+    { label: "Small", icon: "contract-outline" },
+    { label: "Athletic", icon: "barbell-outline" },
+  ];
 
-    if (currentStep === 6) {
-      setShowConfirmModal(true);
-    } else {
-      setCurrentStep(currentStep + 1);
-    }
+  const stepTitles = [
+    { title: "Pet Info", icon: "paw" },
+    { title: "About", icon: "heart" },
+    { title: "Health", icon: "medkit" },
+    { title: "Photos", icon: "camera" },
+    { title: "Preferences", icon: "options" },
+  ];
+
+  const getFilteredBreeds = () => {
+    const breeds = formData.species === "Cat" ? CAT_BREEDS : DOG_BREEDS;
+    if (!breedSearchQuery) return breeds;
+    return breeds.filter(breed =>
+      breed.toLowerCase().includes(breedSearchQuery.toLowerCase())
+    );
   };
 
-  // Validate fields for the current step
   const validateStep = (step: number): ValidationErrors => {
     const errors: ValidationErrors = {};
 
     switch (step) {
       case 1:
         if (!formData.name.trim()) errors.name = "Pet name is required";
-        if (!formData.species.trim()) errors.species = "Species is required";
+        if (!formData.species) errors.species = "Species is required";
         if (!formData.breed.trim()) errors.breed = "Breed is required";
         if (!formData.sex) errors.sex = "Sex is required";
         if (!formData.birthdate) errors.birthdate = "Birthdate is required";
@@ -163,134 +157,65 @@ export default function AddPetScreen() {
         if (!formData.weight.trim()) errors.weight = "Weight is required";
         break;
       case 2:
-        if (formData.behaviors.length === 0)
-          errors.behaviors = "Please select at least one behavior";
-        if (formData.attributes.length === 0)
-          errors.attributes = "Please select at least one attribute";
-        if (!formData.description.trim())
-          errors.description = "Description is required";
+        if (formData.behaviors.length === 0) errors.behaviors = "Select at least one behavior";
+        if (formData.attributes.length === 0) errors.attributes = "Select at least one attribute";
+        if (!formData.description.trim()) errors.description = "Description is required";
         break;
       case 3:
-        if (!formData.rabiesVaccinationRecord)
-          errors.rabiesVaccinationRecord =
-            "Rabies vaccination record is required";
-        if (!formData.rabiesClinicName.trim())
-          errors.rabiesClinicName = "Rabies clinic name is required";
-        if (!formData.rabiesVeterinarianName.trim())
-          errors.rabiesVeterinarianName =
-            "Rabies veterinarian name is required";
-        if (!formData.rabiesGivenDate)
-          errors.rabiesGivenDate = "Rabies given date is required";
-        if (!formData.rabiesExpirationDate)
-          errors.rabiesExpirationDate = "Rabies expiration date is required";
-
-        if (!formData.dhppVaccinationRecord)
-          errors.dhppVaccinationRecord = "DHPP vaccination record is required";
-        if (!formData.dhppClinicName.trim())
-          errors.dhppClinicName = "DHPP clinic name is required";
-        if (!formData.dhppVeterinarianName.trim())
-          errors.dhppVeterinarianName = "DHPP veterinarian name is required";
-        if (!formData.dhppGivenDate)
-          errors.dhppGivenDate = "DHPP given date is required";
-        if (!formData.dhppExpirationDate)
-          errors.dhppExpirationDate = "DHPP expiration date is required";
-
-        // Validate additional vaccinations if any
-        formData.vaccinations.forEach((vac: any, index: number) => {
-          if (vac.vaccinationRecord && !vac.vaccinationType?.trim()) {
-            errors[`vaccination_${index}_vaccinationType`] =
-              "Vaccine name is required";
-          }
-          if (vac.vaccinationRecord && !vac.clinicName?.trim()) {
-            errors[`vaccination_${index}_clinicName`] =
-              "Clinic name is required";
-          }
-          if (vac.vaccinationRecord && !vac.veterinarianName?.trim()) {
-            errors[`vaccination_${index}_veterinarianName`] =
-              "Veterinarian name is required";
-          }
-          if (vac.vaccinationRecord && !vac.givenDate) {
-            errors[`vaccination_${index}_givenDate`] = "Given date is required";
-          }
-          if (vac.vaccinationRecord && !vac.expirationDate) {
-            errors[`vaccination_${index}_expirationDate`] =
-              "Expiration date is required";
-          }
-        });
+        if (!formData.healthCertificate) errors.healthCertificate = "Health certificate is required";
+        if (!formData.healthClinicName.trim()) errors.healthClinicName = "Clinic name is required";
+        if (!formData.healthVeterinarianName.trim()) errors.healthVeterinarianName = "Veterinarian name is required";
+        if (!formData.healthGivenDate) errors.healthGivenDate = "Date given is required";
+        if (!formData.healthExpirationDate) errors.healthExpirationDate = "Expiration date is required";
         break;
       case 4:
-        if (!formData.healthCertificate)
-          errors.healthCertificate = "Health certificate is required";
-        if (!formData.healthClinicName.trim())
-          errors.healthClinicName = "Health clinic name is required";
-        if (!formData.healthVeterinarianName.trim())
-          errors.healthVeterinarianName =
-            "Health veterinarian name is required";
-        if (!formData.healthGivenDate)
-          errors.healthGivenDate = "Health given date is required";
-        if (!formData.healthExpirationDate)
-          errors.healthExpirationDate = "Health expiration date is required";
-        break;
-      case 5:
-        if (formData.petPhotos.length < 3)
-          errors.petPhotos = "At least 3 pet photos are required";
+        if (formData.petPhotos.length < 3) errors.petPhotos = "At least 3 photos are required";
         break;
     }
 
     return errors;
   };
 
-  // Handle going back to the previous step
-  const handlePrev = () => {
-    if (currentStep > 1) {
-      setCurrentStep(currentStep - 1);
+  const handleNext = () => {
+    setValidationErrors({});
+    const errors = validateStep(currentStep);
+
+    if (Object.keys(errors).length > 0) {
+      setValidationErrors(errors);
+      scrollViewRef.current?.scrollTo({ y: 0, animated: true });
+      return;
+    }
+
+    if (currentStep === 5) {
+      handleSubmit();
+    } else {
+      setCurrentStep(currentStep + 1);
+      scrollViewRef.current?.scrollTo({ y: 0, animated: true });
     }
   };
 
-  // Handle form submission
+  const handlePrev = () => {
+    if (currentStep > 1) {
+      setCurrentStep(currentStep - 1);
+      scrollViewRef.current?.scrollTo({ y: 0, animated: true });
+    }
+  };
+
   const handleSubmit = async () => {
-    setShowConfirmModal(false);
     setIsSubmitting(true);
 
     try {
-      // Helper to convert document picker result to File-like object
-      const createFileObject = (doc: any, defaultName: string) => {
-        if (!doc) return null;
-        return {
-          uri: doc.uri,
-          name: doc.name || defaultName,
-          type: doc.mimeType || "application/pdf",
-        } as any;
-      };
+      const photoFiles = formData.petPhotos.map((photo: any) => ({
+        uri: photo.uri,
+        name: photo.fileName || "photo.jpg",
+        type: photo.mimeType || "image/jpeg",
+      }));
 
-      // Convert photo assets to File-like objects
-      const photoFiles = formData.petPhotos.map(
-        (photo: any) =>
-          ({
-            uri: photo.uri,
-            name: photo.fileName || "photo.jpg",
-            type: photo.mimeType || "image/jpeg",
-          }) as any
-      );
-
-      // Convert additional vaccinations with proper field names
-      const additionalVaccinations = formData.vaccinations
-        .map((vac: any) =>
-          vac.vaccinationRecord
-            ? {
-                vaccination_type: vac.vaccinationType,
-                vaccination_record: createFileObject(
-                  vac.vaccinationRecord,
-                  "vaccination.pdf"
-                ),
-                clinic_name: vac.clinicName,
-                veterinarian_name: vac.veterinarianName,
-                given_date: vac.givenDate,
-                expiration_date: vac.expirationDate,
-              }
-            : null
-        )
-        .filter(Boolean);
+      // Reorder photos so primary is first
+      const reorderedPhotos = [
+        photoFiles[formData.primaryPhotoIndex],
+        ...photoFiles.filter((_: any, i: number) => i !== formData.primaryPhotoIndex),
+      ];
 
       const petData = {
         name: formData.name,
@@ -301,99 +226,76 @@ export default function AddPetScreen() {
         microchip: formData.microchip || "",
         height: formData.height,
         weight: formData.weight,
-        has_been_bred: formData.hasBeenBred,
-        breeding_count: formData.breedingCount || "",
-
+        has_been_bred: false,
         behaviors: formData.behaviors,
-        behavior_tags: formData.behaviorTags || "",
         attributes: formData.attributes,
-        attribute_tags: formData.attributeTags || "",
         description: formData.description,
-
-        rabies_vaccination_record: createFileObject(
-          formData.rabiesVaccinationRecord,
-          "rabies.pdf"
-        ),
-        rabies_clinic_name: formData.rabiesClinicName,
-        rabies_veterinarian_name: formData.rabiesVeterinarianName,
-        rabies_given_date: formData.rabiesGivenDate,
-        rabies_expiration_date: formData.rabiesExpirationDate,
-
-        dhpp_vaccination_record: createFileObject(
-          formData.dhppVaccinationRecord,
-          "dhpp.pdf"
-        ),
-        dhpp_clinic_name: formData.dhppClinicName,
-        dhpp_veterinarian_name: formData.dhppVeterinarianName,
-        dhpp_given_date: formData.dhppGivenDate,
-        dhpp_expiration_date: formData.dhppExpirationDate,
-
-        health_certificate: createFileObject(
-          formData.healthCertificate,
-          "health.pdf"
-        ),
+        health_certificate: {
+          uri: formData.healthCertificate.uri,
+          name: formData.healthCertificate.name || "health.pdf",
+          type: formData.healthCertificate.mimeType || "application/pdf",
+        },
         health_clinic_name: formData.healthClinicName,
         health_veterinarian_name: formData.healthVeterinarianName,
         health_given_date: formData.healthGivenDate,
         health_expiration_date: formData.healthExpirationDate,
-
-        pet_photos: photoFiles,
-        additional_vaccinations:
-          additionalVaccinations.length > 0
-            ? additionalVaccinations
-            : undefined,
-
+        pet_photos: reorderedPhotos,
+        // Preferences
         preferred_breed: formData.preferredBreed || "",
-        partner_behaviors:
-          formData.partnerBehaviors.length > 0
-            ? formData.partnerBehaviors
-            : undefined,
-        partner_behavior_tags: formData.partnerBehaviorTags || "",
-        partner_attributes:
-          formData.partnerAttributes.length > 0
-            ? formData.partnerAttributes
-            : undefined,
-        partner_attribute_tags: formData.partnerAttributeTags || "",
+        partner_behaviors: formData.partnerBehaviors,
+        partner_attributes: formData.partnerAttributes,
         min_age: formData.minAge || "",
         max_age: formData.maxAge || "",
+        // Placeholder vaccinations (will be added via cards later)
+        rabies_vaccination_record: { uri: "", name: "", type: "" },
+        rabies_clinic_name: "TBD",
+        rabies_veterinarian_name: "TBD",
+        rabies_given_date: new Date().toISOString().split("T")[0],
+        rabies_expiration_date: new Date(Date.now() + 365 * 24 * 60 * 60 * 1000).toISOString().split("T")[0],
+        dhpp_vaccination_record: { uri: "", name: "", type: "" },
+        dhpp_clinic_name: "TBD",
+        dhpp_veterinarian_name: "TBD",
+        dhpp_given_date: new Date().toISOString().split("T")[0],
+        dhpp_expiration_date: new Date(Date.now() + 365 * 24 * 60 * 60 * 1000).toISOString().split("T")[0],
       };
 
       const result = await createPet(petData as any);
-      
-      // Check if verification is required
+
       if (result?.requires_verification) {
         showAlert({
           title: "Verification Required",
-          message: result.message || "You must complete identity verification before adding a pet",
+          message: result.message || "Complete identity verification before adding a pet",
           type: "warning",
           buttons: [
-            {
-              text: "Verify Now",
-              onPress: () => {
-                router.push("/(verification)/verify");
-              },
-            },
+            { text: "Verify Now", onPress: () => router.push("/(verification)/verify") },
             { text: "Later" },
           ],
         });
         return;
       }
-      
-      setShowSuccessModal(true);
+
+      // Initialize vaccination cards for the new pet
+      if (result?.pet?.pet_id) {
+        try {
+          await initializeVaccinationCards(result.pet.pet_id);
+        } catch (e) {
+          console.log("Failed to initialize vaccination cards:", e);
+        }
+      }
+
+      showAlert({
+        title: "Success!",
+        message: "Your pet has been registered. You can now add vaccination records from the pet profile.",
+        type: "success",
+        buttons: [
+          { text: "Done", onPress: () => router.back() },
+        ],
+      });
     } catch (error: any) {
       console.error("Error submitting pet:", error);
-      const backendErrors: ValidationErrors = {};
-      if (error.response?.data?.errors) {
-        Object.keys(error.response.data.errors).forEach((key) => {
-          backendErrors[key] = error.response.data.errors[key][0];
-        });
-      }
-      setValidationErrors(backendErrors);
       showAlert({
         title: "Error",
-        message:
-          error.response?.data?.message ||
-          "Failed to register pet. Please try again.",
+        message: error.response?.data?.message || "Failed to register pet. Please try again.",
         type: "error",
       });
     } finally {
@@ -401,23 +303,14 @@ export default function AddPetScreen() {
     }
   };
 
-  const handleSuccessClose = () => {
-    setShowSuccessModal(false);
-    router.back();
-  };
-
   const pickDocument = async (field: string) => {
     try {
       const result = await DocumentPicker.getDocumentAsync({
         type: ["image/*", "application/pdf"],
       });
-      if (!result.canceled && result.assets && result.assets.length > 0) {
-        if (field.startsWith("vaccination_")) {
-          const index = parseInt(field.split("_")[1]);
-          updateVaccination(index, "vaccinationRecord", result.assets[0]);
-        } else {
-          setFormData({ ...formData, [field]: result.assets[0] });
-        }
+      if (!result.canceled && result.assets?.length > 0) {
+        setFormData({ ...formData, [field]: result.assets[0] });
+        setValidationErrors((prev) => ({ ...prev, [field]: "" }));
       }
     } catch (error) {
       console.error("Error picking document:", error);
@@ -429,7 +322,8 @@ export default function AddPetScreen() {
       const result = await ImagePicker.launchImageLibraryAsync({
         mediaTypes: ImagePicker.MediaTypeOptions.Images,
         allowsMultipleSelection: true,
-        quality: 1,
+        quality: 0.8,
+        selectionLimit: 10 - formData.petPhotos.length,
       });
 
       if (!result.canceled) {
@@ -437,866 +331,787 @@ export default function AddPetScreen() {
           ...formData,
           petPhotos: [...formData.petPhotos, ...result.assets],
         });
+        setValidationErrors((prev) => ({ ...prev, petPhotos: "" }));
       }
     } catch (error) {
       console.error("Error picking images:", error);
     }
   };
 
-  // Functions to manage vaccinations
-  const addVaccination = () => {
-    setFormData((prev) => ({
-      ...prev,
-      vaccinations: [
-        ...prev.vaccinations,
-        {
-          vaccinationType: "",
-          vaccinationRecord: null,
-          clinicName: "",
-          veterinarianName: "",
-          givenDate: "",
-          expirationDate: "",
-        },
-      ],
-    }));
-  };
-  const updateVaccination = (index: number, field: string, value: any) => {
-    const updatedVaccinations = [...formData.vaccinations];
-    updatedVaccinations[index] = {
-      ...updatedVaccinations[index],
-      [field]: value,
-    };
-    setFormData({ ...formData, vaccinations: updatedVaccinations });
-  };
-  const removeVaccination = (index: number) => {
-    const updatedVaccinations = formData.vaccinations.filter(
-      (_: any, i: number) => i !== index
-    );
-    setFormData({ ...formData, vaccinations: updatedVaccinations });
+  const removePhoto = (index: number) => {
+    const newPhotos = formData.petPhotos.filter((_: any, i: number) => i !== index);
+    let newPrimaryIndex = formData.primaryPhotoIndex;
+    if (index === formData.primaryPhotoIndex) {
+      newPrimaryIndex = 0;
+    } else if (index < formData.primaryPhotoIndex) {
+      newPrimaryIndex = formData.primaryPhotoIndex - 1;
+    }
+    setFormData({
+      ...formData,
+      petPhotos: newPhotos,
+      primaryPhotoIndex: Math.max(0, Math.min(newPrimaryIndex, newPhotos.length - 1)),
+    });
   };
 
-  // Toggle selection for tags
-  const toggleTag = (
-    field:
-      | "behaviors"
-      | "attributes"
-      | "partnerBehaviors"
-      | "partnerAttributes",
-    value: string
-  ) => {
+  const setPrimaryPhoto = (index: number) => {
+    setFormData({ ...formData, primaryPhotoIndex: index });
+  };
+
+  const toggleSelection = (field: "behaviors" | "attributes" | "partnerBehaviors" | "partnerAttributes", value: string) => {
     setFormData((prev) => ({
       ...prev,
       [field]: prev[field].includes(value)
-        ? prev[field].filter((item: string) => item !== value)
+        ? prev[field].filter((v: string) => v !== value)
         : [...prev[field], value],
     }));
   };
 
-  // Add custom tags
-  const addCustomTag = (
-    formField:
-      | "behaviorTags"
-      | "attributeTags"
-      | "partnerBehaviorTags"
-      | "partnerAttributeTags",
-    availableField:
-      | "availableBehaviors"
-      | "availableAttributes"
-      | "availablePartnerBehaviors"
-      | "availablePartnerAttributes",
-    dataField:
-      | "behaviors"
-      | "attributes"
-      | "partnerBehaviors"
-      | "partnerAttributes"
-  ) => {
-    const newTag = formData[formField].trim().toUpperCase();
-    if (newTag) {
-      if (availableField === "availableBehaviors") {
-        if (!availableBehaviors.includes(newTag))
-          setAvailableBehaviors([...availableBehaviors, newTag]);
-      } else if (availableField === "availableAttributes") {
-        if (!availableAttributes.includes(newTag))
-          setAvailableAttributes([...availableAttributes, newTag]);
-      } else if (availableField === "availablePartnerBehaviors") {
-        if (!availablePartnerBehaviors.includes(newTag))
-          setAvailablePartnerBehaviors([...availablePartnerBehaviors, newTag]);
-      } else {
-        if (!availablePartnerAttributes.includes(newTag))
-          setAvailablePartnerAttributes([
-            ...availablePartnerAttributes,
-            newTag,
-          ]);
-      }
-      if (!formData[dataField].includes(newTag)) {
-        setFormData((prev) => ({
-          ...prev,
-          [dataField]: [...prev[dataField], newTag],
-          [formField]: "",
-        }));
-      }
-    }
-  };
-
-  // Date picker handlers
   const openDatePicker = (field: string) => {
     setDatePickerField(field);
     setShowDatePicker(true);
   };
+
   const handleDateConfirm = (date: Date) => {
     if (datePickerField) {
-      const formattedDate = date.toISOString().split("T")[0];
-      if (datePickerField.startsWith("vaccination_")) {
-        const parts = datePickerField.split("_");
-        updateVaccination(
-          parseInt(parts[1]),
-          parts.slice(2).join("_"),
-          formattedDate
-        );
-      } else {
-        setFormData({ ...formData, [datePickerField]: formattedDate });
-      }
+      setFormData({
+        ...formData,
+        [datePickerField]: date.toISOString().split("T")[0],
+      });
+      setValidationErrors((prev) => ({ ...prev, [datePickerField]: "" }));
     }
     setShowDatePicker(false);
   };
 
-  // Step titles for progress bar
-  const stepTitles = [
-    "Pet Info",
-    "About",
-    "Vaccines",
-    "Health Cert.",
-    "Photos",
-    "Preferences",
-  ];
+  const formatDate = (dateStr: string) => {
+    if (!dateStr) return "";
+    return new Date(dateStr).toLocaleDateString("en-US", {
+      month: "short",
+      day: "numeric",
+      year: "numeric",
+    });
+  };
 
-  const renderProgressBar = () => (
-    <View style={styles.progressContainer}>
-      <View style={styles.progressTrack}>
-        <LinearGradient
-          colors={["#FF6B4A", "#FF9A8B"]}
-          style={[styles.progressBar, { width: `${(currentStep / 6) * 100}%` }]}
-        />
-      </View>
-      <View style={styles.progressSteps}>
-        {stepTitles.map((title, index) => (
-          <View style={styles.step} key={index}>
+  // Render Progress Header
+  const renderProgressHeader = () => (
+    <View style={styles.progressHeader}>
+      {stepTitles.map((step, index) => (
+        <View key={index} style={styles.progressStep}>
+          <View
+            style={[
+              styles.progressDot,
+              index + 1 < currentStep && styles.progressDotCompleted,
+              index + 1 === currentStep && styles.progressDotActive,
+            ]}
+          >
+            {index + 1 < currentStep ? (
+              <Ionicons name="checkmark" size={14} color={Colors.white} />
+            ) : (
+              <Ionicons
+                name={step.icon as any}
+                size={14}
+                color={index + 1 === currentStep ? Colors.white : Colors.textMuted}
+              />
+            )}
+          </View>
+          <Text
+            style={[
+              styles.progressLabel,
+              index + 1 === currentStep && styles.progressLabelActive,
+            ]}
+          >
+            {step.title}
+          </Text>
+          {index < stepTitles.length - 1 && (
             <View
               style={[
-                styles.stepCircle,
-                index + 1 < currentStep && styles.stepCircleCompleted,
-                index + 1 === currentStep && styles.stepCircleActive,
+                styles.progressLine,
+                index + 1 < currentStep && styles.progressLineCompleted,
               ]}
-            >
-              {index + 1 < currentStep && (
-                <Ionicons name="checkmark" size={14} color="white" />
-              )}
-            </View>
-            <Text
+            />
+          )}
+        </View>
+      ))}
+    </View>
+  );
+
+  // Render Step 1 - Pet Info
+  const renderStep1 = () => (
+    <View style={styles.stepContent}>
+      <Text style={styles.stepTitle}>Basic Information</Text>
+      <Text style={styles.stepSubtitle}>Tell us about your furry friend</Text>
+
+      {/* Pet Name */}
+      <View style={styles.inputGroup}>
+        <Text style={styles.label}>Pet's Name *</Text>
+        <TextInput
+          style={[styles.input, validationErrors.name && styles.inputError]}
+          placeholder="e.g., Buddy"
+          placeholderTextColor={Colors.textMuted}
+          value={formData.name}
+          onChangeText={(text) => {
+            setFormData({ ...formData, name: text });
+            setValidationErrors((prev) => ({ ...prev, name: "" }));
+          }}
+        />
+        {validationErrors.name && <Text style={styles.errorText}>{validationErrors.name}</Text>}
+      </View>
+
+      {/* Species Selector */}
+      <View style={styles.inputGroup}>
+        <Text style={styles.label}>Species *</Text>
+        <View style={styles.speciesRow}>
+          {["Dog", "Cat"].map((species) => (
+            <TouchableOpacity
+              key={species}
               style={[
-                styles.stepLabel,
-                index + 1 === currentStep && styles.stepLabelActive,
+                styles.speciesCard,
+                formData.species === species && styles.speciesCardActive,
+                validationErrors.species && styles.inputError,
               ]}
+              onPress={() => {
+                setFormData({ ...formData, species, breed: "" });
+                setValidationErrors((prev) => ({ ...prev, species: "" }));
+              }}
             >
-              {title}
-            </Text>
-          </View>
-        ))}
+              <MaterialCommunityIcons
+                name={species === "Dog" ? "dog" : "cat"}
+                size={40}
+                color={formData.species === species ? Colors.white : Colors.primary}
+              />
+              <Text
+                style={[
+                  styles.speciesLabel,
+                  formData.species === species && styles.speciesLabelActive,
+                ]}
+              >
+                {species}
+              </Text>
+            </TouchableOpacity>
+          ))}
+        </View>
+        {validationErrors.species && <Text style={styles.errorText}>{validationErrors.species}</Text>}
+      </View>
+
+      {/* Breed with Search */}
+      <View style={styles.inputGroup}>
+        <Text style={styles.label}>Breed *</Text>
+        <TouchableOpacity
+          style={[styles.selectInput, validationErrors.breed && styles.inputError]}
+          onPress={() => formData.species && setShowBreedSearch(true)}
+          disabled={!formData.species}
+        >
+          <Ionicons name="search-outline" size={20} color={Colors.textMuted} />
+          <Text style={[styles.selectText, !formData.breed && styles.placeholder]}>
+            {formData.breed || (formData.species ? "Search breed..." : "Select species first")}
+          </Text>
+          <Ionicons name="chevron-down" size={20} color={Colors.textMuted} />
+        </TouchableOpacity>
+        <Text style={styles.helperText}>
+          Can't find your breed? Type it manually or select "Mixed Breed"
+        </Text>
+        {validationErrors.breed && <Text style={styles.errorText}>{validationErrors.breed}</Text>}
+      </View>
+
+      {/* Sex Selector */}
+      <View style={styles.inputGroup}>
+        <Text style={styles.label}>Sex *</Text>
+        <View style={styles.sexRow}>
+          {["Male", "Female"].map((sex) => (
+            <TouchableOpacity
+              key={sex}
+              style={[
+                styles.sexCard,
+                formData.sex === sex && styles.sexCardActive,
+                formData.sex === sex && (sex === "Male" ? styles.maleActive : styles.femaleActive),
+              ]}
+              onPress={() => {
+                setFormData({ ...formData, sex });
+                setValidationErrors((prev) => ({ ...prev, sex: "" }));
+              }}
+            >
+              <Ionicons
+                name={sex === "Male" ? "male" : "female"}
+                size={24}
+                color={formData.sex === sex ? Colors.white : (sex === "Male" ? "#0284C7" : "#BE123C")}
+              />
+              <Text
+                style={[
+                  styles.sexLabel,
+                  formData.sex === sex && styles.sexLabelActive,
+                ]}
+              >
+                {sex}
+              </Text>
+            </TouchableOpacity>
+          ))}
+        </View>
+        {validationErrors.sex && <Text style={styles.errorText}>{validationErrors.sex}</Text>}
+      </View>
+
+      {/* Birthdate */}
+      <View style={styles.inputGroup}>
+        <Text style={styles.label}>Birthdate *</Text>
+        <TouchableOpacity
+          style={[styles.selectInput, validationErrors.birthdate && styles.inputError]}
+          onPress={() => openDatePicker("birthdate")}
+        >
+          <Ionicons name="calendar-outline" size={20} color={Colors.textMuted} />
+          <Text style={[styles.selectText, !formData.birthdate && styles.placeholder]}>
+            {formData.birthdate ? formatDate(formData.birthdate) : "Select birthdate"}
+          </Text>
+        </TouchableOpacity>
+        {validationErrors.birthdate && <Text style={styles.errorText}>{validationErrors.birthdate}</Text>}
+      </View>
+
+      {/* Height & Weight Row */}
+      <View style={styles.row}>
+        <View style={[styles.inputGroup, { flex: 1 }]}>
+          <Text style={styles.label}>Height (cm) *</Text>
+          <TextInput
+            style={[styles.input, validationErrors.height && styles.inputError]}
+            placeholder="e.g., 58"
+            placeholderTextColor={Colors.textMuted}
+            keyboardType="numeric"
+            value={formData.height}
+            onChangeText={(text) => {
+              setFormData({ ...formData, height: text });
+              setValidationErrors((prev) => ({ ...prev, height: "" }));
+            }}
+          />
+          {validationErrors.height && <Text style={styles.errorText}>{validationErrors.height}</Text>}
+        </View>
+        <View style={[styles.inputGroup, { flex: 1 }]}>
+          <Text style={styles.label}>Weight (kg) *</Text>
+          <TextInput
+            style={[styles.input, validationErrors.weight && styles.inputError]}
+            placeholder="e.g., 25"
+            placeholderTextColor={Colors.textMuted}
+            keyboardType="numeric"
+            value={formData.weight}
+            onChangeText={(text) => {
+              setFormData({ ...formData, weight: text });
+              setValidationErrors((prev) => ({ ...prev, weight: "" }));
+            }}
+          />
+          {validationErrors.weight && <Text style={styles.errorText}>{validationErrors.weight}</Text>}
+        </View>
+      </View>
+
+      {/* Microchip (Optional) */}
+      <View style={styles.inputGroup}>
+        <Text style={styles.label}>
+          Microchip ID <Text style={styles.optional}>(Optional)</Text>
+        </Text>
+        <TextInput
+          style={styles.input}
+          placeholder="e.g., 123456789012345"
+          placeholderTextColor={Colors.textMuted}
+          value={formData.microchip}
+          onChangeText={(text) => setFormData({ ...formData, microchip: text })}
+        />
       </View>
     </View>
   );
 
-  const renderStep = (step: number) => {
-    switch (step) {
-      case 1:
-        return (
-          <View style={styles.stepContainer}>
-            <Text style={styles.stepTitle}>Let's get to know your pet</Text>
-            <Text style={styles.stepSubtitle}>
-              Tell us the basics about your furry friend.
-            </Text>
+  // Render Step 2 - About
+  const renderStep2 = () => (
+    <View style={styles.stepContent}>
+      <Text style={styles.stepTitle}>Personality & Traits</Text>
+      <Text style={styles.stepSubtitle}>Help others get to know your pet</Text>
 
-            {renderInput("name", "Pet's Name", "e.g., Buddy")}
-            {renderDropdown(
-              "species",
-              "Species",
-              () => setShowSpeciesModal(true),
-              "Select Species"
-            )}
-            {renderInput("breed", "Breed", "e.g., Golden Retriever")}
-            <View style={styles.row}>
-              {renderDropdown(
-                "sex",
-                "Sex",
-                () => setShowSexModal(true),
-                "Select Sex"
-              )}
-              {renderDatePicker("birthdate", "Birthdate")}
-            </View>
-            <View style={styles.row}>
-              {renderInput("height", "Height (cm)", "e.g., 58", "numeric")}
-              {renderInput("weight", "Weight (kg)", "e.g., 30", "numeric")}
-            </View>
-            {renderInput(
-              "microchip",
-              "Microchip ID (Optional)",
-              "e.g., 123456789"
-            )}
-          </View>
-        );
-      case 2:
-        return (
-          <View style={styles.stepContainer}>
-            <Text style={styles.stepTitle}>Tell us more</Text>
-            <Text style={styles.stepSubtitle}>
-              Describe your pet's personality and appearance.
-            </Text>
-
-            {renderTagSelection(
-              "behaviors",
-              "Behaviors",
-              availableBehaviors,
-              (b) => toggleTag("behaviors", b),
-              "behaviorTags",
-              () =>
-                addCustomTag("behaviorTags", "availableBehaviors", "behaviors")
-            )}
-            {renderTagSelection(
-              "attributes",
-              "Attributes",
-              availableAttributes,
-              (a) => toggleTag("attributes", a),
-              "attributeTags",
-              () =>
-                addCustomTag(
-                  "attributeTags",
-                  "availableAttributes",
-                  "attributes"
-                )
-            )}
-            {renderInput(
-              "description",
-              "Description",
-              "Tell us about your pet in 200 characters or less.",
-              "default",
-              true
-            )}
-          </View>
-        );
-      case 3:
-        return (
-          <View style={styles.stepContainer}>
-            <Text style={styles.stepTitle}>Vaccination Records</Text>
-            <Text style={styles.stepSubtitle}>
-              Please provide the required vaccination documents.
-            </Text>
-
-            {renderDocumentUpload(
-              "rabiesVaccinationRecord",
-              "Rabies Vaccination",
-              "rabies"
-            )}
-            {renderDocumentUpload(
-              "dhppVaccinationRecord",
-              "DHPP Vaccine",
-              "dhpp"
-            )}
-
-            {formData.vaccinations.map((_: any, index: number) =>
-              renderDocumentUpload(
-                `vaccination_${index}`,
-                `Additional Vaccine ${index + 1}`,
-                `vaccination_${index}`,
-                true,
-                () => removeVaccination(index),
-                `vacc-${index}`
-              )
-            )}
-            <TouchableOpacity style={styles.addButton} onPress={addVaccination}>
-              <Ionicons name="add" size={20} color="white" />
-              <Text style={styles.addButtonText}>Add Another Vaccination</Text>
-            </TouchableOpacity>
-          </View>
-        );
-      case 4:
-        return (
-          <View style={styles.stepContainer}>
-            <Text style={styles.stepTitle}>Health Certificate</Text>
-            <Text style={styles.stepSubtitle}>
-              Upload a valid health certificate for your pet.
-            </Text>
-
-            {renderDocumentUpload(
-              "healthCertificate",
-              "Health Certificate",
-              "health"
-            )}
-          </View>
-        );
-      case 5:
-        return (
-          <View style={styles.stepContainer}>
-            <Text style={styles.stepTitle}>Pet Photos</Text>
-            <Text style={styles.stepSubtitle}>
-              Upload at least 3 photos of your pet.
-            </Text>
-
+      {/* Behaviors */}
+      <View style={styles.inputGroup}>
+        <Text style={styles.label}>Behaviors *</Text>
+        <View style={styles.tagGrid}>
+          {behaviorOptions.map((behavior) => (
             <TouchableOpacity
-              style={styles.photoUploadButton}
-              onPress={pickImages}
+              key={behavior.label}
+              style={[
+                styles.tagButton,
+                formData.behaviors.includes(behavior.label) && styles.tagButtonActive,
+              ]}
+              onPress={() => toggleSelection("behaviors", behavior.label)}
             >
-              <Ionicons name="cloud-upload-outline" size={40} color="#FF6B4A" />
-              <Text style={styles.photoUploadText}>Tap to upload photos</Text>
+              <Ionicons
+                name={behavior.icon as any}
+                size={18}
+                color={formData.behaviors.includes(behavior.label) ? Colors.white : Colors.primary}
+              />
+              <Text
+                style={[
+                  styles.tagButtonText,
+                  formData.behaviors.includes(behavior.label) && styles.tagButtonTextActive,
+                ]}
+              >
+                {behavior.label}
+              </Text>
             </TouchableOpacity>
-            {validationErrors.petPhotos && (
-              <Text style={styles.errorText}>{validationErrors.petPhotos}</Text>
-            )}
+          ))}
+        </View>
+        {validationErrors.behaviors && <Text style={styles.errorText}>{validationErrors.behaviors}</Text>}
+      </View>
 
-            {formData.petPhotos.length > 0 && (
-              <View style={styles.photoGrid}>
-                {formData.petPhotos.map((photo: any, index: number) => (
-                  <Image
-                    key={index}
-                    source={{ uri: photo.uri }}
-                    style={styles.photoThumbnail}
-                  />
-                ))}
-              </View>
-            )}
-          </View>
-        );
-      case 6:
-        return (
-          <View style={styles.stepContainer}>
-            <Text style={styles.stepTitle}>Partner Preferences</Text>
-            <Text style={styles.stepSubtitle}>
-              What are you looking for in a breeding partner for your pet?
-            </Text>
+      {/* Attributes */}
+      <View style={styles.inputGroup}>
+        <Text style={styles.label}>Physical Attributes *</Text>
+        <View style={styles.tagGrid}>
+          {attributeOptions.map((attr) => (
+            <TouchableOpacity
+              key={attr.label}
+              style={[
+                styles.tagButton,
+                formData.attributes.includes(attr.label) && styles.tagButtonActive,
+              ]}
+              onPress={() => toggleSelection("attributes", attr.label)}
+            >
+              <Ionicons
+                name={attr.icon as any}
+                size={18}
+                color={formData.attributes.includes(attr.label) ? Colors.white : Colors.primary}
+              />
+              <Text
+                style={[
+                  styles.tagButtonText,
+                  formData.attributes.includes(attr.label) && styles.tagButtonTextActive,
+                ]}
+              >
+                {attr.label}
+              </Text>
+            </TouchableOpacity>
+          ))}
+        </View>
+        {validationErrors.attributes && <Text style={styles.errorText}>{validationErrors.attributes}</Text>}
+      </View>
 
-            {renderDropdown(
-              "preferredBreed",
-              "Preferred Breed",
-              () => setShowPreferredBreedModal(true),
-              "Any Breed"
-            )}
-            <View style={styles.row}>
-              {renderInput("minAge", "Min Partner Age", "e.g., 1", "numeric")}
-              {renderInput("maxAge", "Max Partner Age", "e.g., 5", "numeric")}
+      {/* Description */}
+      <View style={styles.inputGroup}>
+        <Text style={styles.label}>Description *</Text>
+        <TextInput
+          style={[styles.input, styles.textArea, validationErrors.description && styles.inputError]}
+          placeholder="Tell us about your pet's personality, quirks, and what makes them special..."
+          placeholderTextColor={Colors.textMuted}
+          multiline
+          numberOfLines={4}
+          textAlignVertical="top"
+          value={formData.description}
+          onChangeText={(text) => {
+            if (text.length <= 200) {
+              setFormData({ ...formData, description: text });
+              setValidationErrors((prev) => ({ ...prev, description: "" }));
+            }
+          }}
+        />
+        <Text style={styles.charCount}>{formData.description.length}/200</Text>
+        {validationErrors.description && <Text style={styles.errorText}>{validationErrors.description}</Text>}
+      </View>
+    </View>
+  );
+
+  // Render Step 3 - Health Certificate
+  const renderStep3 = () => (
+    <View style={styles.stepContent}>
+      <Text style={styles.stepTitle}>Health Certificate</Text>
+      <Text style={styles.stepSubtitle}>Upload your pet's health documentation</Text>
+
+      <View style={styles.infoCard}>
+        <Ionicons name="information-circle-outline" size={24} color={Colors.info} />
+        <Text style={styles.infoCardText}>
+          Vaccination records will be added through the card-based system after registration.
+          For now, upload your pet's general health certificate.
+        </Text>
+      </View>
+
+      {/* Health Certificate Upload */}
+      <View style={styles.uploadSection}>
+        <View style={styles.uploadHeader}>
+          <Ionicons name="document-text-outline" size={24} color={Colors.primary} />
+          <Text style={styles.uploadTitle}>Health Certificate</Text>
+        </View>
+
+        <TouchableOpacity
+          style={[styles.uploadBox, validationErrors.healthCertificate && styles.inputError]}
+          onPress={() => pickDocument("healthCertificate")}
+        >
+          {formData.healthCertificate ? (
+            <View style={styles.uploadedFile}>
+              <Ionicons name="checkmark-circle" size={24} color={Colors.success} />
+              <Text style={styles.uploadedFileName} numberOfLines={1}>
+                {formData.healthCertificate.name}
+              </Text>
+              <TouchableOpacity onPress={() => setFormData({ ...formData, healthCertificate: null })}>
+                <Ionicons name="close-circle" size={24} color={Colors.error} />
+              </TouchableOpacity>
             </View>
+          ) : (
+            <>
+              <Ionicons name="cloud-upload-outline" size={40} color={Colors.textMuted} />
+              <Text style={styles.uploadText}>Tap to upload document</Text>
+              <Text style={styles.uploadHint}>JPG, PNG, or PDF (max 20MB)</Text>
+            </>
+          )}
+        </TouchableOpacity>
+        {validationErrors.healthCertificate && (
+          <Text style={styles.errorText}>{validationErrors.healthCertificate}</Text>
+        )}
 
-            {renderTagSelection(
-              "partnerBehaviors",
-              "Preferred Behaviors",
-              availablePartnerBehaviors,
-              (b) => toggleTag("partnerBehaviors", b),
-              "partnerBehaviorTags",
-              () =>
-                addCustomTag(
-                  "partnerBehaviorTags",
-                  "availablePartnerBehaviors",
-                  "partnerBehaviors"
-                )
-            )}
-            {renderTagSelection(
-              "partnerAttributes",
-              "Preferred Attributes",
-              availablePartnerAttributes,
-              (a) => toggleTag("partnerAttributes", a),
-              "partnerAttributeTags",
-              () =>
-                addCustomTag(
-                  "partnerAttributeTags",
-                  "availablePartnerAttributes",
-                  "partnerAttributes"
-                )
+        {/* Clinic Details */}
+        <View style={styles.inputGroup}>
+          <Text style={styles.label}>Clinic Name *</Text>
+          <TextInput
+            style={[styles.input, validationErrors.healthClinicName && styles.inputError]}
+            placeholder="e.g., City Veterinary Clinic"
+            placeholderTextColor={Colors.textMuted}
+            value={formData.healthClinicName}
+            onChangeText={(text) => {
+              setFormData({ ...formData, healthClinicName: text });
+              setValidationErrors((prev) => ({ ...prev, healthClinicName: "" }));
+            }}
+          />
+          {validationErrors.healthClinicName && (
+            <Text style={styles.errorText}>{validationErrors.healthClinicName}</Text>
+          )}
+        </View>
+
+        <View style={styles.inputGroup}>
+          <Text style={styles.label}>Veterinarian Name *</Text>
+          <TextInput
+            style={[styles.input, validationErrors.healthVeterinarianName && styles.inputError]}
+            placeholder="e.g., Dr. Juan dela Cruz"
+            placeholderTextColor={Colors.textMuted}
+            value={formData.healthVeterinarianName}
+            onChangeText={(text) => {
+              setFormData({ ...formData, healthVeterinarianName: text });
+              setValidationErrors((prev) => ({ ...prev, healthVeterinarianName: "" }));
+            }}
+          />
+          {validationErrors.healthVeterinarianName && (
+            <Text style={styles.errorText}>{validationErrors.healthVeterinarianName}</Text>
+          )}
+        </View>
+
+        <View style={styles.row}>
+          <View style={[styles.inputGroup, { flex: 1 }]}>
+            <Text style={styles.label}>Date Issued *</Text>
+            <TouchableOpacity
+              style={[styles.selectInput, validationErrors.healthGivenDate && styles.inputError]}
+              onPress={() => openDatePicker("healthGivenDate")}
+            >
+              <Ionicons name="calendar-outline" size={18} color={Colors.textMuted} />
+              <Text style={[styles.selectText, styles.smallText, !formData.healthGivenDate && styles.placeholder]}>
+                {formData.healthGivenDate ? formatDate(formData.healthGivenDate) : "Select"}
+              </Text>
+            </TouchableOpacity>
+            {validationErrors.healthGivenDate && (
+              <Text style={styles.errorText}>{validationErrors.healthGivenDate}</Text>
             )}
           </View>
-        );
+          <View style={[styles.inputGroup, { flex: 1 }]}>
+            <Text style={styles.label}>Expiration *</Text>
+            <TouchableOpacity
+              style={[styles.selectInput, validationErrors.healthExpirationDate && styles.inputError]}
+              onPress={() => openDatePicker("healthExpirationDate")}
+            >
+              <Ionicons name="calendar-outline" size={18} color={Colors.textMuted} />
+              <Text style={[styles.selectText, styles.smallText, !formData.healthExpirationDate && styles.placeholder]}>
+                {formData.healthExpirationDate ? formatDate(formData.healthExpirationDate) : "Select"}
+              </Text>
+            </TouchableOpacity>
+            {validationErrors.healthExpirationDate && (
+              <Text style={styles.errorText}>{validationErrors.healthExpirationDate}</Text>
+            )}
+          </View>
+        </View>
+      </View>
+    </View>
+  );
+
+  // Render Step 4 - Photos
+  const renderStep4 = () => (
+    <View style={styles.stepContent}>
+      <Text style={styles.stepTitle}>Pet Photos</Text>
+      <Text style={styles.stepSubtitle}>Show off your pet's best angles</Text>
+
+      <TouchableOpacity style={styles.photoUploadBox} onPress={pickImages}>
+        <LinearGradient
+          colors={[Colors.primary + "20", Colors.primaryLight + "10"]}
+          style={styles.photoUploadGradient}
+        >
+          <Ionicons name="camera-outline" size={48} color={Colors.primary} />
+          <Text style={styles.photoUploadText}>Tap to add photos</Text>
+          <Text style={styles.photoUploadHint}>
+            {formData.petPhotos.length}/10 photos ({Math.max(0, 3 - formData.petPhotos.length)} more required)
+          </Text>
+        </LinearGradient>
+      </TouchableOpacity>
+      {validationErrors.petPhotos && <Text style={styles.errorText}>{validationErrors.petPhotos}</Text>}
+
+      {formData.petPhotos.length > 0 && (
+        <View style={styles.photoGrid}>
+          {formData.petPhotos.map((photo: any, index: number) => (
+            <View key={index} style={styles.photoItem}>
+              <Image source={{ uri: photo.uri }} style={styles.photoThumb} />
+              <TouchableOpacity
+                style={styles.removePhotoBtn}
+                onPress={() => removePhoto(index)}
+              >
+                <Ionicons name="close-circle" size={24} color={Colors.error} />
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[
+                  styles.primaryBadge,
+                  formData.primaryPhotoIndex === index && styles.primaryBadgeActive,
+                ]}
+                onPress={() => setPrimaryPhoto(index)}
+              >
+                <Ionicons
+                  name={formData.primaryPhotoIndex === index ? "star" : "star-outline"}
+                  size={16}
+                  color={formData.primaryPhotoIndex === index ? Colors.warning : Colors.white}
+                />
+              </TouchableOpacity>
+            </View>
+          ))}
+        </View>
+      )}
+
+      <Text style={styles.helperText}>
+        Tap the star to set your pet's primary profile photo
+      </Text>
+    </View>
+  );
+
+  // Render Step 5 - Preferences
+  const renderStep5 = () => (
+    <View style={styles.stepContent}>
+      <Text style={styles.stepTitle}>Partner Preferences</Text>
+      <Text style={styles.stepSubtitle}>What are you looking for in a breeding partner?</Text>
+
+      <View style={styles.optionalBanner}>
+        <Ionicons name="sparkles-outline" size={20} color={Colors.warning} />
+        <Text style={styles.optionalBannerText}>All preferences are optional</Text>
+      </View>
+
+      {/* Preferred Breed */}
+      <View style={styles.inputGroup}>
+        <Text style={styles.label}>Preferred Breed</Text>
+        <TouchableOpacity
+          style={styles.selectInput}
+          onPress={() => formData.species && setShowBreedSearch(true)}
+        >
+          <Text style={[styles.selectText, !formData.preferredBreed && styles.placeholder]}>
+            {formData.preferredBreed || "Any breed"}
+          </Text>
+          <Ionicons name="chevron-down" size={20} color={Colors.textMuted} />
+        </TouchableOpacity>
+      </View>
+
+      {/* Age Range */}
+      <View style={styles.row}>
+        <View style={[styles.inputGroup, { flex: 1 }]}>
+          <Text style={styles.label}>Min Age (years)</Text>
+          <TextInput
+            style={styles.input}
+            placeholder="e.g., 1"
+            placeholderTextColor={Colors.textMuted}
+            keyboardType="numeric"
+            value={formData.minAge}
+            onChangeText={(text) => setFormData({ ...formData, minAge: text })}
+          />
+        </View>
+        <View style={[styles.inputGroup, { flex: 1 }]}>
+          <Text style={styles.label}>Max Age (years)</Text>
+          <TextInput
+            style={styles.input}
+            placeholder="e.g., 5"
+            placeholderTextColor={Colors.textMuted}
+            keyboardType="numeric"
+            value={formData.maxAge}
+            onChangeText={(text) => setFormData({ ...formData, maxAge: text })}
+          />
+        </View>
+      </View>
+
+      {/* Preferred Behaviors */}
+      <View style={styles.inputGroup}>
+        <Text style={styles.label}>Preferred Behaviors</Text>
+        <View style={styles.tagGrid}>
+          {behaviorOptions.map((behavior) => (
+            <TouchableOpacity
+              key={behavior.label}
+              style={[
+                styles.tagButton,
+                styles.tagButtonSmall,
+                formData.partnerBehaviors.includes(behavior.label) && styles.tagButtonActive,
+              ]}
+              onPress={() => toggleSelection("partnerBehaviors", behavior.label)}
+            >
+              <Text
+                style={[
+                  styles.tagButtonText,
+                  styles.tagButtonTextSmall,
+                  formData.partnerBehaviors.includes(behavior.label) && styles.tagButtonTextActive,
+                ]}
+              >
+                {behavior.label}
+              </Text>
+            </TouchableOpacity>
+          ))}
+        </View>
+      </View>
+
+      {/* Preferred Attributes */}
+      <View style={styles.inputGroup}>
+        <Text style={styles.label}>Preferred Attributes</Text>
+        <View style={styles.tagGrid}>
+          {attributeOptions.map((attr) => (
+            <TouchableOpacity
+              key={attr.label}
+              style={[
+                styles.tagButton,
+                styles.tagButtonSmall,
+                formData.partnerAttributes.includes(attr.label) && styles.tagButtonActive,
+              ]}
+              onPress={() => toggleSelection("partnerAttributes", attr.label)}
+            >
+              <Text
+                style={[
+                  styles.tagButtonText,
+                  styles.tagButtonTextSmall,
+                  formData.partnerAttributes.includes(attr.label) && styles.tagButtonTextActive,
+                ]}
+              >
+                {attr.label}
+              </Text>
+            </TouchableOpacity>
+          ))}
+        </View>
+      </View>
+    </View>
+  );
+
+  const renderStep = () => {
+    switch (currentStep) {
+      case 1: return renderStep1();
+      case 2: return renderStep2();
+      case 3: return renderStep3();
+      case 4: return renderStep4();
+      case 5: return renderStep5();
+      default: return null;
     }
   };
 
-  const renderInput = (
-    field: string,
-    label: string,
-    placeholder: string,
-    keyboardType: "default" | "numeric" = "default",
-    multiline = false
-  ) => (
-    <View style={styles.inputContainer}>
-      <Text style={styles.label}>{label}</Text>
-      <TextInput
-        style={[
-          styles.input,
-          validationErrors[field] && styles.inputError,
-          multiline && styles.multilineInput,
-        ]}
-        placeholder={placeholder}
-        placeholderTextColor="#999"
-        value={
-          field.startsWith("vaccination_")
-            ? (() => {
-                const m = field.match(/^vaccination_(\d+)_(.+)$/);
-                if (m) {
-                  const idx = parseInt(m[1], 10);
-                  const key = m[2];
-                  return formData.vaccinations?.[idx]?.[key] ?? "";
-                }
-                return formData[field] ?? "";
-              })()
-            : formData[field]
-        }
-        onChangeText={(text) => {
-          if (field.startsWith("vaccination_")) {
-            const m = field.match(/^vaccination_(\d+)_(.+)$/);
-            if (m) {
-              const idx = parseInt(m[1], 10);
-              const key = m[2];
-              updateVaccination(idx, key, text);
-              return;
-            }
-          }
-          setFormData({ ...formData, [field]: text });
-        }}
-        keyboardType={keyboardType}
-        multiline={multiline}
-        textAlignVertical={multiline ? "top" : "center"}
-      />
-      {validationErrors[field] && (
-        <Text style={styles.errorText}>{validationErrors[field]}</Text>
-      )}
-    </View>
-  );
-
-  const renderDropdown = (
-    field: string,
-    label: string,
-    onPress: () => void,
-    placeholder: string
-  ) => (
-    <View style={styles.inputContainer}>
-      <Text style={styles.label}>{label}</Text>
-      <TouchableOpacity
-        style={[
-          styles.input,
-          styles.dropdown,
-          validationErrors[field] && styles.inputError,
-        ]}
-        onPress={onPress}
-      >
-        <Text
-          style={[
-            styles.dropdownText,
-            !formData[field] && styles.dropdownPlaceholder,
-          ]}
-        >
-          {formData[field] || placeholder}
-        </Text>
-        <Ionicons name="chevron-down" size={20} color="#666" />
-      </TouchableOpacity>
-      {validationErrors[field] && (
-        <Text style={styles.errorText}>{validationErrors[field]}</Text>
-      )}
-    </View>
-  );
-
-  const renderDatePicker = (field: string, label: string) => (
-    <View style={styles.inputContainer}>
-      <Text style={styles.label}>{label}</Text>
-      <TouchableOpacity
-        style={[
-          styles.input,
-          styles.dropdown,
-          validationErrors[field] && styles.inputError,
-        ]}
-        onPress={() => openDatePicker(field)}
-      >
-        <Text
-          style={[
-            styles.dropdownText,
-            !formData[field] && styles.dropdownPlaceholder,
-          ]}
-        >
-          {field.startsWith("vaccination_")
-            ? (() => {
-                const m = field.match(/^vaccination_(\d+)_(.+)$/);
-                if (m) {
-                  const idx = parseInt(m[1], 10);
-                  const key = m[2];
-                  const val = formData.vaccinations?.[idx]?.[key];
-                  return val
-                    ? new Date(val).toLocaleDateString()
-                    : "Select Date";
-                }
-                return formData[field]
-                  ? new Date(formData[field]).toLocaleDateString()
-                  : "Select Date";
-              })()
-            : formData[field]
-              ? new Date(formData[field]).toLocaleDateString()
-              : "Select Date"}
-        </Text>
-        <Ionicons name="calendar-outline" size={20} color="#666" />
-      </TouchableOpacity>
-      {validationErrors[field] && (
-        <Text style={styles.errorText}>{validationErrors[field]}</Text>
-      )}
-    </View>
-  );
-
-  const renderTagSelection = (
-    field: string,
-    label: string,
-    options: string[],
-    onToggle: (tag: string) => void,
-    customField: string,
-    onAddCustom: () => void
-  ) => (
-    <View style={styles.inputContainer}>
-      <Text style={styles.label}>{label}</Text>
-      <View style={styles.tagContainer}>
-        {options.map((option) => (
-          <TouchableOpacity
-            key={option}
-            style={[
-              styles.tag,
-              formData[field].includes(option) && styles.tagSelected,
-            ]}
-            onPress={() => onToggle(option)}
-          >
-            <Text
-              style={[
-                styles.tagText,
-                formData[field].includes(option) && styles.tagTextSelected,
-              ]}
-            >
-              {option}
-            </Text>
-          </TouchableOpacity>
-        ))}
-      </View>
-      <View style={styles.customTagContainer}>
-        <TextInput
-          style={[styles.input, styles.customTagInput]}
-          placeholder="Add custom tag..."
-          placeholderTextColor="#999"
-          value={formData[customField]}
-          onChangeText={(text) =>
-            setFormData({ ...formData, [customField]: text })
-          }
-          onSubmitEditing={onAddCustom}
-          returnKeyType="done"
-        />
-        <TouchableOpacity style={styles.addTagButton} onPress={onAddCustom}>
-          <Ionicons name="add" size={24} color="white" />
-        </TouchableOpacity>
-      </View>
-      {validationErrors[field] && (
-        <Text style={styles.errorText}>{validationErrors[field]}</Text>
-      )}
-    </View>
-  );
-
-  const renderDocumentUpload = (
-    docField: string,
-    title: string,
-    prefix: string,
-    isAdditional = false,
-    onRemove?: () => void,
-    keyProp?: string | number
-  ) => {
-    // Helper to convert prefix to proper camelCase field names
-    const getFieldName = (fieldSuffix: string) => {
-      if (prefix.startsWith("vaccination_")) {
-        // For dynamic vaccinations: vaccination_0 -> vaccination_0_clinicName
-        return `${prefix}_${fieldSuffix}`;
-      }
-      // For static fields: rabies -> rabiesClinicName, dhpp -> dhppClinicName, health -> healthClinicName
-      return `${prefix}${fieldSuffix.charAt(0).toUpperCase()}${fieldSuffix.slice(1)}`;
-    };
-
-    return (
-      <View key={keyProp} style={styles.documentSection}>
-        <View style={styles.documentHeader}>
-          <Text style={styles.documentTitle}>{title}</Text>
-          {isAdditional && (
-            <TouchableOpacity onPress={onRemove} style={styles.removeButton}>
-              <Ionicons name="trash-outline" size={20} color="#EF4444" />
-            </TouchableOpacity>
-          )}
-        </View>
-
-        {isAdditional &&
-          renderInput(
-            `${prefix}_vaccinationType`,
-            "Vaccine Name",
-            "e.g., Bordetella"
-          )}
-
-        <TouchableOpacity
-          style={[
-            styles.filePicker,
-            validationErrors[docField] && styles.inputError,
-          ]}
-          onPress={() => pickDocument(docField)}
-        >
-          <Ionicons name="document-attach-outline" size={24} color="#666" />
-          <Text style={styles.filePickerText}>
-            {docField.startsWith("vaccination_")
-              ? (() => {
-                  const m = docField.match(/^vaccination_(\d+)$/);
-                  if (m) {
-                    const idx = parseInt(m[1], 10);
-                    return (
-                      formData.vaccinations?.[idx]?.vaccinationRecord?.name ||
-                      "Upload Document"
-                    );
-                  }
-                  return formData[docField]?.name || "Upload Document";
-                })()
-              : formData[docField]?.name || "Upload Document"}
-          </Text>
-        </TouchableOpacity>
-        {validationErrors[docField] && (
-          <Text style={styles.errorText}>{validationErrors[docField]}</Text>
-        )}
-
-        {renderInput(
-          getFieldName("clinicName"),
-          "Clinic Name",
-          "e.g., City Vet Clinic"
-        )}
-        {renderInput(
-          getFieldName("veterinarianName"),
-          "Veterinarian's Name",
-          "e.g., Dr. Smith"
-        )}
-        <View style={styles.row}>
-          {renderDatePicker(getFieldName("givenDate"), "Date Given")}
-          {renderDatePicker(getFieldName("expirationDate"), "Expiry Date")}
-        </View>
-      </View>
-    );
-  };
-
   return (
-    <SafeAreaView style={styles.safeArea} edges={["top"]}>
-      <LinearGradient colors={["#FF9A8B", "#FF6B4A"]} style={styles.header}>
-        <TouchableOpacity
-          onPress={() => router.back()}
-          style={styles.backButton}
-        >
-          <Ionicons name="arrow-back" size={24} color="white" />
+    <SafeAreaView style={styles.container} edges={["top"]}>
+      {/* Header */}
+      <LinearGradient colors={[...Gradients.header]} style={styles.header}>
+        <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
+          <Ionicons name="arrow-back" size={24} color={Colors.white} />
         </TouchableOpacity>
-        <Text style={styles.headerTitle}>Register Your Pet</Text>
-        <View style={{ width: 24 }} />
+        <Text style={styles.headerTitle}>Add New Pet</Text>
+        <View style={{ width: 40 }} />
       </LinearGradient>
 
-      {renderProgressBar()}
+      {/* Progress */}
+      {renderProgressHeader()}
 
-      <ScrollView
-        style={styles.scrollView}
-        contentContainerStyle={styles.scrollViewContent}
-        keyboardShouldPersistTaps="handled"
+      {/* Form Content */}
+      <KeyboardAvoidingView
+        behavior={Platform.OS === "ios" ? "padding" : "height"}
+        style={{ flex: 1 }}
       >
-        {renderStep(currentStep)}
-      </ScrollView>
+        <ScrollView
+          ref={scrollViewRef}
+          style={styles.scrollView}
+          contentContainerStyle={styles.scrollContent}
+          keyboardShouldPersistTaps="handled"
+          showsVerticalScrollIndicator={false}
+        >
+          {renderStep()}
+        </ScrollView>
+      </KeyboardAvoidingView>
 
+      {/* Footer Buttons */}
       <View style={styles.footer}>
-        <View style={styles.buttonContainer}>
-          {currentStep > 1 && (
-            <TouchableOpacity
-              style={[styles.navButton, styles.prevButton]}
-              onPress={handlePrev}
-              disabled={isSubmitting}
-            >
-              <Text style={[styles.navButtonText, styles.prevButtonText]}>
-                Back
-              </Text>
-            </TouchableOpacity>
-          )}
+        {currentStep > 1 && (
           <TouchableOpacity
-            style={[
-              styles.navButton,
-              styles.nextButton,
-              isSubmitting && styles.disabledButton,
-            ]}
-            onPress={handleNext}
+            style={styles.backBtn}
+            onPress={handlePrev}
             disabled={isSubmitting}
           >
-            <Text style={styles.navButtonText}>
-              {isSubmitting
-                ? "Submitting..."
-                : currentStep === 6
-                  ? "Finish"
-                  : "Next"}
-            </Text>
+            <Ionicons name="arrow-back" size={20} color={Colors.textSecondary} />
+            <Text style={styles.backBtnText}>Back</Text>
           </TouchableOpacity>
-        </View>
+        )}
+        <TouchableOpacity
+          style={[styles.nextBtn, isSubmitting && styles.disabledBtn]}
+          onPress={handleNext}
+          disabled={isSubmitting}
+        >
+          {isSubmitting ? (
+            <ActivityIndicator color={Colors.white} />
+          ) : (
+            <>
+              <Text style={styles.nextBtnText}>
+                {currentStep === 5 ? "Submit" : "Continue"}
+              </Text>
+              <Ionicons
+                name={currentStep === 5 ? "checkmark" : "arrow-forward"}
+                size={20}
+                color={Colors.white}
+              />
+            </>
+          )}
+        </TouchableOpacity>
       </View>
 
-      {/* Modals */}
+      {/* Breed Search Modal */}
       <StyledModal
-        visible={showSpeciesModal}
-        onClose={() => setShowSpeciesModal(false)}
-        title="Select Species"
+        visible={showBreedSearch}
+        onClose={() => {
+          setShowBreedSearch(false);
+          setBreedSearchQuery("");
+        }}
+        title={`Select ${formData.species} Breed`}
         content={() => (
-          <>
-            {["Dog", "Cat"].map((species) => (
-              <TouchableOpacity
-                key={species}
-                style={modalStyles.option}
-                onPress={() => {
-                  setFormData({ ...formData, species });
-                  setShowSpeciesModal(false);
-                }}
-              >
-                <Text style={modalStyles.optionText}>{species}</Text>
-              </TouchableOpacity>
-            ))}
-          </>
+          <View>
+            <TextInput
+              style={styles.searchInput}
+              placeholder="Search breeds..."
+              placeholderTextColor={Colors.textMuted}
+              value={breedSearchQuery}
+              onChangeText={setBreedSearchQuery}
+              autoFocus
+            />
+            <ScrollView style={{ maxHeight: 300 }}>
+              {getFilteredBreeds().map((breed) => (
+                <TouchableOpacity
+                  key={breed}
+                  style={styles.breedOption}
+                  onPress={() => {
+                    setFormData({ ...formData, breed });
+                    setShowBreedSearch(false);
+                    setBreedSearchQuery("");
+                    setValidationErrors((prev) => ({ ...prev, breed: "" }));
+                  }}
+                >
+                  <Text style={styles.breedOptionText}>{breed}</Text>
+                  {formData.breed === breed && (
+                    <Ionicons name="checkmark" size={20} color={Colors.primary} />
+                  )}
+                </TouchableOpacity>
+              ))}
+            </ScrollView>
+          </View>
         )}
       />
 
-      <StyledModal
-        visible={showSexModal}
-        onClose={() => setShowSexModal(false)}
-        title="Select Sex"
-        content={() => (
-          <>
-            {["Male", "Female"].map((sex) => (
-              <TouchableOpacity
-                key={sex}
-                style={modalStyles.option}
-                onPress={() => {
-                  setFormData({ ...formData, sex });
-                  setShowSexModal(false);
-                }}
-              >
-                <Text style={modalStyles.optionText}>{sex}</Text>
-              </TouchableOpacity>
-            ))}
-          </>
-        )}
-      />
-
-      <StyledModal
-        visible={showPreferredBreedModal}
-        onClose={() => setShowPreferredBreedModal(false)}
-        title="Select Preferred Breed"
-        content={() => (
-          <>
-            {[
-              "Any Breed",
-              "Labrador Retriever",
-              "German Shepherd",
-              "Golden Retriever",
-              "French Bulldog",
-              "Bulldog",
-              "Poodle",
-              "Beagle",
-              "Rottweiler",
-              "German Shorthaired Pointer",
-              "Siberian Husky",
-              "Dachshund",
-              "Doberman Pinscher",
-              "Shih Tzu",
-              "Boxer",
-              "Siamese",
-              "Persian",
-              "Maine Coon",
-              "Ragdoll",
-              "British Shorthair",
-              "Sphynx",
-              "Scottish Fold",
-              "Bengal",
-            ].map((breed) => (
-              <TouchableOpacity
-                key={breed}
-                style={modalStyles.option}
-                onPress={() => {
-                  setFormData({ ...formData, preferredBreed: breed });
-                  setShowPreferredBreedModal(false);
-                }}
-              >
-                <Text style={modalStyles.optionText}>{breed}</Text>
-              </TouchableOpacity>
-            ))}
-          </>
-        )}
-      />
-      <StyledModal
-        visible={showConfirmModal}
-        onClose={() => setShowConfirmModal(false)}
-        title="Confirm Submission"
-        content={() => (
-          <>
-            <Text style={{ textAlign: "center", marginBottom: 12 }}>
-              Are you sure you want to submit this pet registration?
-            </Text>
-            <View
-              style={{
-                flexDirection: "row",
-                justifyContent: "center",
-                gap: 12,
-              }}
-            >
-              <TouchableOpacity
-                style={{
-                  backgroundColor: "#6C757D",
-                  paddingVertical: 10,
-                  paddingHorizontal: 16,
-                  borderRadius: 8,
-                }}
-                onPress={() => setShowConfirmModal(false)}
-              >
-                <Text style={{ color: "white" }}>Cancel</Text>
-              </TouchableOpacity>
-              <TouchableOpacity
-                style={{
-                  backgroundColor: "#FF6B4A",
-                  paddingVertical: 10,
-                  paddingHorizontal: 16,
-                  borderRadius: 8,
-                }}
-                onPress={handleSubmit}
-              >
-                <Text style={{ color: "white" }}>Confirm</Text>
-              </TouchableOpacity>
-            </View>
-          </>
-        )}
-      />
-
-      <StyledModal
-        visible={showSuccessModal}
-        onClose={handleSuccessClose}
-        title="Success"
-        content={() => (
-          <>
-            <Text style={{ textAlign: "center", marginBottom: 12 }}>
-              Your pet has been registered successfully.
-            </Text>
-            <View style={{ alignItems: "center" }}>
-              <TouchableOpacity
-                style={{
-                  backgroundColor: "#FF6B4A",
-                  paddingVertical: 10,
-                  paddingHorizontal: 16,
-                  borderRadius: 8,
-                }}
-                onPress={handleSuccessClose}
-              >
-                <Text style={{ color: "white" }}>OK</Text>
-              </TouchableOpacity>
-            </View>
-          </>
-        )}
-      />
+      {/* Date Picker */}
       <DateTimePickerModal
         isVisible={showDatePicker}
         mode="date"
         onConfirm={handleDateConfirm}
         onCancel={() => setShowDatePicker(false)}
+        maximumDate={datePickerField === "birthdate" || datePickerField === "healthGivenDate" ? new Date() : undefined}
       />
 
       <AlertModal visible={visible} {...alertOptions} onClose={hideAlert} />
@@ -1304,267 +1119,464 @@ export default function AddPetScreen() {
   );
 }
 
-const modalStyles = StyleSheet.create({
-  option: {
-    paddingVertical: 16,
-    borderBottomWidth: 1,
-    borderBottomColor: "#E9ECEF",
-  },
-  optionText: {
-    fontSize: 18,
-    color: "#343A40",
-    textAlign: "center",
-  },
-});
 const styles = StyleSheet.create({
-  safeArea: { flex: 1, backgroundColor: "#F8F9FA" },
+  container: {
+    flex: 1,
+    backgroundColor: Colors.bgSecondary,
+  },
   header: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
-    paddingHorizontal: 16,
-    paddingTop: 16,
-    paddingBottom: 40,
-    borderBottomLeftRadius: 30,
-    borderBottomRightRadius: 30,
+    paddingHorizontal: Spacing.lg,
+    paddingTop: Spacing.md,
+    paddingBottom: Spacing.xl,
   },
-  backButton: { padding: 8 },
+  backButton: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: "rgba(255,255,255,0.2)",
+    justifyContent: "center",
+    alignItems: "center",
+  },
   headerTitle: {
-    fontSize: 22,
+    fontSize: 20,
     fontWeight: "bold",
-    color: "white",
+    color: Colors.white,
   },
-  progressContainer: {
-    paddingHorizontal: 20,
-    marginTop: -24,
-    marginBottom: 16,
-  },
-  progressTrack: {
-    height: 8,
-    backgroundColor: "#E9ECEF",
-    borderRadius: 4,
-  },
-  progressBar: { height: "100%", borderRadius: 4 },
-  progressSteps: {
+  progressHeader: {
     flexDirection: "row",
-    justifyContent: "space-between",
-    marginTop: 8,
+    justifyContent: "center",
+    alignItems: "flex-start",
+    paddingHorizontal: Spacing.lg,
+    paddingVertical: Spacing.md,
+    backgroundColor: Colors.bgPrimary,
+    marginTop: -Spacing.md,
+    borderTopLeftRadius: BorderRadius["2xl"],
+    borderTopRightRadius: BorderRadius["2xl"],
   },
-  step: { alignItems: "center", flex: 1 },
-  stepCircle: {
-    width: 24,
-    height: 24,
-    borderRadius: 12,
-    backgroundColor: "#DEE2E6",
+  progressStep: {
+    alignItems: "center",
+    flex: 1,
+  },
+  progressDot: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: Colors.bgTertiary,
     justifyContent: "center",
     alignItems: "center",
     marginBottom: 4,
-    borderWidth: 2,
-    borderColor: "#DEE2E6",
   },
-  stepCircleActive: {
-    borderColor: "#FF6B4A",
-    backgroundColor: "white",
+  progressDotActive: {
+    backgroundColor: Colors.primary,
   },
-  stepCircleCompleted: {
-    backgroundColor: "#FF6B4A",
-    borderColor: "#FF6B4A",
+  progressDotCompleted: {
+    backgroundColor: Colors.success,
   },
-  stepLabel: {
+  progressLabel: {
     fontSize: 10,
-    color: "#6C757D",
+    color: Colors.textMuted,
     textAlign: "center",
   },
-  stepLabelActive: { color: "#FF6B4A", fontWeight: "bold" },
-  scrollView: { flex: 1 },
-  scrollViewContent: { paddingBottom: 20 },
-  stepContainer: {
-    paddingHorizontal: 24,
-    paddingVertical: 20,
+  progressLabelActive: {
+    color: Colors.primary,
+    fontWeight: "600",
+  },
+  progressLine: {
+    position: "absolute",
+    top: 16,
+    left: "60%",
+    width: "80%",
+    height: 2,
+    backgroundColor: Colors.bgTertiary,
+  },
+  progressLineCompleted: {
+    backgroundColor: Colors.success,
+  },
+  scrollView: {
+    flex: 1,
+  },
+  scrollContent: {
+    paddingBottom: Spacing["3xl"],
+  },
+  stepContent: {
+    padding: Spacing.xl,
   },
   stepTitle: {
-    fontSize: 26,
+    fontSize: 24,
     fontWeight: "bold",
-    color: "#343A40",
-    marginBottom: 4,
+    color: Colors.textPrimary,
+    marginBottom: Spacing.xs,
   },
   stepSubtitle: {
-    fontSize: 16,
-    color: "#6C757D",
-    marginBottom: 24,
+    fontSize: 14,
+    color: Colors.textMuted,
+    marginBottom: Spacing.xl,
   },
-  inputContainer: { marginBottom: 16 },
+  inputGroup: {
+    marginBottom: Spacing.lg,
+  },
   label: {
     fontSize: 14,
     fontWeight: "600",
-    color: "#495057",
-    marginBottom: 8,
+    color: Colors.textSecondary,
+    marginBottom: Spacing.sm,
+  },
+  optional: {
+    fontWeight: "400",
+    color: Colors.textMuted,
   },
   input: {
-    backgroundColor: "white",
-    borderRadius: 12,
-    paddingHorizontal: 16,
-    height: 50,
+    backgroundColor: Colors.bgPrimary,
+    borderRadius: BorderRadius.lg,
+    paddingHorizontal: Spacing.lg,
+    paddingVertical: Spacing.md,
     fontSize: 16,
+    color: Colors.textPrimary,
     borderWidth: 1,
-    borderColor: "#CED4DA",
+    borderColor: Colors.borderLight,
   },
-  inputError: { borderColor: "#E74C3C" },
-  multilineInput: {
+  inputError: {
+    borderColor: Colors.error,
+  },
+  textArea: {
     height: 100,
-    paddingTop: 12,
+    paddingTop: Spacing.md,
+  },
+  selectInput: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: Colors.bgPrimary,
+    borderRadius: BorderRadius.lg,
+    paddingHorizontal: Spacing.lg,
+    paddingVertical: Spacing.md,
+    borderWidth: 1,
+    borderColor: Colors.borderLight,
+    gap: Spacing.sm,
+  },
+  selectText: {
+    flex: 1,
+    fontSize: 16,
+    color: Colors.textPrimary,
+  },
+  smallText: {
+    fontSize: 14,
+  },
+  placeholder: {
+    color: Colors.textMuted,
   },
   row: {
     flexDirection: "row",
-    justifyContent: "space-between",
-    gap: 16,
+    gap: Spacing.md,
   },
-  dropdown: {
+  speciesRow: {
     flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
+    gap: Spacing.md,
   },
-  dropdownText: { fontSize: 16, color: "#343A40" },
-  dropdownPlaceholder: { color: "#999" },
-  tagContainer: {
-    flexDirection: "row",
-    flexWrap: "wrap",
-    gap: 8,
-    marginBottom: 12,
-  },
-  tag: {
-    paddingHorizontal: 16,
-    paddingVertical: 8,
-    borderRadius: 20,
-    backgroundColor: "white",
-    borderWidth: 1,
-    borderColor: "#CED4DA",
-  },
-  tagSelected: {
-    backgroundColor: "#FF6B4A",
-    borderColor: "#FF6B4A",
-  },
-  tagText: { color: "#495057", fontWeight: "500" },
-  tagTextSelected: { color: "white" },
-  customTagContainer: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 8,
-  },
-  customTagInput: { flex: 1 },
-  addTagButton: {
-    backgroundColor: "#FF6B4A",
-    borderRadius: 12,
-    height: 50,
-    width: 50,
-    justifyContent: "center",
-    alignItems: "center",
-  },
-  documentSection: {
-    backgroundColor: "white",
-    borderRadius: 16,
-    padding: 16,
-    marginBottom: 20,
-    borderWidth: 1,
-    borderColor: "#E9ECEF",
-  },
-  documentHeader: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-    marginBottom: 12,
-  },
-  documentTitle: {
-    fontSize: 18,
-    fontWeight: "bold",
-    color: "#343A40",
-  },
-  removeButton: { padding: 4 },
-  filePicker: {
-    flexDirection: "row",
-    alignItems: "center",
-    backgroundColor: "#F8F9FA",
-    borderRadius: 12,
-    padding: 16,
-    borderWidth: 1,
-    borderColor: "#CED4DA",
-    borderStyle: "dashed",
-    marginBottom: 16,
-  },
-  filePickerText: {
-    marginLeft: 12,
-    color: "#6C757D",
-    fontSize: 16,
-  },
-  addButton: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
-    backgroundColor: "#28A745",
-    paddingVertical: 12,
-    borderRadius: 12,
-    marginTop: 8,
-  },
-  addButtonText: {
-    color: "white",
-    fontWeight: "bold",
-    marginLeft: 8,
-  },
-  photoUploadButton: {
-    height: 150,
-    borderRadius: 16,
-    backgroundColor: "#FFF4F2",
-    justifyContent: "center",
+  speciesCard: {
+    flex: 1,
+    backgroundColor: Colors.bgPrimary,
+    borderRadius: BorderRadius.xl,
+    paddingVertical: Spacing.xl,
     alignItems: "center",
     borderWidth: 2,
-    borderColor: "#FFD1C9",
+    borderColor: Colors.borderLight,
+  },
+  speciesCardActive: {
+    backgroundColor: Colors.primary,
+    borderColor: Colors.primary,
+  },
+  speciesLabel: {
+    marginTop: Spacing.sm,
+    fontSize: 16,
+    fontWeight: "600",
+    color: Colors.textPrimary,
+  },
+  speciesLabelActive: {
+    color: Colors.white,
+  },
+  sexRow: {
+    flexDirection: "row",
+    gap: Spacing.md,
+  },
+  sexCard: {
+    flex: 1,
+    flexDirection: "row",
+    backgroundColor: Colors.bgPrimary,
+    borderRadius: BorderRadius.lg,
+    paddingVertical: Spacing.md,
+    alignItems: "center",
+    justifyContent: "center",
+    borderWidth: 2,
+    borderColor: Colors.borderLight,
+    gap: Spacing.sm,
+  },
+  sexCardActive: {
+    borderWidth: 2,
+  },
+  maleActive: {
+    backgroundColor: "#E0F2FE",
+    borderColor: "#0284C7",
+  },
+  femaleActive: {
+    backgroundColor: "#FFE4E6",
+    borderColor: "#BE123C",
+  },
+  sexLabel: {
+    fontSize: 16,
+    fontWeight: "600",
+    color: Colors.textPrimary,
+  },
+  sexLabelActive: {
+    color: Colors.white,
+  },
+  helperText: {
+    fontSize: 12,
+    color: Colors.textMuted,
+    marginTop: 4,
+    fontStyle: "italic",
+  },
+  charCount: {
+    fontSize: 12,
+    color: Colors.textMuted,
+    textAlign: "right",
+    marginTop: 4,
+  },
+  errorText: {
+    fontSize: 12,
+    color: Colors.error,
+    marginTop: 4,
+  },
+  tagGrid: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: Spacing.sm,
+  },
+  tagButton: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: Colors.bgPrimary,
+    borderRadius: BorderRadius.full,
+    paddingVertical: Spacing.sm,
+    paddingHorizontal: Spacing.md,
+    borderWidth: 1,
+    borderColor: Colors.primary,
+    gap: Spacing.xs,
+  },
+  tagButtonSmall: {
+    paddingVertical: Spacing.xs,
+    paddingHorizontal: Spacing.sm,
+  },
+  tagButtonActive: {
+    backgroundColor: Colors.primary,
+  },
+  tagButtonText: {
+    fontSize: 13,
+    fontWeight: "500",
+    color: Colors.primary,
+  },
+  tagButtonTextSmall: {
+    fontSize: 12,
+  },
+  tagButtonTextActive: {
+    color: Colors.white,
+  },
+  infoCard: {
+    flexDirection: "row",
+    backgroundColor: Colors.infoLight,
+    padding: Spacing.md,
+    borderRadius: BorderRadius.lg,
+    marginBottom: Spacing.xl,
+    gap: Spacing.sm,
+    alignItems: "flex-start",
+  },
+  infoCardText: {
+    flex: 1,
+    fontSize: 13,
+    color: Colors.info,
+    lineHeight: 18,
+  },
+  uploadSection: {
+    backgroundColor: Colors.bgPrimary,
+    borderRadius: BorderRadius.xl,
+    padding: Spacing.lg,
+    ...Shadows.sm,
+  },
+  uploadHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: Spacing.sm,
+    marginBottom: Spacing.md,
+  },
+  uploadTitle: {
+    fontSize: 16,
+    fontWeight: "700",
+    color: Colors.textPrimary,
+  },
+  uploadBox: {
+    borderWidth: 2,
+    borderColor: Colors.borderLight,
     borderStyle: "dashed",
-    marginBottom: 16,
+    borderRadius: BorderRadius.lg,
+    paddingVertical: Spacing.xl,
+    alignItems: "center",
+    backgroundColor: Colors.bgSecondary,
+    marginBottom: Spacing.lg,
+  },
+  uploadedFile: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: Spacing.sm,
+    paddingHorizontal: Spacing.md,
+  },
+  uploadedFileName: {
+    flex: 1,
+    fontSize: 14,
+    color: Colors.textPrimary,
+  },
+  uploadText: {
+    fontSize: 14,
+    fontWeight: "600",
+    color: Colors.textSecondary,
+    marginTop: Spacing.sm,
+  },
+  uploadHint: {
+    fontSize: 12,
+    color: Colors.textMuted,
+    marginTop: 4,
+  },
+  photoUploadBox: {
+    borderRadius: BorderRadius.xl,
+    overflow: "hidden",
+    marginBottom: Spacing.lg,
+  },
+  photoUploadGradient: {
+    paddingVertical: Spacing["3xl"],
+    alignItems: "center",
+    borderRadius: BorderRadius.xl,
+    borderWidth: 2,
+    borderColor: Colors.primary,
+    borderStyle: "dashed",
   },
   photoUploadText: {
-    marginTop: 8,
-    color: "#FF6B4A",
-    fontWeight: "bold",
+    fontSize: 16,
+    fontWeight: "700",
+    color: Colors.primary,
+    marginTop: Spacing.sm,
+  },
+  photoUploadHint: {
+    fontSize: 12,
+    color: Colors.textMuted,
+    marginTop: 4,
   },
   photoGrid: {
     flexDirection: "row",
     flexWrap: "wrap",
-    gap: 8,
+    gap: Spacing.sm,
+    marginBottom: Spacing.md,
   },
-  photoThumbnail: {
-    width: (width - 48 - 16) / 3, // Adjust for padding and gap
-    height: (width - 48 - 16) / 3,
+  photoItem: {
+    width: (SCREEN_WIDTH - Spacing.xl * 2 - Spacing.sm * 2) / 3,
+    aspectRatio: 1,
+    borderRadius: BorderRadius.lg,
+    overflow: "hidden",
+  },
+  photoThumb: {
+    width: "100%",
+    height: "100%",
+  },
+  removePhotoBtn: {
+    position: "absolute",
+    top: 4,
+    right: 4,
+  },
+  primaryBadge: {
+    position: "absolute",
+    bottom: 4,
+    left: 4,
+    backgroundColor: "rgba(0,0,0,0.5)",
     borderRadius: 12,
+    padding: 4,
+  },
+  primaryBadgeActive: {
+    backgroundColor: Colors.primary,
+  },
+  optionalBanner: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: Colors.warningLight,
+    padding: Spacing.md,
+    borderRadius: BorderRadius.lg,
+    marginBottom: Spacing.xl,
+    gap: Spacing.sm,
+  },
+  optionalBannerText: {
+    fontSize: 13,
+    color: Colors.warning,
+    fontWeight: "500",
   },
   footer: {
-    padding: 24,
-    backgroundColor: "white",
-    borderTopWidth: 1,
-    borderTopColor: "#E9ECEF",
-  },
-  buttonContainer: {
     flexDirection: "row",
-    gap: 16,
+    paddingHorizontal: Spacing.xl,
+    paddingVertical: Spacing.lg,
+    backgroundColor: Colors.bgPrimary,
+    borderTopWidth: 1,
+    borderTopColor: Colors.borderLight,
+    gap: Spacing.md,
   },
-  navButton: {
-    flex: 1,
-    height: 50,
-    borderRadius: 12,
-    justifyContent: "center",
+  backBtn: {
+    flexDirection: "row",
     alignItems: "center",
+    justifyContent: "center",
+    paddingVertical: Spacing.md,
+    paddingHorizontal: Spacing.xl,
+    borderRadius: BorderRadius.lg,
+    backgroundColor: Colors.bgTertiary,
+    gap: Spacing.xs,
   },
-  prevButton: { backgroundColor: "#6C757D" },
-  nextButton: { backgroundColor: "#FF6B4A" },
-  disabledButton: { backgroundColor: "#CED4DA" },
-  navButtonText: {
-    color: "white",
+  backBtnText: {
     fontSize: 16,
-    fontWeight: "bold",
+    fontWeight: "600",
+    color: Colors.textSecondary,
   },
-  prevButtonText: {},
-  errorText: {
-    color: "#E74C3C",
-    fontSize: 12,
-    marginTop: 4,
+  nextBtn: {
+    flex: 1,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    paddingVertical: Spacing.md,
+    borderRadius: BorderRadius.lg,
+    backgroundColor: Colors.primary,
+    gap: Spacing.sm,
+  },
+  nextBtnText: {
+    fontSize: 16,
+    fontWeight: "700",
+    color: Colors.white,
+  },
+  disabledBtn: {
+    opacity: 0.6,
+  },
+  searchInput: {
+    backgroundColor: Colors.bgTertiary,
+    borderRadius: BorderRadius.lg,
+    paddingHorizontal: Spacing.lg,
+    paddingVertical: Spacing.md,
+    fontSize: 16,
+    marginBottom: Spacing.md,
+  },
+  breedOption: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    paddingVertical: Spacing.md,
+    borderBottomWidth: 1,
+    borderBottomColor: Colors.borderLight,
+  },
+  breedOptionText: {
+    fontSize: 16,
+    color: Colors.textPrimary,
   },
 });
