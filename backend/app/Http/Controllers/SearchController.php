@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Auth;
 use App\Models\Pet;
 use App\Models\User;
 use App\Models\Role;
@@ -115,6 +116,7 @@ class SearchController extends Controller
                 $q->where('auth_type', 'id')
                   ->where('status', 'approved');
             })
+            ->where('id', '!=', Auth::id())
             ->with(['pets.photos', 'roles']);
 
             // Apply text search if query provided
@@ -234,6 +236,7 @@ class SearchController extends Controller
                     $q->where('auth_type', 'id')
                       ->where('status', 'approved');
                 })
+                ->where('id', '!=', Auth::id())
                 ->where(function ($q) use ($query) {
                     $q->where('name', 'like', "%{$query}%")
                       ->orWhere('email', 'like', "%{$query}%")
@@ -271,6 +274,7 @@ class SearchController extends Controller
                     $q->where('auth_type', 'shooter_certificate')
                       ->where('status', 'approved');
                 })
+                ->where('id', '!=', Auth::id())
                 ->where(function ($q) use ($query) {
                     $q->where('name', 'like', "%{$query}%")
                       ->orWhere('email', 'like', "%{$query}%");
@@ -341,6 +345,7 @@ class SearchController extends Controller
                 $q->where('auth_type', 'shooter_certificate')
                   ->where('status', 'approved');
             })
+            ->where('id', '!=', Auth::id())
             ->with(['pets', 'roles']);
 
             // Apply text search if query provided
@@ -391,6 +396,118 @@ class SearchController extends Controller
             return response()->json([
                 'success' => false,
                 'message' => 'Failed to search shooters',
+                'error' => $e->getMessage()
+            ], 500);
+        }
+    }
+
+    /**
+     * Get a specific breeder's public profile
+     */
+    public function getBreederProfile(Request $request, $id)
+    {
+        try {
+            $breeder = User::with(['roles', 'pets.photos', 'userAuth'])->find($id);
+
+            if (!$breeder) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Breeder not found'
+                ], 404);
+            }
+
+            // Check if user has breeder role
+            $hasBreederRole = $breeder->roles->contains(function ($role) {
+                return $role->role_type === 'Breeder';
+            });
+
+            if (!$hasBreederRole) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'User is not a breeder'
+                ], 404);
+            }
+
+            // Check ID verification
+            $idVerified = $breeder->userAuth->where('auth_type', 'id')
+                ->where('status', 'approved')
+                ->isNotEmpty();
+
+            if (!$idVerified) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Breeder is not verified'
+                ], 403);
+            }
+
+            $experienceYears = $breeder->created_at ? ceil($breeder->created_at->diffInYears(now())) : 0;
+
+            // Get approved pets only
+            $approvedPets = $breeder->pets->filter(function ($pet) {
+                return $pet->status === 'approved';
+            });
+
+            // Format pets data
+            $petsData = $approvedPets->map(function ($pet) {
+                $primaryPhoto = $pet->photos->where('is_primary', true)->first();
+                
+                return [
+                    'pet_id' => $pet->pet_id,
+                    'name' => $pet->name,
+                    'breed' => $pet->breed,
+                    'species' => $pet->species,
+                    'sex' => $pet->sex,
+                    'age' => $pet->age,
+                    'birthdate' => $pet->birthdate,
+                    'profile_image' => $primaryPhoto ? $primaryPhoto->photo_url : $pet->profile_image,
+                    'breeding_price' => $pet->breeding_price,
+                    'is_on_cooldown' => $pet->is_on_cooldown,
+                ];
+            })->values()->toArray();
+
+            // Get pet breeds
+            $petBreeds = $approvedPets->pluck('breed')->unique()->filter()->values()->toArray();
+
+            // Check breeder certificate verification
+            $breederCertVerified = $breeder->userAuth->where('auth_type', 'breeder_certificate')
+                ->where('status', 'approved')
+                ->isNotEmpty();
+
+            // Count breeding statistics
+            $totalPets = $approvedPets->count();
+            $dogCount = $approvedPets->where('species', 'dog')->count();
+            $catCount = $approvedPets->where('species', 'cat')->count();
+
+            $breederProfile = [
+                'id' => $breeder->id,
+                'name' => $breeder->name,
+                'profile_image' => $breeder->profile_image,
+                'sex' => $breeder->sex,
+                'birthdate' => $breeder->birthdate,
+                'age' => $breeder->birthdate ? ceil(Carbon::parse($breeder->birthdate)->diffInYears(now())) : null,
+                'address' => $breeder->address,
+                'experience_years' => $experienceYears,
+                'pet_breeds' => $petBreeds,
+                'pet_count' => $totalPets,
+                'pets' => $petsData,
+                'id_verified' => $idVerified,
+                'breeder_verified' => $breederCertVerified,
+                'rating' => null, // TODO: Implement rating system
+                'statistics' => [
+                    'total_pets' => $totalPets,
+                    'dog_count' => $dogCount,
+                    'cat_count' => $catCount,
+                ],
+            ];
+
+            return response()->json([
+                'success' => true,
+                'data' => $breederProfile
+            ]);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to get breeder profile',
                 'error' => $e->getMessage()
             ], 500);
         }

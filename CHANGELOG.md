@@ -6,6 +6,41 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ---
+## [1.4.3] - 2026-02-05
+
+### Block & Report System
+
+#### Backend
+- **New Tables**: `user_blocks` and `safety_reports` for user safety features
+- **New Models**: `UserBlock.php` and `SafetyReport.php` with relationships
+- **New Controller**: `SafetyController.php` with endpoints:
+  - `POST /api/users/{id}/block` - Block a user
+  - `DELETE /api/users/{id}/block` - Unblock a user
+  - `GET /api/users/blocked` - Get list of blocked users
+  - `GET /api/users/{id}/blocked-status` - Check block status
+  - `POST /api/users/{id}/report` - Report a user
+  - `GET /api/report-reasons` - Get available report reasons
+- **User Model**: Added `blockedUsers()`, `blockedByUsers()`, `hasBlocked()`, `isBlockedBy()`, `getBlockedUserIds()` methods
+- **Match Filtering**: Blocked users' pets now excluded from matching pool in `MatchController`
+
+#### Frontend
+- **New Service**: `safetyService.ts` with block/report API functions
+- **New Component**: `BlockReportModal.tsx` - Tabbed modal for blocking and reporting users
+- **New Component**: `MatchTimeline.tsx` - Visual progress timeline showing match stages (Matched → Contract → Signed → Breeding → Result)
+- **Conversation Screen**: Added shield button in header to access Block & Report, integrated Match Timeline
+
+### Rest Period for Failed Breeding
+- Added `FAILED_BREEDING_COOLDOWN_DAYS = 14` constant to Pet model
+- Female pet (dam) now receives 14-day cooldown when breeding fails
+
+### Bug Fixes
+- Fixed `User::authentications()` → `User::userAuth()` method call in `MatchRequestController`
+- Added `match_accepted_at` to conversation API response for timeline accuracy
+
+### Testing Mode
+- Temporarily disabled payment/subscription requirement for match requests (for testing)
+
+---
 ## [1.4.0] - 2026-02-04
 
 ### Pet Creation & Vaccination Rework
@@ -55,6 +90,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `VaccinationCard.tsx` - Always allow adding shots, added `recurring` case in progress text
 - `vaccinations.tsx` - New renewal type UI with descriptions
 - `AddShotModal.tsx` - Booster shot detection and UI differentiation
+
+#### Match Request Verification Requirement
+- **Backend**: Added ID verification check in `MatchRequestController::store()` - unverified users receive 403 with `requires_verification: true`
+- **Frontend**: Updated `sendMatchRequest()` to handle verification error response
+- **UX**: Shows alert with "Verify Now" button that navigates to verification status screen
+- Users must have approved ID verification before sending match requests
 
 ---
 ## [1.3.3] - 2026-02-03
@@ -363,6 +404,7 @@ Added new colors to `constants/colors.ts`:
 
 | Version | Date | Highlights |
 |---------|------|------------|
+| 1.4.3 | 2026-02-05 | Block & Report system, Match Timeline, Rest Period for failed breeding |
 | 1.4.0 | 2026-02-04 | Pet Creation & Vaccination Rework - card system, expiration-based scheduling, booster support, DO Spaces fix |
 | 1.3.3 | 2026-02-03 | User Verification redesign, Verification Status screen, single certificate submission, DO Spaces fix |
 | 1.3.2 | 2026-02-03 | Image URL fix with centralized `getStorageUrl()` utility |

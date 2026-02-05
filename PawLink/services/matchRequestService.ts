@@ -98,6 +98,7 @@ export interface Message {
 export interface ConversationDetail {
   conversation_id: number;
   is_shooter_view?: boolean;
+  match_accepted_at?: string;
   // For owner view
   matched_pet?: MatchRequestPet;
   owner?: MatchRequestOwner;
@@ -135,6 +136,7 @@ export interface MatchRequestResult {
   message: string;
   data?: MatchRequest;
   requires_payment?: boolean;
+  requires_verification?: boolean;
   payment_amount?: number;
   target_pet_id?: number;
   requester_pet_id?: number;
@@ -173,6 +175,15 @@ export const sendMatchRequest = async (
         payment_amount: error.response.data.payment_amount,
         target_pet_id: error.response.data.target_pet_id,
         requester_pet_id: error.response.data.requester_pet_id,
+      };
+    }
+    
+    // Check if this is a verification required response (403)
+    if (error.response?.status === 403 && error.response?.data?.requires_verification) {
+      return {
+        success: false,
+        message: error.response.data.message,
+        requires_verification: true,
       };
     }
     

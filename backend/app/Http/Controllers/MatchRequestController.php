@@ -83,6 +83,20 @@ class MatchRequestController extends Controller
 
         $user = $request->user();
 
+        // Check if user has verified ID
+        $hasVerifiedId = $user->userAuth()
+            ->where('auth_type', 'id')
+            ->where('status', 'approved')
+            ->exists();
+
+        if (!$hasVerifiedId) {
+            return response()->json([
+                'success' => false,
+                'message' => 'ID verification required to send match requests. Please verify your identity first.',
+                'requires_verification' => true,
+            ], 403);
+        }
+
         // Verify the requester pet belongs to the authenticated user
         $requesterPet = Pet::where('pet_id', $validated['requester_pet_id'])
             ->where('user_id', $user->id)
@@ -129,29 +143,30 @@ class MatchRequestController extends Controller
             ], 409);
         }
 
-        // Check if free tier user needs to pay
-        if ($this->requiresPayment($user)) {
-            // Check if they have a valid payment for this match
-            $hasPayment = $this->hasValidMatchPayment($user->id, $validated['target_pet_id']);
+        // TODO: Re-enable payment check after testing
+        // // Check if free tier user needs to pay
+        // if ($this->requiresPayment($user)) {
+        //     // Check if they have a valid payment for this match
+        //     $hasPayment = $this->hasValidMatchPayment($user->id, $validated['target_pet_id']);
 
-            Log::info('Match request payment check', [
-                'user_id' => $user->id,
-                'target_pet_id' => $validated['target_pet_id'],
-                'requires_payment' => true,
-                'has_valid_payment' => $hasPayment,
-            ]);
+        //     Log::info('Match request payment check', [
+        //         'user_id' => $user->id,
+        //         'target_pet_id' => $validated['target_pet_id'],
+        //         'requires_payment' => true,
+        //         'has_valid_payment' => $hasPayment,
+        //     ]);
 
-            if (!$hasPayment) {
-                return response()->json([
-                    'success' => false,
-                    'message' => 'Payment required for match request',
-                    'requires_payment' => true,
-                    'payment_amount' => $this->getMatchRequestFee(),
-                    'target_pet_id' => $validated['target_pet_id'],
-                    'requester_pet_id' => $validated['requester_pet_id'],
-                ], 402); // 402 Payment Required
-            }
-        }
+        //     if (!$hasPayment) {
+        //         return response()->json([
+        //             'success' => false,
+        //             'message' => 'Payment required for match request',
+        //             'requires_payment' => true,
+        //             'payment_amount' => $this->getMatchRequestFee(),
+        //             'target_pet_id' => $validated['target_pet_id'],
+        //             'requester_pet_id' => $validated['requester_pet_id'],
+        //         ], 402); // 402 Payment Required
+        //     }
+        // }
 
         try {
             $matchRequest = MatchRequest::create([
@@ -865,12 +880,13 @@ class MatchRequestController extends Controller
             $pet1Photo = $pet1->photos->firstWhere('is_primary', true) ?? $pet1->photos->first();
             $pet2Photo = $pet2->photos->firstWhere('is_primary', true) ?? $pet2->photos->first();
 
-            return response()->json([
-                'success' => true,
-                'data' => [
-                    'conversation_id' => $conversation->id,
-                    'is_shooter_view' => true,
-                    'pet1' => [
+        return response()->json([
+            'success' => true,
+            'data' => [
+                'conversation_id' => $conversation->id,
+                'is_shooter_view' => true,
+                'match_accepted_at' => $matchRequest->updated_at,
+                'pet1' => [
                         'pet_id' => $pet1->pet_id,
                         'name' => $pet1->name,
                         'photo_url' => $pet1Photo?->photo_url,
@@ -905,6 +921,7 @@ class MatchRequestController extends Controller
             'data' => [
                 'conversation_id' => $conversation->id,
                 'is_shooter_view' => false,
+                'match_accepted_at' => $matchRequest->updated_at,
                 'matched_pet' => [
                     'pet_id' => $otherPet->pet_id,
                     'name' => $otherPet->name,

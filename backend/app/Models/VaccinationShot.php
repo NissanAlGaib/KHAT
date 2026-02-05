@@ -31,6 +31,7 @@ class VaccinationShot extends Model
     const VERIFICATION_PENDING = 'pending';
     const VERIFICATION_APPROVED = 'approved';
     const VERIFICATION_REJECTED = 'rejected';
+    const VERIFICATION_HISTORICAL = 'historical'; // Pre-app records, no verification needed
 
     protected $fillable = [
         'card_id',
@@ -43,6 +44,7 @@ class VaccinationShot extends Model
         'next_shot_date',
         'status',
         'verification_status',
+        'is_historical',
         'rejection_reason',
     ];
 
@@ -51,6 +53,7 @@ class VaccinationShot extends Model
         'date_administered' => 'date',
         'expiration_date' => 'date',
         'next_shot_date' => 'date',
+        'is_historical' => 'boolean',
     ];
 
     /**
@@ -92,6 +95,11 @@ class VaccinationShot extends Model
      */
     public function getDisplayStatusAttribute(): string
     {
+        // Historical records always show as "historical" regardless of expiration
+        if ($this->verification_status === self::VERIFICATION_HISTORICAL || $this->is_historical) {
+            return 'historical';
+        }
+
         if ($this->verification_status === self::VERIFICATION_REJECTED) {
             return 'rejected';
         }
@@ -118,6 +126,14 @@ class VaccinationShot extends Model
      * Create a new shot for a vaccination card
      * Automatically calculates shot number and dates
      * Next shot date is based on when this shot expires (user-provided expiration)
+     * 
+     * @param VaccinationCard $card
+     * @param string $documentPath
+     * @param string $clinicName
+     * @param string $veterinarianName
+     * @param string $dateAdministered
+     * @param string $expirationDate
+     * @param int|null $shotNumber Optional shot number (for historical records)
      */
     public static function createForCard(
         VaccinationCard $card,
@@ -125,10 +141,16 @@ class VaccinationShot extends Model
         string $clinicName,
         string $veterinarianName,
         string $dateAdministered,
-        string $expirationDate
+        string $expirationDate,
+        ?int $shotNumber = null
     ): self {
-        $latestShot = $card->latestShot();
-        $nextShotNumber = $latestShot ? $latestShot->shot_number + 1 : 1;
+        // Use provided shot number or auto-calculate
+        if ($shotNumber !== null) {
+            $nextShotNumber = $shotNumber;
+        } else {
+            $latestShot = $card->latestShot();
+            $nextShotNumber = $latestShot ? $latestShot->shot_number + 1 : 1;
+        }
 
         // Calculate next shot date based on expiration
         // Next shot is due when this shot expires
@@ -171,6 +193,65 @@ class VaccinationShot extends Model
     }
 
     /**
+     * Create a historical shot for a vaccination card
+     * Historical shots bypass the verification queue and are marked accordingly
+     * 
+     * @param VaccinationCard $card
+     * @param string $documentPath
+     * @param string $clinicName
+     * @param string $veterinarianName
+     * @param string $dateAdministered
+     * @param string $expirationDate
+     * @param int $shotNumber Required for historical shots
+     */
+    public static function createHistoricalShot(
+        VaccinationCard $card,
+        string $documentPath,
+        string $clinicName,
+        string $veterinarianName,
+        string $dateAdministered,
+        string $expirationDate,
+        int $shotNumber
+    ): self {
+        // Calculate next shot date based on expiration
+        $nextShotDate = null;
+        
+        // Determine if more shots will be needed
+        $willNeedMore = true;
+        
+        // For non-recurring vaccines with a fixed series
+        if ($card->recurrence_type === 'none' && $card->total_shots_required) {
+            if ($shotNumber >= $card->total_shots_required) {
+                $willNeedMore = false;
+            }
+        }
+        
+        // For recurring vaccines or incomplete series
+        if ($willNeedMore) {
+            $nextShotDate = Carbon::parse($expirationDate);
+        }
+
+        $shot = self::create([
+            'card_id' => $card->card_id,
+            'shot_number' => $shotNumber,
+            'vaccination_record' => $documentPath,
+            'clinic_name' => $clinicName,
+            'veterinarian_name' => $veterinarianName,
+            'date_administered' => $dateAdministered,
+            'expiration_date' => $expirationDate,
+            'next_shot_date' => $nextShotDate,
+            'status' => self::STATUS_COMPLETED,
+            'verification_status' => self::VERIFICATION_HISTORICAL,
+            'is_historical' => true,
+        ]);
+
+        // Update the card status
+        $card->updateStatus();
+
+        return $shot;
+    }
+
+    /**
      * Format shot for API response
      */
     public function toApiArray(): array
@@ -193,6 +274,7 @@ class VaccinationShot extends Model
             'rejection_reason' => $this->rejection_reason,
             'is_expired' => $this->isExpired(),
             'is_expiring_soon' => $this->isExpiringSoon(),
+            'is_historical' => (bool) $this->is_historical,
         ];
     }
 }

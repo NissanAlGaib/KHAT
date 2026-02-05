@@ -183,7 +183,7 @@ function SearchScreenContent() {
   };
 
   const handleBreederPress = (userId: number) => {
-    router.push(`/(tabs)/profile?userId=${userId}`);
+    router.push(`/(breeder)/${userId}`);
   };
 
   const handleShooterPress = (userId: number) => {
@@ -420,7 +420,7 @@ function SearchScreenContent() {
           if (isShooter) {
             router.push(`/(shooter)/${item.id}`);
           } else {
-            router.push(`/(tabs)/profile?userId=${item.id}`);
+            router.push(`/(breeder)/${item.id}`);
           }
         }}
       >

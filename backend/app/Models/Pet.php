@@ -20,6 +20,11 @@ class Pet extends Model
     const DEFAULT_COOLDOWN_DAYS = 90; // 3 months
 
     /**
+     * Cooldown period in days after failed breeding (rest period for female)
+     */
+    const FAILED_BREEDING_COOLDOWN_DAYS = 14; // 2 weeks
+
+    /**
      * Pet status constants
      */
     const STATUS_PENDING_VERIFICATION = 'pending_verification';
