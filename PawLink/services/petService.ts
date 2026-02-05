@@ -483,11 +483,12 @@ export interface VaccinationShot {
   next_shot_date?: string;
   next_shot_date_display?: string;
   status: "completed" | "pending" | "overdue" | "verified";
-  verification_status: "pending" | "approved" | "rejected";
+  verification_status: "pending" | "approved" | "rejected" | "historical";
   display_status: string;
   rejection_reason?: string;
   is_expired: boolean;
   is_expiring_soon: boolean;
+  is_historical: boolean;
 }
 
 export interface VaccinationCard {
@@ -650,6 +651,97 @@ export const initializeVaccinationCards = async (
 ): Promise<VaccinationCard[]> => {
   const response = await axiosInstance.post(
     `/api/pets/${petId}/vaccination-cards/initialize`
+  );
+  return response.data.data;
+};
+
+/**
+ * Add a single historical shot to a vaccination card
+ * Historical shots bypass verification and are marked accordingly
+ */
+export const addHistoricalShot = async (
+  petId: number,
+  cardId: number,
+  shotData: {
+    vaccination_record: File;
+    clinic_name: string;
+    veterinarian_name: string;
+    date_administered: string;
+    expiration_date: string;
+    shot_number: number;
+  }
+): Promise<{ shot: VaccinationShot; card: VaccinationCard }> => {
+  const formData = new FormData();
+
+  // Format file for React Native FormData upload
+  const fileData = shotData.vaccination_record as any;
+  formData.append("vaccination_record", {
+    uri: fileData.uri,
+    name: fileData.name || `vaccination_${Date.now()}.jpg`,
+    type: fileData.mimeType || fileData.type || "image/jpeg",
+  } as any);
+  formData.append("clinic_name", shotData.clinic_name);
+  formData.append("veterinarian_name", shotData.veterinarian_name);
+  formData.append("date_administered", shotData.date_administered);
+  formData.append("expiration_date", shotData.expiration_date);
+  formData.append("shot_number", shotData.shot_number.toString());
+
+  const response = await axiosInstance.post(
+    `/api/pets/${petId}/vaccination-cards/${cardId}/historical-shots`,
+    formData,
+    {
+      headers: {
+        "Content-Type": "multipart/form-data",
+      },
+    }
+  );
+  return response.data.data;
+};
+
+export interface HistoricalShotData {
+  shot_number: number;
+  vaccination_record: File;
+  clinic_name: string;
+  veterinarian_name: string;
+  date_administered: string;
+  expiration_date: string;
+}
+
+/**
+ * Import multiple historical vaccination shots at once
+ * These are shots administered before the pet was added to the app
+ */
+export const importVaccinationHistory = async (
+  petId: number,
+  cardId: number,
+  shots: HistoricalShotData[]
+): Promise<{ imported_shots: VaccinationShot[]; card: VaccinationCard }> => {
+  const formData = new FormData();
+
+  formData.append("card_id", cardId.toString());
+
+  shots.forEach((shot, index) => {
+    const fileData = shot.vaccination_record as any;
+    formData.append(`shots[${index}][vaccination_record]`, {
+      uri: fileData.uri,
+      name: fileData.name || `vaccination_${Date.now()}.jpg`,
+      type: fileData.mimeType || fileData.type || "image/jpeg",
+    } as any);
+    formData.append(`shots[${index}][shot_number]`, shot.shot_number.toString());
+    formData.append(`shots[${index}][clinic_name]`, shot.clinic_name);
+    formData.append(`shots[${index}][veterinarian_name]`, shot.veterinarian_name);
+    formData.append(`shots[${index}][date_administered]`, shot.date_administered);
+    formData.append(`shots[${index}][expiration_date]`, shot.expiration_date);
+  });
+
+  const response = await axiosInstance.post(
+    `/api/pets/${petId}/vaccination-cards/import-history`,
+    formData,
+    {
+      headers: {
+        "Content-Type": "multipart/form-data",
+      },
+    }
   );
   return response.data.data;
 };

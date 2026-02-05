@@ -31,6 +31,7 @@ export default function VaccinationsScreen() {
   const router = useRouter();
   const params = useLocalSearchParams();
   const petId = params.petId as string;
+  const showImportBanner = params.showImportBanner === "true";
   const { visible, alertOptions, showAlert, hideAlert } = useAlert();
 
   const [petName, setPetName] = useState("");
@@ -246,6 +247,26 @@ export default function VaccinationsScreen() {
           <RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={["#FF6B4A"]} />
         }
       >
+        {/* Import History Banner */}
+        {showImportBanner && (
+          <TouchableOpacity
+            style={styles.importBanner}
+            onPress={() => router.push({
+              pathname: "/(pet)/import-history",
+              params: { petId }
+            })}
+          >
+            <Ionicons name="time-outline" size={24} color="#3B82F6" />
+            <View style={styles.importBannerText}>
+              <Text style={styles.importBannerTitle}>Import Past Records</Text>
+              <Text style={styles.importBannerSubtitle}>
+                Add vaccination records from before you started using the app
+              </Text>
+            </View>
+            <Ionicons name="chevron-forward" size={20} color="#3B82F6" />
+          </TouchableOpacity>
+        )}
+
         {/* Stats Summary */}
         <View style={styles.statsContainer}>
           <View style={styles.statCard}>
@@ -508,6 +529,30 @@ const styles = StyleSheet.create({
   scrollContent: {
     padding: 16,
     paddingBottom: 32,
+  },
+  importBanner: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "#EFF6FF",
+    padding: 16,
+    borderRadius: 16,
+    marginBottom: 16,
+    gap: 12,
+    borderWidth: 1,
+    borderColor: "#BFDBFE",
+  },
+  importBannerText: {
+    flex: 1,
+  },
+  importBannerTitle: {
+    fontSize: 15,
+    fontWeight: "700",
+    color: "#1E40AF",
+    marginBottom: 2,
+  },
+  importBannerSubtitle: {
+    fontSize: 12,
+    color: "#3B82F6",
   },
   statsContainer: {
     flexDirection: "row",

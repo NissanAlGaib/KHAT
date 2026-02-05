@@ -64,6 +64,8 @@ Route::middleware(['auth:sanctum'])
         Route::post('/pets/{petId}/vaccination-cards', [VaccinationController::class, 'createCustomCard']);
         Route::delete('/pets/{petId}/vaccination-cards/{cardId}', [VaccinationController::class, 'deleteCard']);
         Route::post('/pets/{petId}/vaccination-cards/{cardId}/shots', [VaccinationController::class, 'addShot']);
+        Route::post('/pets/{petId}/vaccination-cards/{cardId}/historical-shots', [VaccinationController::class, 'addHistoricalShot']);
+        Route::post('/pets/{petId}/vaccination-cards/import-history', [VaccinationController::class, 'importHistory']);
         Route::get('/pets/{petId}/vaccination-summary', [VaccinationController::class, 'getSummary']);
         Route::post('/pets/{petId}/vaccination-cards/initialize', [VaccinationController::class, 'initializeRequiredCards']);
 
