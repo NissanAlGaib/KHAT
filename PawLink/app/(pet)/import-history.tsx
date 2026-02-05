@@ -236,9 +236,10 @@ export default function ImportHistoryScreen() {
         type: "success",
       });
     } catch (error: any) {
+      console.error("Error adding historical shot:", error.response?.data || error.message || error);
       showAlert({
         title: "Error",
-        message: error.response?.data?.message || "Failed to add shot",
+        message: error.response?.data?.message || error.message || "Failed to add shot",
         type: "error",
       });
     } finally {

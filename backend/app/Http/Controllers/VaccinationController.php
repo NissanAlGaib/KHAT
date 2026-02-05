@@ -8,6 +8,7 @@ use App\Models\VaccinationShot;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
 
 class VaccinationController extends Controller
@@ -424,7 +425,7 @@ class VaccinationController extends Controller
     public function addHistoricalShot(Request $request, $petId, $cardId)
     {
         $validated = $request->validate([
-            'vaccination_record' => 'required|file|mimes:jpg,jpeg,png,pdf|max:20480',
+            'vaccination_record' => 'required|file|max:20480',
             'clinic_name' => 'required|string|max:255',
             'veterinarian_name' => 'required|string|max:255',
             'date_administered' => 'required|date|before_or_equal:today',
@@ -432,6 +433,8 @@ class VaccinationController extends Controller
             'shot_number' => 'required|integer|min:1',
         ], [
             'vaccination_record.required' => 'Proof document is required.',
+            'vaccination_record.file' => 'Invalid file upload.',
+            'vaccination_record.max' => 'File size must not exceed 20MB.',
             'date_administered.before_or_equal' => 'Date administered cannot be in the future.',
             'shot_number.required' => 'Shot number is required for historical records.',
         ]);
@@ -491,10 +494,15 @@ class VaccinationController extends Controller
         } catch (\Exception $e) {
             DB::rollBack();
 
+            Log::error('Failed to add historical shot: ' . $e->getMessage(), [
+                'pet_id' => $petId,
+                'card_id' => $cardId,
+                'trace' => $e->getTraceAsString(),
+            ]);
+
             return response()->json([
                 'success' => false,
-                'message' => 'Failed to add historical shot',
-                'error' => $e->getMessage(),
+                'message' => 'Failed to add historical shot: ' . $e->getMessage(),
             ], 500);
         }
     }

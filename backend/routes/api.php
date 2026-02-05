@@ -59,15 +59,17 @@ Route::middleware(['auth:sanctum'])
         Route::post('/pets/{petId}/health-records/{healthRecordId}/resubmit', [PetController::class, 'resubmitHealthRecord']);
 
         // Vaccination card routes (new card-based system)
+        // Static routes MUST come before dynamic {cardId} routes
         Route::get('/pets/{petId}/vaccination-cards', [VaccinationController::class, 'getCards']);
-        Route::get('/pets/{petId}/vaccination-cards/{cardId}', [VaccinationController::class, 'getCard']);
         Route::post('/pets/{petId}/vaccination-cards', [VaccinationController::class, 'createCustomCard']);
+        Route::post('/pets/{petId}/vaccination-cards/import-history', [VaccinationController::class, 'importHistory']);
+        Route::post('/pets/{petId}/vaccination-cards/initialize', [VaccinationController::class, 'initializeRequiredCards']);
+        Route::get('/pets/{petId}/vaccination-summary', [VaccinationController::class, 'getSummary']);
+        // Dynamic {cardId} routes come after static routes
+        Route::get('/pets/{petId}/vaccination-cards/{cardId}', [VaccinationController::class, 'getCard']);
         Route::delete('/pets/{petId}/vaccination-cards/{cardId}', [VaccinationController::class, 'deleteCard']);
         Route::post('/pets/{petId}/vaccination-cards/{cardId}/shots', [VaccinationController::class, 'addShot']);
         Route::post('/pets/{petId}/vaccination-cards/{cardId}/historical-shots', [VaccinationController::class, 'addHistoricalShot']);
-        Route::post('/pets/{petId}/vaccination-cards/import-history', [VaccinationController::class, 'importHistory']);
-        Route::get('/pets/{petId}/vaccination-summary', [VaccinationController::class, 'getSummary']);
-        Route::post('/pets/{petId}/vaccination-cards/initialize', [VaccinationController::class, 'initializeRequiredCards']);
 
         // Litter routes
         Route::get('/pets/{petId}/litters', [LitterController::class, 'getPetLitters']);
