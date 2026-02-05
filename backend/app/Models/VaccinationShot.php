@@ -95,6 +95,11 @@ class VaccinationShot extends Model
      */
     public function getDisplayStatusAttribute(): string
     {
+        // Historical records always show as "historical" regardless of expiration
+        if ($this->verification_status === self::VERIFICATION_HISTORICAL || $this->is_historical) {
+            return 'historical';
+        }
+
         if ($this->verification_status === self::VERIFICATION_REJECTED) {
             return 'rejected';
         }
