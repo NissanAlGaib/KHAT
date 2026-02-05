@@ -143,29 +143,30 @@ class MatchRequestController extends Controller
             ], 409);
         }
 
-        // Check if free tier user needs to pay
-        if ($this->requiresPayment($user)) {
-            // Check if they have a valid payment for this match
-            $hasPayment = $this->hasValidMatchPayment($user->id, $validated['target_pet_id']);
+        // TODO: Re-enable payment check after testing
+        // // Check if free tier user needs to pay
+        // if ($this->requiresPayment($user)) {
+        //     // Check if they have a valid payment for this match
+        //     $hasPayment = $this->hasValidMatchPayment($user->id, $validated['target_pet_id']);
 
-            Log::info('Match request payment check', [
-                'user_id' => $user->id,
-                'target_pet_id' => $validated['target_pet_id'],
-                'requires_payment' => true,
-                'has_valid_payment' => $hasPayment,
-            ]);
+        //     Log::info('Match request payment check', [
+        //         'user_id' => $user->id,
+        //         'target_pet_id' => $validated['target_pet_id'],
+        //         'requires_payment' => true,
+        //         'has_valid_payment' => $hasPayment,
+        //     ]);
 
-            if (!$hasPayment) {
-                return response()->json([
-                    'success' => false,
-                    'message' => 'Payment required for match request',
-                    'requires_payment' => true,
-                    'payment_amount' => $this->getMatchRequestFee(),
-                    'target_pet_id' => $validated['target_pet_id'],
-                    'requester_pet_id' => $validated['requester_pet_id'],
-                ], 402); // 402 Payment Required
-            }
-        }
+        //     if (!$hasPayment) {
+        //         return response()->json([
+        //             'success' => false,
+        //             'message' => 'Payment required for match request',
+        //             'requires_payment' => true,
+        //             'payment_amount' => $this->getMatchRequestFee(),
+        //             'target_pet_id' => $validated['target_pet_id'],
+        //             'requester_pet_id' => $validated['requester_pet_id'],
+        //         ], 402); // 402 Payment Required
+        //     }
+        // }
 
         try {
             $matchRequest = MatchRequest::create([
