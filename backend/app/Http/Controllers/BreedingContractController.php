@@ -972,6 +972,14 @@ class BreedingContractController extends Controller
                 'breeding_notes' => $validated['breeding_notes'] ?? null,
             ]);
 
+            // If breeding failed, apply rest period cooldown to the female (dam) only
+            if ($validated['breeding_status'] === 'failed') {
+                $pets = $contract->getSireAndDam();
+                if (isset($pets['dam'])) {
+                    $pets['dam']->startCooldown(Pet::FAILED_BREEDING_COOLDOWN_DAYS);
+                }
+            }
+
             return response()->json([
                 'success' => true,
                 'message' => $validated['breeding_status'] === 'completed'

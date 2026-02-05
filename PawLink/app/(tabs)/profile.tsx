@@ -276,9 +276,9 @@ export default function ProfileScreen() {
   };
 
   const renderSettings = () => {
-    // Check if user has both Pet Owner and Shooter roles
+    // Check if user has both Breeder and Shooter roles
     const hasBothRoles = userProfile?.roles && 
-      userProfile.roles.some(r => r.role_type === "Breeder" || r.role_type === "Pet Owner") &&
+      userProfile.roles.some(r => r.role_type === "Breeder") &&
       userProfile.roles.some(r => r.role_type === "Shooter");
 
     return (
@@ -289,17 +289,17 @@ export default function ProfileScreen() {
               <TouchableOpacity
                 style={[
                   styles.roleButton,
-                  role === "Pet Owner" && styles.roleActive,
+                  role === "Breeder" && styles.roleActive,
                 ]}
-                onPress={() => setRole("Pet Owner")}
+                onPress={() => setRole("Breeder")}
               >
                 <Text
                   style={[
                     styles.roleText,
-                    role === "Pet Owner" && styles.roleTextActive,
+                    role === "Breeder" && styles.roleTextActive,
                   ]}
                 >
-                  Pet Owner
+                  Breeder
                 </Text>
               </TouchableOpacity>
               <TouchableOpacity

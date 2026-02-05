@@ -89,4 +89,51 @@ class User extends Authenticatable
     {
         return $this->hasMany(UserAuth::class, 'user_id', 'id');
     }
+
+    /**
+     * Get users blocked by this user
+     */
+    public function blockedUsers()
+    {
+        return $this->belongsToMany(User::class, 'user_blocks', 'blocker_id', 'blocked_id');
+    }
+
+    /**
+     * Get users who blocked this user
+     */
+    public function blockedByUsers()
+    {
+        return $this->belongsToMany(User::class, 'user_blocks', 'blocked_id', 'blocker_id');
+    }
+
+    /**
+     * Check if this user has blocked another user
+     */
+    public function hasBlocked(User $user): bool
+    {
+        return $this->blockedUsers()->where('blocked_id', $user->id)->exists();
+    }
+
+    /**
+     * Check if this user is blocked by another user
+     */
+    public function isBlockedBy(User $user): bool
+    {
+        return $this->blockedByUsers()->where('blocker_id', $user->id)->exists();
+    }
+
+    /**
+     * Get all user IDs that should be excluded (blocked by me or blocked me)
+     */
+    public function getBlockedUserIds(): array
+    {
+        try {
+            $blockedByMe = $this->blockedUsers()->pluck('users.id')->toArray();
+            $blockedMe = $this->blockedByUsers()->pluck('users.id')->toArray();
+            return array_unique(array_merge($blockedByMe, $blockedMe));
+        } catch (\Exception $e) {
+            // If the user_blocks table doesn't exist or query fails, return empty array
+            return [];
+        }
+    }
 }

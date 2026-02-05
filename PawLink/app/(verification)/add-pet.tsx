@@ -276,10 +276,17 @@ export default function AddPetScreen() {
 
       showAlert({
         title: "Success!",
-        message: "Your pet has been registered. You can now add vaccination records from the pet profile.",
+        message: `${formData.name} has been registered. Would you like to import past vaccination records?`,
         type: "success",
         buttons: [
-          { text: "Done", onPress: () => router.back() },
+          { 
+            text: "Import History", 
+            onPress: () => router.push({
+              pathname: "/(pet)/import-history",
+              params: { petId: result.pet.pet_id }
+            })
+          },
+          { text: "Skip", onPress: () => router.back() },
         ],
       });
     } catch (error: any) {

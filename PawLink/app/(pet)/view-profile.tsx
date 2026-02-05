@@ -20,11 +20,13 @@ import {
   getPetLitters,
   type PetPublicProfile,
   type Litter,
+  type PublicVaccinationCard,
 } from "@/services/petService";
 import { sendMatchRequest, createMatchPayment } from "@/services/matchRequestService";
 import { verifyPayment } from "@/services/paymentService";
 import { usePet } from "@/context/PetContext";
 import { getStorageUrl } from "@/utils/imageUrl";
+import { ReadOnlyVaccinationCard } from "@/components/pet";
 import dayjs from "dayjs";
 import { LinearGradient } from "expo-linear-gradient";
 
@@ -377,7 +379,7 @@ export default function ViewPetProfileScreen() {
     </View>
   );
 
-  const renderHealth = () => (
+const renderHealth = () => (
     <View style={styles.tabContent}>
       <InfoCard icon="shield-checkmark-outline" title="Health Overview">
         <StatusSummaryRow
@@ -386,20 +388,49 @@ export default function ViewPetProfileScreen() {
         />
       </InfoCard>
       
-      <InfoCard icon="eyedrop-outline" title="Vaccinations">
-        {(petData.vaccinations && petData.vaccinations.length > 0) ? (
-          petData.vaccinations.map((v, i) => (
-            <DocumentRow
-              key={`vacc-${i}`}
-              title={v.vaccine_name}
-              expiry={v.expiration_date}
-              status={getDocumentStatus(v.status)}
-            />
-          ))
-        ) : (
-          <Text style={styles.cardText}>No vaccination records available.</Text>
-        )}
-      </InfoCard>
+      {/* Required Vaccinations - Card Based View */}
+      {petData.vaccination_cards?.required && petData.vaccination_cards.required.length > 0 && (
+        <View style={styles.vaccinationSection}>
+          <View style={styles.vaccinationSectionHeader}>
+            <Ionicons name="shield-checkmark" size={20} color="#FF6B4A" />
+            <Text style={styles.vaccinationSectionTitle}>Required Vaccinations</Text>
+          </View>
+          {petData.vaccination_cards.required.map((card: PublicVaccinationCard) => (
+            <ReadOnlyVaccinationCard key={card.card_id} card={card} />
+          ))}
+        </View>
+      )}
+
+      {/* Optional Vaccinations - Card Based View */}
+      {petData.vaccination_cards?.optional && petData.vaccination_cards.optional.length > 0 && (
+        <View style={styles.vaccinationSection}>
+          <View style={styles.vaccinationSectionHeader}>
+            <Ionicons name="add-circle" size={20} color="#6B7280" />
+            <Text style={styles.vaccinationSectionTitle}>Optional Vaccinations</Text>
+          </View>
+          {petData.vaccination_cards.optional.map((card: PublicVaccinationCard) => (
+            <ReadOnlyVaccinationCard key={card.card_id} card={card} />
+          ))}
+        </View>
+      )}
+
+      {/* Fallback: Legacy Vaccinations (if no cards available) */}
+      {(!petData.vaccination_cards?.required?.length && !petData.vaccination_cards?.optional?.length) && (
+        <InfoCard icon="eyedrop-outline" title="Vaccinations">
+          {(petData.vaccinations && petData.vaccinations.length > 0) ? (
+            petData.vaccinations.map((v, i) => (
+              <DocumentRow
+                key={`vacc-${i}`}
+                title={v.vaccine_name}
+                expiry={v.expiration_date}
+                status={getDocumentStatus(v.status)}
+              />
+            ))
+          ) : (
+            <Text style={styles.cardText}>No vaccination records available.</Text>
+          )}
+        </InfoCard>
+      )}
       
       <InfoCard icon="document-text-outline" title="Health Records">
         {(petData.health_records && petData.health_records.length > 0) ? (
@@ -681,7 +712,10 @@ const styles = StyleSheet.create({
   photoContainer: { width: (width - 40) / 2 - 5, aspectRatio: 1, borderRadius: 15, backgroundColor: '#fff', elevation: 2, overflow: 'hidden' },
   photo: { width: '100%', height: '100%' },
   emptyGalleryText: { marginTop: 15, fontSize: 16, color: '#888', textAlign: 'center' },
-  viewLitterButton: { backgroundColor: '#FF6B4A', borderRadius: 20, paddingVertical: 12, paddingHorizontal: 20, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', marginTop: 10 },
+viewLitterButton: { backgroundColor: '#FF6B4A', borderRadius: 20, paddingVertical: 12, paddingHorizontal: 20, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', marginTop: 10 },
   viewLitterText: { color: 'white', fontWeight: 'bold', marginRight: 8 },
-  aiRecButtonIcon: { width: 32, height: 32 }
+  aiRecButtonIcon: { width: 32, height: 32 },
+  vaccinationSection: { marginBottom: 16 },
+  vaccinationSectionHeader: { flexDirection: 'row', alignItems: 'center', marginBottom: 12 },
+  vaccinationSectionTitle: { fontSize: 18, fontWeight: 'bold', color: '#1F2937', marginLeft: 8 }
 });

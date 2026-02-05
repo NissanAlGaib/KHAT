@@ -27,6 +27,7 @@ interface AddShotModalProps {
     veterinarian_name: string;
     date_administered: string;
     expiration_date: string;
+    shot_number: number;
   }) => Promise<void>;
   card: VaccinationCard | null;
   isLoading?: boolean;
@@ -47,9 +48,20 @@ export default function AddShotModal({
   const [showDatePicker, setShowDatePicker] = useState(false);
   const [datePickerField, setDatePickerField] = useState<"administered" | "expiration">("administered");
   const [errors, setErrors] = useState<Record<string, string>>({});
+  
+  // Shot number - user can specify which shot they're adding (for historical records)
+  const defaultNextShotNumber = card ? card.completed_shots_count + 1 : 1;
+  const [shotNumber, setShotNumber] = useState<string>(defaultNextShotNumber.toString());
+  
+  // Update shot number when card changes
+  React.useEffect(() => {
+    if (card) {
+      setShotNumber((card.completed_shots_count + 1).toString());
+    }
+  }, [card]);
 
-  const nextShotNumber = card ? card.completed_shots_count + 1 : 1;
-  const isBoosterShot = card?.total_shots_required && nextShotNumber > card.total_shots_required;
+  const currentShotNumber = parseInt(shotNumber) || defaultNextShotNumber;
+  const isBoosterShot = card?.total_shots_required && currentShotNumber > card.total_shots_required;
 
   const resetForm = () => {
     setDocument(null);
@@ -57,6 +69,7 @@ export default function AddShotModal({
     setVeterinarianName("");
     setDateAdministered("");
     setExpirationDate("");
+    setShotNumber(defaultNextShotNumber.toString());
     setErrors({});
   };
 
@@ -147,6 +160,12 @@ export default function AddShotModal({
         newErrors.expirationDate = "Expiration must be after administered date";
       }
     }
+    
+    // Validate shot number
+    const shotNum = parseInt(shotNumber);
+    if (!shotNumber || isNaN(shotNum) || shotNum < 1) {
+      newErrors.shotNumber = "Shot number must be at least 1";
+    }
 
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
@@ -162,6 +181,7 @@ export default function AddShotModal({
         veterinarian_name: veterinarianName,
         date_administered: dateAdministered,
         expiration_date: expirationDate,
+        shot_number: parseInt(shotNumber),
       });
       handleClose();
     } catch (error) {
@@ -197,7 +217,7 @@ export default function AddShotModal({
             <View>
               <Text style={styles.headerTitle}>Add Shot Record</Text>
               <Text style={styles.headerSubtitle}>
-                {card.vaccine_name} - {isBoosterShot ? "Booster Shot" : `Shot ${nextShotNumber}`}
+                {card.vaccine_name} - {isBoosterShot ? "Booster Shot" : `Shot ${currentShotNumber}`}
                 {card.total_shots_required && !isBoosterShot ? ` of ${card.total_shots_required}` : ""}
               </Text>
             </View>
@@ -207,11 +227,60 @@ export default function AddShotModal({
           </LinearGradient>
 
           <ScrollView style={styles.content} keyboardShouldPersistTaps="handled">
-            {/* Shot Number Display */}
+            {/* Shot Number Input */}
+            <View style={styles.inputGroup}>
+              <Text style={styles.label}>Current Shot Number *</Text>
+              <View style={styles.shotNumberInputRow}>
+                <TouchableOpacity
+                  style={styles.shotNumberButton}
+                  onPress={() => {
+                    const num = parseInt(shotNumber) || 1;
+                    if (num > 1) {
+                      setShotNumber((num - 1).toString());
+                      setErrors((prev) => ({ ...prev, shotNumber: "" }));
+                    }
+                  }}
+                >
+                  <Ionicons name="remove" size={20} color={Colors.textSecondary} />
+                </TouchableOpacity>
+                <TextInput
+                  style={[styles.shotNumberInput, errors.shotNumber && styles.inputError]}
+                  value={shotNumber}
+                  onChangeText={(text) => {
+                    // Only allow numeric input
+                    const numericValue = text.replace(/[^0-9]/g, '');
+                    setShotNumber(numericValue);
+                    setErrors((prev) => ({ ...prev, shotNumber: "" }));
+                  }}
+                  keyboardType="number-pad"
+                  maxLength={2}
+                  textAlign="center"
+                />
+                <TouchableOpacity
+                  style={styles.shotNumberButton}
+                  onPress={() => {
+                    const num = parseInt(shotNumber) || 0;
+                    setShotNumber((num + 1).toString());
+                    setErrors((prev) => ({ ...prev, shotNumber: "" }));
+                  }}
+                >
+                  <Ionicons name="add" size={20} color={Colors.textSecondary} />
+                </TouchableOpacity>
+              </View>
+              <Text style={styles.helperText}>
+                Enter the shot number you're recording (e.g., Shot 1, Shot 2, etc.)
+              </Text>
+              {errors.shotNumber && (
+                <Text style={styles.errorText}>{errors.shotNumber}</Text>
+              )}
+            </View>
+
+            {/* Shot Type Badge */}
             <View style={[styles.shotNumberBadge, isBoosterShot && styles.boosterBadge]}>
               <Ionicons name={isBoosterShot ? "shield-checkmark" : "medical"} size={24} color={isBoosterShot ? Colors.success : Colors.primary} />
               <Text style={[styles.shotNumberText, isBoosterShot && styles.boosterText]}>
-                {isBoosterShot ? "Booster Shot" : `Shot ${nextShotNumber}`}
+                {isBoosterShot ? "Booster Shot" : `Shot ${currentShotNumber}`}
+                {card?.total_shots_required && !isBoosterShot ? ` of ${card.total_shots_required}` : ""}
               </Text>
             </View>
 
@@ -433,6 +502,33 @@ const styles = StyleSheet.create({
     fontSize: 18,
     fontWeight: "700",
     color: Colors.primary,
+  },
+  shotNumberInputRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: Spacing.sm,
+  },
+  shotNumberInput: {
+    flex: 1,
+    backgroundColor: Colors.bgTertiary,
+    borderRadius: BorderRadius.lg,
+    paddingHorizontal: Spacing.lg,
+    paddingVertical: Spacing.md,
+    fontSize: 20,
+    fontWeight: "700",
+    color: Colors.textPrimary,
+    borderWidth: 1,
+    borderColor: Colors.borderLight,
+  },
+  shotNumberButton: {
+    width: 44,
+    height: 44,
+    borderRadius: BorderRadius.lg,
+    backgroundColor: Colors.bgTertiary,
+    justifyContent: "center",
+    alignItems: "center",
+    borderWidth: 1,
+    borderColor: Colors.borderLight,
   },
   boosterBadge: {
     backgroundColor: Colors.success + "15",

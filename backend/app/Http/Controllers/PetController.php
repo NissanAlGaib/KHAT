@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\Pet;
 use App\Models\UserAuth;
 use App\Models\Vaccination;
+use App\Models\VaccinationCard;
 use App\Models\HealthRecord;
 use App\Models\PetPhoto;
 use App\Models\PartnerPreference;
@@ -415,7 +416,50 @@ class PetController extends Controller
             });
         }
 
-        // Format vaccinations
+        // Format vaccination cards (new card-based system)
+        $vaccinationCards = VaccinationCard::where('pet_id', $pet->pet_id)
+            ->with(['shots' => function ($query) {
+                $query->orderBy('shot_number', 'asc');
+            }])
+            ->get();
+
+        $formattedVaccinationCards = $vaccinationCards->map(function ($card) {
+            return [
+                'card_id' => $card->card_id,
+                'vaccine_type' => $card->vaccine_type,
+                'vaccine_name' => $card->vaccine_name,
+                'is_required' => $card->is_required,
+                'total_shots_required' => $card->total_shots_required,
+                'interval_days' => $card->interval_days,
+                'recurrence_type' => $card->recurrence_type,
+                'status' => $card->status,
+                'progress_percentage' => $card->progress_percentage,
+                'completed_shots_count' => $card->completed_shots_count,
+                'is_series_complete' => $card->isSeriesComplete(),
+                'next_shot_date' => $card->calculateNextShotDate()?->format('Y-m-d'),
+                'next_shot_date_display' => $card->calculateNextShotDate()?->format('M j, Y'),
+                'shots' => $card->shots->map(function ($shot) {
+                    return [
+                        'shot_id' => $shot->shot_id,
+                        'shot_number' => $shot->shot_number,
+                        'date_administered' => $shot->date_administered?->format('Y-m-d'),
+                        'date_administered_display' => $shot->date_administered?->format('M j, Y'),
+                        'expiration_date' => $shot->expiration_date?->format('Y-m-d'),
+                        'expiration_date_display' => $shot->expiration_date?->format('M j, Y'),
+                        'status' => $shot->status,
+                        'display_status' => $shot->display_status,
+                        'is_expired' => $shot->isExpired(),
+                        'is_expiring_soon' => $shot->isExpiringSoon(),
+                    ];
+                }),
+            ];
+        });
+
+        // Separate required and optional cards
+        $requiredCards = $formattedVaccinationCards->where('is_required', true)->values();
+        $optionalCards = $formattedVaccinationCards->where('is_required', false)->values();
+
+        // Format vaccinations (legacy format for backwards compatibility)
         $currentVaccinations = $pet->vaccinations->map(function ($vaccination) {
             $expirationDate = $vaccination->expiration_date;
             $now = now();
@@ -496,6 +540,10 @@ class PetController extends Controller
             }),
             'preferences' => $preferences,
             'vaccinations' => $currentVaccinations,
+            'vaccination_cards' => [
+                'required' => $requiredCards,
+                'optional' => $optionalCards,
+            ],
             'health_records' => $recentHealthRecords,
             'breeding_partners' => $breedingPartners,
             'litter_count' => $litters->count(),

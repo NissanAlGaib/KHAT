@@ -27,6 +27,8 @@ import {
   ContractModal,
   ContractCard,
 } from "@/components/contracts";
+import BlockReportModal from "@/components/chat/BlockReportModal";
+import MatchTimeline from "@/components/chat/MatchTimeline";
 
 export default function ConversationScreen() {
   const router = useRouter();
@@ -46,6 +48,9 @@ export default function ConversationScreen() {
   const [showContractPrompt, setShowContractPrompt] = useState(false);
   const [showContractModal, setShowContractModal] = useState(false);
   const [isEditingContract, setIsEditingContract] = useState(false);
+
+  // Block & Report state
+  const [showBlockReportModal, setShowBlockReportModal] = useState(false);
 
   const getImageUrl = (path: string | null | undefined) => {
     return getStorageUrl(path);
@@ -324,8 +329,14 @@ export default function ConversationScreen() {
                   `/(pet)/view-profile?id=${conversation?.matched_pet?.pet_id}`
                 )
               }
+              className="mr-2"
             >
               <Feather name="info" size={24} color="#FF6B6B" />
+            </TouchableOpacity>
+            <TouchableOpacity
+              onPress={() => setShowBlockReportModal(true)}
+            >
+              <Feather name="shield" size={24} color="#9CA3AF" />
             </TouchableOpacity>
           </>
         )}
@@ -346,6 +357,12 @@ export default function ConversationScreen() {
             scrollViewRef.current?.scrollToEnd({ animated: false })
           }
         >
+          {/* Match Timeline */}
+          <MatchTimeline
+            matchAcceptedAt={conversation?.match_accepted_at}
+            contract={contract}
+          />
+
           {/* Contract Card */}
           {contract && (
             <ContractCard
@@ -423,6 +440,20 @@ export default function ConversationScreen() {
         conversationId={parseInt(conversationId)}
         existingContract={isEditingContract ? contract : null}
       />
+
+      {/* Block & Report Modal */}
+      {conversation?.owner && (
+        <BlockReportModal
+          visible={showBlockReportModal}
+          onClose={() => setShowBlockReportModal(false)}
+          userId={conversation.owner.id}
+          userName={conversation.owner.name}
+          onBlockSuccess={() => {
+            // Navigate back after blocking
+            router.back();
+          }}
+        />
+      )}
     </SafeAreaView>
   );
 }

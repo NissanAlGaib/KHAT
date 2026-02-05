@@ -8,6 +8,7 @@ use App\Models\VaccinationShot;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
 
 class VaccinationController extends Controller
@@ -73,6 +74,7 @@ class VaccinationController extends Controller
             'veterinarian_name' => 'required|string|max:255',
             'date_administered' => 'required|date|before_or_equal:today',
             'expiration_date' => 'required|date|after:date_administered',
+            'shot_number' => 'nullable|integer|min:1',
         ], [
             'vaccination_record.required' => 'Proof document is required.',
             'vaccination_record.mimes' => 'Document must be an image (JPG, PNG) or PDF.',
@@ -82,6 +84,8 @@ class VaccinationController extends Controller
             'date_administered.before_or_equal' => 'Date administered cannot be in the future.',
             'expiration_date.required' => 'Expiration date is required.',
             'expiration_date.after' => 'Expiration date must be after date administered.',
+            'shot_number.integer' => 'Shot number must be a valid number.',
+            'shot_number.min' => 'Shot number must be at least 1.',
         ]);
 
         $pet = Pet::where('pet_id', $petId)
@@ -105,7 +109,8 @@ class VaccinationController extends Controller
                 $validated['clinic_name'],
                 $validated['veterinarian_name'],
                 $validated['date_administered'],
-                $validated['expiration_date']
+                $validated['expiration_date'],
+                $validated['shot_number'] ?? null
             );
 
             DB::commit();
@@ -325,5 +330,180 @@ class VaccinationController extends Controller
         }
 
         return 'not_started';
+    }
+
+    /**
+     * Import historical vaccination shots
+     * These are shots that were administered before the pet was added to the app
+     */
+    public function importHistory(Request $request, $petId)
+    {
+        $pet = Pet::where('pet_id', $petId)
+            ->where('user_id', Auth::id())
+            ->firstOrFail();
+
+        $validated = $request->validate([
+            'card_id' => 'required|integer|exists:vaccination_cards,card_id',
+            'shots' => 'required|array|min:1',
+            'shots.*.shot_number' => 'required|integer|min:1',
+            'shots.*.vaccination_record' => 'required|file|mimes:jpg,jpeg,png,pdf|max:20480',
+            'shots.*.clinic_name' => 'required|string|max:255',
+            'shots.*.veterinarian_name' => 'required|string|max:255',
+            'shots.*.date_administered' => 'required|date|before_or_equal:today',
+            'shots.*.expiration_date' => 'required|date|after:shots.*.date_administered',
+        ], [
+            'shots.required' => 'At least one shot record is required.',
+            'shots.*.vaccination_record.required' => 'Proof document is required for each shot.',
+            'shots.*.date_administered.before_or_equal' => 'Date administered cannot be in the future.',
+        ]);
+
+        $card = VaccinationCard::where('card_id', $validated['card_id'])
+            ->where('pet_id', $petId)
+            ->firstOrFail();
+
+        try {
+            DB::beginTransaction();
+
+            $importedShots = [];
+
+            foreach ($validated['shots'] as $index => $shotData) {
+                // Check for duplicate shot number
+                $existingShot = VaccinationShot::where('card_id', $card->card_id)
+                    ->where('shot_number', $shotData['shot_number'])
+                    ->first();
+
+                if ($existingShot) {
+                    throw new \Exception("Shot #{$shotData['shot_number']} already exists for this vaccine.");
+                }
+
+                // Store the document
+                $documentPath = $request->file("shots.{$index}.vaccination_record")
+                    ->store('vaccinations', 'do_spaces');
+
+                // Create historical shot
+                $shot = VaccinationShot::createHistoricalShot(
+                    $card,
+                    $documentPath,
+                    $shotData['clinic_name'],
+                    $shotData['veterinarian_name'],
+                    $shotData['date_administered'],
+                    $shotData['expiration_date'],
+                    $shotData['shot_number']
+                );
+
+                $importedShots[] = $shot->toApiArray();
+            }
+
+            DB::commit();
+
+            // Reload the card with shots
+            $card->load(['shots' => function ($query) {
+                $query->orderBy('shot_number', 'asc');
+            }]);
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Imported ' . count($importedShots) . ' historical record(s) successfully',
+                'data' => [
+                    'imported_shots' => $importedShots,
+                    'card' => $this->formatCardResponse($card),
+                ],
+            ], 201);
+        } catch (\Exception $e) {
+            DB::rollBack();
+
+            return response()->json([
+                'success' => false,
+                'message' => $e->getMessage(),
+            ], 400);
+        }
+    }
+
+    /**
+     * Add a single historical shot to a vaccination card
+     */
+    public function addHistoricalShot(Request $request, $petId, $cardId)
+    {
+        $validated = $request->validate([
+            'vaccination_record' => 'required|file|max:20480',
+            'clinic_name' => 'required|string|max:255',
+            'veterinarian_name' => 'required|string|max:255',
+            'date_administered' => 'required|date|before_or_equal:today',
+            'expiration_date' => 'required|date|after:date_administered',
+            'shot_number' => 'required|integer|min:1',
+        ], [
+            'vaccination_record.required' => 'Proof document is required.',
+            'vaccination_record.file' => 'Invalid file upload.',
+            'vaccination_record.max' => 'File size must not exceed 20MB.',
+            'date_administered.before_or_equal' => 'Date administered cannot be in the future.',
+            'shot_number.required' => 'Shot number is required for historical records.',
+        ]);
+
+        $pet = Pet::where('pet_id', $petId)
+            ->where('user_id', Auth::id())
+            ->firstOrFail();
+
+        $card = VaccinationCard::where('card_id', $cardId)
+            ->where('pet_id', $petId)
+            ->firstOrFail();
+
+        // Check for duplicate shot number
+        $existingShot = VaccinationShot::where('card_id', $card->card_id)
+            ->where('shot_number', $validated['shot_number'])
+            ->first();
+
+        if ($existingShot) {
+            return response()->json([
+                'success' => false,
+                'message' => "Shot #{$validated['shot_number']} already exists for this vaccine.",
+            ], 400);
+        }
+
+        try {
+            DB::beginTransaction();
+
+            // Store the document
+            $documentPath = $request->file('vaccination_record')->store('vaccinations', 'do_spaces');
+
+            // Create the historical shot
+            $shot = VaccinationShot::createHistoricalShot(
+                $card,
+                $documentPath,
+                $validated['clinic_name'],
+                $validated['veterinarian_name'],
+                $validated['date_administered'],
+                $validated['expiration_date'],
+                $validated['shot_number']
+            );
+
+            DB::commit();
+
+            // Reload the card with shots
+            $card->load(['shots' => function ($query) {
+                $query->orderBy('shot_number', 'asc');
+            }]);
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Historical shot added successfully',
+                'data' => [
+                    'shot' => $shot->toApiArray(),
+                    'card' => $this->formatCardResponse($card),
+                ],
+            ], 201);
+        } catch (\Exception $e) {
+            DB::rollBack();
+
+            Log::error('Failed to add historical shot: ' . $e->getMessage(), [
+                'pet_id' => $petId,
+                'card_id' => $cardId,
+                'trace' => $e->getTraceAsString(),
+            ]);
+
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to add historical shot: ' . $e->getMessage(),
+            ], 500);
+        }
     }
 }
