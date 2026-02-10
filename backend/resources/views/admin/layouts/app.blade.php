@@ -231,6 +231,58 @@
                             <span>Shot Verification</span>
                         </a>
                     </li>
+                    <li>
+                        <a href="{{ route('admin.matches') }}" class="flex items-center gap-3 px-3 py-2.5 rounded-lg {{ request()->routeIs('admin.matches') ? 'bg-[#FDF4F2] text-[#E75234] font-bold' : 'text-gray-600 hover:bg-gray-100 font-medium' }}">
+                            <i data-lucide="history" class="w-5 h-5"></i>
+                            <span>Match History</span>
+                        </a>
+                    </li>
+                    <li>
+                        <a href="{{ route('admin.analytics') }}" class="flex items-center gap-3 px-3 py-2.5 rounded-lg {{ request()->routeIs('admin.analytics') ? 'bg-[#FDF4F2] text-[#E75234] font-bold' : 'text-gray-600 hover:bg-gray-100 font-medium' }}">
+                            <i data-lucide="bar-chart-2" class="w-5 h-5"></i>
+                            <span>Analytics</span>
+                        </a>
+                    </li>
+                    <li>
+                        <a href="{{ route('admin.billing') }}" class="flex items-center gap-3 px-3 py-2.5 rounded-lg {{ request()->routeIs('admin.billing') ? 'bg-[#FDF4F2] text-[#E75234] font-bold' : 'text-gray-600 hover:bg-gray-100 font-medium' }}">
+                            <i data-lucide="file-text" class="w-5 h-5"></i>
+                            <span>Subscription and Billing</span>
+                        </a>
+                    </li>
+                    <li>
+                        <a href="{{ route('admin.tickets') }}" class="flex items-center gap-3 px-3 py-2.5 rounded-lg {{ request()->routeIs('admin.tickets') ? 'bg-[#FDF4F2] text-[#E75234] font-bold' : 'text-gray-600 hover:bg-gray-100 font-medium' }}">
+                            <i data-lucide="ticket" class="w-5 h-5"></i>
+                            <span>Tickets</span>
+                        </a>
+                    </li>
+                    <li>
+                        <a href="{{ route('admin.audit-logs') }}" class="flex items-center gap-3 px-3 py-2.5 rounded-lg {{ request()->routeIs('admin.audit-logs') ? 'bg-[#FDF4F2] text-[#E75234] font-bold' : 'text-gray-600 hover:bg-gray-100 font-medium' }}">
+                            <i data-lucide="book-lock" class="w-5 h-5"></i>
+                            <span>Audit Logs</span>
+                        </a>
+                    </li>
+                </ul>
+
+                <h3 class="text-xs font-semibold text-gray-400 uppercase tracking-wider mt-6 mb-2">Personal</h3>
+                <ul class="space-y-1">
+                    <li>
+                        <a href="{{ route('admin.profile') }}" class="flex items-center gap-3 px-3 py-2.5 rounded-lg {{ request()->routeIs('admin.profile') ? 'bg-[#FDF4F2] text-[#E75234] font-bold' : 'text-gray-600 hover:bg-gray-100 font-medium' }}">
+                            <i data-lucide="user-circle" class="w-5 h-5"></i>
+                            <span>Profile Settings</span>
+                        </a>
+                    </li>
+                    <li>
+                        <a href="{{ route('admin.notifications') }}" class="flex items-center gap-3 px-3 py-2.5 rounded-lg {{ request()->routeIs('admin.notifications') ? 'bg-[#FDF4F2] text-[#E75234] font-bold' : 'text-gray-600 hover:bg-gray-100 font-medium' }}">
+                            <i data-lucide="bell" class="w-5 h-5"></i>
+                            <span>Notifications</span>
+                        </a>
+                    </li>
+                    <li>
+                        <a href="{{ route('admin.settings') }}" class="flex items-center gap-3 px-3 py-2.5 rounded-lg {{ request()->routeIs('admin.settings') ? 'bg-[#FDF4F2] text-[#E75234] font-bold' : 'text-gray-600 hover:bg-gray-100 font-medium' }}">
+                            <i data-lucide="settings" class="w-5 h-5"></i>
+                            <span>Settings</span>
+                        </a>
+                    </li>
                 </ul>
             </nav>
         </aside>
