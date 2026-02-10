@@ -21,10 +21,12 @@ import {
   getPet,
   getVaccinationCards,
   addVaccinationShot,
-  createCustomVaccinationCard,
-  deleteVaccinationCard,
+  getAvailableProtocols,
+  optInToProtocol,
   VaccinationCard,
   VaccinationCardsResponse,
+  AvailableProtocolsResponse,
+  VaccineProtocol,
 } from "@/services/petService";
 
 export default function VaccinationsScreen() {
@@ -44,24 +46,27 @@ export default function VaccinationsScreen() {
 
   // Modal states
   const [showAddShotModal, setShowAddShotModal] = useState(false);
-  const [showAddCustomModal, setShowAddCustomModal] = useState(false);
+  const [showOptInModal, setShowOptInModal] = useState(false);
   const [selectedCard, setSelectedCard] = useState<VaccinationCard | null>(null);
   const [addingShotLoading, setAddingShotLoading] = useState(false);
 
-  // Custom card form state
-  const [customVaccineName, setCustomVaccineName] = useState("");
-  const [customTotalShots, setCustomTotalShots] = useState("1");
-  const [customRecurrence, setCustomRecurrence] = useState<"none" | "recurring">("none");
-  const [creatingCustomCard, setCreatingCustomCard] = useState(false);
+  // Opt-in state
+  const [availableProtocols, setAvailableProtocols] = useState<AvailableProtocolsResponse>({
+    enrolled: [],
+    available: [],
+  });
+  const [optingIn, setOptingIn] = useState(false);
 
   const fetchData = useCallback(async () => {
     try {
-      const [pet, cards] = await Promise.all([
+      const [pet, cards, protocols] = await Promise.all([
         getPet(parseInt(petId)),
         getVaccinationCards(parseInt(petId)),
+        getAvailableProtocols(parseInt(petId)),
       ]);
       setPetName(pet.name);
       setVaccinationCards(cards);
+      setAvailableProtocols(protocols);
     } catch (error) {
       console.error("Error fetching vaccination data:", error);
       showAlert({
@@ -125,83 +130,35 @@ export default function VaccinationsScreen() {
     }
   };
 
-  const handleCreateCustomCard = async () => {
-    if (!customVaccineName.trim()) {
-      showAlert({
-        title: "Error",
-        message: "Please enter a vaccine name",
-        type: "error",
-      });
-      return;
-    }
-
-    setCreatingCustomCard(true);
+  const handleOptIn = async (protocolId: number) => {
+    setOptingIn(true);
     try {
-      await createCustomVaccinationCard(parseInt(petId), {
-        vaccine_name: customVaccineName.trim(),
-        total_shots: parseInt(customTotalShots) || 1,
-        recurrence_type: customRecurrence,
-      });
+      await optInToProtocol(parseInt(petId), protocolId);
       await fetchData();
-      setShowAddCustomModal(false);
-      setCustomVaccineName("");
-      setCustomTotalShots("1");
-      setCustomRecurrence("none");
       showAlert({
         title: "Success",
-        message: "Custom vaccination card created!",
+        message: "Vaccine added to your pet's schedule!",
         type: "success",
       });
     } catch (error: any) {
       showAlert({
         title: "Error",
-        message: error.response?.data?.message || "Failed to create vaccination card",
+        message: error.response?.data?.message || "Failed to add vaccine",
         type: "error",
       });
     } finally {
-      setCreatingCustomCard(false);
+      setOptingIn(false);
+      setShowOptInModal(false);
     }
-  };
-
-  const handleDeleteCard = (cardId: number) => {
-    const card = vaccinationCards.optional.find((c) => c.card_id === cardId);
-    if (!card) return;
-
-    showAlert({
-      title: "Delete Vaccination Card",
-      message: `Are you sure you want to delete "${card.vaccine_name}"? This action cannot be undone.`,
-      type: "warning",
-      buttons: [
-        { text: "Cancel", style: "cancel" },
-        {
-          text: "Delete",
-          style: "destructive",
-          onPress: async () => {
-            try {
-              await deleteVaccinationCard(parseInt(petId), cardId);
-              await fetchData();
-              showAlert({
-                title: "Deleted",
-                message: "Vaccination card deleted successfully",
-                type: "success",
-              });
-            } catch (error: any) {
-              showAlert({
-                title: "Error",
-                message: error.response?.data?.message || "Failed to delete card",
-                type: "error",
-              });
-            }
-          },
-        },
-      ],
-    });
   };
 
   // Calculate overall stats
   const totalCards = vaccinationCards.required.length + vaccinationCards.optional.length;
-  const completedCards = [...vaccinationCards.required, ...vaccinationCards.optional].filter(
+  const verifiedCards = [...vaccinationCards.required, ...vaccinationCards.optional].filter(
     (c) => c.status === "completed"
+  ).length;
+  const pendingCards = [...vaccinationCards.required, ...vaccinationCards.optional].filter(
+    (c) => c.pending_shots_count > 0
   ).length;
   const overdueCards = [...vaccinationCards.required, ...vaccinationCards.optional].filter(
     (c) => c.status === "overdue"
@@ -230,12 +187,14 @@ export default function VaccinationsScreen() {
             <Text style={styles.headerTitle}>Vaccinations</Text>
             <Text style={styles.headerSubtitle}>{petName}</Text>
           </View>
-          <TouchableOpacity
-            onPress={() => setShowAddCustomModal(true)}
-            style={styles.addButton}
-          >
-            <Feather name="plus" size={24} color="white" />
-          </TouchableOpacity>
+          {availableProtocols.available.length > 0 && (
+            <TouchableOpacity
+              onPress={() => setShowOptInModal(true)}
+              style={styles.addButton}
+            >
+              <Feather name="plus" size={24} color="white" />
+            </TouchableOpacity>
+          )}
         </View>
       </LinearGradient>
 
@@ -276,8 +235,13 @@ export default function VaccinationsScreen() {
           </View>
           <View style={styles.statCard}>
             <Ionicons name="checkmark-circle" size={24} color="#22C55E" />
-            <Text style={[styles.statNumber, { color: "#22C55E" }]}>{completedCards}</Text>
-            <Text style={styles.statLabel}>Completed</Text>
+            <Text style={[styles.statNumber, { color: "#22C55E" }]}>{verifiedCards}</Text>
+            <Text style={styles.statLabel}>Verified</Text>
+          </View>
+          <View style={styles.statCard}>
+            <Ionicons name="hourglass" size={24} color="#F59E0B" />
+            <Text style={[styles.statNumber, { color: "#F59E0B" }]}>{pendingCards}</Text>
+            <Text style={styles.statLabel}>Pending</Text>
           </View>
           <View style={styles.statCard}>
             <Ionicons name="alert-circle" size={24} color="#EF4444" />
@@ -307,34 +271,35 @@ export default function VaccinationsScreen() {
           )}
         </View>
 
-        {/* Optional Vaccinations */}
+        {/* Additional Vaccinations */}
         <View style={styles.section}>
           <View style={styles.sectionHeader}>
             <Ionicons name="add-circle" size={20} color="#6B7280" />
-            <Text style={styles.sectionTitle}>Optional Vaccinations</Text>
+            <Text style={styles.sectionTitle}>Additional Vaccines</Text>
           </View>
           {vaccinationCards.optional.length > 0 ? (
             vaccinationCards.optional.map((card) => (
-              <View key={card.card_id}>
-                <VaccinationCardComponent card={card} onAddShot={handleOpenAddShotModal} />
-                <TouchableOpacity
-                  style={styles.deleteCardButton}
-                  onPress={() => handleDeleteCard(card.card_id)}
-                >
-                  <Feather name="trash-2" size={16} color="#EF4444" />
-                  <Text style={styles.deleteCardText}>Remove</Text>
-                </TouchableOpacity>
-              </View>
+              <VaccinationCardComponent
+                key={card.card_id}
+                card={card}
+                onAddShot={handleOpenAddShotModal}
+              />
             ))
           ) : (
+            <View style={styles.emptySection}>
+              <Text style={styles.emptyText}>No additional vaccines added</Text>
+            </View>
+          )}
+
+          {availableProtocols.available.length > 0 && (
             <TouchableOpacity
               style={styles.addCustomButton}
-              onPress={() => setShowAddCustomModal(true)}
+              onPress={() => setShowOptInModal(true)}
             >
               <Ionicons name="add-circle-outline" size={32} color="#FF6B4A" />
-              <Text style={styles.addCustomText}>Add Custom Vaccination</Text>
+              <Text style={styles.addCustomText}>Add Vaccine</Text>
               <Text style={styles.addCustomSubtext}>
-                Track additional vaccines not in the required list
+                Select from available vaccine protocols
               </Text>
             </TouchableOpacity>
           )}
@@ -353,112 +318,64 @@ export default function VaccinationsScreen() {
         isLoading={addingShotLoading}
       />
 
-      {/* Add Custom Vaccination Modal */}
-      {showAddCustomModal && (
+      {/* Opt-in Modal */}
+      {showOptInModal && (
         <View style={styles.modalOverlay}>
           <View style={styles.customModal}>
             <View style={styles.customModalHeader}>
-              <Text style={styles.customModalTitle}>Add Custom Vaccination</Text>
-              <TouchableOpacity onPress={() => setShowAddCustomModal(false)}>
+              <Text style={styles.customModalTitle}>Add Vaccine</Text>
+              <TouchableOpacity onPress={() => setShowOptInModal(false)}>
                 <Feather name="x" size={24} color="#6B7280" />
               </TouchableOpacity>
             </View>
 
-            <View style={styles.customModalContent}>
-              <Text style={styles.inputLabel}>Vaccine Name *</Text>
-              <View style={styles.textInput}>
-                <Feather name="edit-3" size={18} color="#9CA3AF" />
-                <TextInput
-                  style={styles.textInputField}
-                  value={customVaccineName}
-                  onChangeText={setCustomVaccineName}
-                  placeholder="Enter vaccine name"
-                  placeholderTextColor="#9CA3AF"
-                  autoCapitalize="words"
-                  returnKeyType="done"
-                />
-              </View>
-
-              <Text style={styles.inputLabel}>Number of Shots</Text>
-              <View style={styles.shotsSelector}>
-                {["1", "2", "3", "4", "5", "6"].map((num) => (
-                  <TouchableOpacity
-                    key={num}
-                    style={[
-                      styles.shotOption,
-                      customTotalShots === num && styles.shotOptionActive,
-                    ]}
-                    onPress={() => setCustomTotalShots(num)}
-                  >
-                    <Text
-                      style={[
-                        styles.shotOptionText,
-                        customTotalShots === num && styles.shotOptionTextActive,
-                      ]}
-                    >
-                      {num}
-                    </Text>
-                  </TouchableOpacity>
-                ))}
-              </View>
-
-              <Text style={styles.inputLabel}>Renewal Type</Text>
-              <Text style={styles.inputHelper}>
-                Choose whether this vaccine needs periodic renewal
-              </Text>
-              <View style={styles.recurrenceSelector}>
-                {[
-                  { value: "none", label: "One-time Series", description: "No renewal needed after completion" },
-                  { value: "recurring", label: "Recurring", description: "Renew when expired" },
-                ].map((option) => (
-                  <TouchableOpacity
-                    key={option.value}
-                    style={[
-                      styles.recurrenceOption,
-                      customRecurrence === option.value && styles.recurrenceOptionActive,
-                    ]}
-                    onPress={() => setCustomRecurrence(option.value as any)}
-                  >
-                    <Text
-                      style={[
-                        styles.recurrenceOptionText,
-                        customRecurrence === option.value && styles.recurrenceOptionTextActive,
-                      ]}
-                    >
-                      {option.label}
-                    </Text>
-                    <Text
-                      style={[
-                        styles.recurrenceOptionSubtext,
-                        customRecurrence === option.value && styles.recurrenceOptionSubtextActive,
-                      ]}
-                    >
-                      {option.description}
-                    </Text>
-                  </TouchableOpacity>
-                ))}
-              </View>
-            </View>
-
-            <View style={styles.customModalFooter}>
-              <TouchableOpacity
-                style={styles.cancelButton}
-                onPress={() => setShowAddCustomModal(false)}
-              >
-                <Text style={styles.cancelButtonText}>Cancel</Text>
-              </TouchableOpacity>
-              <TouchableOpacity
-                style={[styles.createButton, creatingCustomCard && styles.createButtonDisabled]}
-                onPress={handleCreateCustomCard}
-                disabled={creatingCustomCard}
-              >
-                {creatingCustomCard ? (
-                  <ActivityIndicator size="small" color="white" />
-                ) : (
-                  <Text style={styles.createButtonText}>Create Card</Text>
-                )}
-              </TouchableOpacity>
-            </View>
+            <ScrollView contentContainerStyle={styles.customModalContent}>
+              {availableProtocols.available.length > 0 ? (
+                availableProtocols.available.map((protocol) => (
+                  <View key={protocol.id} style={styles.protocolCard}>
+                    <View style={styles.protocolHeader}>
+                      <View style={styles.protocolInfo}>
+                        <Text style={styles.protocolName}>{protocol.name}</Text>
+                        <View style={styles.protocolBadges}>
+                          <View style={styles.speciesBadge}>
+                            <Text style={styles.speciesBadgeText}>
+                              {protocol.species.toUpperCase()}
+                            </Text>
+                          </View>
+                          <View style={styles.typeBadge}>
+                            <Text style={styles.typeBadgeText}>
+                              {protocol.protocol_type_label}
+                            </Text>
+                          </View>
+                        </View>
+                      </View>
+                      <TouchableOpacity
+                        style={[styles.addButtonSmall, optingIn && styles.disabledButton]}
+                        onPress={() => handleOptIn(protocol.id)}
+                        disabled={optingIn}
+                      >
+                        {optingIn ? (
+                          <ActivityIndicator size="small" color="white" />
+                        ) : (
+                          <Text style={styles.addButtonText}>Add</Text>
+                        )}
+                      </TouchableOpacity>
+                    </View>
+                    {protocol.description && (
+                      <Text style={styles.protocolDescription}>
+                        {protocol.description}
+                      </Text>
+                    )}
+                  </View>
+                ))
+              ) : (
+                <View style={styles.emptyState}>
+                  <Text style={styles.emptyText}>
+                    No additional vaccines available for this pet.
+                  </Text>
+                </View>
+              )}
+            </ScrollView>
           </View>
         </View>
       )}
@@ -797,5 +714,81 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: "bold",
     color: "white",
+  },
+  protocolCard: {
+    backgroundColor: "#F9FAFB",
+    borderRadius: 12,
+    padding: 16,
+    marginBottom: 12,
+    borderWidth: 1,
+    borderColor: "#E5E7EB",
+  },
+  protocolHeader: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "flex-start",
+    marginBottom: 8,
+  },
+  protocolInfo: {
+    flex: 1,
+    marginRight: 12,
+  },
+  protocolName: {
+    fontSize: 16,
+    fontWeight: "700",
+    color: "#1F2937",
+    marginBottom: 6,
+  },
+  protocolBadges: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 6,
+  },
+  speciesBadge: {
+    backgroundColor: "#DBEAFE",
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    borderRadius: 4,
+  },
+  speciesBadgeText: {
+    fontSize: 10,
+    fontWeight: "600",
+    color: "#1E40AF",
+  },
+  typeBadge: {
+    backgroundColor: "#F3F4F6",
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    borderRadius: 4,
+  },
+  typeBadgeText: {
+    fontSize: 10,
+    fontWeight: "600",
+    color: "#4B5563",
+  },
+  addButtonSmall: {
+    backgroundColor: "#FF6B4A",
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    borderRadius: 8,
+    minWidth: 60,
+    alignItems: "center",
+  },
+  addButtonText: {
+    color: "white",
+    fontSize: 13,
+    fontWeight: "600",
+  },
+  disabledButton: {
+    opacity: 0.6,
+  },
+  protocolDescription: {
+    fontSize: 13,
+    color: "#6B7280",
+    lineHeight: 18,
+  },
+  emptyState: {
+    padding: 24,
+    alignItems: "center",
   },
 });

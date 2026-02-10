@@ -420,7 +420,7 @@ class PetController extends Controller
         $vaccinationCards = VaccinationCard::where('pet_id', $pet->pet_id)
             ->with(['shots' => function ($query) {
                 $query->orderBy('shot_number', 'asc');
-            }])
+            }, 'protocol'])
             ->get();
 
         $formattedVaccinationCards = $vaccinationCards->map(function ($card) {
@@ -434,8 +434,12 @@ class PetController extends Controller
                 'recurrence_type' => $card->recurrence_type,
                 'status' => $card->status,
                 'progress_percentage' => $card->progress_percentage,
-                'completed_shots_count' => $card->completed_shots_count,
+                'completed_shots_count' => $card->approved_shots_count,
+                'approved_shots_count' => $card->approved_shots_count,
+                'pending_shots_count' => $card->pending_shots_count,
                 'is_series_complete' => $card->isSeriesComplete(),
+                'is_in_booster_phase' => $card->isInBoosterPhase(),
+                'protocol' => $card->protocol ? $card->protocol->toApiArray() : null,
                 'next_shot_date' => $card->calculateNextShotDate()?->format('Y-m-d'),
                 'next_shot_date_display' => $card->calculateNextShotDate()?->format('M j, Y'),
                 'shots' => $card->shots->map(function ($shot) {
@@ -447,9 +451,12 @@ class PetController extends Controller
                         'expiration_date' => $shot->expiration_date?->format('Y-m-d'),
                         'expiration_date_display' => $shot->expiration_date?->format('M j, Y'),
                         'status' => $shot->status,
+                        'verification_status' => $shot->verification_status,
                         'display_status' => $shot->display_status,
                         'is_expired' => $shot->isExpired(),
                         'is_expiring_soon' => $shot->isExpiringSoon(),
+                        'is_historical' => (bool) $shot->is_historical,
+                        'is_booster' => (bool) $shot->is_booster,
                     ];
                 }),
             ];

@@ -61,13 +61,14 @@ Route::middleware(['auth:sanctum'])
         // Vaccination card routes (new card-based system)
         // Static routes MUST come before dynamic {cardId} routes
         Route::get('/pets/{petId}/vaccination-cards', [VaccinationController::class, 'getCards']);
-        Route::post('/pets/{petId}/vaccination-cards', [VaccinationController::class, 'createCustomCard']);
+        Route::get('/pets/{petId}/available-protocols', [VaccinationController::class, 'getAvailableProtocols']);
+        Route::post('/pets/{petId}/opt-in/{protocolId}', [VaccinationController::class, 'optInToProtocol']);
         Route::post('/pets/{petId}/vaccination-cards/import-history', [VaccinationController::class, 'importHistory']);
         Route::post('/pets/{petId}/vaccination-cards/initialize', [VaccinationController::class, 'initializeRequiredCards']);
         Route::get('/pets/{petId}/vaccination-summary', [VaccinationController::class, 'getSummary']);
         // Dynamic {cardId} routes come after static routes
         Route::get('/pets/{petId}/vaccination-cards/{cardId}', [VaccinationController::class, 'getCard']);
-        Route::delete('/pets/{petId}/vaccination-cards/{cardId}', [VaccinationController::class, 'deleteCard']);
+        // deleteCard removed — admin controls protocol lifecycle now
         Route::post('/pets/{petId}/vaccination-cards/{cardId}/shots', [VaccinationController::class, 'addShot']);
         Route::post('/pets/{petId}/vaccination-cards/{cardId}/historical-shots', [VaccinationController::class, 'addHistoricalShot']);
 

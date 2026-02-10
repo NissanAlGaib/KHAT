@@ -50,18 +50,21 @@ export default function AddShotModal({
   const [errors, setErrors] = useState<Record<string, string>>({});
   
   // Shot number - user can specify which shot they're adding (for historical records)
-  const defaultNextShotNumber = card ? card.completed_shots_count + 1 : 1;
+  // The next shot number should be based on total shots (any status), not just approved
+  // The backend auto-calculates this, so we use the total shots count
+  const defaultNextShotNumber = card ? card.shots.length + 1 : 1;
   const [shotNumber, setShotNumber] = useState<string>(defaultNextShotNumber.toString());
   
   // Update shot number when card changes
   React.useEffect(() => {
     if (card) {
-      setShotNumber((card.completed_shots_count + 1).toString());
+      setShotNumber((card.shots.length + 1).toString());
     }
   }, [card]);
 
   const currentShotNumber = parseInt(shotNumber) || defaultNextShotNumber;
-  const isBoosterShot = card?.total_shots_required && currentShotNumber > card.total_shots_required;
+  const isBoosterShot = card?.is_in_booster_phase || 
+    (card?.total_shots_required && currentShotNumber > card.total_shots_required);
 
   const resetForm = () => {
     setDocument(null);
@@ -397,6 +400,14 @@ export default function AddShotModal({
               )}
             </View>
 
+            {/* Approval Info Note */}
+            <View style={styles.approvalNote}>
+              <Ionicons name="shield-checkmark-outline" size={20} color={Colors.warning} />
+              <Text style={styles.approvalNoteText}>
+                This shot will be submitted for admin review. It will appear as "Pending Approval" until verified.
+              </Text>
+            </View>
+
             {/* Info Note */}
             <View style={styles.infoNote}>
               <Ionicons name="information-circle-outline" size={20} color={Colors.info} />
@@ -635,6 +646,20 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: Colors.error,
     marginTop: 4,
+  },
+  approvalNote: {
+    flexDirection: "row",
+    backgroundColor: Colors.warning + "15",
+    padding: Spacing.md,
+    borderRadius: BorderRadius.lg,
+    marginBottom: Spacing.xl,
+    gap: Spacing.sm,
+    alignItems: "flex-start",
+  },
+  approvalNoteText: {
+    flex: 1,
+    fontSize: 13,
+    color: Colors.warning,
   },
   infoNote: {
     flexDirection: "row",

@@ -24,6 +24,7 @@ const getStatusColor = (status: string) => {
     case "verified":
       return Colors.success;
     case "in_progress":
+    case "pending_approval":
       return Colors.warning;
     case "overdue":
     case "expired":
@@ -43,6 +44,8 @@ const getStatusIcon = (status: string): keyof typeof Ionicons.glyphMap => {
       return "checkmark-circle";
     case "in_progress":
       return "time";
+    case "pending_approval":
+      return "hourglass";
     case "overdue":
     case "expired":
       return "alert-circle";
@@ -72,10 +75,14 @@ const ShotItem = ({ shot, isLast }: { shot: VaccinationShot; isLast: boolean }) 
       {/* Shot details */}
       <View style={styles.shotContent}>
         <View style={styles.shotHeader}>
-          <Text style={styles.shotNumber}>Shot {shot.shot_number}</Text>
+          <Text style={styles.shotNumber}>
+            {shot.is_booster ? "Booster" : `Shot ${shot.shot_number}`}
+          </Text>
           <View style={[styles.statusBadge, { backgroundColor: `${statusColor}20` }]}>
             <Text style={[styles.statusBadgeText, { color: statusColor }]}>
-              {shot.display_status.charAt(0).toUpperCase() + shot.display_status.slice(1)}
+              {shot.display_status === 'pending_approval' 
+                ? 'Pending Approval' 
+                : shot.display_status.charAt(0).toUpperCase() + shot.display_status.slice(1)}
             </Text>
           </View>
         </View>
@@ -111,7 +118,7 @@ export default function VaccinationCardComponent({
   // Determine progress text based on vaccine type
   const getProgressText = () => {
     if (card.total_shots_required) {
-      return `${card.completed_shots_count}/${card.total_shots_required} shots`;
+      return `${card.approved_shots_count}/${card.total_shots_required} approved`;
     }
     switch (card.recurrence_type) {
       case "yearly":
@@ -181,6 +188,15 @@ export default function VaccinationCardComponent({
         <Text style={styles.progressPercentage}>{card.progress_percentage}%</Text>
       </View>
 
+      {card.pending_shots_count > 0 && (
+        <View style={styles.pendingBanner}>
+          <Ionicons name="hourglass-outline" size={14} color={Colors.warning} />
+          <Text style={styles.pendingBannerText}>
+            {card.pending_shots_count} shot{card.pending_shots_count > 1 ? 's' : ''} pending admin approval
+          </Text>
+        </View>
+      )}
+
       {/* Expanded Content */}
       {expanded && (
         <View style={styles.expandedContent}>
@@ -203,12 +219,16 @@ export default function VaccinationCardComponent({
           )}
 
           {/* Series Completion Message */}
-          {card.is_series_complete && card.recurrence_type === "none" && (
+          {(card.is_series_complete || card.is_in_booster_phase) && (
             <View style={styles.completionMessage}>
               <Ionicons name="checkmark-circle" size={20} color={Colors.success} />
               <View style={{ flex: 1 }}>
-                <Text style={styles.completionText}>Vaccination series completed!</Text>
-                <Text style={styles.completionSubtext}>You can still add booster shots if needed.</Text>
+                <Text style={styles.completionText}>
+                  {card.is_in_booster_phase ? "Series complete! Now tracking boosters." : "Vaccination series completed!"}
+                </Text>
+                <Text style={styles.completionSubtext}>
+                  {card.is_in_booster_phase ? "Keep up with booster shots." : "You can still add booster shots if needed."}
+                </Text>
               </View>
             </View>
           )}
@@ -455,5 +475,18 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: "700",
     color: Colors.white,
+  },
+  pendingBanner: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: Colors.warning + "15",
+    paddingHorizontal: Spacing.lg,
+    paddingVertical: Spacing.sm,
+    gap: Spacing.xs,
+  },
+  pendingBannerText: {
+    fontSize: 12,
+    fontWeight: "500",
+    color: Colors.warning,
   },
 });

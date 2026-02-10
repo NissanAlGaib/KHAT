@@ -6,6 +6,62 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ---
+## [1.4.4] - 2026-02-10
+
+### Vaccination Management Overhaul
+
+Complete rework of the vaccination system from "user creates vaccines" to "admin controls vaccine protocols, user uploads proof, admin approves/rejects."
+
+#### New: Admin-Managed Vaccine Protocols
+- **New Table**: `vaccine_protocols` — admin-defined vaccines with name, species, series doses, intervals, booster config
+- **New Model**: `VaccineProtocol.php` — scopes (`active`, `forSpecies`, `required`, `optional`), protocol type detection (`series_only`, `series_with_booster`, `recurring`)
+- **New Controller**: `VaccineProtocolController.php` — full CRUD + shot verification (approve/reject with audit logging)
+- **Seeded Protocols**: Parvo (3-dose + annual booster), Distemper (3-dose + annual booster), Rabies (annual), Leptospirosis (annual) for dogs; FVRCP (3-dose + annual booster), FeLV (2-dose) for cats
+
+#### New: Admin Blade Views
+- **Protocol Management**: `index.blade.php` — list with stats cards, species/status/active filters, pagination
+- **Create/Edit Forms**: `create.blade.php`, `edit.blade.php` — protocol type radio buttons (Series Only, Series + Booster, Recurring) with dynamic field toggling
+- **Shot Verification Queue**: `pending-shots.blade.php` — pending shots with pet/owner info, proof document viewer, approve/reject with SweetAlert2 rejection reason modal
+- **Sidebar**: Added "Vaccine Protocols" and "Shot Verification" links to admin layout
+
+#### New: Admin Web Routes
+- `GET/POST /admin/vaccine-protocols` — list and create protocols
+- `GET /admin/vaccine-protocols/create` — create form
+- `GET /admin/vaccine-protocols/{id}/edit` — edit form
+- `PUT /admin/vaccine-protocols/{id}` — update protocol
+- `PATCH /admin/vaccine-protocols/{id}/toggle` — activate/deactivate
+- `GET /admin/vaccination-shots/pending` — verification queue
+- `POST /admin/vaccination-shots/{shotId}/approve` — approve shot
+- `POST /admin/vaccination-shots/{shotId}/reject` — reject shot with reason
+
+#### Changed: Approval-Based Shot Workflow
+- Shots now start as `verification_status: 'pending'` — only admin-approved shots count toward completion
+- **New display statuses**: `pending_approval`, `approved`, `rejected`, `historical`
+- Progress percentage, series completion, and card status all based on **approved shots only**
+- Concurrent uploads allowed — users can upload Dose 2 while Dose 1 is still pending review
+
+#### Changed: Backend Models
+- **VaccinationCard**: Added `protocol()` relationship, `approvedShots()`, `pendingShots()`, `historicalShots()` relations; `createRequiredCardsForPet()` now queries `vaccine_protocols` table; removed hardcoded `REQUIRED_VACCINES` constant; removed `createCustomCard()` method
+- **VaccinationShot**: Added `is_booster`, `verification_status`, `rejection_reason` fields; `createForCard()` sets status to `pending`; added `createHistoricalShot()` for pre-app records
+- **AdminController**: Added `vaccinationCards.protocol` and `vaccinationCards.shots` eager loading in `petDetails()`
+- **PetController**: Updated vaccination card response to include `approved_shots_count`, `pending_shots_count`, `is_in_booster_phase`, `protocol`; added `verification_status`, `is_booster` to shot response
+
+#### Changed: API Routes
+- **Added**: `GET /api/pets/{petId}/available-protocols` — returns enrolled + available optional protocols
+- **Added**: `POST /api/pets/{petId}/opt-in/{protocolId}` — opt-in to optional vaccine protocol
+- **Removed**: `POST /api/pets/{petId}/vaccination-cards` (custom card creation)
+- **Removed**: `DELETE /api/pets/{petId}/vaccination-cards/{cardId}` (card deletion)
+
+#### Changed: Frontend
+- **petService.ts**: Added `VaccineProtocol`, `AvailableProtocolsResponse` interfaces; added `getAvailableProtocols()`, `optInToProtocol()` functions; removed `createCustomVaccinationCard()`, `deleteVaccinationCard()`
+- **vaccinations.tsx**: Replaced custom card modal with opt-in modal showing admin-defined protocol cards; added "Pending" stat card; renamed "Completed" to "Verified"
+- **VaccinationCard.tsx**: Shows `approved_shots_count` in progress; pending banner for shots awaiting approval; booster phase/completion messages; status colors for `pending_approval` and `rejected`
+- **AddShotModal.tsx**: Added "Approval Info Note" warning that shots require admin approval
+
+#### Migration
+- `2026_02_10_000001_create_vaccine_protocols_and_update_vaccination_system.php` — creates `vaccine_protocols` table, adds `vaccine_protocol_id` FK to `vaccination_cards`, adds `is_booster` to `vaccination_shots`, adds `historical` to `verification_status` enum, seeds 6 initial protocols and links existing cards
+
+---
 ## [1.4.3] - 2026-02-05
 
 ### Block & Report System
@@ -404,6 +460,7 @@ Added new colors to `constants/colors.ts`:
 
 | Version | Date | Highlights |
 |---------|------|------------|
+| 1.4.4 | 2026-02-10 | Vaccination Management overhaul — admin-controlled protocols, approval workflow, shot verification queue |
 | 1.4.3 | 2026-02-05 | Block & Report system, Match Timeline, Rest Period for failed breeding |
 | 1.4.0 | 2026-02-04 | Pet Creation & Vaccination Rework - card system, expiration-based scheduling, booster support, DO Spaces fix |
 | 1.3.3 | 2026-02-03 | User Verification redesign, Verification Status screen, single certificate submission, DO Spaces fix |

@@ -470,6 +470,28 @@ export const createLitter = async (litterData: CreateLitterData) => {
 // VACCINATION CARD SYSTEM (New Card-Based API)
 // ===========================================
 
+export interface VaccineProtocol {
+  id: number;
+  name: string;
+  slug: string;
+  species: "dog" | "cat" | "all";
+  is_required: boolean;
+  description: string | null;
+  series_doses: number | null;
+  series_interval_days: number | null;
+  has_booster: boolean;
+  booster_interval_days: number | null;
+  protocol_type: "series_only" | "series_with_booster" | "recurring";
+  protocol_type_label: string;
+  is_active: boolean;
+  sort_order: number;
+}
+
+export interface AvailableProtocolsResponse {
+  enrolled: VaccineProtocol[];
+  available: VaccineProtocol[];
+}
+
 export interface VaccinationShot {
   shot_id: number;
   shot_number: number;
@@ -489,6 +511,7 @@ export interface VaccinationShot {
   is_expired: boolean;
   is_expiring_soon: boolean;
   is_historical: boolean;
+  is_booster: boolean;
 }
 
 export interface VaccinationCard {
@@ -504,6 +527,10 @@ export interface VaccinationCard {
   progress_percentage: number;
   completed_shots_count: number;
   is_series_complete: boolean;
+  approved_shots_count: number;
+  pending_shots_count: number;
+  is_in_booster_phase: boolean;
+  protocol: VaccineProtocol | null;
   next_shot_date?: string;
   next_shot_date_display?: string;
   shots: VaccinationShot[];
@@ -604,31 +631,28 @@ export const addVaccinationShot = async (
 };
 
 /**
- * Create a custom (optional) vaccination card
+ * Get available vaccine protocols for a pet (enrolled + available for opt-in)
  */
-export const createCustomVaccinationCard = async (
-  petId: number,
-  cardData: {
-    vaccine_name: string;
-    total_shots?: number;
-    recurrence_type?: "none" | "recurring";
-  }
-): Promise<VaccinationCard> => {
-  const response = await axiosInstance.post(
-    `/api/pets/${petId}/vaccination-cards`,
-    cardData
+export const getAvailableProtocols = async (
+  petId: number
+): Promise<AvailableProtocolsResponse> => {
+  const response = await axiosInstance.get(
+    `/api/pets/${petId}/available-protocols`
   );
   return response.data.data;
 };
 
 /**
- * Delete a custom vaccination card (only optional cards can be deleted)
+ * Opt in to an optional vaccine protocol
  */
-export const deleteVaccinationCard = async (
+export const optInToProtocol = async (
   petId: number,
-  cardId: number
-): Promise<void> => {
-  await axiosInstance.delete(`/api/pets/${petId}/vaccination-cards/${cardId}`);
+  protocolId: number
+): Promise<VaccinationCard> => {
+  const response = await axiosInstance.post(
+    `/api/pets/${petId}/opt-in/${protocolId}`
+  );
+  return response.data.data;
 };
 
 /**

@@ -2,6 +2,7 @@
 
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\Admin\AdminController;
+use App\Http\Controllers\Admin\VaccineProtocolController;
 
 Route::get('/', function () {
     return ['Laravel' => app()->version()];
@@ -38,6 +39,19 @@ Route::prefix('admin')->group(function () {
 
         // Litter/Match Management
         Route::get('/litters/{litterId}/details', [AdminController::class, 'litterDetails'])->name('admin.litters.details');
+
+        // Vaccine Protocol Management
+        Route::get('/vaccine-protocols', [VaccineProtocolController::class, 'index'])->name('admin.vaccine-protocols.index');
+        Route::get('/vaccine-protocols/create', [VaccineProtocolController::class, 'create'])->name('admin.vaccine-protocols.create');
+        Route::post('/vaccine-protocols', [VaccineProtocolController::class, 'store'])->name('admin.vaccine-protocols.store');
+        Route::get('/vaccine-protocols/{id}/edit', [VaccineProtocolController::class, 'edit'])->name('admin.vaccine-protocols.edit');
+        Route::put('/vaccine-protocols/{id}', [VaccineProtocolController::class, 'update'])->name('admin.vaccine-protocols.update');
+        Route::patch('/vaccine-protocols/{id}/toggle', [VaccineProtocolController::class, 'toggleActive'])->name('admin.vaccine-protocols.toggle');
+
+        // Vaccination Shot Verification
+        Route::get('/vaccination-shots/pending', [VaccineProtocolController::class, 'pendingShots'])->name('admin.vaccination-shots.pending');
+        Route::post('/vaccination-shots/{shotId}/approve', [VaccineProtocolController::class, 'approveShot'])->name('admin.vaccination-shots.approve');
+        Route::post('/vaccination-shots/{shotId}/reject', [VaccineProtocolController::class, 'rejectShot'])->name('admin.vaccination-shots.reject');
 
         // Other Admin Pages
         Route::get('/matches', [AdminController::class, 'matchHistory'])->name('admin.matches');

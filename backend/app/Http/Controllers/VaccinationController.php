@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\Pet;
 use App\Models\VaccinationCard;
 use App\Models\VaccinationShot;
+use App\Models\VaccineProtocol;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
@@ -122,7 +123,7 @@ class VaccinationController extends Controller
 
             return response()->json([
                 'success' => true,
-                'message' => 'Shot added successfully',
+                'message' => 'Shot proof uploaded successfully. Pending admin approval.',
                 'data' => [
                     'shot' => $shot->toApiArray(),
                     'card' => $this->formatCardResponse($card),
@@ -140,37 +141,82 @@ class VaccinationController extends Controller
     }
 
     /**
-     * Create a custom (optional) vaccination card for a pet
+     * Get available vaccine protocols for a pet (enrolled + available for opt-in)
      */
-    public function createCustomCard(Request $request, $petId)
+    public function getAvailableProtocols($petId)
     {
-        $validated = $request->validate([
-            'vaccine_name' => 'required|string|max:255',
-            'total_shots' => 'nullable|integer|min:1|max:20',
-            'recurrence_type' => 'nullable|in:none,recurring,yearly,biannual',
-        ]);
-
         $pet = Pet::where('pet_id', $petId)
             ->where('user_id', Auth::id())
             ->firstOrFail();
 
+        // Get protocols already linked to this pet
+        $enrolledProtocolIds = VaccinationCard::where('pet_id', $petId)
+            ->whereNotNull('vaccine_protocol_id')
+            ->pluck('vaccine_protocol_id')
+            ->toArray();
+
+        // Get enrolled protocols
+        $enrolledProtocols = VaccineProtocol::active()
+            ->whereIn('id', $enrolledProtocolIds)
+            ->ordered()
+            ->get()
+            ->map(fn($p) => $p->toApiArray());
+
+        // Get available optional protocols (active, matching species, not yet enrolled)
+        $availableProtocols = VaccineProtocol::active()
+            ->optional()
+            ->forSpecies($pet->species)
+            ->whereNotIn('id', $enrolledProtocolIds)
+            ->ordered()
+            ->get()
+            ->map(fn($p) => $p->toApiArray());
+
+        return response()->json([
+            'success' => true,
+            'data' => [
+                'enrolled' => $enrolledProtocols->values(),
+                'available' => $availableProtocols->values(),
+            ],
+        ]);
+    }
+
+    /**
+     * Opt in to an optional vaccine protocol
+     */
+    public function optInToProtocol($petId, $protocolId)
+    {
+        $pet = Pet::where('pet_id', $petId)
+            ->where('user_id', Auth::id())
+            ->firstOrFail();
+
+        $protocol = VaccineProtocol::where('id', $protocolId)
+            ->active()
+            ->firstOrFail();
+
+        // Verify species match
+        if ($protocol->species !== 'all' && $protocol->species !== $pet->species) {
+            return response()->json([
+                'success' => false,
+                'message' => 'This protocol is not available for this pet\'s species.',
+            ], 400);
+        }
+
         try {
-            $card = VaccinationCard::createCustomCard(
-                $petId,
-                $validated['vaccine_name'],
-                $validated['total_shots'] ?? 1,
-                $validated['recurrence_type'] ?? 'none'
-            );
+            $card = VaccinationCard::createFromProtocol($petId, $protocol);
+
+            $card->load(['shots' => function ($query) {
+                $query->orderBy('shot_number', 'asc');
+            }, 'protocol']);
 
             return response()->json([
                 'success' => true,
-                'message' => 'Vaccination type added successfully',
+                'message' => 'Vaccination protocol added successfully',
                 'data' => $this->formatCardResponse($card),
             ], 201);
         } catch (\Exception $e) {
             return response()->json([
                 'success' => false,
-                'message' => 'Failed to create vaccination type',
+                'message' => 'Failed to add vaccination protocol',
                 'error' => $e->getMessage(),
             ], 500);
         }
@@ -231,7 +277,7 @@ class VaccinationController extends Controller
                     'is_required' => $card->is_required,
                     'status' => $card->status,
                     'progress' => $card->progress_percentage,
-                    'completed_shots' => $card->completed_shots_count,
+                    'completed_shots' => $card->approved_shots_count,
                     'total_shots' => $card->total_shots_required,
                     'next_shot_date' => $card->calculateNextShotDate()?->format('Y-m-d'),
                 ];
@@ -242,42 +288,6 @@ class VaccinationController extends Controller
             'success' => true,
             'data' => $summary,
         ]);
-    }
-
-    /**
-     * Delete a custom vaccination card (only optional cards can be deleted)
-     */
-    public function deleteCard($petId, $cardId)
-    {
-        $pet = Pet::where('pet_id', $petId)
-            ->where('user_id', Auth::id())
-            ->firstOrFail();
-
-        $card = VaccinationCard::where('card_id', $cardId)
-            ->where('pet_id', $petId)
-            ->firstOrFail();
-
-        if ($card->is_required) {
-            return response()->json([
-                'success' => false,
-                'message' => 'Cannot delete required vaccination cards',
-            ], 400);
-        }
-
-        try {
-            $card->delete();
-
-            return response()->json([
-                'success' => true,
-                'message' => 'Vaccination card deleted successfully',
-            ]);
-        } catch (\Exception $e) {
-            return response()->json([
-                'success' => false,
-                'message' => 'Failed to delete vaccination card',
-                'error' => $e->getMessage(),
-            ], 500);
-        }
     }
 
     /**
@@ -298,8 +308,12 @@ class VaccinationController extends Controller
             'recurrence_type' => $card->recurrence_type,
             'status' => $card->status,
             'progress_percentage' => $card->progress_percentage,
-            'completed_shots_count' => $card->completed_shots_count,
+            'completed_shots_count' => $card->approved_shots_count,
+            'approved_shots_count' => $card->approved_shots_count,
+            'pending_shots_count' => $card->pending_shots_count,
             'is_series_complete' => $card->isSeriesComplete(),
+            'is_in_booster_phase' => $card->isInBoosterPhase(),
+            'protocol' => $card->protocol ? $card->protocol->toApiArray() : null,
             'next_shot_date' => $card->calculateNextShotDate()?->format('Y-m-d'),
             'next_shot_date_display' => $card->calculateNextShotDate()?->format('M j, Y'),
             'shots' => $shots,

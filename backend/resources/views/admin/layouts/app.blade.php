@@ -72,6 +72,18 @@
                     </a>
                 </li>
                 <li>
+                    <a href="{{ route('admin.vaccine-protocols.index') }}" class="flex items-center gap-3 px-3 py-2.5 rounded-lg {{ request()->routeIs('admin.vaccine-protocols.*') ? 'bg-[#FDF4F2] text-[#E75234] font-bold' : 'text-gray-600 hover:bg-gray-100 font-medium' }}">
+                        <i data-lucide="syringe" class="w-5 h-5"></i>
+                        <span>Vaccine Protocols</span>
+                    </a>
+                </li>
+                <li>
+                    <a href="{{ route('admin.vaccination-shots.pending') }}" class="flex items-center gap-3 px-3 py-2.5 rounded-lg {{ request()->routeIs('admin.vaccination-shots.*') ? 'bg-[#FDF4F2] text-[#E75234] font-bold' : 'text-gray-600 hover:bg-gray-100 font-medium' }}">
+                        <i data-lucide="clipboard-check" class="w-5 h-5"></i>
+                        <span>Shot Verification</span>
+                    </a>
+                </li>
+                <li>
                     <a href="{{ route('admin.matches') }}" class="flex items-center gap-3 px-3 py-2.5 rounded-lg {{ request()->routeIs('admin.matches') ? 'bg-[#FDF4F2] text-[#E75234] font-bold' : 'text-gray-600 hover:bg-gray-100 font-medium' }}">
                         <i data-lucide="history" class="w-5 h-5"></i>
                         <span>Match History</span>
@@ -205,6 +217,18 @@
                         <a href="{{ route('admin.pets.index') }}" class="flex items-center gap-3 px-3 py-2.5 rounded-lg {{ request()->routeIs('admin.pets.*') ? 'bg-[#FDF4F2] text-[#E75234] font-bold' : 'text-gray-600 hover:bg-gray-100 font-medium' }}">
                             <i data-lucide="paw-print" class="w-5 h-5"></i>
                             <span>Pet Management</span>
+                        </a>
+                    </li>
+                    <li>
+                        <a href="{{ route('admin.vaccine-protocols.index') }}" class="flex items-center gap-3 px-3 py-2.5 rounded-lg {{ request()->routeIs('admin.vaccine-protocols.*') ? 'bg-[#FDF4F2] text-[#E75234] font-bold' : 'text-gray-600 hover:bg-gray-100 font-medium' }}">
+                            <i data-lucide="syringe" class="w-5 h-5"></i>
+                            <span>Vaccine Protocols</span>
+                        </a>
+                    </li>
+                    <li>
+                        <a href="{{ route('admin.vaccination-shots.pending') }}" class="flex items-center gap-3 px-3 py-2.5 rounded-lg {{ request()->routeIs('admin.vaccination-shots.*') ? 'bg-[#FDF4F2] text-[#E75234] font-bold' : 'text-gray-600 hover:bg-gray-100 font-medium' }}">
+                            <i data-lucide="clipboard-check" class="w-5 h-5"></i>
+                            <span>Shot Verification</span>
                         </a>
                     </li>
                 </ul>

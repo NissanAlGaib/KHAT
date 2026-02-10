@@ -11,42 +11,12 @@ use Carbon\Carbon;
  * VaccinationCard Model
  * 
  * Represents a vaccination type card for a pet.
- * Each pet has one card per vaccination type (Parvo, Distemper, Rabies, Leptospirosis, etc.)
- * Contains the configuration and tracks overall progress for that vaccine type.
+ * Each pet has one card per vaccination type.
+ * Protocol configuration is now sourced from the vaccine_protocols table (admin-managed).
  */
 class VaccinationCard extends Model
 {
     protected $primaryKey = 'card_id';
-
-    /**
-     * Required vaccination types with their configurations
-     */
-    const REQUIRED_VACCINES = [
-        'parvo' => [
-            'name' => 'Parvovirus (5-in-1)',
-            'total_shots' => 6,
-            'interval_days' => 21, // 3 weeks between shots
-            'recurrence_type' => 'none',
-        ],
-        'distemper' => [
-            'name' => 'Distemper',
-            'total_shots' => 6,
-            'interval_days' => 21, // 3 weeks between shots
-            'recurrence_type' => 'none',
-        ],
-        'rabies' => [
-            'name' => 'Anti-Rabies',
-            'total_shots' => null, // Recurring
-            'interval_days' => 365, // 1 year
-            'recurrence_type' => 'yearly',
-        ],
-        'leptospirosis' => [
-            'name' => 'Leptospirosis',
-            'total_shots' => null, // Recurring
-            'interval_days' => 180, // 6 months
-            'recurrence_type' => 'biannual',
-        ],
-    ];
 
     /**
      * Status constants
@@ -58,6 +28,7 @@ class VaccinationCard extends Model
 
     protected $fillable = [
         'pet_id',
+        'vaccine_protocol_id',
         'vaccine_type',
         'vaccine_name',
         'is_required',
@@ -82,6 +53,14 @@ class VaccinationCard extends Model
     }
 
     /**
+     * Get the vaccine protocol this card is based on
+     */
+    public function protocol(): BelongsTo
+    {
+        return $this->belongsTo(VaccineProtocol::class, 'vaccine_protocol_id');
+    }
+
+    /**
      * Get all shots for this vaccination card
      */
     public function shots(): HasMany
@@ -91,17 +70,67 @@ class VaccinationCard extends Model
     }
 
     /**
-     * Get completed shots for this card
+     * Get approved shots for this card (only admin-approved count as complete)
      */
-    public function completedShots(): HasMany
+    public function approvedShots(): HasMany
     {
         return $this->hasMany(VaccinationShot::class, 'card_id', 'card_id')
-            ->whereIn('status', ['completed', 'verified'])
+            ->where('verification_status', 'approved')
             ->orderBy('shot_number', 'asc');
     }
 
     /**
-     * Get the latest shot
+     * Get approved series shots (non-booster, approved)
+     */
+    public function approvedSeriesShots(): HasMany
+    {
+        return $this->hasMany(VaccinationShot::class, 'card_id', 'card_id')
+            ->where('verification_status', 'approved')
+            ->where('is_booster', false)
+            ->orderBy('shot_number', 'asc');
+    }
+
+    /**
+     * Get approved booster shots
+     */
+    public function approvedBoosterShots(): HasMany
+    {
+        return $this->hasMany(VaccinationShot::class, 'card_id', 'card_id')
+            ->where('verification_status', 'approved')
+            ->where('is_booster', true)
+            ->orderBy('shot_number', 'asc');
+    }
+
+    /**
+     * Get pending shots (uploaded but awaiting admin review)
+     */
+    public function pendingShots(): HasMany
+    {
+        return $this->hasMany(VaccinationShot::class, 'card_id', 'card_id')
+            ->where('verification_status', 'pending')
+            ->orderBy('shot_number', 'asc');
+    }
+
+    /**
+     * Get historical shots (pre-app records, bypass verification)
+     */
+    public function historicalShots(): HasMany
+    {
+        return $this->hasMany(VaccinationShot::class, 'card_id', 'card_id')
+            ->where('verification_status', 'historical')
+            ->orderBy('shot_number', 'asc');
+    }
+
+    /**
+     * Get the latest approved shot
+     */
+    public function latestApprovedShot()
+    {
+        return $this->approvedShots()->latest('shot_number')->first();
+    }
+
+    /**
+     * Get the latest shot (any status)
      */
     public function latestShot()
     {
@@ -109,105 +138,196 @@ class VaccinationCard extends Model
     }
 
     /**
-     * Get the next pending shot (if any)
-     */
-    public function pendingShot()
-    {
-        return $this->shots()->where('status', 'pending')->first();
-    }
-
-    /**
-     * Calculate progress percentage
+     * Calculate progress percentage based on approved shots only
      */
     public function getProgressPercentageAttribute(): int
     {
-        if (!$this->total_shots_required) {
-            // For recurring vaccines, check if current shot is valid
-            $latestShot = $this->latestShot();
-            if ($latestShot && $latestShot->expiration_date >= now()) {
+        $protocol = $this->protocol;
+
+        if ($protocol && $protocol->isPurelyRecurring()) {
+            // For recurring vaccines, check if current shot is valid and approved
+            $latestApproved = $this->latestApprovedShot();
+            if ($latestApproved && $latestApproved->expiration_date >= now()) {
                 return 100;
             }
-            return $latestShot ? 50 : 0;
+            return $latestApproved ? 50 : 0;
         }
 
-        $completedCount = $this->completedShots()->count();
-        return min(100, (int) (($completedCount / $this->total_shots_required) * 100));
+        // For series-based protocols
+        $seriesDoses = $protocol ? $protocol->series_doses : $this->total_shots_required;
+        if (!$seriesDoses) {
+            return 0;
+        }
+
+        $approvedCount = $this->approvedSeriesShots()->count();
+        return min(100, (int) (($approvedCount / $seriesDoses) * 100));
     }
 
     /**
-     * Get the number of completed shots
+     * Get the number of approved shots
      */
-    public function getCompletedShotsCountAttribute(): int
+    public function getApprovedShotsCountAttribute(): int
     {
-        return $this->completedShots()->count();
+        return $this->approvedShots()->count();
     }
 
     /**
-     * Check if series is complete
+     * Get the number of pending shots
+     */
+    public function getPendingShotsCountAttribute(): int
+    {
+        return $this->pendingShots()->count();
+    }
+
+    /**
+     * Check if series is complete (all required doses approved)
      */
     public function isSeriesComplete(): bool
     {
-        if (!$this->total_shots_required) {
-            // Recurring vaccines - check if current vaccination is valid
-            $latestShot = $this->latestShot();
-            return $latestShot && $latestShot->expiration_date >= now();
+        $protocol = $this->protocol;
+
+        if ($protocol && $protocol->isPurelyRecurring()) {
+            // Recurring vaccines: check if current vaccination is valid and approved
+            $latestApproved = $this->latestApprovedShot();
+            return $latestApproved && $latestApproved->expiration_date >= now();
         }
 
-        return $this->completedShots()->count() >= $this->total_shots_required;
+        $seriesDoses = $protocol ? $protocol->series_doses : $this->total_shots_required;
+        if (!$seriesDoses) {
+            return false;
+        }
+
+        $approvedSeriesCount = $this->approvedSeriesShots()->count();
+
+        if ($protocol && $protocol->has_booster) {
+            // Series + booster: series is complete when all series doses are approved
+            // AND latest booster (if any due) is also approved and valid
+            if ($approvedSeriesCount >= $seriesDoses) {
+                $latestBooster = $this->approvedBoosterShots()->latest('shot_number')->first();
+                if ($latestBooster) {
+                    return $latestBooster->expiration_date >= now();
+                }
+                // Series done, no booster yet — check if first booster is due
+                $lastSeriesShot = $this->approvedSeriesShots()->latest('shot_number')->first();
+                if ($lastSeriesShot && $lastSeriesShot->expiration_date >= now()) {
+                    return true; // Still within the last series shot's validity
+                }
+                return false; // Booster is due
+            }
+            return false;
+        }
+
+        // Fixed series only: complete when all doses approved
+        return $approvedSeriesCount >= $seriesDoses;
     }
 
     /**
-     * Calculate the next shot date based on the latest shot's expiration
-     * Returns the expiration date of the most recent shot (when next shot is due)
+     * Check if the card is currently in the booster phase
+     * (series complete, now tracking recurring boosters)
+     */
+    public function isInBoosterPhase(): bool
+    {
+        $protocol = $this->protocol;
+        if (!$protocol || !$protocol->has_booster || !$protocol->hasSeries()) {
+            return false;
+        }
+
+        $seriesDoses = $protocol->series_doses;
+        $approvedSeriesCount = $this->approvedSeriesShots()->count();
+
+        return $approvedSeriesCount >= $seriesDoses;
+    }
+
+    /**
+     * Calculate the next shot date based on the latest approved shot
      */
     public function calculateNextShotDate(): ?Carbon
     {
-        $latestShot = $this->latestShot();
-        
-        if (!$latestShot) {
+        $latestApproved = $this->latestApprovedShot();
+
+        if (!$latestApproved) {
             return null;
         }
 
-        // For non-recurring vaccines with completed series, no next shot needed
-        if ($this->recurrence_type === 'none' && $this->total_shots_required) {
-            if ($this->completedShots()->count() >= $this->total_shots_required) {
+        $protocol = $this->protocol;
+
+        // For protocols with booster after series completion
+        if ($protocol && $protocol->has_booster && $this->isInBoosterPhase()) {
+            return $latestApproved->expiration_date ? Carbon::parse($latestApproved->expiration_date) : null;
+        }
+
+        // For series: if series is complete and no booster needed, no next shot
+        if ($protocol && $protocol->hasSeries() && !$protocol->has_booster) {
+            $seriesDoses = $protocol->series_doses;
+            if ($this->approvedSeriesShots()->count() >= $seriesDoses) {
                 return null;
             }
         }
 
         // Next shot is due when the current shot expires
-        return $latestShot->expiration_date ? Carbon::parse($latestShot->expiration_date) : null;
+        return $latestApproved->expiration_date ? Carbon::parse($latestApproved->expiration_date) : null;
     }
 
     /**
-     * Calculate the next expiration date
+     * Calculate expiration date for a new shot based on protocol
      */
-    public function calculateNextExpirationDate(Carbon $shotDate): Carbon
+    public function calculateNextExpirationDate(Carbon $shotDate, bool $isBooster = false): Carbon
     {
+        $protocol = $this->protocol;
+
+        if ($protocol) {
+            if ($isBooster || $protocol->isPurelyRecurring()) {
+                return $shotDate->copy()->addDays($protocol->booster_interval_days);
+            }
+            // Series dose
+            return $shotDate->copy()->addDays($protocol->series_interval_days ?? 30);
+        }
+
+        // Fallback for cards without a protocol
         if ($this->recurrence_type === 'yearly') {
             return $shotDate->copy()->addYear();
         } elseif ($this->recurrence_type === 'biannual') {
             return $shotDate->copy()->addMonths(6);
-        } else {
-            // For multi-shot series, expiration is typically after the series completes
-            // Use the interval + buffer for individual shots
-            return $shotDate->copy()->addDays($this->interval_days ?? 30);
         }
+
+        return $shotDate->copy()->addDays($this->interval_days ?? 30);
     }
 
     /**
-     * Update card status based on shots
+     * Determine the next shot number for a new upload
+     */
+    public function getNextShotNumber(): int
+    {
+        $latestShot = $this->latestShot();
+        return $latestShot ? $latestShot->shot_number + 1 : 1;
+    }
+
+    /**
+     * Determine if the next shot should be a booster
+     */
+    public function shouldNextShotBeBooster(): bool
+    {
+        return $this->isInBoosterPhase();
+    }
+
+    /**
+     * Update card status based on approved shots
      */
     public function updateStatus(): void
     {
-        $completedCount = $this->completedShots()->count();
-        $latestShot = $this->latestShot();
+        $approvedCount = $this->approvedShots()->count();
+        $latestApproved = $this->latestApprovedShot();
 
-        if ($completedCount === 0) {
-            $this->status = self::STATUS_NOT_STARTED;
+        if ($approvedCount === 0) {
+            // Check if there are pending shots
+            if ($this->pendingShots()->count() > 0) {
+                $this->status = self::STATUS_IN_PROGRESS;
+            } else {
+                $this->status = self::STATUS_NOT_STARTED;
+            }
         } elseif ($this->isSeriesComplete()) {
             $this->status = self::STATUS_COMPLETED;
-        } elseif ($latestShot && $latestShot->next_shot_date && Carbon::parse($latestShot->next_shot_date)->isPast()) {
+        } elseif ($latestApproved && $latestApproved->expiration_date && Carbon::parse($latestApproved->expiration_date)->isPast()) {
             $this->status = self::STATUS_OVERDUE;
         } else {
             $this->status = self::STATUS_IN_PROGRESS;
@@ -217,21 +337,46 @@ class VaccinationCard extends Model
     }
 
     /**
-     * Create required vaccination cards for a pet
+     * Create required vaccination cards for a pet based on active protocols for its species
      */
     public static function createRequiredCardsForPet(int $petId): array
     {
+        $pet = Pet::findOrFail($petId);
+
+        $protocols = VaccineProtocol::active()
+            ->required()
+            ->forSpecies($pet->species)
+            ->ordered()
+            ->get();
+
         $cards = [];
 
-        foreach (self::REQUIRED_VACCINES as $type => $config) {
+        foreach ($protocols as $protocol) {
+            // Check if card already exists for this pet + protocol
+            $existing = self::where('pet_id', $petId)
+                ->where('vaccine_protocol_id', $protocol->id)
+                ->first();
+
+            if ($existing) {
+                $cards[] = $existing;
+                continue;
+            }
+
+            // Determine recurrence_type for backward compatibility
+            $recurrenceType = 'none';
+            if ($protocol->isPurelyRecurring()) {
+                $recurrenceType = $protocol->booster_interval_days >= 365 ? 'yearly' : 'biannual';
+            }
+
             $cards[] = self::create([
                 'pet_id' => $petId,
-                'vaccine_type' => $type,
-                'vaccine_name' => $config['name'],
+                'vaccine_protocol_id' => $protocol->id,
+                'vaccine_type' => $protocol->slug,
+                'vaccine_name' => $protocol->name,
                 'is_required' => true,
-                'total_shots_required' => $config['total_shots'],
-                'interval_days' => $config['interval_days'],
-                'recurrence_type' => $config['recurrence_type'],
+                'total_shots_required' => $protocol->series_doses,
+                'interval_days' => $protocol->series_interval_days ?? $protocol->booster_interval_days,
+                'recurrence_type' => $recurrenceType,
                 'status' => self::STATUS_NOT_STARTED,
             ]);
         }
@@ -240,23 +385,32 @@ class VaccinationCard extends Model
     }
 
     /**
-     * Create a custom (optional) vaccination card for a pet
+     * Create a card for an optional protocol (user opt-in)
      */
-    public static function createCustomCard(
-        int $petId,
-        string $vaccineName,
-        ?int $totalShots = 1,
-        string $recurrenceType = 'none'
-    ): self {
-        $type = 'custom_' . strtolower(str_replace(' ', '_', $vaccineName)) . '_' . time();
+    public static function createFromProtocol(int $petId, VaccineProtocol $protocol): self
+    {
+        // Check if card already exists
+        $existing = self::where('pet_id', $petId)
+            ->where('vaccine_protocol_id', $protocol->id)
+            ->first();
+
+        if ($existing) {
+            return $existing;
+        }
+
+        $recurrenceType = 'none';
+        if ($protocol->isPurelyRecurring()) {
+            $recurrenceType = $protocol->booster_interval_days >= 365 ? 'yearly' : 'biannual';
+        }
 
         return self::create([
             'pet_id' => $petId,
-            'vaccine_type' => $type,
-            'vaccine_name' => $vaccineName,
-            'is_required' => false,
-            'total_shots_required' => $totalShots,
-            'interval_days' => null, // No longer used for scheduling - expiration date determines next shot
+            'vaccine_protocol_id' => $protocol->id,
+            'vaccine_type' => $protocol->slug,
+            'vaccine_name' => $protocol->name,
+            'is_required' => $protocol->is_required,
+            'total_shots_required' => $protocol->series_doses,
+            'interval_days' => $protocol->series_interval_days ?? $protocol->booster_interval_days,
             'recurrence_type' => $recurrenceType,
             'status' => self::STATUS_NOT_STARTED,
         ]);

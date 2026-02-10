@@ -331,6 +331,8 @@ class AdminController extends Controller
             'owner.userAuth',
             'photos',
             'vaccinations',
+            'vaccinationCards.protocol',
+            'vaccinationCards.shots',
             'healthRecords',
             'littersAsSire.dam',
             'littersAsSire.offspring',
