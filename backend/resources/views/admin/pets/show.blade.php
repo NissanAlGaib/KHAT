@@ -267,7 +267,7 @@
                 @forelse($breedCounts as $breed => $count)
                 <div>
                     <div class="flex justify-between items-center mb-1">
-                        <span class="text-xs text-gray-600">Litter {{ $loop->iteration }}</span>
+                        <span class="text-xs text-gray-600">{{ $breed }}</span>
                         <span class="text-xs font-semibold text-gray-900">{{ $count }}</span>
                     </div>
                     <div class="w-full bg-gray-200 rounded-full h-8">
@@ -293,12 +293,12 @@
         <table class="w-full text-left border-collapse">
             <thead>
                 <tr class="bg-[#E75234] text-white text-sm">
-                    <th class="px-6 py-3 font-medium rounded-tl-lg">Match ID</th>
-                    <th class="px-6 py-3 font-medium">Partner</th>
-                    <th class="px-6 py-3 font-medium">Status</th>
-                    <th class="px-6 py-3 font-medium">Date</th>
-                    <th class="px-6 py-3 font-medium">Offspring Count</th>
-                    <th class="px-6 py-3 font-medium rounded-tr-lg">Actions</th>
+                    <th class="px-6 py-3 font-semibold rounded-tl-lg">Match ID</th>
+                    <th class="px-6 py-3 font-semibold">Partner</th>
+                    <th class="px-6 py-3 font-semibold">Status</th>
+                    <th class="px-6 py-3 font-semibold">Date</th>
+                    <th class="px-6 py-3 font-semibold">Offspring Count</th>
+                    <th class="px-6 py-3 font-semibold rounded-tr-lg">Actions</th>
                 </tr>
             </thead>
             <tbody class="divide-y divide-gray-100 text-sm text-gray-700">
@@ -425,7 +425,7 @@
                                     </div>
                                 </div>
                                 <div class="flex items-center gap-2">
-                                    <button onclick="viewDocument('{{ asset('storage/' . $rabiesVaccination->vaccination_record) }}')" class="px-3 py-1.5 bg-white border border-gray-300 text-gray-700 text-xs font-medium rounded hover:bg-gray-50 transition">
+                                    <button onclick="viewDocument('{{ Storage::disk('do_spaces')->url($rabiesVaccination->vaccination_record) }}')" class="px-3 py-1.5 bg-white border border-gray-300 text-gray-700 text-xs font-medium rounded hover:bg-gray-50 transition">
                                         View
                                     </button>
                                     @if($rabiesVaccination->status === 'pending')
@@ -477,7 +477,7 @@
                                     </div>
                                 </div>
                                 <div class="flex items-center gap-2">
-                                    <button onclick="viewDocument('{{ asset('storage/' . $dhppVaccination->vaccination_record) }}')" class="px-3 py-1.5 bg-white border border-gray-300 text-gray-700 text-xs font-medium rounded hover:bg-gray-50 transition">
+                                    <button onclick="viewDocument('{{ Storage::disk('do_spaces')->url($dhppVaccination->vaccination_record) }}')" class="px-3 py-1.5 bg-white border border-gray-300 text-gray-700 text-xs font-medium rounded hover:bg-gray-50 transition">
                                         View
                                     </button>
                                     @if($dhppVaccination->status === 'pending')
@@ -529,7 +529,7 @@
                                     </div>
                                 </div>
                                 <div class="flex items-center gap-2">
-                                    <button onclick="viewDocument('{{ asset('storage/' . $vaccination->vaccination_record) }}')" class="px-3 py-1.5 bg-white border border-gray-300 text-gray-700 text-xs font-medium rounded hover:bg-gray-50 transition">
+                                    <button onclick="viewDocument('{{ Storage::disk('do_spaces')->url($vaccination->vaccination_record) }}')" class="px-3 py-1.5 bg-white border border-gray-300 text-gray-700 text-xs font-medium rounded hover:bg-gray-50 transition">
                                         View
                                     </button>
                                     @if($vaccination->status === 'pending')
@@ -581,7 +581,7 @@
                                     </div>
                                 </div>
                                 <div class="flex items-center gap-2">
-                                    <button onclick="viewDocument('{{ asset('storage/' . $healthRecord->record_path) }}')" class="px-3 py-1.5 bg-white border border-gray-300 text-gray-700 text-xs font-medium rounded hover:bg-gray-50 transition">
+                                    <button onclick="viewDocument('{{ Storage::disk('do_spaces')->url($healthRecord->record_path) }}')" class="px-3 py-1.5 bg-white border border-gray-300 text-gray-700 text-xs font-medium rounded hover:bg-gray-50 transition">
                                         View
                                     </button>
                                     @if($healthRecord->status === 'pending')

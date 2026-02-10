@@ -3,25 +3,46 @@
 @section('title', 'Match History - KHAT Admin')
 
 @section('content')
-<h1 class="text-3xl font-bold text-gray-900 mb-6">Match History</h1>
+<h1 class="text-3xl font-bold text-gray-900 mb-2">Match History</h1>
+<p class="text-sm text-gray-500 mb-6">Track all breeding match requests, approvals, and contract status</p>
 
 <!-- Stats Cards -->
 <div class="grid grid-cols-1 md:grid-cols-4 gap-6 mb-6">
-    <div class="bg-white p-5 rounded-xl shadow-sm border border-gray-50">
-        <span class="text-sm font-semibold text-gray-500">Total Matches</span>
-        <p class="text-2xl font-bold text-gray-900 mt-2">{{ number_format($totalMatches) }}</p>
+    <div class="bg-white p-5 rounded-xl shadow-sm border border-gray-50 hover:shadow-md transition-all">
+        <div class="flex items-center gap-3 mb-3">
+            <div class="w-10 h-10 rounded-lg bg-blue-100 flex items-center justify-center">
+                <i data-lucide="heart-handshake" class="w-5 h-5 text-blue-600"></i>
+            </div>
+            <span class="text-sm font-semibold text-gray-500">Total Matches</span>
+        </div>
+        <p class="text-2xl font-bold text-gray-900">{{ number_format($totalMatches) }}</p>
     </div>
-    <div class="bg-white p-5 rounded-xl shadow-sm border border-gray-50">
-        <span class="text-sm font-semibold text-gray-500">Pending</span>
-        <p class="text-2xl font-bold text-yellow-600 mt-2">{{ number_format($pendingMatches) }}</p>
+    <div class="bg-white p-5 rounded-xl shadow-sm border border-gray-50 hover:shadow-md transition-all">
+        <div class="flex items-center gap-3 mb-3">
+            <div class="w-10 h-10 rounded-lg bg-yellow-100 flex items-center justify-center">
+                <i data-lucide="clock" class="w-5 h-5 text-yellow-600"></i>
+            </div>
+            <span class="text-sm font-semibold text-gray-500">Pending</span>
+        </div>
+        <p class="text-2xl font-bold text-yellow-600">{{ number_format($pendingMatches) }}</p>
     </div>
-    <div class="bg-white p-5 rounded-xl shadow-sm border border-gray-50">
-        <span class="text-sm font-semibold text-gray-500">Accepted</span>
-        <p class="text-2xl font-bold text-green-600 mt-2">{{ number_format($acceptedMatches) }}</p>
+    <div class="bg-white p-5 rounded-xl shadow-sm border border-gray-50 hover:shadow-md transition-all">
+        <div class="flex items-center gap-3 mb-3">
+            <div class="w-10 h-10 rounded-lg bg-green-100 flex items-center justify-center">
+                <i data-lucide="check-circle" class="w-5 h-5 text-green-600"></i>
+            </div>
+            <span class="text-sm font-semibold text-gray-500">Accepted</span>
+        </div>
+        <p class="text-2xl font-bold text-green-600">{{ number_format($acceptedMatches) }}</p>
     </div>
-    <div class="bg-white p-5 rounded-xl shadow-sm border border-gray-50">
-        <span class="text-sm font-semibold text-gray-500">Completed</span>
-        <p class="text-2xl font-bold text-blue-600 mt-2">{{ number_format($completedMatches) }}</p>
+    <div class="bg-white p-5 rounded-xl shadow-sm border border-gray-50 hover:shadow-md transition-all">
+        <div class="flex items-center gap-3 mb-3">
+            <div class="w-10 h-10 rounded-lg bg-sky-100 flex items-center justify-center">
+                <i data-lucide="flag" class="w-5 h-5 text-sky-600"></i>
+            </div>
+            <span class="text-sm font-semibold text-gray-500">Completed</span>
+        </div>
+        <p class="text-2xl font-bold text-blue-600">{{ number_format($completedMatches) }}</p>
     </div>
 </div>
 
@@ -84,7 +105,7 @@
                     <td class="px-6 py-4">
                         <div class="flex items-center gap-3">
                             @if($match->requesterPet->photos->first())
-                            <img src="{{ asset('storage/' . $match->requesterPet->photos->first()->photo_url) }}" 
+                            <img src="{{ Storage::disk('do_spaces')->url($match->requesterPet->photos->first()->photo_url) }}" 
                                  class="w-10 h-10 rounded-full object-cover" alt="">
                             @else
                             <div class="w-10 h-10 rounded-full bg-orange-100 flex items-center justify-center">
@@ -100,7 +121,7 @@
                     <td class="px-6 py-4">
                         <div class="flex items-center gap-3">
                             @if($match->targetPet->photos->first())
-                            <img src="{{ asset('storage/' . $match->targetPet->photos->first()->photo_url) }}" 
+                            <img src="{{ Storage::disk('do_spaces')->url($match->targetPet->photos->first()->photo_url) }}" 
                                  class="w-10 h-10 rounded-full object-cover" alt="">
                             @else
                             <div class="w-10 h-10 rounded-full bg-orange-100 flex items-center justify-center">

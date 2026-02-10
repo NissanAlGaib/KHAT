@@ -3,13 +3,14 @@
 @section('title', 'Analytics - KHAT Admin')
 
 @section('content')
-<h1 class="text-3xl font-bold text-gray-900 mb-6">Analytics</h1>
+<h1 class="text-3xl font-bold text-gray-900 mb-2">Analytics</h1>
+<p class="text-sm text-gray-500 mb-6">Revenue insights, user engagement, and platform performance metrics</p>
 
 <div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-6 mb-6">
-    <div class="bg-white p-5 rounded-xl shadow-sm border border-gray-50">
+    <div class="bg-white p-5 rounded-xl shadow-sm border border-gray-50 hover:shadow-md transition-all">
         <div class="flex justify-between items-start mb-2">
             <span class="text-sm font-semibold text-gray-500">Total Revenue</span>
-            <i data-lucide="dollar-sign" class="w-5 h-5 text-gray-400"></i>
+            <div class="w-10 h-10 rounded-lg bg-green-100 flex items-center justify-center"><i data-lucide="dollar-sign" class="w-5 h-5 text-green-600"></i></div>
         </div>
         <p class="text-3xl font-bold text-gray-900 mb-1">₱{{ number_format($totalRevenue) }}</p>
         <span class="text-sm {{ $revenueGrowth >= 0 ? 'text-green-500' : 'text-red-500' }} font-medium">
@@ -17,10 +18,10 @@
         </span>
     </div>
 
-    <div class="bg-white p-5 rounded-xl shadow-sm border border-gray-50">
+    <div class="bg-white p-5 rounded-xl shadow-sm border border-gray-50 hover:shadow-md transition-all">
         <div class="flex justify-between items-start mb-2">
             <span class="text-sm font-semibold text-gray-500">Active Users</span>
-            <i data-lucide="users" class="w-5 h-5 text-gray-400"></i>
+            <div class="w-10 h-10 rounded-lg bg-blue-100 flex items-center justify-center"><i data-lucide="users" class="w-5 h-5 text-blue-600"></i></div>
         </div>
         <p class="text-3xl font-bold text-gray-900 mb-1">{{ number_format($activeUsers) }}</p>
         <span class="text-sm {{ $activeUsersGrowth >= 0 ? 'text-green-500' : 'text-red-500' }} font-medium">
@@ -28,10 +29,10 @@
         </span>
     </div>
 
-    <div class="bg-white p-5 rounded-xl shadow-sm border border-gray-50">
+    <div class="bg-white p-5 rounded-xl shadow-sm border border-gray-50 hover:shadow-md transition-all">
         <div class="flex justify-between items-start mb-2">
             <span class="text-sm font-semibold text-gray-500">Matches Made</span>
-            <i data-lucide="heart" class="w-5 h-5 text-gray-400"></i>
+            <div class="w-10 h-10 rounded-lg bg-pink-100 flex items-center justify-center"><i data-lucide="heart" class="w-5 h-5 text-pink-600"></i></div>
         </div>
         <p class="text-3xl font-bold text-gray-900 mb-1">{{ number_format($matchesMade) }}</p>
         <span class="text-sm {{ $matchesGrowth >= 0 ? 'text-green-500' : 'text-red-500' }} font-medium">
@@ -39,10 +40,10 @@
         </span>
     </div>
 
-    <div class="bg-white p-5 rounded-xl shadow-sm border border-gray-50">
+    <div class="bg-white p-5 rounded-xl shadow-sm border border-gray-50 hover:shadow-md transition-all">
         <div class="flex justify-between items-start mb-2">
             <span class="text-sm font-semibold text-gray-500">Conversion Rate</span>
-            <i data-lucide="trending-up" class="w-5 h-5 text-gray-400"></i>
+            <div class="w-10 h-10 rounded-lg bg-purple-100 flex items-center justify-center"><i data-lucide="trending-up" class="w-5 h-5 text-purple-600"></i></div>
         </div>
         <p class="text-3xl font-bold text-gray-900 mb-1">{{ $conversionRate }}%</p>
         <span class="text-sm {{ $conversionGrowth >= 0 ? 'text-green-500' : 'text-red-500' }} font-medium">
@@ -79,17 +80,17 @@
         @endphp
         <table class="w-full text-left">
             <thead>
-                <tr class="border-b border-gray-200">
-                    <th class="px-4 py-3 text-sm font-semibold text-gray-600">Month</th>
-                    <th class="px-4 py-3 text-sm font-semibold text-gray-600">New Users</th>
-                    <th class="px-4 py-3 text-sm font-semibold text-gray-600">Total Matches</th>
-                    <th class="px-4 py-3 text-sm font-semibold text-gray-600">Accepted</th>
-                    <th class="px-4 py-3 text-sm font-semibold text-gray-600">Success Rate</th>
+                <tr class="bg-[#E75234] text-white rounded-t-lg">
+                    <th class="px-4 py-3 text-sm font-semibold text-white">Month</th>
+                    <th class="px-4 py-3 text-sm font-semibold text-white">New Users</th>
+                    <th class="px-4 py-3 text-sm font-semibold text-white">Total Matches</th>
+                    <th class="px-4 py-3 text-sm font-semibold text-white">Accepted</th>
+                    <th class="px-4 py-3 text-sm font-semibold text-white">Success Rate</th>
                 </tr>
             </thead>
             <tbody class="divide-y divide-gray-100">
                 @foreach($monthlyMatches as $data)
-                <tr class="hover:bg-gray-50">
+                <tr class="hover:bg-orange-50/50">
                     <td class="px-4 py-3 text-sm text-gray-900">{{ $data->month }}</td>
                     <td class="px-4 py-3 text-sm text-gray-600">
                         {{ $monthlyUserLookup->get($data->month)->users ?? 0 }}

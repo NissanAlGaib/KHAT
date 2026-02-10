@@ -3,22 +3,23 @@
 @section('title', 'Subscription & Billing - KHAT Admin')
 
 @section('content')
-<h1 class="text-3xl font-bold text-gray-900 mb-6">Subscription & Billing</h1>
+<h1 class="text-3xl font-bold text-gray-900 mb-2">Subscription & Billing</h1>
+<p class="text-sm text-gray-500 mb-6">Monitor subscription plans, revenue estimates, and billing activity</p>
 
 <div class="grid grid-cols-1 md:grid-cols-4 gap-6 mb-6">
-    <div class="bg-white p-5 rounded-xl shadow-sm border border-gray-50">
+    <div class="bg-white p-5 rounded-xl shadow-sm border border-gray-50 hover:shadow-md transition-all">
         <div class="flex justify-between items-start mb-2">
             <span class="text-sm font-semibold text-gray-500">Free Tier Users</span>
-            <i data-lucide="users" class="w-5 h-5 text-gray-400"></i>
+            <div class="w-10 h-10 rounded-lg bg-gray-100 flex items-center justify-center"><i data-lucide="users" class="w-5 h-5 text-gray-600"></i></div>
         </div>
         <p class="text-3xl font-bold text-gray-900 mb-1">{{ number_format($freeUsers) }}</p>
         <span class="text-sm text-gray-500">{{ $freePercentage }}% of total users</span>
     </div>
 
-    <div class="bg-white p-5 rounded-xl shadow-sm border border-gray-50">
+    <div class="bg-white p-5 rounded-xl shadow-sm border border-gray-50 hover:shadow-md transition-all">
         <div class="flex justify-between items-start mb-2">
             <span class="text-sm font-semibold text-gray-500">Free Tier Match Payments</span>
-            <i data-lucide="heart" class="w-5 h-5 text-gray-400"></i>
+            <div class="w-10 h-10 rounded-lg bg-pink-100 flex items-center justify-center"><i data-lucide="heart" class="w-5 h-5 text-pink-600"></i></div>
         </div>
         <p class="text-3xl font-bold text-gray-900 mb-1">{{ number_format($matchRequestPayments) }}</p>
         <span class="text-sm {{ $matchRequestGrowth >= 0 ? 'text-green-500' : 'text-red-500' }} font-medium">
@@ -26,10 +27,10 @@
         </span>
     </div>
 
-    <div class="bg-white p-5 rounded-xl shadow-sm border border-gray-50">
+    <div class="bg-white p-5 rounded-xl shadow-sm border border-gray-50 hover:shadow-md transition-all">
         <div class="flex justify-between items-start mb-2">
             <span class="text-sm font-semibold text-gray-500">Standard Subscribers</span>
-            <i data-lucide="star" class="w-5 h-5 text-gray-400"></i>
+            <div class="w-10 h-10 rounded-lg bg-orange-100 flex items-center justify-center"><i data-lucide="star" class="w-5 h-5 text-orange-600"></i></div>
         </div>
         <p class="text-3xl font-bold text-gray-900 mb-1">{{ number_format($standardUsers) }}</p>
         <span class="text-sm {{ $standardGrowth >= 0 ? 'text-green-500' : 'text-red-500' }} font-medium">
@@ -37,10 +38,10 @@
         </span>
     </div>
 
-    <div class="bg-white p-5 rounded-xl shadow-sm border border-gray-50">
+    <div class="bg-white p-5 rounded-xl shadow-sm border border-gray-50 hover:shadow-md transition-all">
         <div class="flex justify-between items-start mb-2">
             <span class="text-sm font-semibold text-gray-500">Premium Subscribers</span>
-            <i data-lucide="crown" class="w-5 h-5 text-gray-400"></i>
+            <div class="w-10 h-10 rounded-lg bg-amber-100 flex items-center justify-center"><i data-lucide="crown" class="w-5 h-5 text-amber-600"></i></div>
         </div>
         <p class="text-3xl font-bold text-gray-900 mb-1">{{ number_format($premiumUsers) }}</p>
         <span class="text-sm {{ $premiumGrowth >= 0 ? 'text-green-500' : 'text-red-500' }} font-medium">
@@ -115,16 +116,16 @@
     <div class="overflow-x-auto">
         <table class="w-full text-left">
             <thead>
-                <tr class="border-b border-gray-200">
-                    <th class="px-4 py-3 text-sm font-semibold text-gray-600">User</th>
-                    <th class="px-4 py-3 text-sm font-semibold text-gray-600">Email</th>
-                    <th class="px-4 py-3 text-sm font-semibold text-gray-600">Plan</th>
-                    <th class="px-4 py-3 text-sm font-semibold text-gray-600">Updated</th>
+                <tr class="bg-[#E75234] text-white rounded-t-lg">
+                    <th class="px-4 py-3 text-sm font-semibold text-white">User</th>
+                    <th class="px-4 py-3 text-sm font-semibold text-white">Email</th>
+                    <th class="px-4 py-3 text-sm font-semibold text-white">Plan</th>
+                    <th class="px-4 py-3 text-sm font-semibold text-white">Updated</th>
                 </tr>
             </thead>
             <tbody class="divide-y divide-gray-100">
                 @foreach($recentSubscriptions as $subscription)
-                <tr class="hover:bg-gray-50">
+                <tr class="hover:bg-orange-50/50">
                     <td class="px-4 py-3">
                         <div class="flex items-center gap-3">
                             <div class="w-8 h-8 rounded-full bg-orange-100 flex items-center justify-center text-orange-600 font-bold text-sm">

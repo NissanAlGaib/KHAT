@@ -5,29 +5,36 @@
 @section('content')
 <h1 class="text-3xl font-bold text-gray-900 mb-6">Support Tickets</h1>
 
-<div class="grid grid-cols-1 md:grid-cols-4 gap-6 mb-6">
-    <div class="bg-white p-5 rounded-xl shadow-sm border border-gray-50">
-        <span class="text-sm font-semibold text-gray-500">Open Tickets</span>
-        <p class="text-2xl font-bold text-gray-900 mt-2">24</p>
-    </div>
-    <div class="bg-white p-5 rounded-xl shadow-sm border border-gray-50">
-        <span class="text-sm font-semibold text-gray-500">In Progress</span>
-        <p class="text-2xl font-bold text-gray-900 mt-2">12</p>
-    </div>
-    <div class="bg-white p-5 rounded-xl shadow-sm border border-gray-50">
-        <span class="text-sm font-semibold text-gray-500">Resolved Today</span>
-        <p class="text-2xl font-bold text-gray-900 mt-2">8</p>
-    </div>
-    <div class="bg-white p-5 rounded-xl shadow-sm border border-gray-50">
-        <span class="text-sm font-semibold text-gray-500">Avg Response Time</span>
-        <p class="text-2xl font-bold text-gray-900 mt-2">2.4h</p>
-    </div>
-</div>
-
-<div class="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
-    <h3 class="font-semibold text-gray-800 mb-4">Ticket List</h3>
-    <div class="h-96 bg-gray-100 rounded-lg flex items-center justify-center">
-        <span class="text-gray-400">Support ticket system integration pending</span>
+<div class="bg-white rounded-xl shadow-sm border border-gray-100 p-12">
+    <div class="text-center max-w-md mx-auto">
+        <div class="w-20 h-20 rounded-full bg-orange-50 flex items-center justify-center mx-auto mb-6">
+            <i data-lucide="ticket" class="w-10 h-10 text-[#E75234]"></i>
+        </div>
+        <h3 class="text-xl font-bold text-gray-900 mb-2">Coming Soon</h3>
+        <p class="text-gray-500 mb-6">The support ticket system is currently under development. Once live, you'll be able to manage user reports, feature requests, and support inquiries from this page.</p>
+        <div class="flex justify-center gap-4 text-sm">
+            <div class="px-4 py-2 bg-gray-50 rounded-lg">
+                <p class="text-gray-400 font-medium">Planned Features</p>
+            </div>
+        </div>
+        <ul class="mt-4 text-sm text-gray-500 space-y-2 text-left max-w-xs mx-auto">
+            <li class="flex items-center gap-2">
+                <i data-lucide="check" class="w-4 h-4 text-gray-300"></i>
+                User issue tracking & assignment
+            </li>
+            <li class="flex items-center gap-2">
+                <i data-lucide="check" class="w-4 h-4 text-gray-300"></i>
+                Priority-based ticket queue
+            </li>
+            <li class="flex items-center gap-2">
+                <i data-lucide="check" class="w-4 h-4 text-gray-300"></i>
+                Response time analytics
+            </li>
+            <li class="flex items-center gap-2">
+                <i data-lucide="check" class="w-4 h-4 text-gray-300"></i>
+                In-app user communication
+            </li>
+        </ul>
     </div>
 </div>
 @endsection

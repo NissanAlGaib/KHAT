@@ -20,11 +20,14 @@
 
 <!-- Header -->
 <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6">
-    <div class="flex items-center gap-3">
-        <h1 class="text-3xl font-bold text-gray-900">Vaccination Shot Verification</h1>
-        <span class="inline-flex items-center justify-center px-3 py-1 rounded-full text-sm font-bold bg-[#E75234] text-white">
-            {{ $pendingShots->total() }}
-        </span>
+    <div>
+        <div class="flex items-center gap-3">
+            <h1 class="text-3xl font-bold text-gray-900">Vaccination Shot Verification</h1>
+            <span class="inline-flex items-center justify-center px-3 py-1 rounded-full text-sm font-bold bg-[#E75234] text-white">
+                {{ $pendingShots->total() }}
+            </span>
+        </div>
+        <p class="text-sm text-gray-500 mt-1">Review and verify vaccination proof submissions from pet owners</p>
     </div>
 </div>
 

@@ -13,7 +13,10 @@
 
 <!-- Header -->
 <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6">
-    <h1 class="text-3xl font-bold text-gray-900">Vaccine Protocols</h1>
+    <div>
+        <h1 class="text-3xl font-bold text-gray-900">Vaccine Protocols</h1>
+        <p class="text-sm text-gray-500 mt-1">Configure and manage vaccination schedules for pets</p>
+    </div>
     <a href="{{ route('admin.vaccine-protocols.create') }}" class="inline-flex items-center gap-2 px-5 py-2.5 bg-[#E75234] text-white text-sm font-semibold rounded-lg shadow-sm hover:bg-[#d14024] transition-all hover:shadow-md">
         <i data-lucide="plus" class="w-4 h-4"></i>
         Create Protocol

@@ -3,7 +3,8 @@
 @section('title', 'User Management - KHAT Admin')
 
 @section('content')
-<h1 class="text-3xl font-bold text-gray-900 mb-6">User Management</h1>
+<h1 class="text-3xl font-bold text-gray-900 mb-2">User Management</h1>
+<p class="text-sm text-gray-500 mb-6">Manage user accounts, verification status, and subscriptions</p>
 
 <!-- Tabs -->
 <div class="inline-flex bg-white rounded-xl p-1 shadow-sm border border-gray-200 mb-6 overflow-x-auto">
@@ -28,6 +29,7 @@
 <!-- Filter Section -->
 <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-6 mb-6">
     <form action="{{ route('admin.users.index') }}" method="GET">
+        <h3 class="text-sm font-semibold text-gray-700 mb-4 flex items-center gap-2"><i data-lucide="filter" class="w-4 h-4 text-[#E75234]"></i>Filters</h3>
         <input type="hidden" name="status" value="{{ $status }}">
 
         <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-4">
@@ -163,7 +165,41 @@
                         @endif
                     </td>
                     <td class="px-6 py-4">
-                        <span class="text-gray-700">Valid</span>
+                        @php
+                        $userAuthRecords = $user->userAuth;
+                        $hasDocuments = $userAuthRecords->isNotEmpty();
+                        $hasExpiry = false;
+                        $isExpired = false;
+
+                        if ($hasDocuments) {
+                            foreach ($userAuthRecords as $auth) {
+                                if ($auth->expiry_date) {
+                                    $hasExpiry = true;
+                                    if (\Carbon\Carbon::parse($auth->expiry_date)->isPast()) {
+                                        $isExpired = true;
+                                        break;
+                                    }
+                                }
+                            }
+                        }
+                        @endphp
+
+                        @if(!$hasDocuments)
+                        <span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-md bg-gray-100 text-gray-600 text-xs font-semibold">
+                            <i data-lucide="file-x" class="w-3.5 h-3.5"></i>
+                            Missing
+                        </span>
+                        @elseif($isExpired)
+                        <span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-md bg-red-100 text-red-700 text-xs font-semibold">
+                            <i data-lucide="alert-circle" class="w-3.5 h-3.5"></i>
+                            Expired
+                        </span>
+                        @else
+                        <span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-md bg-green-100 text-green-700 text-xs font-semibold">
+                            <i data-lucide="check-circle" class="w-3.5 h-3.5"></i>
+                            Valid
+                        </span>
+                        @endif
                     </td>
                     <td class="px-6 py-4">
                         @php
@@ -196,7 +232,6 @@
                                 <button type="button" onclick="deleteUser({{ $user->id }})" class="w-full flex items-center gap-3 px-4 py-3 text-sm font-medium text-red-600 hover:bg-red-50 transition-colors">
                                     <i data-lucide="trash-2" class="w-4 h-4"></i>
                                     Delete Account
-                                </button>
                                 </button>
                             </div>
                         </div>
@@ -627,9 +662,9 @@
         const result = await Swal.fire({
             title: 'Update Verification?',
             text: `Are you sure you want to set this document to ${status}?`,
-            icon: status === 'approve' ? 'question' : 'warning',
+            icon: status === 'approved' ? 'question' : 'warning',
             showCancelButton: true,
-            confirmButtonColor: status === 'approve' ? '#10B981' : '#EF4444',
+            confirmButtonColor: status === 'approved' ? '#10B981' : '#EF4444',
             cancelButtonColor: '#6B7280',
             confirmButtonText: `Yes, ${status}`,
             cancelButtonText: 'Cancel'

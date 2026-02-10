@@ -8,7 +8,10 @@
     <a href="{{ route('admin.vaccine-protocols.index') }}" class="inline-flex items-center justify-center w-10 h-10 rounded-lg border border-gray-300 bg-white hover:bg-gray-50 transition-colors">
         <i data-lucide="arrow-left" class="w-5 h-5 text-gray-600"></i>
     </a>
-    <h1 class="text-3xl font-bold text-gray-900">Create Vaccine Protocol</h1>
+    <div>
+        <h1 class="text-3xl font-bold text-gray-900">Create Vaccine Protocol</h1>
+        <p class="text-sm text-gray-500 mt-1">Define a new vaccination protocol with dosing schedule</p>
+    </div>
 </div>
 
 <!-- Form -->

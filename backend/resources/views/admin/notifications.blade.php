@@ -3,7 +3,8 @@
 @section('title', 'Notifications - KHAT Admin')
 
 @section('content')
-<h1 class="text-3xl font-bold text-gray-900 mb-6">Notifications</h1>
+<h1 class="text-3xl font-bold text-gray-900 mb-2">Notifications</h1>
+<p class="text-sm text-gray-500 mb-6">Stay updated on user registrations, verifications, and platform activity</p>
 
 <div class="bg-white rounded-xl shadow-sm border border-gray-100">
     <div class="p-6 border-b border-gray-100">

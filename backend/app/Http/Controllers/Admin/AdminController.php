@@ -230,7 +230,7 @@ class AdminController extends Controller
     {
         $status = $request->get('status', 'verified');
 
-        $query = User::with('roles');
+        $query = User::with(['roles', 'userAuth']);
 
         // Filter by verification status
         if ($status === 'pending') {
@@ -257,6 +257,25 @@ class AdminController extends Controller
         // Filter by subscription tier
         if ($request->filled('subscription')) {
             $query->where('subscription_tier', $request->subscription);
+        }
+
+        // Filter by document status
+        if ($request->filled('doc_status')) {
+            $docStatus = $request->doc_status;
+            if ($docStatus === 'missing') {
+                $query->whereDoesntHave('userAuth');
+            } elseif ($docStatus === 'expired') {
+                $query->whereHas('userAuth', function ($q) {
+                    $q->whereNotNull('expiry_date')
+                      ->where('expiry_date', '<', Carbon::now());
+                });
+            } elseif ($docStatus === 'valid') {
+                $query->whereHas('userAuth')
+                    ->whereDoesntHave('userAuth', function ($q) {
+                        $q->whereNotNull('expiry_date')
+                          ->where('expiry_date', '<', Carbon::now());
+                    });
+            }
         }
 
         // Search by name or ID
@@ -867,6 +886,25 @@ class AdminController extends Controller
     public function settings()
     {
         return view('admin.settings');
+    }
+
+    /**
+     * Update admin profile.
+     */
+    public function updateProfile(Request $request)
+    {
+        $request->validate([
+            'name' => 'nullable|string|max:255',
+            'firstName' => 'nullable|string|max:255',
+            'lastName' => 'nullable|string|max:255',
+            'email' => 'required|email|max:255|unique:users,email,' . Auth::id(),
+            'contact_number' => 'nullable|string|max:20',
+        ]);
+
+        $user = Auth::user();
+        $user->update($request->only(['name', 'firstName', 'lastName', 'email', 'contact_number']));
+
+        return redirect()->route('admin.profile')->with('profile_success', 'Profile updated successfully.');
     }
 
     /**

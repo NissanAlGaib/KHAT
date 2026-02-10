@@ -3,7 +3,8 @@
 @section('title', 'Audit Logs - KHAT Admin')
 
 @section('content')
-<h1 class="text-3xl font-bold text-gray-900 mb-6">Audit Logs</h1>
+<h1 class="text-3xl font-bold text-gray-900 mb-2">Audit Logs</h1>
+<p class="text-sm text-gray-500 mb-6">Track all admin actions and system events</p>
 
 <div class="bg-white p-6 rounded-xl shadow-sm border border-gray-100 mb-6">
     <form method="GET" action="{{ route('admin.audit-logs') }}" class="grid grid-cols-1 md:grid-cols-4 gap-4">
@@ -40,17 +41,17 @@
     <div class="overflow-x-auto">
         <table class="w-full text-left">
             <thead>
-                <tr class="border-b border-gray-200 bg-gray-50">
-                    <th class="px-6 py-3 text-sm font-semibold text-gray-600">Timestamp</th>
-                    <th class="px-6 py-3 text-sm font-semibold text-gray-600">User</th>
-                    <th class="px-6 py-3 text-sm font-semibold text-gray-600">Action</th>
-                    <th class="px-6 py-3 text-sm font-semibold text-gray-600">Description</th>
-                    <th class="px-6 py-3 text-sm font-semibold text-gray-600">IP Address</th>
+                <tr class="bg-[#E75234] text-white">
+                    <th class="px-6 py-3 text-sm font-semibold text-white">Timestamp</th>
+                    <th class="px-6 py-3 text-sm font-semibold text-white">User</th>
+                    <th class="px-6 py-3 text-sm font-semibold text-white">Action</th>
+                    <th class="px-6 py-3 text-sm font-semibold text-white">Description</th>
+                    <th class="px-6 py-3 text-sm font-semibold text-white">IP Address</th>
                 </tr>
             </thead>
             <tbody class="divide-y divide-gray-100">
                 @foreach($logs as $log)
-                <tr class="hover:bg-gray-50">
+                <tr class="hover:bg-orange-50/50">
                     <td class="px-6 py-4 text-sm text-gray-600">
                         {{ $log->created_at->format('M d, Y H:i:s') }}
                     </td>

@@ -4,15 +4,16 @@
 
 @section('content')
 <!-- Dashboard Overview -->
-<h1 class="text-3xl font-bold text-gray-900 mb-6">Dashboard Overview</h1>
+<h1 class="text-3xl font-bold text-gray-900 mb-2">Dashboard Overview</h1>
+<p class="text-sm text-gray-500 mb-6">Overview of your platform's key metrics and growth trends</p>
 
 <!-- Stats Cards (Row 1) -->
 <div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-6 mb-6">
     <!-- Card 1: Total Users -->
-    <div class="bg-white p-5 rounded-xl shadow-sm border border-gray-50">
+    <div class="bg-white p-5 rounded-xl shadow-sm border border-gray-50 hover:shadow-md transition-all">
         <div class="flex justify-between items-start mb-2">
             <span class="text-sm font-semibold text-gray-500">Total Users</span>
-            <i data-lucide="users" class="w-5 h-5 text-gray-400"></i>
+            <div class="w-10 h-10 rounded-lg bg-blue-100 flex items-center justify-center"><i data-lucide="users" class="w-5 h-5 text-blue-600"></i></div>
         </div>
         <p class="text-3xl font-bold text-gray-900 mb-1">{{ number_format($totalUsers) }}</p>
         <span class="text-sm {{ $usersGrowth >= 0 ? 'text-green-500' : 'text-red-500' }} font-medium">
@@ -20,10 +21,10 @@
         </span>
     </div>
     <!-- Card 2: Verified Breeders -->
-    <div class="bg-white p-5 rounded-xl shadow-sm border border-gray-50">
+    <div class="bg-white p-5 rounded-xl shadow-sm border border-gray-50 hover:shadow-md transition-all">
         <div class="flex justify-between items-start mb-2">
             <span class="text-sm font-semibold text-gray-500">Verified Breeders</span>
-            <i data-lucide="check-circle" class="w-5 h-5 text-gray-400"></i>
+            <div class="w-10 h-10 rounded-lg bg-green-100 flex items-center justify-center"><i data-lucide="check-circle" class="w-5 h-5 text-green-600"></i></div>
         </div>
         <p class="text-3xl font-bold text-gray-900 mb-1">{{ number_format($verifiedBreeders) }}</p>
         <span class="text-sm {{ $breedersGrowth >= 0 ? 'text-green-500' : 'text-red-500' }} font-medium">
@@ -31,10 +32,10 @@
         </span>
     </div>
     <!-- Card 3: Verified Shooters -->
-    <div class="bg-white p-5 rounded-xl shadow-sm border border-gray-50">
+    <div class="bg-white p-5 rounded-xl shadow-sm border border-gray-50 hover:shadow-md transition-all">
         <div class="flex justify-between items-start mb-2">
             <span class="text-sm font-semibold text-gray-500">Verified Shooters</span>
-            <i data-lucide="shield-check" class="w-5 h-5 text-gray-400"></i>
+            <div class="w-10 h-10 rounded-lg bg-emerald-100 flex items-center justify-center"><i data-lucide="shield-check" class="w-5 h-5 text-emerald-600"></i></div>
         </div>
         <p class="text-3xl font-bold text-gray-900 mb-1">{{ number_format($verifiedShooters) }}</p>
         <span class="text-sm {{ $shootersGrowth >= 0 ? 'text-green-500' : 'text-red-500' }} font-medium">
@@ -42,10 +43,10 @@
         </span>
     </div>
     <!-- Card 4: Active Pets -->
-    <div class="bg-white p-5 rounded-xl shadow-sm border border-gray-50">
+    <div class="bg-white p-5 rounded-xl shadow-sm border border-gray-50 hover:shadow-md transition-all">
         <div class="flex justify-between items-start mb-2">
             <span class="text-sm font-semibold text-gray-500">Active Pets</span>
-            <i data-lucide="paw-print" class="w-5 h-5 text-gray-400"></i>
+            <div class="w-10 h-10 rounded-lg bg-amber-100 flex items-center justify-center"><i data-lucide="paw-print" class="w-5 h-5 text-amber-600"></i></div>
         </div>
         <p class="text-3xl font-bold text-gray-900 mb-1">{{ number_format($activePets) }}</p>
         <span class="text-sm {{ $activePetsGrowth >= 0 ? 'text-green-500' : 'text-red-500' }} font-medium">
@@ -57,10 +58,10 @@
 <!-- Stats Cards (Row 2) -->
 <div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-6 mb-8">
     <!-- Card 5: Disabled Pets -->
-    <div class="bg-white p-5 rounded-xl shadow-sm border border-gray-50">
+    <div class="bg-white p-5 rounded-xl shadow-sm border border-gray-50 hover:shadow-md transition-all">
         <div class="flex justify-between items-start mb-2">
             <span class="text-sm font-semibold text-gray-500">Disabled Pets</span>
-            <i data-lucide="shield-off" class="w-5 h-5 text-gray-400"></i>
+            <div class="w-10 h-10 rounded-lg bg-red-100 flex items-center justify-center"><i data-lucide="shield-off" class="w-5 h-5 text-red-600"></i></div>
         </div>
         <p class="text-3xl font-bold text-gray-900 mb-1">{{ number_format($disabledPets) }}</p>
         <span class="text-sm {{ $disabledPetsGrowth >= 0 ? 'text-green-500' : 'text-red-500' }} font-medium">
@@ -68,10 +69,10 @@
         </span>
     </div>
     <!-- Card 6: Cooldown Pets -->
-    <div class="bg-white p-5 rounded-xl shadow-sm border border-gray-50">
+    <div class="bg-white p-5 rounded-xl shadow-sm border border-gray-50 hover:shadow-md transition-all">
         <div class="flex justify-between items-start mb-2">
             <span class="text-sm font-semibold text-gray-500">Cooldown Pets</span>
-            <i data-lucide="clock" class="w-5 h-5 text-gray-400"></i>
+            <div class="w-10 h-10 rounded-lg bg-sky-100 flex items-center justify-center"><i data-lucide="clock" class="w-5 h-5 text-sky-600"></i></div>
         </div>
         <p class="text-3xl font-bold text-gray-900 mb-1">{{ number_format($cooldownPets) }}</p>
         <span class="text-sm {{ $cooldownPetsGrowth >= 0 ? 'text-green-500' : 'text-red-500' }} font-medium">
@@ -79,10 +80,10 @@
         </span>
     </div>
     <!-- Card 7: Standard Subscribers -->
-    <div class="bg-white p-5 rounded-xl shadow-sm border border-gray-50">
+    <div class="bg-white p-5 rounded-xl shadow-sm border border-gray-50 hover:shadow-md transition-all">
         <div class="flex justify-between items-start mb-2">
             <span class="text-sm font-semibold text-gray-500">Standard Subscribers</span>
-            <i data-lucide="user" class="w-5 h-5 text-gray-400"></i>
+            <div class="w-10 h-10 rounded-lg bg-purple-100 flex items-center justify-center"><i data-lucide="user" class="w-5 h-5 text-purple-600"></i></div>
         </div>
         <p class="text-3xl font-bold text-gray-900 mb-1">{{ number_format($standardSubscribers) }}</p>
         <span class="text-sm {{ $standardGrowth >= 0 ? 'text-green-500' : 'text-red-500' }} font-medium">
@@ -90,10 +91,10 @@
         </span>
     </div>
     <!-- Card 8: Premium Subscribers -->
-    <div class="bg-white p-5 rounded-xl shadow-sm border border-gray-50">
+    <div class="bg-white p-5 rounded-xl shadow-sm border border-gray-50 hover:shadow-md transition-all">
         <div class="flex justify-between items-start mb-2">
             <span class="text-sm font-semibold text-gray-500">Premium Subscribers</span>
-            <i data-lucide="crown" class="w-5 h-5 text-gray-400"></i>
+            <div class="w-10 h-10 rounded-lg bg-orange-100 flex items-center justify-center"><i data-lucide="crown" class="w-5 h-5 text-orange-600"></i></div>
         </div>
         <p class="text-3xl font-bold text-gray-900 mb-1">{{ number_format($premiumSubscribers) }}</p>
         <span class="text-sm {{ $premiumGrowth >= 0 ? 'text-green-500' : 'text-red-500' }} font-medium">
@@ -103,7 +104,8 @@
 </div>
 
 <!-- Platform Analytics -->
-<h1 class="text-3xl font-bold text-gray-900 mb-6">Platform Analytics</h1>
+<h2 class="text-xl font-bold text-gray-900 mb-2">Platform Analytics</h2>
+<p class="text-sm text-gray-500 mb-6">Track user growth, breeding matches, and subscription trends</p>
 
 <!-- Charts (Grid) -->
 <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
@@ -136,7 +138,7 @@
 </div>
 @endsection
 
-@push('styles')
+@push('scripts')
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 @endpush
 

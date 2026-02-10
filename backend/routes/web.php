@@ -60,6 +60,7 @@ Route::prefix('admin')->group(function () {
         Route::get('/tickets', [AdminController::class, 'tickets'])->name('admin.tickets');
         Route::get('/audit-logs', [AdminController::class, 'auditLogs'])->name('admin.audit-logs');
         Route::get('/profile', [AdminController::class, 'profile'])->name('admin.profile');
+        Route::put('/profile', [AdminController::class, 'updateProfile'])->name('admin.profile.update');
         Route::get('/notifications', [AdminController::class, 'notifications'])->name('admin.notifications');
         Route::get('/settings', [AdminController::class, 'settings'])->name('admin.settings');
     });

@@ -3,11 +3,13 @@
 @section('title', 'Pet Management - KHAT Admin')
 
 @section('content')
-<h1 class="text-3xl font-bold text-gray-900 mb-6">Pet Management</h1>
+<h1 class="text-3xl font-bold text-gray-900 mb-2">Pet Management</h1>
+<p class="text-sm text-gray-500 mb-6">View and manage all registered pets, their verification and activity status</p>
 
 <!-- Search and Filters Section -->
 <div class="bg-white p-6 rounded-xl shadow-sm border border-gray-100 mb-6">
     <form action="{{ route('admin.pets.index') }}" method="GET">
+        <h3 class="text-sm font-semibold text-gray-700 mb-4 flex items-center gap-2"><i data-lucide="filter" class="w-4 h-4 text-[#E75234]"></i>Search & Filters</h3>
         <!-- Search by Name or ID -->
         <div class="mb-6">
             <label class="block text-sm font-semibold text-gray-700 mb-2">Search by Name or ID</label>
@@ -134,15 +136,15 @@
         <table class="w-full text-left border-collapse min-w-[1200px]">
             <thead>
                 <tr class="bg-[#E75234] text-white text-sm">
-                    <th class="px-6 py-4 font-medium rounded-tl-xl">Pet ID</th>
-                    <th class="px-6 py-4 font-medium">Pet Name</th>
-                    <th class="px-6 py-4 font-medium">Species & Breed</th>
-                    <th class="px-6 py-4 font-medium">Age</th>
-                    <th class="px-6 py-4 font-medium">Sex</th>
-                    <th class="px-6 py-4 font-medium">Owner</th>
-                    <th class="px-6 py-4 font-medium text-center">Verification Status</th>
-                    <th class="px-6 py-4 font-medium text-center">Activity Status</th>
-                    <th class="px-6 py-4 font-medium text-center rounded-tr-xl">Actions</th>
+                    <th class="px-6 py-4 font-semibold rounded-tl-xl">Pet ID</th>
+                    <th class="px-6 py-4 font-semibold">Pet Name</th>
+                    <th class="px-6 py-4 font-semibold">Species & Breed</th>
+                    <th class="px-6 py-4 font-semibold">Age</th>
+                    <th class="px-6 py-4 font-semibold">Sex</th>
+                    <th class="px-6 py-4 font-semibold">Owner</th>
+                    <th class="px-6 py-4 font-semibold text-center">Verification Status</th>
+                    <th class="px-6 py-4 font-semibold text-center">Activity Status</th>
+                    <th class="px-6 py-4 font-semibold text-center rounded-tr-xl">Actions</th>
                 </tr>
             </thead>
             <tbody class="divide-y divide-gray-100 text-sm text-gray-700">
@@ -241,6 +243,16 @@
     {{ $pets->links() }}
 </div>
 
+<!-- Hidden Forms for Pet Actions -->
+<form id="pet-status-form" method="POST" class="hidden">
+    @csrf
+    <input type="hidden" name="status" value="">
+</form>
+<form id="pet-delete-form" method="POST" class="hidden">
+    @csrf
+    @method('DELETE')
+</form>
+
 @push('scripts')
 <script>
     function toggleDropdown(event, dropdownId) {
@@ -269,9 +281,10 @@
             cancelButtonText: 'Cancel'
         }).then((result) => {
             if (result.isConfirmed) {
-                // TODO: Implement suspend functionality
-                console.log('Suspending pet:', petId);
-                // You can add AJAX call here to suspend the pet
+                const form = document.getElementById('pet-status-form');
+                form.action = `/admin/pets/${petId}/status`;
+                form.querySelector('[name="status"]').value = 'disabled';
+                form.submit();
             }
         });
     }
@@ -288,9 +301,9 @@
             cancelButtonText: 'Cancel'
         }).then((result) => {
             if (result.isConfirmed) {
-                // TODO: Implement delete functionality
-                console.log('Deleting pet:', petId);
-                // You can add AJAX call here to delete the pet
+                const form = document.getElementById('pet-delete-form');
+                form.action = `/admin/pets/${petId}`;
+                form.submit();
             }
         });
     }
