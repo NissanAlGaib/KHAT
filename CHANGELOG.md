@@ -61,6 +61,11 @@ Complete rework of the vaccination system from "user creates vaccines" to "admin
 #### Migration
 - `2026_02_10_000001_create_vaccine_protocols_and_update_vaccination_system.php` — creates `vaccine_protocols` table, adds `vaccine_protocol_id` FK to `vaccination_cards`, adds `is_booster` to `vaccination_shots`, adds `historical` to `verification_status` enum, seeds 6 initial protocols and links existing cards
 
+#### Admin Panel Structure Fix
+- **Refactored `dashboard.blade.php`**: Converted from standalone 514-line HTML file to `@extends('admin.layouts.app')` — sidebar now uses shared layout, always stays in sync with other pages
+- **Fixed mobile menu in `layouts/app.blade.php`**: Added missing links (Match History, Analytics, Subscription & Billing, Tickets, Audit Logs) and entire Personal section (Profile Settings, Notifications, Settings) with active state highlighting
+- **PetController consistency**: Updated vaccination card response to include `approved_shots_count`, `pending_shots_count`, `is_in_booster_phase`, `protocol`, `verification_status`, `is_booster`; fixed `completed_shots_count` mapping to use `approved_shots_count`
+
 ---
 ## [1.4.3] - 2026-02-05
 
