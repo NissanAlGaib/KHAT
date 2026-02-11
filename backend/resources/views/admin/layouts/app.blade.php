@@ -58,8 +58,14 @@
             <h1 class="text-xl font-bold text-white">KHAT Admin</h1>
         </div>
 
+        @php
+            $petGroupActive = request()->routeIs('admin.pets.*') || request()->routeIs('admin.vaccine-protocols.*') || request()->routeIs('admin.vaccination-shots.*');
+            $businessGroupActive = request()->routeIs('admin.analytics') || request()->routeIs('admin.billing');
+            $systemGroupActive = request()->routeIs('admin.tickets') || request()->routeIs('admin.audit-logs');
+        @endphp
+
         <nav class="flex-grow p-4 overflow-y-auto">
-            <h3 class="text-[10px] font-semibold text-gray-500 uppercase tracking-wider mb-2 px-3">Working space</h3>
+            <h3 class="text-[10px] font-semibold text-gray-500 uppercase tracking-wider mb-2 px-3">Overview</h3>
             <ul class="space-y-1">
                 <li>
                     <a href="{{ route('admin.dashboard') }}" class="flex items-center gap-3 px-3 py-2.5 rounded-lg {{ request()->routeIs('admin.dashboard') ? 'bg-white/10 text-white font-semibold border-l-[3px] border-[#E75234]' : 'text-gray-400 hover:text-white hover:bg-white/10 font-medium' }}">
@@ -67,36 +73,58 @@
                         <span>Dashboard</span>
                     </a>
                 </li>
+            </ul>
+
+            <h3 class="text-[10px] font-semibold text-gray-500 uppercase tracking-wider mt-6 mb-2 px-3">Management</h3>
+            <ul class="space-y-1">
                 <li>
                     <a href="{{ route('admin.users.index') }}" class="flex items-center gap-3 px-3 py-2.5 rounded-lg {{ request()->routeIs('admin.users.*') ? 'bg-white/10 text-white font-semibold border-l-[3px] border-[#E75234]' : 'text-gray-400 hover:text-white hover:bg-white/10 font-medium' }}">
                         <i data-lucide="users" class="w-5 h-5 {{ request()->routeIs('admin.users.*') ? 'text-white' : 'text-gray-500' }}"></i>
                         <span>User Management</span>
                     </a>
                 </li>
+
+                {{-- Pet Management collapsible group --}}
                 <li>
-                    <a href="{{ route('admin.pets.index') }}" class="flex items-center gap-3 px-3 py-2.5 rounded-lg {{ request()->routeIs('admin.pets.*') ? 'bg-white/10 text-white font-semibold border-l-[3px] border-[#E75234]' : 'text-gray-400 hover:text-white hover:bg-white/10 font-medium' }}">
-                        <i data-lucide="paw-print" class="w-5 h-5 {{ request()->routeIs('admin.pets.*') ? 'text-white' : 'text-gray-500' }}"></i>
-                        <span>Pet Management</span>
-                    </a>
+                    <button onclick="toggleSidebarGroup('pet-group')" class="w-full flex items-center justify-between px-3 py-2.5 rounded-lg {{ $petGroupActive ? 'bg-white/10 text-white font-semibold' : 'text-gray-400 hover:text-white hover:bg-white/10 font-medium' }}">
+                        <span class="flex items-center gap-3">
+                            <i data-lucide="paw-print" class="w-5 h-5 {{ $petGroupActive ? 'text-white' : 'text-gray-500' }}"></i>
+                            <span>Pet Management</span>
+                        </span>
+                        <i data-lucide="chevron-down" class="w-4 h-4 sidebar-chevron transition-transform duration-200 {{ $petGroupActive ? 'rotate-180' : '' }}" id="pet-group-chevron"></i>
+                    </button>
+                    <ul id="pet-group" class="mt-1 ml-5 space-y-1 border-l border-gray-700 pl-3 overflow-hidden transition-all duration-200 {{ $petGroupActive ? '' : 'hidden' }}">
+                        <li>
+                            <a href="{{ route('admin.pets.index') }}" class="flex items-center gap-3 px-3 py-2 rounded-lg text-sm {{ request()->routeIs('admin.pets.*') ? 'text-white font-semibold border-l-[3px] border-[#E75234] bg-white/5' : 'text-gray-400 hover:text-white hover:bg-white/5 font-medium' }}">
+                                <i data-lucide="list" class="w-4 h-4 {{ request()->routeIs('admin.pets.*') ? 'text-white' : 'text-gray-500' }}"></i>
+                                <span>All Pets</span>
+                            </a>
+                        </li>
+                        <li>
+                            <a href="{{ route('admin.vaccine-protocols.index') }}" class="flex items-center gap-3 px-3 py-2 rounded-lg text-sm {{ request()->routeIs('admin.vaccine-protocols.*') ? 'text-white font-semibold border-l-[3px] border-[#E75234] bg-white/5' : 'text-gray-400 hover:text-white hover:bg-white/5 font-medium' }}">
+                                <i data-lucide="syringe" class="w-4 h-4 {{ request()->routeIs('admin.vaccine-protocols.*') ? 'text-white' : 'text-gray-500' }}"></i>
+                                <span>Vaccine Protocols</span>
+                            </a>
+                        </li>
+                        <li>
+                            <a href="{{ route('admin.vaccination-shots.pending') }}" class="flex items-center gap-3 px-3 py-2 rounded-lg text-sm {{ request()->routeIs('admin.vaccination-shots.*') ? 'text-white font-semibold border-l-[3px] border-[#E75234] bg-white/5' : 'text-gray-400 hover:text-white hover:bg-white/5 font-medium' }}">
+                                <i data-lucide="clipboard-check" class="w-4 h-4 {{ request()->routeIs('admin.vaccination-shots.*') ? 'text-white' : 'text-gray-500' }}"></i>
+                                <span>Shot Verification</span>
+                            </a>
+                        </li>
+                    </ul>
                 </li>
-                <li>
-                    <a href="{{ route('admin.vaccine-protocols.index') }}" class="flex items-center gap-3 px-3 py-2.5 rounded-lg {{ request()->routeIs('admin.vaccine-protocols.*') ? 'bg-white/10 text-white font-semibold border-l-[3px] border-[#E75234]' : 'text-gray-400 hover:text-white hover:bg-white/10 font-medium' }}">
-                        <i data-lucide="syringe" class="w-5 h-5 {{ request()->routeIs('admin.vaccine-protocols.*') ? 'text-white' : 'text-gray-500' }}"></i>
-                        <span>Vaccine Protocols</span>
-                    </a>
-                </li>
-                <li>
-                    <a href="{{ route('admin.vaccination-shots.pending') }}" class="flex items-center gap-3 px-3 py-2.5 rounded-lg {{ request()->routeIs('admin.vaccination-shots.*') ? 'bg-white/10 text-white font-semibold border-l-[3px] border-[#E75234]' : 'text-gray-400 hover:text-white hover:bg-white/10 font-medium' }}">
-                        <i data-lucide="clipboard-check" class="w-5 h-5 {{ request()->routeIs('admin.vaccination-shots.*') ? 'text-white' : 'text-gray-500' }}"></i>
-                        <span>Shot Verification</span>
-                    </a>
-                </li>
+
                 <li>
                     <a href="{{ route('admin.matches') }}" class="flex items-center gap-3 px-3 py-2.5 rounded-lg {{ request()->routeIs('admin.matches') ? 'bg-white/10 text-white font-semibold border-l-[3px] border-[#E75234]' : 'text-gray-400 hover:text-white hover:bg-white/10 font-medium' }}">
-                        <i data-lucide="history" class="w-5 h-5 {{ request()->routeIs('admin.matches') ? 'text-white' : 'text-gray-500' }}"></i>
+                        <i data-lucide="heart-handshake" class="w-5 h-5 {{ request()->routeIs('admin.matches') ? 'text-white' : 'text-gray-500' }}"></i>
                         <span>Match History</span>
                     </a>
                 </li>
+            </ul>
+
+            <h3 class="text-[10px] font-semibold text-gray-500 uppercase tracking-wider mt-6 mb-2 px-3">Business</h3>
+            <ul class="space-y-1">
                 <li>
                     <a href="{{ route('admin.analytics') }}" class="flex items-center gap-3 px-3 py-2.5 rounded-lg {{ request()->routeIs('admin.analytics') ? 'bg-white/10 text-white font-semibold border-l-[3px] border-[#E75234]' : 'text-gray-400 hover:text-white hover:bg-white/10 font-medium' }}">
                         <i data-lucide="bar-chart-2" class="w-5 h-5 {{ request()->routeIs('admin.analytics') ? 'text-white' : 'text-gray-500' }}"></i>
@@ -105,10 +133,14 @@
                 </li>
                 <li>
                     <a href="{{ route('admin.billing') }}" class="flex items-center gap-3 px-3 py-2.5 rounded-lg {{ request()->routeIs('admin.billing') ? 'bg-white/10 text-white font-semibold border-l-[3px] border-[#E75234]' : 'text-gray-400 hover:text-white hover:bg-white/10 font-medium' }}">
-                        <i data-lucide="file-text" class="w-5 h-5 {{ request()->routeIs('admin.billing') ? 'text-white' : 'text-gray-500' }}"></i>
-                        <span>Subscription and Billing</span>
+                        <i data-lucide="credit-card" class="w-5 h-5 {{ request()->routeIs('admin.billing') ? 'text-white' : 'text-gray-500' }}"></i>
+                        <span>Subscription & Billing</span>
                     </a>
                 </li>
+            </ul>
+
+            <h3 class="text-[10px] font-semibold text-gray-500 uppercase tracking-wider mt-6 mb-2 px-3">System</h3>
+            <ul class="space-y-1">
                 <li>
                     <a href="{{ route('admin.tickets') }}" class="flex items-center gap-3 px-3 py-2.5 rounded-lg {{ request()->routeIs('admin.tickets') ? 'bg-white/10 text-white font-semibold border-l-[3px] border-[#E75234]' : 'text-gray-400 hover:text-white hover:bg-white/10 font-medium' }}">
                         <i data-lucide="ticket" class="w-5 h-5 {{ request()->routeIs('admin.tickets') ? 'text-white' : 'text-gray-500' }}"></i>
@@ -208,7 +240,7 @@
             </div>
 
             <nav class="flex-grow p-4 overflow-y-auto">
-                <h3 class="text-[10px] font-semibold text-gray-500 uppercase tracking-wider mb-2 px-3">Working space</h3>
+                <h3 class="text-[10px] font-semibold text-gray-500 uppercase tracking-wider mb-2 px-3">Overview</h3>
                 <ul class="space-y-1">
                     <li>
                         <a href="{{ route('admin.dashboard') }}" class="flex items-center gap-3 px-3 py-2.5 rounded-lg {{ request()->routeIs('admin.dashboard') ? 'bg-white/10 text-white font-semibold border-l-[3px] border-[#E75234]' : 'text-gray-400 hover:text-white hover:bg-white/10 font-medium' }}">
@@ -216,36 +248,58 @@
                             <span>Dashboard</span>
                         </a>
                     </li>
+                </ul>
+
+                <h3 class="text-[10px] font-semibold text-gray-500 uppercase tracking-wider mt-6 mb-2 px-3">Management</h3>
+                <ul class="space-y-1">
                     <li>
                         <a href="{{ route('admin.users.index') }}" class="flex items-center gap-3 px-3 py-2.5 rounded-lg {{ request()->routeIs('admin.users.*') ? 'bg-white/10 text-white font-semibold border-l-[3px] border-[#E75234]' : 'text-gray-400 hover:text-white hover:bg-white/10 font-medium' }}">
                             <i data-lucide="users" class="w-5 h-5 {{ request()->routeIs('admin.users.*') ? 'text-white' : 'text-gray-500' }}"></i>
                             <span>User Management</span>
                         </a>
                     </li>
+
+                    {{-- Pet Management collapsible group (mobile) --}}
                     <li>
-                        <a href="{{ route('admin.pets.index') }}" class="flex items-center gap-3 px-3 py-2.5 rounded-lg {{ request()->routeIs('admin.pets.*') ? 'bg-white/10 text-white font-semibold border-l-[3px] border-[#E75234]' : 'text-gray-400 hover:text-white hover:bg-white/10 font-medium' }}">
-                            <i data-lucide="paw-print" class="w-5 h-5 {{ request()->routeIs('admin.pets.*') ? 'text-white' : 'text-gray-500' }}"></i>
-                            <span>Pet Management</span>
-                        </a>
+                        <button onclick="toggleSidebarGroup('mobile-pet-group')" class="w-full flex items-center justify-between px-3 py-2.5 rounded-lg {{ $petGroupActive ? 'bg-white/10 text-white font-semibold' : 'text-gray-400 hover:text-white hover:bg-white/10 font-medium' }}">
+                            <span class="flex items-center gap-3">
+                                <i data-lucide="paw-print" class="w-5 h-5 {{ $petGroupActive ? 'text-white' : 'text-gray-500' }}"></i>
+                                <span>Pet Management</span>
+                            </span>
+                            <i data-lucide="chevron-down" class="w-4 h-4 sidebar-chevron transition-transform duration-200 {{ $petGroupActive ? 'rotate-180' : '' }}" id="mobile-pet-group-chevron"></i>
+                        </button>
+                        <ul id="mobile-pet-group" class="mt-1 ml-5 space-y-1 border-l border-gray-700 pl-3 overflow-hidden transition-all duration-200 {{ $petGroupActive ? '' : 'hidden' }}">
+                            <li>
+                                <a href="{{ route('admin.pets.index') }}" class="flex items-center gap-3 px-3 py-2 rounded-lg text-sm {{ request()->routeIs('admin.pets.*') ? 'text-white font-semibold border-l-[3px] border-[#E75234] bg-white/5' : 'text-gray-400 hover:text-white hover:bg-white/5 font-medium' }}">
+                                    <i data-lucide="list" class="w-4 h-4 {{ request()->routeIs('admin.pets.*') ? 'text-white' : 'text-gray-500' }}"></i>
+                                    <span>All Pets</span>
+                                </a>
+                            </li>
+                            <li>
+                                <a href="{{ route('admin.vaccine-protocols.index') }}" class="flex items-center gap-3 px-3 py-2 rounded-lg text-sm {{ request()->routeIs('admin.vaccine-protocols.*') ? 'text-white font-semibold border-l-[3px] border-[#E75234] bg-white/5' : 'text-gray-400 hover:text-white hover:bg-white/5 font-medium' }}">
+                                    <i data-lucide="syringe" class="w-4 h-4 {{ request()->routeIs('admin.vaccine-protocols.*') ? 'text-white' : 'text-gray-500' }}"></i>
+                                    <span>Vaccine Protocols</span>
+                                </a>
+                            </li>
+                            <li>
+                                <a href="{{ route('admin.vaccination-shots.pending') }}" class="flex items-center gap-3 px-3 py-2 rounded-lg text-sm {{ request()->routeIs('admin.vaccination-shots.*') ? 'text-white font-semibold border-l-[3px] border-[#E75234] bg-white/5' : 'text-gray-400 hover:text-white hover:bg-white/5 font-medium' }}">
+                                    <i data-lucide="clipboard-check" class="w-4 h-4 {{ request()->routeIs('admin.vaccination-shots.*') ? 'text-white' : 'text-gray-500' }}"></i>
+                                    <span>Shot Verification</span>
+                                </a>
+                            </li>
+                        </ul>
                     </li>
-                    <li>
-                        <a href="{{ route('admin.vaccine-protocols.index') }}" class="flex items-center gap-3 px-3 py-2.5 rounded-lg {{ request()->routeIs('admin.vaccine-protocols.*') ? 'bg-white/10 text-white font-semibold border-l-[3px] border-[#E75234]' : 'text-gray-400 hover:text-white hover:bg-white/10 font-medium' }}">
-                            <i data-lucide="syringe" class="w-5 h-5 {{ request()->routeIs('admin.vaccine-protocols.*') ? 'text-white' : 'text-gray-500' }}"></i>
-                            <span>Vaccine Protocols</span>
-                        </a>
-                    </li>
-                    <li>
-                        <a href="{{ route('admin.vaccination-shots.pending') }}" class="flex items-center gap-3 px-3 py-2.5 rounded-lg {{ request()->routeIs('admin.vaccination-shots.*') ? 'bg-white/10 text-white font-semibold border-l-[3px] border-[#E75234]' : 'text-gray-400 hover:text-white hover:bg-white/10 font-medium' }}">
-                            <i data-lucide="clipboard-check" class="w-5 h-5 {{ request()->routeIs('admin.vaccination-shots.*') ? 'text-white' : 'text-gray-500' }}"></i>
-                            <span>Shot Verification</span>
-                        </a>
-                    </li>
+
                     <li>
                         <a href="{{ route('admin.matches') }}" class="flex items-center gap-3 px-3 py-2.5 rounded-lg {{ request()->routeIs('admin.matches') ? 'bg-white/10 text-white font-semibold border-l-[3px] border-[#E75234]' : 'text-gray-400 hover:text-white hover:bg-white/10 font-medium' }}">
-                            <i data-lucide="history" class="w-5 h-5 {{ request()->routeIs('admin.matches') ? 'text-white' : 'text-gray-500' }}"></i>
+                            <i data-lucide="heart-handshake" class="w-5 h-5 {{ request()->routeIs('admin.matches') ? 'text-white' : 'text-gray-500' }}"></i>
                             <span>Match History</span>
                         </a>
                     </li>
+                </ul>
+
+                <h3 class="text-[10px] font-semibold text-gray-500 uppercase tracking-wider mt-6 mb-2 px-3">Business</h3>
+                <ul class="space-y-1">
                     <li>
                         <a href="{{ route('admin.analytics') }}" class="flex items-center gap-3 px-3 py-2.5 rounded-lg {{ request()->routeIs('admin.analytics') ? 'bg-white/10 text-white font-semibold border-l-[3px] border-[#E75234]' : 'text-gray-400 hover:text-white hover:bg-white/10 font-medium' }}">
                             <i data-lucide="bar-chart-2" class="w-5 h-5 {{ request()->routeIs('admin.analytics') ? 'text-white' : 'text-gray-500' }}"></i>
@@ -254,10 +308,14 @@
                     </li>
                     <li>
                         <a href="{{ route('admin.billing') }}" class="flex items-center gap-3 px-3 py-2.5 rounded-lg {{ request()->routeIs('admin.billing') ? 'bg-white/10 text-white font-semibold border-l-[3px] border-[#E75234]' : 'text-gray-400 hover:text-white hover:bg-white/10 font-medium' }}">
-                            <i data-lucide="file-text" class="w-5 h-5 {{ request()->routeIs('admin.billing') ? 'text-white' : 'text-gray-500' }}"></i>
-                            <span>Subscription and Billing</span>
+                            <i data-lucide="credit-card" class="w-5 h-5 {{ request()->routeIs('admin.billing') ? 'text-white' : 'text-gray-500' }}"></i>
+                            <span>Subscription & Billing</span>
                         </a>
                     </li>
+                </ul>
+
+                <h3 class="text-[10px] font-semibold text-gray-500 uppercase tracking-wider mt-6 mb-2 px-3">System</h3>
+                <ul class="space-y-1">
                     <li>
                         <a href="{{ route('admin.tickets') }}" class="flex items-center gap-3 px-3 py-2.5 rounded-lg {{ request()->routeIs('admin.tickets') ? 'bg-white/10 text-white font-semibold border-l-[3px] border-[#E75234]' : 'text-gray-400 hover:text-white hover:bg-white/10 font-medium' }}">
                             <i data-lucide="ticket" class="w-5 h-5 {{ request()->routeIs('admin.tickets') ? 'text-white' : 'text-gray-500' }}"></i>
@@ -299,6 +357,18 @@
 
     <script>
         lucide.createIcons();
+
+        function toggleSidebarGroup(groupId) {
+            const group = document.getElementById(groupId);
+            const chevron = document.getElementById(groupId + '-chevron');
+            if (group) {
+                group.classList.toggle('hidden');
+                if (chevron) {
+                    chevron.classList.toggle('rotate-180');
+                }
+                lucide.createIcons();
+            }
+        }
 
         const mobileMenuBtn = document.getElementById('mobile-menu-btn');
         const closeMenuBtn = document.getElementById('close-menu-btn');
