@@ -223,6 +223,79 @@ class VaccinationController extends Controller
     }
 
     /**
+     * Change the protocol for an existing vaccination card
+     */
+    public function changeProtocol(Request $request, $petId, $cardId)
+    {
+        $request->validate([
+            'protocol_id' => 'required|integer|exists:vaccine_protocols,id',
+        ]);
+
+        $pet = Pet::where('pet_id', $petId)
+            ->where('user_id', Auth::id())
+            ->firstOrFail();
+
+        $card = VaccinationCard::where('card_id', $cardId)
+            ->where('pet_id', $petId)
+            ->firstOrFail();
+
+        $newProtocol = VaccineProtocol::where('id', $request->protocol_id)
+            ->active()
+            ->firstOrFail();
+
+        // Verify species match
+        if ($newProtocol->species !== 'all' && $newProtocol->species !== $pet->species) {
+            return response()->json([
+                'success' => false,
+                'message' => 'This protocol is not available for this pet\'s species.',
+            ], 400);
+        }
+
+        try {
+            DB::beginTransaction();
+
+            // Update card with new protocol details
+            $card->vaccine_protocol_id = $newProtocol->id;
+            $card->vaccine_type = $newProtocol->slug;
+            $card->vaccine_name = $newProtocol->name;
+            $card->is_required = $newProtocol->is_required;
+            $card->total_shots_required = $newProtocol->series_doses;
+            $card->interval_days = $newProtocol->series_interval_days ?? $newProtocol->booster_interval_days;
+            
+            // Determine recurrence_type
+            $recurrenceType = 'none';
+            if ($newProtocol->isPurelyRecurring()) {
+                $recurrenceType = $newProtocol->booster_interval_days >= 365 ? 'yearly' : 'biannual';
+            }
+            $card->recurrence_type = $recurrenceType;
+
+            $card->save();
+            
+            // Recalculate status
+            $card->updateStatus();
+
+            DB::commit();
+
+            $card->load(['shots' => function ($query) {
+                $query->orderBy('shot_number', 'asc');
+            }, 'protocol']);
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Vaccination protocol updated successfully',
+                'data' => $this->formatCardResponse($card),
+            ]);
+        } catch (\Exception $e) {
+            DB::rollBack();
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to update vaccination protocol',
+                'error' => $e->getMessage(),
+            ], 500);
+        }
+    }
+
+    /**
      * Initialize required vaccination cards for a pet
      * Called when pet is created
      */

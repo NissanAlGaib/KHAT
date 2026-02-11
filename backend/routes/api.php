@@ -70,6 +70,7 @@ Route::middleware(['auth:sanctum'])
         // Dynamic {cardId} routes come after static routes
         Route::get('/pets/{petId}/vaccination-cards/{cardId}', [VaccinationController::class, 'getCard']);
         // deleteCard removed — admin controls protocol lifecycle now
+        Route::post('/pets/{petId}/vaccination-cards/{cardId}/change-protocol', [VaccinationController::class, 'changeProtocol']);
         Route::post('/pets/{petId}/vaccination-cards/{cardId}/shots', [VaccinationController::class, 'addShot']);
         Route::post('/pets/{petId}/vaccination-cards/{cardId}/historical-shots', [VaccinationController::class, 'addHistoricalShot']);
 

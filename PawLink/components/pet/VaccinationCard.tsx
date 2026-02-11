@@ -15,6 +15,7 @@ interface VaccinationCardProps {
   card: VaccinationCardType;
   onAddShot: (cardId: number) => void;
   onViewDetails?: (cardId: number) => void;
+  onEdit?: (cardId: number) => void;
   isExpanded?: boolean;
 }
 
@@ -163,6 +164,17 @@ export default function VaccinationCardComponent({
         </View>
         
         <View style={styles.headerRight}>
+          {onEdit && (
+            <TouchableOpacity
+              style={styles.editButton}
+              onPress={(e) => {
+                e.stopPropagation();
+                onEdit(card.card_id);
+              }}
+            >
+              <Ionicons name="pencil" size={16} color={Colors.textMuted} />
+            </TouchableOpacity>
+          )}
           <View style={[styles.statusIndicator, { backgroundColor: statusColor }]} />
           <Ionicons
             name={expanded ? "chevron-up" : "chevron-down"}
@@ -325,6 +337,10 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     gap: Spacing.sm,
+  },
+  editButton: {
+    padding: 4,
+    marginRight: 4,
   },
   statusIndicator: {
     width: 10,

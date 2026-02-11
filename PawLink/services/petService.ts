@@ -656,6 +656,21 @@ export const optInToProtocol = async (
 };
 
 /**
+ * Change the protocol for an existing vaccination card
+ */
+export const changeProtocol = async (
+  petId: number,
+  cardId: number,
+  protocolId: number
+): Promise<VaccinationCard> => {
+  const response = await axiosInstance.post(
+    `/api/pets/${petId}/vaccination-cards/${cardId}/change-protocol`,
+    { protocol_id: protocolId }
+  );
+  return response.data.data;
+};
+
+/**
  * Get vaccination summary for a pet
  */
 export const getVaccinationSummary = async (

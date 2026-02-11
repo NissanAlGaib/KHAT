@@ -15,6 +15,7 @@ import { useRouter, useLocalSearchParams } from "expo-router";
 import { LinearGradient } from "expo-linear-gradient";
 import { useAlert } from "@/hooks/useAlert";
 import AlertModal from "@/components/core/AlertModal";
+import StyledModal from "@/components/core/StyledModal";
 import VaccinationCardComponent from "@/components/pet/VaccinationCard";
 import AddShotModal from "@/components/pet/AddShotModal";
 import {
@@ -23,6 +24,7 @@ import {
   addVaccinationShot,
   getAvailableProtocols,
   optInToProtocol,
+  changeProtocol,
   VaccinationCard,
   VaccinationCardsResponse,
   AvailableProtocolsResponse,
@@ -56,6 +58,11 @@ export default function VaccinationsScreen() {
     available: [],
   });
   const [optingIn, setOptingIn] = useState(false);
+
+  // Edit Protocol state
+  const [showEditProtocolModal, setShowEditProtocolModal] = useState(false);
+  const [editingCard, setEditingCard] = useState<VaccinationCard | null>(null);
+  const [changingProtocol, setChangingProtocol] = useState(false);
 
   const fetchData = useCallback(async () => {
     try {
@@ -149,6 +156,38 @@ export default function VaccinationsScreen() {
     } finally {
       setOptingIn(false);
       setShowOptInModal(false);
+    }
+  };
+
+  const handleOpenEditProtocolModal = (cardId: number) => {
+    const allCards = [...vaccinationCards.required, ...vaccinationCards.optional];
+    const card = allCards.find((c) => c.card_id === cardId);
+    if (card) {
+      setEditingCard(card);
+      setShowEditProtocolModal(true);
+    }
+  };
+
+  const handleChangeProtocol = async (protocolId: number) => {
+    if (!editingCard) return;
+    setChangingProtocol(true);
+    try {
+      await changeProtocol(parseInt(petId), editingCard.card_id, protocolId);
+      await fetchData();
+      showAlert({
+        title: "Success",
+        message: "Vaccination protocol updated successfully!",
+        type: "success",
+      });
+      setShowEditProtocolModal(false);
+    } catch (error: any) {
+      showAlert({
+        title: "Error",
+        message: error.response?.data?.message || "Failed to update protocol",
+        type: "error",
+      });
+    } finally {
+      setChangingProtocol(false);
     }
   };
 
@@ -262,6 +301,7 @@ export default function VaccinationsScreen() {
                 key={card.card_id}
                 card={card}
                 onAddShot={handleOpenAddShotModal}
+                onEdit={handleOpenEditProtocolModal}
               />
             ))
           ) : (
@@ -283,6 +323,7 @@ export default function VaccinationsScreen() {
                 key={card.card_id}
                 card={card}
                 onAddShot={handleOpenAddShotModal}
+                onEdit={handleOpenEditProtocolModal}
               />
             ))
           ) : (
@@ -379,6 +420,61 @@ export default function VaccinationsScreen() {
           </View>
         </View>
       )}
+
+      {/* Edit Protocol Modal */}
+      <StyledModal
+        visible={showEditProtocolModal}
+        onClose={() => setShowEditProtocolModal(false)}
+        title="Edit Protocol"
+        content={() => (
+          <View>
+            <Text style={styles.inputLabel}>Select New Protocol</Text>
+            <Text style={styles.inputHelper}>
+              Changing the protocol will update the schedule and requirements for this vaccine.
+            </Text>
+            
+            {availableProtocols.available.length > 0 ? (
+              availableProtocols.available.map((protocol) => (
+                <TouchableOpacity
+                  key={protocol.id}
+                  style={styles.protocolCard}
+                  onPress={() => handleChangeProtocol(protocol.id)}
+                  disabled={changingProtocol}
+                >
+                  <View style={styles.protocolHeader}>
+                    <View style={styles.protocolInfo}>
+                      <Text style={styles.protocolName}>{protocol.name}</Text>
+                      <View style={styles.protocolBadges}>
+                        <View style={styles.typeBadge}>
+                          <Text style={styles.typeBadgeText}>
+                            {protocol.protocol_type_label}
+                          </Text>
+                        </View>
+                      </View>
+                    </View>
+                    {changingProtocol ? (
+                       <ActivityIndicator size="small" color="#FF6B4A" />
+                    ) : (
+                      <Ionicons name="chevron-forward" size={20} color="#9CA3AF" />
+                    )}
+                  </View>
+                  {protocol.description && (
+                    <Text style={styles.protocolDescription}>
+                      {protocol.description}
+                    </Text>
+                  )}
+                </TouchableOpacity>
+              ))
+            ) : (
+               <View style={styles.emptyState}>
+                  <Text style={styles.emptyText}>
+                    No other protocols available.
+                  </Text>
+                </View>
+            )}
+          </View>
+        )}
+      />
 
       <AlertModal
         visible={visible}
@@ -722,6 +818,10 @@ const styles = StyleSheet.create({
     marginBottom: 12,
     borderWidth: 1,
     borderColor: "#E5E7EB",
+  },
+  activeProtocolCard: {
+    borderColor: "#FF6B4A",
+    backgroundColor: "#FFF5F5",
   },
   protocolHeader: {
     flexDirection: "row",

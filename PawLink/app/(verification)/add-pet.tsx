@@ -211,7 +211,7 @@ export default function AddPetScreen() {
 
       const petData = {
         name: formData.name,
-        species: formData.species,
+        species: formData.species.toLowerCase(),
         breed: formData.breed,
         sex: formData.sex.toLowerCase(),
         birthdate: formData.birthdate,
