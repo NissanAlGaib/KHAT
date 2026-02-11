@@ -2,8 +2,8 @@ import axios from "@/config/axiosConfig";
 
 export interface NotificationItem {
   id: string;
-  type: "user_verification" | "pet_vaccination" | "pet_health_record";
-  status: "pending" | "approved" | "rejected";
+  type: "user_verification" | "pet_vaccination" | "pet_health_record" | "admin_warning";
+  status: "pending" | "approved" | "rejected" | "warning";
   rejection_reason?: string;
   message: string;
   created_at: string;
@@ -19,12 +19,18 @@ export interface NotificationItem {
   pet_name?: string;
   vaccine_name?: string;
   record_type?: string;
+  // Admin warning specific fields
+  report_id?: number;
+  reason?: string;
+  reason_label?: string;
+  admin_notes?: string;
 }
 
 export interface NotificationSummary {
   total: number;
   pending: number;
   rejected: number;
+  warnings: number;
   approved: number;
 }
 
@@ -36,6 +42,7 @@ export interface NotificationsResponse {
 export interface NotificationCountResponse {
   count: number;
   has_rejected: boolean;
+  has_warnings: boolean;
 }
 
 /**
@@ -67,6 +74,6 @@ export const getNotificationCount =
         "Error getting notification count:",
         error.response?.data || error.message
       );
-      return { count: 0, has_rejected: false };
+      return { count: 0, has_rejected: false, has_warnings: false };
     }
   };

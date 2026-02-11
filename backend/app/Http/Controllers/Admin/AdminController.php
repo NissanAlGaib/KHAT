@@ -10,6 +10,8 @@ use App\Models\BreedingContract;
 use App\Models\Litter;
 use App\Models\UserAuth;
 use App\Models\AuditLog;
+use App\Models\SafetyReport;
+use App\Models\UserBlock;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
@@ -174,6 +176,9 @@ class AdminController extends Controller
             ->orderBy('month')
             ->get();
 
+        // Pending Safety Reports
+        $pendingReports = SafetyReport::where('status', SafetyReport::STATUS_PENDING)->count();
+
         // Breeding Matches Trend (last 6 months)
         $matchesTrend = MatchRequest::select(
             DB::raw('DATE_FORMAT(created_at, "%Y-%m") as month'),
@@ -193,6 +198,7 @@ class AdminController extends Controller
             'cooldownPets', 'cooldownPetsGrowth',
             'standardSubscribers', 'standardGrowth',
             'premiumSubscribers', 'premiumGrowth',
+            'pendingReports',
             'monthlyUsers', 'matchesTrend'
         );
     }
@@ -230,7 +236,8 @@ class AdminController extends Controller
     {
         $status = $request->get('status', 'verified');
 
-        $query = User::with(['roles', 'userAuth']);
+        $query = User::with(['roles', 'userAuth'])
+            ->withCount('reportsAgainst');
 
         // Filter by verification status
         if ($status === 'pending') {
@@ -736,11 +743,245 @@ class AdminController extends Controller
     }
 
     /**
-     * Display tickets page.
+     * Display reports management page.
      */
-    public function tickets()
+    public function reports(Request $request)
     {
-        return view('admin.tickets');
+        $query = SafetyReport::with(['reporter', 'reported', 'reviewer']);
+
+        // Filter by status
+        if ($request->filled('status')) {
+            $query->where('status', $request->status);
+        }
+
+        // Filter by reason
+        if ($request->filled('reason')) {
+            $query->where('reason', $request->reason);
+        }
+
+        // Filter by date range
+        if ($request->filled('date_range')) {
+            switch ($request->date_range) {
+                case '7':
+                    $query->where('created_at', '>=', Carbon::now()->subDays(7));
+                    break;
+                case '30':
+                    $query->where('created_at', '>=', Carbon::now()->subDays(30));
+                    break;
+                case '90':
+                    $query->where('created_at', '>=', Carbon::now()->subDays(90));
+                    break;
+            }
+        }
+
+        // Search by reporter or reported user name/email
+        if ($request->filled('search')) {
+            $search = $request->search;
+            $query->where(function ($q) use ($search) {
+                $q->whereHas('reporter', function ($q2) use ($search) {
+                    $q2->where('name', 'like', "%{$search}%")
+                       ->orWhere('email', 'like', "%{$search}%");
+                })
+                ->orWhereHas('reported', function ($q2) use ($search) {
+                    $q2->where('name', 'like', "%{$search}%")
+                       ->orWhere('email', 'like', "%{$search}%");
+                });
+            });
+        }
+
+        $reports = $query->orderBy('created_at', 'desc')->paginate(15)->appends($request->query());
+
+        // Statistics
+        $totalReports = SafetyReport::count();
+        $pendingReports = SafetyReport::where('status', SafetyReport::STATUS_PENDING)->count();
+        $resolvedReports = SafetyReport::where('status', SafetyReport::STATUS_RESOLVED)->count();
+        $dismissedReports = SafetyReport::where('status', SafetyReport::STATUS_DISMISSED)->count();
+
+        return view('admin.reports', compact(
+            'reports',
+            'totalReports',
+            'pendingReports',
+            'resolvedReports',
+            'dismissedReports'
+        ));
+    }
+
+    /**
+     * Get report details for modal.
+     */
+    public function getReportDetails($id)
+    {
+        $report = SafetyReport::with(['reporter', 'reported', 'reviewer'])->findOrFail($id);
+
+        // Count how many times the reported user has been reported (by distinct reporters)
+        $totalReportsAgainstUser = SafetyReport::where('reported_id', $report->reported_id)->count();
+        $distinctReporters = SafetyReport::where('reported_id', $report->reported_id)
+            ->distinct('reporter_id')
+            ->count('reporter_id');
+
+        // Count how many users have blocked the reported user
+        $blockedByCount = UserBlock::where('blocked_id', $report->reported_id)->count();
+
+        // Get other reports against the same user
+        $otherReports = SafetyReport::where('reported_id', $report->reported_id)
+            ->where('id', '!=', $report->id)
+            ->with('reporter:id,name')
+            ->orderBy('created_at', 'desc')
+            ->limit(5)
+            ->get(['id', 'reporter_id', 'reason', 'status', 'created_at']);
+
+        return response()->json([
+            'success' => true,
+            'report' => [
+                'id' => $report->id,
+                'reason' => $report->reason,
+                'description' => $report->description,
+                'status' => $report->status,
+                'admin_notes' => $report->admin_notes,
+                'resolution_action' => $report->resolution_action,
+                'created_at' => $report->created_at->format('M d, Y h:i A'),
+                'reviewed_at' => $report->reviewed_at ? $report->reviewed_at->format('M d, Y h:i A') : null,
+                'reporter' => [
+                    'id' => $report->reporter->id,
+                    'name' => $report->reporter->name,
+                    'email' => $report->reporter->email,
+                    'profile_image' => $report->reporter->profile_image
+                        ? Storage::disk('do_spaces')->url($report->reporter->profile_image)
+                        : null,
+                ],
+                'reported' => [
+                    'id' => $report->reported->id,
+                    'name' => $report->reported->name,
+                    'email' => $report->reported->email,
+                    'profile_image' => $report->reported->profile_image
+                        ? Storage::disk('do_spaces')->url($report->reported->profile_image)
+                        : null,
+                ],
+                'reviewer' => $report->reviewer ? [
+                    'name' => $report->reviewer->name,
+                ] : null,
+            ],
+            'repeat_offender' => [
+                'total_reports' => $totalReportsAgainstUser,
+                'distinct_reporters' => $distinctReporters,
+                'blocked_by_count' => $blockedByCount,
+                'other_reports' => $otherReports,
+            ],
+        ]);
+    }
+
+    /**
+     * Review/update a report (approve, dismiss, etc.)
+     */
+    public function reviewReport(Request $request, $id)
+    {
+        $request->validate([
+            'status' => 'required|in:reviewed,resolved,dismissed',
+            'admin_notes' => 'nullable|string|max:1000',
+            'resolution_action' => 'nullable|string|in:none,warning,ban',
+        ]);
+
+        $report = SafetyReport::findOrFail($id);
+        $oldStatus = $report->status;
+
+        $report->status = $request->status;
+        $report->admin_notes = $request->admin_notes;
+        $report->resolution_action = $request->resolution_action ?? 'none';
+        $report->reviewed_by = Auth::id();
+        $report->reviewed_at = Carbon::now();
+        $report->save();
+
+        // If action is ban, disable the reported user's account
+        if ($request->resolution_action === 'ban') {
+            $reportedUser = User::findOrFail($report->reported_id);
+            $reportedUser->status = 'banned';
+            $reportedUser->save();
+
+            AuditLog::log(
+                'user.banned_via_report',
+                AuditLog::TYPE_UPDATE,
+                "User {$reportedUser->name} was banned via report #{$report->id}",
+                User::class,
+                $reportedUser->id,
+                ['status' => 'active'],
+                ['status' => 'banned']
+            );
+        }
+
+        // Log the review action
+        AuditLog::log(
+            'report.reviewed',
+            AuditLog::TYPE_UPDATE,
+            "Report #{$report->id} status changed from {$oldStatus} to {$request->status}" .
+                ($request->resolution_action ? " (action: {$request->resolution_action})" : ''),
+            SafetyReport::class,
+            $report->id,
+            ['status' => $oldStatus],
+            ['status' => $request->status, 'resolution_action' => $request->resolution_action]
+        );
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Report updated successfully',
+        ]);
+    }
+
+    /**
+     * Display blocks management page.
+     */
+    public function blocks(Request $request)
+    {
+        $query = UserBlock::with(['blocker', 'blocked']);
+
+        if ($request->filled('search')) {
+            $search = $request->search;
+            $query->where(function ($q) use ($search) {
+                $q->whereHas('blocker', function ($q2) use ($search) {
+                    $q2->where('name', 'like', "%{$search}%");
+                })
+                ->orWhereHas('blocked', function ($q2) use ($search) {
+                    $q2->where('name', 'like', "%{$search}%");
+                });
+            });
+        }
+
+        $blocks = $query->orderBy('created_at', 'desc')->paginate(15)->appends($request->query());
+        $totalBlocks = UserBlock::count();
+
+        // Most blocked users (users blocked by the most people)
+        $mostBlocked = UserBlock::select('blocked_id', DB::raw('COUNT(*) as block_count'))
+            ->groupBy('blocked_id')
+            ->orderByDesc('block_count')
+            ->limit(5)
+            ->with('blocked:id,name,email')
+            ->get();
+
+        return view('admin.blocks', compact('blocks', 'totalBlocks', 'mostBlocked'));
+    }
+
+    /**
+     * Force unblock a user (admin action).
+     */
+    public function forceUnblock($id)
+    {
+        $block = UserBlock::findOrFail($id);
+        $blockerName = $block->blocker->name ?? 'Unknown';
+        $blockedName = $block->blocked->name ?? 'Unknown';
+
+        $block->delete();
+
+        AuditLog::log(
+            'block.force_removed',
+            AuditLog::TYPE_DELETE,
+            "Admin force-removed block: {$blockerName} had blocked {$blockedName}",
+            UserBlock::class,
+            $id
+        );
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Block removed successfully',
+        ]);
     }
 
     /**
@@ -816,6 +1057,13 @@ class AdminController extends Controller
             ->limit(10)
             ->get();
 
+        // Get pending safety reports
+        $pendingReports = SafetyReport::where('status', SafetyReport::STATUS_PENDING)
+            ->with(['reporter:id,name', 'reported:id,name'])
+            ->orderBy('created_at', 'desc')
+            ->limit(10)
+            ->get();
+
         // Build notifications array
         $notifications = collect();
 
@@ -868,6 +1116,19 @@ class AdminController extends Controller
                 'message' => "₱{$payment->amount} received from {$payment->user->name}",
                 'created_at' => $payment->paid_at,
                 'is_unread' => $payment->paid_at >= Carbon::now()->subHours(24),
+            ]);
+        }
+
+        // Add safety report notifications
+        foreach ($pendingReports as $report) {
+            $notifications->push([
+                'type' => 'safety_report',
+                'icon' => 'shield-alert',
+                'color' => 'red',
+                'title' => 'Safety report pending',
+                'message' => "{$report->reporter->name} reported {$report->reported->name} for {$report->reason}",
+                'created_at' => $report->created_at,
+                'is_unread' => true,
             ]);
         }
 

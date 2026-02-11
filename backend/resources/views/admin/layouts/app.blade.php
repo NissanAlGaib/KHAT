@@ -61,7 +61,7 @@
         @php
             $petGroupActive = request()->routeIs('admin.pets.*') || request()->routeIs('admin.vaccine-protocols.*') || request()->routeIs('admin.vaccination-shots.*');
             $businessGroupActive = request()->routeIs('admin.analytics') || request()->routeIs('admin.billing');
-            $systemGroupActive = request()->routeIs('admin.tickets') || request()->routeIs('admin.audit-logs');
+            $systemGroupActive = request()->routeIs('admin.reports') || request()->routeIs('admin.blocks') || request()->routeIs('admin.audit-logs');
         @endphp
 
         <nav class="flex-grow p-4 overflow-y-auto">
@@ -142,9 +142,9 @@
             <h3 class="text-[10px] font-semibold text-gray-500 uppercase tracking-wider mt-6 mb-2 px-3">System</h3>
             <ul class="space-y-1">
                 <li>
-                    <a href="{{ route('admin.tickets') }}" class="flex items-center gap-3 px-3 py-2.5 rounded-lg {{ request()->routeIs('admin.tickets') ? 'bg-white/10 text-white font-semibold border-l-[3px] border-[#E75234]' : 'text-gray-400 hover:text-white hover:bg-white/10 font-medium' }}">
-                        <i data-lucide="ticket" class="w-5 h-5 {{ request()->routeIs('admin.tickets') ? 'text-white' : 'text-gray-500' }}"></i>
-                        <span>Tickets</span>
+                    <a href="{{ route('admin.reports') }}" class="flex items-center gap-3 px-3 py-2.5 rounded-lg {{ request()->routeIs('admin.reports') || request()->routeIs('admin.blocks') ? 'bg-white/10 text-white font-semibold border-l-[3px] border-[#E75234]' : 'text-gray-400 hover:text-white hover:bg-white/10 font-medium' }}">
+                        <i data-lucide="shield-alert" class="w-5 h-5 {{ request()->routeIs('admin.reports') || request()->routeIs('admin.blocks') ? 'text-white' : 'text-gray-500' }}"></i>
+                        <span>Reports</span>
                     </a>
                 </li>
                 <li>
@@ -317,9 +317,9 @@
                 <h3 class="text-[10px] font-semibold text-gray-500 uppercase tracking-wider mt-6 mb-2 px-3">System</h3>
                 <ul class="space-y-1">
                     <li>
-                        <a href="{{ route('admin.tickets') }}" class="flex items-center gap-3 px-3 py-2.5 rounded-lg {{ request()->routeIs('admin.tickets') ? 'bg-white/10 text-white font-semibold border-l-[3px] border-[#E75234]' : 'text-gray-400 hover:text-white hover:bg-white/10 font-medium' }}">
-                            <i data-lucide="ticket" class="w-5 h-5 {{ request()->routeIs('admin.tickets') ? 'text-white' : 'text-gray-500' }}"></i>
-                            <span>Tickets</span>
+                        <a href="{{ route('admin.reports') }}" class="flex items-center gap-3 px-3 py-2.5 rounded-lg {{ request()->routeIs('admin.reports') || request()->routeIs('admin.blocks') ? 'bg-white/10 text-white font-semibold border-l-[3px] border-[#E75234]' : 'text-gray-400 hover:text-white hover:bg-white/10 font-medium' }}">
+                            <i data-lucide="shield-alert" class="w-5 h-5 {{ request()->routeIs('admin.reports') || request()->routeIs('admin.blocks') ? 'text-white' : 'text-gray-500' }}"></i>
+                            <span>Reports</span>
                         </a>
                     </li>
                     <li>

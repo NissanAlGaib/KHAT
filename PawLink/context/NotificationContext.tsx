@@ -52,7 +52,7 @@ export function NotificationProvider({
       setNotifications(data.notifications);
       setSummary(data.summary);
       // Also update badge count from summary
-      setBadgeCount(data.summary.rejected);
+      setBadgeCount(data.summary.rejected + (data.summary.warnings ?? 0));
       setHasRejected(data.summary.rejected > 0);
     } catch (err: any) {
       console.error("Error refreshing notifications:", err);

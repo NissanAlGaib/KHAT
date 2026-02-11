@@ -122,6 +122,7 @@
                     <th class="px-6 py-4 font-semibold">Account Status</th>
                     <th class="px-6 py-4 font-semibold">Document Status</th>
                     <th class="px-6 py-4 font-semibold">Subscription Tier</th>
+                    <th class="px-6 py-4 font-semibold text-center">Reports</th>
                     <th class="px-6 py-4 font-semibold text-center">Actions</th>
                 </tr>
             </thead>
@@ -213,6 +214,16 @@
                         <span class="inline-block px-3 py-1.5 rounded-lg text-xs font-semibold {{ $tierColors[$tier] }}">
                             {{ ucfirst($tier) }}
                         </span>
+                    </td>
+                    <td class="px-6 py-4 text-center">
+                        @if($user->reports_against_count > 0)
+                        <a href="{{ route('admin.reports', ['search' => $user->name]) }}" class="inline-flex items-center gap-1 px-2.5 py-1 rounded-md text-xs font-semibold bg-red-100 text-red-700 hover:bg-red-200 transition-colors" title="View reports against this user">
+                            <i data-lucide="shield-alert" class="w-3.5 h-3.5"></i>
+                            {{ $user->reports_against_count }}
+                        </a>
+                        @else
+                        <span class="text-gray-400 text-xs">—</span>
+                        @endif
                     </td>
                     <td class="px-6 py-4 text-center">
                         <div class="relative inline-block">

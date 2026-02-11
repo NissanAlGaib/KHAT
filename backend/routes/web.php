@@ -53,11 +53,17 @@ Route::prefix('admin')->group(function () {
         Route::post('/vaccination-shots/{shotId}/approve', [VaccineProtocolController::class, 'approveShot'])->name('admin.vaccination-shots.approve');
         Route::post('/vaccination-shots/{shotId}/reject', [VaccineProtocolController::class, 'rejectShot'])->name('admin.vaccination-shots.reject');
 
+        // Reports & Safety Management
+        Route::get('/reports', [AdminController::class, 'reports'])->name('admin.reports');
+        Route::get('/reports/{id}/details', [AdminController::class, 'getReportDetails'])->name('admin.reports.details');
+        Route::put('/reports/{id}/review', [AdminController::class, 'reviewReport'])->name('admin.reports.review');
+        Route::get('/blocks', [AdminController::class, 'blocks'])->name('admin.blocks');
+        Route::delete('/blocks/{id}', [AdminController::class, 'forceUnblock'])->name('admin.blocks.destroy');
+
         // Other Admin Pages
         Route::get('/matches', [AdminController::class, 'matchHistory'])->name('admin.matches');
         Route::get('/analytics', [AdminController::class, 'analytics'])->name('admin.analytics');
         Route::get('/billing', [AdminController::class, 'billing'])->name('admin.billing');
-        Route::get('/tickets', [AdminController::class, 'tickets'])->name('admin.tickets');
         Route::get('/audit-logs', [AdminController::class, 'auditLogs'])->name('admin.audit-logs');
         Route::get('/profile', [AdminController::class, 'profile'])->name('admin.profile');
         Route::put('/profile', [AdminController::class, 'updateProfile'])->name('admin.profile.update');

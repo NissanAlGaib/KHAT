@@ -26,6 +26,8 @@ function NotificationCard({
         return "bg-green-100";
       case "rejected":
         return "bg-red-100";
+      case "warning":
+        return "bg-orange-100";
       case "pending":
       default:
         return "bg-yellow-100";
@@ -38,6 +40,8 @@ function NotificationCard({
         return "text-green-700";
       case "rejected":
         return "text-red-700";
+      case "warning":
+        return "text-orange-700";
       case "pending":
       default:
         return "text-yellow-700";
@@ -50,6 +54,8 @@ function NotificationCard({
         return "check-circle";
       case "rejected":
         return "x-circle";
+      case "warning":
+        return "alert-triangle";
       case "pending":
       default:
         return "clock";
@@ -62,6 +68,8 @@ function NotificationCard({
         return "Approved";
       case "rejected":
         return "Rejected";
+      case "warning":
+        return "Warning";
       case "pending":
       default:
         return "Pending";
@@ -76,8 +84,24 @@ function NotificationCard({
         return "activity";
       case "pet_health_record":
         return "file-text";
+      case "admin_warning":
+        return "alert-triangle";
       default:
         return "bell";
+    }
+  };
+
+  const getStatusIconColor = (status: string) => {
+    switch (status) {
+      case "approved":
+        return "#15803d";
+      case "rejected":
+        return "#b91c1c";
+      case "warning":
+        return "#c2410c";
+      case "pending":
+      default:
+        return "#a16207";
     }
   };
 
@@ -110,13 +134,7 @@ function NotificationCard({
           <Feather
             name={getTypeIcon(notification.type) as any}
             size={20}
-            color={
-              notification.status === "approved"
-                ? "#15803d"
-                : notification.status === "rejected"
-                  ? "#b91c1c"
-                  : "#a16207"
-            }
+            color={getStatusIconColor(notification.status)}
           />
         </View>
 
@@ -132,13 +150,7 @@ function NotificationCard({
               <Feather
                 name={getStatusIcon(notification.status) as any}
                 size={12}
-                color={
-                  notification.status === "approved"
-                    ? "#15803d"
-                    : notification.status === "rejected"
-                      ? "#b91c1c"
-                      : "#a16207"
-                }
+                color={getStatusIconColor(notification.status)}
               />
               <Text
                 className={`text-xs ml-1 font-medium ${getStatusTextColor(notification.status)}`}
@@ -164,8 +176,20 @@ function NotificationCard({
             </View>
           )}
 
-          {/* Resubmit button for rejected items */}
-          {notification.status === "rejected" && (
+          {/* Show admin notes for warnings */}
+          {notification.type === "admin_warning" && notification.admin_notes && (
+            <View className="bg-orange-50 rounded-lg p-3 mt-2">
+              <Text className="text-sm font-medium text-orange-800 mb-1">
+                Details from admin:
+              </Text>
+              <Text className="text-sm text-orange-700">
+                {notification.admin_notes}
+              </Text>
+            </View>
+          )}
+
+          {/* Resubmit button for rejected items (not for warnings) */}
+          {notification.status === "rejected" && notification.type !== "admin_warning" && (
             <TouchableOpacity
               className="mt-3 bg-[#ea5b3a] rounded-full py-2 px-4 self-start"
               onPress={() => onResubmit(notification)}
@@ -242,6 +266,9 @@ export default function NotificationsScreen() {
   };
 
   // Group notifications by status for section display
+  const warningNotifications = notifications.filter(
+    (n) => n.status === "warning"
+  );
   const rejectedNotifications = notifications.filter(
     (n) => n.status === "rejected"
   );
@@ -267,7 +294,15 @@ export default function NotificationsScreen() {
 
         {/* Summary badges */}
         {summary && (
-          <View className="flex-row mt-4 gap-3">
+          <View className="flex-row mt-4 gap-3 flex-wrap">
+            {(summary.warnings ?? 0) > 0 && (
+              <View className="bg-orange-100 px-3 py-1 rounded-full flex-row items-center">
+                <Feather name="alert-triangle" size={14} color="#c2410c" />
+                <Text className="text-orange-700 text-sm ml-1 font-medium">
+                  {summary.warnings} warning{summary.warnings > 1 ? "s" : ""}
+                </Text>
+              </View>
+            )}
             {summary.rejected > 0 && (
               <View className="bg-red-100 px-3 py-1 rounded-full flex-row items-center">
                 <Feather name="alert-circle" size={14} color="#b91c1c" />
@@ -333,6 +368,22 @@ export default function NotificationsScreen() {
           </View>
         ) : (
           <>
+            {/* Admin warnings section */}
+            {warningNotifications.length > 0 && (
+              <View className="mb-6">
+                <Text className="text-lg font-bold text-orange-700 mb-3">
+                  Admin Warnings
+                </Text>
+                {warningNotifications.map((notification) => (
+                  <NotificationCard
+                    key={notification.id}
+                    notification={notification}
+                    onResubmit={handleResubmit}
+                  />
+                ))}
+              </View>
+            )}
+
             {/* Rejected section - needs action */}
             {rejectedNotifications.length > 0 && (
               <View className="mb-6">

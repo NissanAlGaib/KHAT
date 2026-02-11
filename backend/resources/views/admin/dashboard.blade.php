@@ -103,6 +103,29 @@
     </div>
 </div>
 
+<!-- Pending Reports Alert -->
+@if($pendingReports > 0)
+<a href="{{ route('admin.reports', ['status' => 'pending']) }}" class="block mb-6">
+    <div class="bg-red-50 border border-red-200 rounded-xl p-5 hover:bg-red-100/50 transition-all">
+        <div class="flex items-center justify-between">
+            <div class="flex items-center gap-4">
+                <div class="w-12 h-12 rounded-lg bg-red-100 flex items-center justify-center">
+                    <i data-lucide="shield-alert" class="w-6 h-6 text-red-600"></i>
+                </div>
+                <div>
+                    <p class="font-bold text-red-800">{{ $pendingReports }} Pending {{ Str::plural('Report', $pendingReports) }}</p>
+                    <p class="text-sm text-red-600">User safety reports require your review</p>
+                </div>
+            </div>
+            <div class="flex items-center gap-2 text-red-600 font-semibold text-sm">
+                <span>Review Now</span>
+                <i data-lucide="arrow-right" class="w-4 h-4"></i>
+            </div>
+        </div>
+    </div>
+</a>
+@endif
+
 <!-- Platform Analytics -->
 <h2 class="text-xl font-bold text-gray-900 mb-2">Platform Analytics</h2>
 <p class="text-sm text-gray-500 mb-6">Track user growth, breeding matches, and subscription trends</p>

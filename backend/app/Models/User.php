@@ -123,6 +123,14 @@ class User extends Authenticatable
     }
 
     /**
+     * Get safety reports filed against this user
+     */
+    public function reportsAgainst()
+    {
+        return $this->hasMany(SafetyReport::class, 'reported_id');
+    }
+
+    /**
      * Get all user IDs that should be excluded (blocked by me or blocked me)
      */
     public function getBlockedUserIds(): array
