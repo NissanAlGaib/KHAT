@@ -7,7 +7,6 @@ import {
   ActivityIndicator,
   StyleSheet,
   RefreshControl,
-  TextInput,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Feather, Ionicons } from "@expo/vector-icons";
@@ -18,6 +17,7 @@ import AlertModal from "@/components/core/AlertModal";
 import StyledModal from "@/components/core/StyledModal";
 import VaccinationCardComponent from "@/components/pet/VaccinationCard";
 import AddShotModal from "@/components/pet/AddShotModal";
+import AddVaccineSheet from "@/components/pet/AddVaccineSheet";
 import {
   getPet,
   getVaccinationCards,
@@ -28,7 +28,6 @@ import {
   VaccinationCard,
   VaccinationCardsResponse,
   AvailableProtocolsResponse,
-  VaccineProtocol,
 } from "@/services/petService";
 
 export default function VaccinationsScreen() {
@@ -52,12 +51,10 @@ export default function VaccinationsScreen() {
   const [selectedCard, setSelectedCard] = useState<VaccinationCard | null>(null);
   const [addingShotLoading, setAddingShotLoading] = useState(false);
 
-  // Opt-in state
   const [availableProtocols, setAvailableProtocols] = useState<AvailableProtocolsResponse>({
     enrolled: [],
     available: [],
   });
-  const [optingIn, setOptingIn] = useState(false);
 
   // Edit Protocol state
   const [showEditProtocolModal, setShowEditProtocolModal] = useState(false);
@@ -138,7 +135,6 @@ export default function VaccinationsScreen() {
   };
 
   const handleOptIn = async (protocolId: number) => {
-    setOptingIn(true);
     try {
       await optInToProtocol(parseInt(petId), protocolId);
       await fetchData();
@@ -153,9 +149,6 @@ export default function VaccinationsScreen() {
         message: error.response?.data?.message || "Failed to add vaccine",
         type: "error",
       });
-    } finally {
-      setOptingIn(false);
-      setShowOptInModal(false);
     }
   };
 
@@ -359,67 +352,13 @@ export default function VaccinationsScreen() {
         isLoading={addingShotLoading}
       />
 
-      {/* Opt-in Modal */}
-      {showOptInModal && (
-        <View style={styles.modalOverlay}>
-          <View style={styles.customModal}>
-            <View style={styles.customModalHeader}>
-              <Text style={styles.customModalTitle}>Add Vaccine</Text>
-              <TouchableOpacity onPress={() => setShowOptInModal(false)}>
-                <Feather name="x" size={24} color="#6B7280" />
-              </TouchableOpacity>
-            </View>
-
-            <ScrollView contentContainerStyle={styles.customModalContent}>
-              {availableProtocols.available.length > 0 ? (
-                availableProtocols.available.map((protocol) => (
-                  <View key={protocol.id} style={styles.protocolCard}>
-                    <View style={styles.protocolHeader}>
-                      <View style={styles.protocolInfo}>
-                        <Text style={styles.protocolName}>{protocol.name}</Text>
-                        <View style={styles.protocolBadges}>
-                          <View style={styles.speciesBadge}>
-                            <Text style={styles.speciesBadgeText}>
-                              {protocol.species.toUpperCase()}
-                            </Text>
-                          </View>
-                          <View style={styles.typeBadge}>
-                            <Text style={styles.typeBadgeText}>
-                              {protocol.protocol_type_label}
-                            </Text>
-                          </View>
-                        </View>
-                      </View>
-                      <TouchableOpacity
-                        style={[styles.addButtonSmall, optingIn && styles.disabledButton]}
-                        onPress={() => handleOptIn(protocol.id)}
-                        disabled={optingIn}
-                      >
-                        {optingIn ? (
-                          <ActivityIndicator size="small" color="white" />
-                        ) : (
-                          <Text style={styles.addButtonText}>Add</Text>
-                        )}
-                      </TouchableOpacity>
-                    </View>
-                    {protocol.description && (
-                      <Text style={styles.protocolDescription}>
-                        {protocol.description}
-                      </Text>
-                    )}
-                  </View>
-                ))
-              ) : (
-                <View style={styles.emptyState}>
-                  <Text style={styles.emptyText}>
-                    No additional vaccines available for this pet.
-                  </Text>
-                </View>
-              )}
-            </ScrollView>
-          </View>
-        </View>
-      )}
+      {/* Add Vaccine Bottom Sheet */}
+      <AddVaccineSheet
+        visible={showOptInModal}
+        onClose={() => setShowOptInModal(false)}
+        protocols={availableProtocols.available}
+        onAdd={handleOptIn}
+      />
 
       {/* Edit Protocol Modal */}
       <StyledModal
@@ -620,20 +559,6 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: "#9CA3AF",
   },
-  deleteCardButton: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
-    paddingVertical: 8,
-    marginTop: -8,
-    marginBottom: 8,
-  },
-  deleteCardText: {
-    color: "#EF4444",
-    fontSize: 13,
-    fontWeight: "600",
-    marginLeft: 6,
-  },
   addCustomButton: {
     backgroundColor: "white",
     borderRadius: 16,
@@ -655,40 +580,6 @@ const styles = StyleSheet.create({
     marginTop: 4,
     textAlign: "center",
   },
-  modalOverlay: {
-    position: "absolute",
-    top: 0,
-    left: 0,
-    right: 0,
-    bottom: 0,
-    backgroundColor: "rgba(0,0,0,0.5)",
-    justifyContent: "center",
-    alignItems: "center",
-    padding: 20,
-  },
-  customModal: {
-    backgroundColor: "white",
-    borderRadius: 20,
-    width: "100%",
-    maxWidth: 400,
-    overflow: "hidden",
-  },
-  customModalHeader: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-    padding: 20,
-    borderBottomWidth: 1,
-    borderBottomColor: "#F3F4F6",
-  },
-  customModalTitle: {
-    fontSize: 18,
-    fontWeight: "bold",
-    color: "#1F2937",
-  },
-  customModalContent: {
-    padding: 20,
-  },
   inputLabel: {
     fontSize: 14,
     fontWeight: "600",
@@ -702,115 +593,6 @@ const styles = StyleSheet.create({
     marginBottom: 12,
     marginTop: -4,
   },
-  textInput: {
-    flexDirection: "row",
-    alignItems: "center",
-    backgroundColor: "#F9FAFB",
-    borderRadius: 12,
-    paddingHorizontal: 16,
-    paddingVertical: 14,
-    borderWidth: 1,
-    borderColor: "#E5E7EB",
-  },
-  textInputField: {
-    flex: 1,
-    marginLeft: 12,
-    fontSize: 16,
-    color: "#1F2937",
-  },
-  placeholder: {
-    color: "#9CA3AF",
-  },
-  shotsSelector: {
-    flexDirection: "row",
-    flexWrap: "wrap",
-    gap: 8,
-  },
-  shotOption: {
-    width: 48,
-    height: 48,
-    borderRadius: 12,
-    backgroundColor: "#F3F4F6",
-    justifyContent: "center",
-    alignItems: "center",
-  },
-  shotOptionActive: {
-    backgroundColor: "#FF6B4A",
-  },
-  shotOptionText: {
-    fontSize: 16,
-    fontWeight: "600",
-    color: "#6B7280",
-  },
-  shotOptionTextActive: {
-    color: "white",
-  },
-  recurrenceSelector: {
-    flexDirection: "row",
-    gap: 8,
-  },
-  recurrenceOption: {
-    flex: 1,
-    paddingVertical: 12,
-    paddingHorizontal: 8,
-    borderRadius: 12,
-    backgroundColor: "#F3F4F6",
-    alignItems: "center",
-  },
-  recurrenceOptionActive: {
-    backgroundColor: "#FF6B4A",
-  },
-  recurrenceOptionText: {
-    fontSize: 13,
-    fontWeight: "600",
-    color: "#6B7280",
-  },
-  recurrenceOptionTextActive: {
-    color: "white",
-  },
-  recurrenceOptionSubtext: {
-    fontSize: 10,
-    color: "#9CA3AF",
-    marginTop: 2,
-    textAlign: "center",
-  },
-  recurrenceOptionSubtextActive: {
-    color: "rgba(255,255,255,0.8)",
-  },
-  customModalFooter: {
-    flexDirection: "row",
-    padding: 20,
-    borderTopWidth: 1,
-    borderTopColor: "#F3F4F6",
-    gap: 12,
-  },
-  cancelButton: {
-    flex: 1,
-    paddingVertical: 14,
-    borderRadius: 12,
-    backgroundColor: "#F3F4F6",
-    alignItems: "center",
-  },
-  cancelButtonText: {
-    fontSize: 16,
-    fontWeight: "600",
-    color: "#6B7280",
-  },
-  createButton: {
-    flex: 2,
-    paddingVertical: 14,
-    borderRadius: 12,
-    backgroundColor: "#FF6B4A",
-    alignItems: "center",
-  },
-  createButtonDisabled: {
-    opacity: 0.6,
-  },
-  createButtonText: {
-    fontSize: 16,
-    fontWeight: "bold",
-    color: "white",
-  },
   protocolCard: {
     backgroundColor: "#F9FAFB",
     borderRadius: 12,
@@ -818,10 +600,6 @@ const styles = StyleSheet.create({
     marginBottom: 12,
     borderWidth: 1,
     borderColor: "#E5E7EB",
-  },
-  activeProtocolCard: {
-    borderColor: "#FF6B4A",
-    backgroundColor: "#FFF5F5",
   },
   protocolHeader: {
     flexDirection: "row",
@@ -844,17 +622,6 @@ const styles = StyleSheet.create({
     flexWrap: "wrap",
     gap: 6,
   },
-  speciesBadge: {
-    backgroundColor: "#DBEAFE",
-    paddingHorizontal: 8,
-    paddingVertical: 2,
-    borderRadius: 4,
-  },
-  speciesBadgeText: {
-    fontSize: 10,
-    fontWeight: "600",
-    color: "#1E40AF",
-  },
   typeBadge: {
     backgroundColor: "#F3F4F6",
     paddingHorizontal: 8,
@@ -865,22 +632,6 @@ const styles = StyleSheet.create({
     fontSize: 10,
     fontWeight: "600",
     color: "#4B5563",
-  },
-  addButtonSmall: {
-    backgroundColor: "#FF6B4A",
-    paddingHorizontal: 16,
-    paddingVertical: 8,
-    borderRadius: 8,
-    minWidth: 60,
-    alignItems: "center",
-  },
-  addButtonText: {
-    color: "white",
-    fontSize: 13,
-    fontWeight: "600",
-  },
-  disabledButton: {
-    opacity: 0.6,
   },
   protocolDescription: {
     fontSize: 13,
