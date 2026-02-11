@@ -107,6 +107,7 @@ export default function VaccinationCardComponent({
   card,
   onAddShot,
   onViewDetails,
+  onEdit,
   isExpanded = false,
 }: VaccinationCardProps) {
   const [expanded, setExpanded] = React.useState(isExpanded);
