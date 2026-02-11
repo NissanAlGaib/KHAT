@@ -42,7 +42,6 @@ Route::prefix('admin')->group(function () {
 
         // Vaccine Protocol Management
         Route::get('/vaccine-protocols', [VaccineProtocolController::class, 'index'])->name('admin.vaccine-protocols.index');
-        Route::get('/vaccine-protocols/create', [VaccineProtocolController::class, 'create'])->name('admin.vaccine-protocols.create');
         Route::post('/vaccine-protocols', [VaccineProtocolController::class, 'store'])->name('admin.vaccine-protocols.store');
         Route::get('/vaccine-protocols/{id}/edit', [VaccineProtocolController::class, 'edit'])->name('admin.vaccine-protocols.edit');
         Route::put('/vaccine-protocols/{id}', [VaccineProtocolController::class, 'update'])->name('admin.vaccine-protocols.update');

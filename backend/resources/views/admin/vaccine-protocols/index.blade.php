@@ -17,10 +17,10 @@
         <h1 class="text-3xl font-bold text-gray-900">Vaccine Protocols</h1>
         <p class="text-sm text-gray-500 mt-1">Configure and manage vaccination schedules for pets</p>
     </div>
-    <a href="{{ route('admin.vaccine-protocols.create') }}" class="inline-flex items-center gap-2 px-5 py-2.5 bg-[#E75234] text-white text-sm font-semibold rounded-lg shadow-sm hover:bg-[#d14024] transition-all hover:shadow-md">
+    <button onclick="openCreateModal()" class="inline-flex items-center gap-2 px-5 py-2.5 bg-[#E75234] text-white text-sm font-semibold rounded-lg shadow-sm hover:bg-[#d14024] transition-all hover:shadow-md">
         <i data-lucide="plus" class="w-4 h-4"></i>
         Create Protocol
-    </a>
+    </button>
 </div>
 
 <!-- Stats Cards -->
@@ -255,10 +255,303 @@
     {{ $protocols->links() }}
 </div>
 
+<!-- Create Protocol Modal -->
+<div id="createProtocolModal" class="fixed inset-0 z-50 hidden">
+    <div class="fixed inset-0 bg-black/50 backdrop-blur-sm" onclick="closeCreateModal()"></div>
+    <div class="fixed inset-0 flex items-center justify-center p-4">
+        <div class="bg-white rounded-2xl shadow-2xl w-full max-w-2xl max-h-[90vh] overflow-hidden flex flex-col" onclick="event.stopPropagation()">
+            <!-- Modal Header -->
+            <div class="flex items-center justify-between px-6 py-4 border-b border-gray-200 flex-shrink-0">
+                <div>
+                    <h2 class="text-xl font-bold text-gray-900">Create Vaccine Protocol</h2>
+                    <p class="text-sm text-gray-500 mt-0.5">Define a new vaccination protocol with dosing schedule</p>
+                </div>
+                <button onclick="closeCreateModal()" class="w-8 h-8 rounded-lg flex items-center justify-center text-gray-400 hover:text-gray-600 hover:bg-gray-100 transition-colors">
+                    <i data-lucide="x" class="w-5 h-5"></i>
+                </button>
+            </div>
+
+            <!-- Modal Body (scrollable) -->
+            <div class="overflow-y-auto flex-1 px-6 py-5">
+                <form id="createProtocolForm">
+                    <!-- Validation Errors Container -->
+                    <div id="createFormErrors" class="hidden mb-4 bg-red-50 border border-red-200 rounded-lg p-4">
+                        <div class="flex items-center gap-2 mb-2">
+                            <i data-lucide="alert-circle" class="w-4 h-4 text-red-600 flex-shrink-0"></i>
+                            <p class="text-sm font-medium text-red-800">Please fix the following errors:</p>
+                        </div>
+                        <ul id="createFormErrorList" class="list-disc list-inside text-sm text-red-700 space-y-1"></ul>
+                    </div>
+
+                    <!-- Name -->
+                    <div class="mb-5">
+                        <label for="create_name" class="block text-sm font-semibold text-gray-700 mb-2">Protocol Name <span class="text-red-500">*</span></label>
+                        <input type="text" name="name" id="create_name" required placeholder="e.g., Rabies, DHPP, FVRCP" class="w-full bg-white border border-gray-300 text-gray-700 py-2.5 px-4 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#E75234] focus:border-transparent transition">
+                    </div>
+
+                    <!-- Species & Required Row -->
+                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-5">
+                        <div>
+                            <label for="create_species" class="block text-sm font-semibold text-gray-700 mb-2">Species <span class="text-red-500">*</span></label>
+                            <div class="relative">
+                                <select name="species" id="create_species" required class="w-full appearance-none bg-white border border-gray-300 text-gray-700 py-2.5 px-4 pr-10 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#E75234] focus:border-transparent transition">
+                                    <option value="">Select species</option>
+                                    <option value="dog">Dog</option>
+                                    <option value="cat">Cat</option>
+                                    <option value="all">All Species</option>
+                                </select>
+                                <div class="pointer-events-none absolute inset-y-0 right-0 flex items-center px-3 text-gray-500">
+                                    <i data-lucide="chevron-down" class="w-4 h-4"></i>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="flex items-end">
+                            <label class="flex items-center gap-3 cursor-pointer pb-2.5">
+                                <input type="hidden" name="is_required" value="0">
+                                <input type="checkbox" name="is_required" value="1" class="w-5 h-5 rounded border-gray-300 text-[#E75234] focus:ring-[#E75234] transition">
+                                <div>
+                                    <span class="block text-sm font-semibold text-gray-700">Required Vaccine</span>
+                                    <span class="block text-xs text-gray-500">Required for breeding eligibility</span>
+                                </div>
+                            </label>
+                        </div>
+                    </div>
+
+                    <!-- Description -->
+                    <div class="mb-5">
+                        <label for="create_description" class="block text-sm font-semibold text-gray-700 mb-2">Description</label>
+                        <textarea name="description" id="create_description" rows="2" placeholder="Brief description of this vaccine protocol..." class="w-full bg-white border border-gray-300 text-gray-700 py-2.5 px-4 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#E75234] focus:border-transparent transition resize-none"></textarea>
+                    </div>
+
+                    <!-- Protocol Type -->
+                    <div class="mb-5">
+                        <label class="block text-sm font-semibold text-gray-700 mb-3">Protocol Type <span class="text-red-500">*</span></label>
+                        <div class="space-y-2">
+                            <label class="flex items-start gap-3 p-3 rounded-lg border border-gray-200 cursor-pointer hover:border-[#E75234] hover:bg-[#FDF4F2] transition-colors">
+                                <input type="radio" name="protocol_type" value="series_only" checked class="mt-0.5 w-4 h-4 text-[#E75234] focus:ring-[#E75234] border-gray-300">
+                                <div>
+                                    <span class="block text-sm font-medium text-gray-900">Fixed Series</span>
+                                    <span class="block text-xs text-gray-500 mt-0.5">A set number of doses with intervals (e.g., DHPP puppy series)</span>
+                                </div>
+                            </label>
+                            <label class="flex items-start gap-3 p-3 rounded-lg border border-gray-200 cursor-pointer hover:border-[#E75234] hover:bg-[#FDF4F2] transition-colors">
+                                <input type="radio" name="protocol_type" value="series_with_booster" class="mt-0.5 w-4 h-4 text-[#E75234] focus:ring-[#E75234] border-gray-300">
+                                <div>
+                                    <span class="block text-sm font-medium text-gray-900">Series + Booster</span>
+                                    <span class="block text-xs text-gray-500 mt-0.5">Initial series followed by recurring boosters (e.g., Rabies)</span>
+                                </div>
+                            </label>
+                            <label class="flex items-start gap-3 p-3 rounded-lg border border-gray-200 cursor-pointer hover:border-[#E75234] hover:bg-[#FDF4F2] transition-colors">
+                                <input type="radio" name="protocol_type" value="recurring" class="mt-0.5 w-4 h-4 text-[#E75234] focus:ring-[#E75234] border-gray-300">
+                                <div>
+                                    <span class="block text-sm font-medium text-gray-900">Recurring Only</span>
+                                    <span class="block text-xs text-gray-500 mt-0.5">Regular recurring shots with no initial series (e.g., annual heartworm)</span>
+                                </div>
+                            </label>
+                        </div>
+                    </div>
+
+                    <!-- Series Fields -->
+                    <div id="create-series-fields" class="mb-5 p-4 bg-gray-50 rounded-lg border border-gray-200">
+                        <h3 class="text-sm font-semibold text-gray-700 mb-3 flex items-center gap-2">
+                            <i data-lucide="list-ordered" class="w-4 h-4 text-[#E75234]"></i>
+                            Series Configuration
+                        </h3>
+                        <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                            <div>
+                                <label for="create_series_doses" class="block text-sm font-medium text-gray-700 mb-2">Number of Doses</label>
+                                <input type="number" name="series_doses" id="create_series_doses" value="1" min="1" max="10" class="w-full bg-white border border-gray-300 text-gray-700 py-2.5 px-4 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#E75234] focus:border-transparent transition">
+                            </div>
+                            <div>
+                                <label for="create_series_interval_days" class="block text-sm font-medium text-gray-700 mb-2">Interval Between Doses (days)</label>
+                                <input type="number" name="series_interval_days" id="create_series_interval_days" min="1" placeholder="e.g., 21" class="w-full bg-white border border-gray-300 text-gray-700 py-2.5 px-4 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#E75234] focus:border-transparent transition">
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Booster Fields -->
+                    <div id="create-booster-fields" class="mb-5 p-4 bg-gray-50 rounded-lg border border-gray-200 hidden">
+                        <h3 class="text-sm font-semibold text-gray-700 mb-3 flex items-center gap-2">
+                            <i data-lucide="repeat" class="w-4 h-4 text-[#E75234]"></i>
+                            Booster Configuration
+                        </h3>
+                        <div>
+                            <label for="create_booster_interval_days" class="block text-sm font-medium text-gray-700 mb-2">Booster Interval (days)</label>
+                            <input type="number" name="booster_interval_days" id="create_booster_interval_days" min="1" placeholder="e.g., 365 for annual" class="w-full bg-white border border-gray-300 text-gray-700 py-2.5 px-4 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#E75234] focus:border-transparent transition">
+                        </div>
+                    </div>
+
+                    <!-- Sort Order -->
+                    <div>
+                        <label for="create_sort_order" class="block text-sm font-semibold text-gray-700 mb-2">Sort Order</label>
+                        <input type="number" name="sort_order" id="create_sort_order" value="0" min="0" class="w-full sm:w-32 bg-white border border-gray-300 text-gray-700 py-2.5 px-4 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#E75234] focus:border-transparent transition">
+                        <p class="mt-1.5 text-xs text-gray-500">Lower numbers appear first</p>
+                    </div>
+                </form>
+            </div>
+
+            <!-- Modal Footer -->
+            <div class="flex items-center justify-end gap-3 px-6 py-4 border-t border-gray-200 bg-gray-50 flex-shrink-0">
+                <button onclick="closeCreateModal()" class="px-5 py-2.5 bg-white text-gray-700 text-sm font-semibold rounded-lg border border-gray-300 hover:bg-gray-50 transition-all">
+                    Cancel
+                </button>
+                <button onclick="submitCreateForm()" id="createSubmitBtn" class="px-6 py-2.5 bg-gradient-to-r from-[#E75234] to-[#d14024] text-white text-sm font-semibold rounded-lg shadow-sm hover:shadow-md transition-all inline-flex items-center gap-2">
+                    <i data-lucide="plus" class="w-4 h-4"></i>
+                    Create Protocol
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
 @push('scripts')
 <script>
     document.addEventListener('DOMContentLoaded', function() {
         lucide.createIcons();
+
+        // Protocol type radio change → toggle series/booster fields
+        const createRadios = document.querySelectorAll('#createProtocolForm input[name="protocol_type"]');
+        createRadios.forEach(function(radio) {
+            radio.addEventListener('change', updateCreateFieldVisibility);
+        });
+        updateCreateFieldVisibility();
+    });
+
+    function updateCreateFieldVisibility() {
+        const selected = document.querySelector('#createProtocolForm input[name="protocol_type"]:checked');
+        if (!selected) return;
+
+        const seriesFields = document.getElementById('create-series-fields');
+        const boosterFields = document.getElementById('create-booster-fields');
+        const value = selected.value;
+
+        if (value === 'series_only') {
+            seriesFields.classList.remove('hidden');
+            boosterFields.classList.add('hidden');
+        } else if (value === 'series_with_booster') {
+            seriesFields.classList.remove('hidden');
+            boosterFields.classList.remove('hidden');
+        } else if (value === 'recurring') {
+            seriesFields.classList.add('hidden');
+            boosterFields.classList.remove('hidden');
+        }
+    }
+
+    function openCreateModal() {
+        const modal = document.getElementById('createProtocolModal');
+        modal.classList.remove('hidden');
+        document.body.style.overflow = 'hidden';
+
+        // Reset form
+        document.getElementById('createProtocolForm').reset();
+        document.getElementById('create_sort_order').value = '0';
+        document.getElementById('create_series_doses').value = '1';
+
+        // Reset radio to series_only and update visibility
+        const seriesOnlyRadio = document.querySelector('#createProtocolForm input[name="protocol_type"][value="series_only"]');
+        if (seriesOnlyRadio) seriesOnlyRadio.checked = true;
+        updateCreateFieldVisibility();
+
+        // Hide errors
+        document.getElementById('createFormErrors').classList.add('hidden');
+
+        // Re-init icons for modal
+        setTimeout(function() { lucide.createIcons(); }, 50);
+    }
+
+    function closeCreateModal() {
+        const modal = document.getElementById('createProtocolModal');
+        modal.classList.add('hidden');
+        document.body.style.overflow = '';
+    }
+
+    function submitCreateForm() {
+        const form = document.getElementById('createProtocolForm');
+        const formData = new FormData(form);
+        const submitBtn = document.getElementById('createSubmitBtn');
+        const errorsContainer = document.getElementById('createFormErrors');
+        const errorList = document.getElementById('createFormErrorList');
+
+        // Disable button + show loading
+        submitBtn.disabled = true;
+        submitBtn.innerHTML = '<svg class="animate-spin w-4 h-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"></path></svg> Creating...';
+
+        // Handle checkbox: if unchecked, ensure is_required=0 is sent
+        if (!form.querySelector('input[name="is_required"][type="checkbox"]').checked) {
+            formData.set('is_required', '0');
+        }
+
+        fetch("{{ route('admin.vaccine-protocols.store') }}", {
+            method: 'POST',
+            headers: {
+                'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content'),
+                'Accept': 'application/json',
+                'X-Requested-With': 'XMLHttpRequest'
+            },
+            body: formData
+        })
+        .then(function(response) {
+            if (response.ok) {
+                return response.json().then(function(data) {
+                    closeCreateModal();
+                    // Show SweetAlert success, then reload
+                    if (typeof Swal !== 'undefined') {
+                        Swal.fire({
+                            icon: 'success',
+                            title: 'Protocol Created',
+                            text: data.message || 'Protocol created successfully.',
+                            timer: 1500,
+                            showConfirmButton: false
+                        }).then(function() {
+                            window.location.reload();
+                        });
+                    } else {
+                        window.location.reload();
+                    }
+                });
+            } else if (response.status === 422) {
+                return response.json().then(function(data) {
+                    // Show validation errors
+                    errorList.innerHTML = '';
+                    errorsContainer.classList.remove('hidden');
+                    const errors = data.errors || {};
+                    Object.keys(errors).forEach(function(field) {
+                        errors[field].forEach(function(msg) {
+                            const li = document.createElement('li');
+                            li.textContent = msg;
+                            errorList.appendChild(li);
+                        });
+                    });
+                    // Scroll to errors
+                    errorsContainer.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+                });
+            } else {
+                throw new Error('Server error');
+            }
+        })
+        .catch(function(error) {
+            console.error('Error:', error);
+            if (typeof Swal !== 'undefined') {
+                Swal.fire({ icon: 'error', title: 'Error', text: 'Something went wrong. Please try again.' });
+            } else {
+                alert('Something went wrong. Please try again.');
+            }
+        })
+        .finally(function() {
+            submitBtn.disabled = false;
+            submitBtn.innerHTML = '<i data-lucide="plus" class="w-4 h-4"></i> Create Protocol';
+            lucide.createIcons();
+        });
+    }
+
+    // Close modal on Escape key
+    document.addEventListener('keydown', function(e) {
+        if (e.key === 'Escape') {
+            const modal = document.getElementById('createProtocolModal');
+            if (!modal.classList.contains('hidden')) {
+                closeCreateModal();
+            }
+        }
     });
 </script>
 @endpush

@@ -133,6 +133,14 @@ class VaccineProtocolController extends Controller
             $protocol->id
         );
 
+        if ($request->expectsJson()) {
+            return response()->json([
+                'success' => true,
+                'message' => "Protocol \"{$protocol->name}\" created successfully.",
+                'protocol' => $protocol,
+            ], 201);
+        }
+
         return redirect()->route('admin.vaccine-protocols.index')
             ->with('success', "Protocol \"{$protocol->name}\" created successfully.");
     }
