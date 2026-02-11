@@ -6,6 +6,27 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ---
+## [1.4.5] - 2026-02-11
+
+### Admin Panel Bugfixes & Design Consistency
+
+#### Bug Fixes
+- **`pets/index.blade.php`**: Wired `confirmSuspend()` and `confirmDelete()` to actual backend routes — previously stubs with `console.log` only
+- **`users/index.blade.php`**: Document Status column now checks actual `userAuth` expiry dates — was hardcoded to always show "Valid"
+- **`users/index.blade.php`**: Fixed SweetAlert icon ternary (`status === 'approve'` → `status === 'approved'`)
+- **`pets/show.blade.php`**: Breed chart labels now show actual breed name instead of "Litter 1", "Litter 2"
+- **`dashboard.blade.php`**: Moved Chart.js `<script>` from `@push('styles')` to `@push('scripts')`
+
+#### Design Consistency
+- Added subtitle `<p>` tags to Pet Management, Profile Settings, and Notifications pages (matching Dashboard/Users/Analytics pattern)
+- Standardized all table header `<th>` font-weights to `font-semibold` across pets/index and pets/show
+- Added filter section header with icon to pets/index (matching Users page pattern)
+
+#### Backend
+- **`AdminController::usersIndex()`**: Implemented `doc_status` filter (valid/expired/missing) using actual `userAuth` expiry dates — HTML filter existed but was ignored by backend
+- **`AdminController::usersIndex()`**: Added `userAuth` eager-loading to prevent N+1 queries on Document Status column
+
+---
 ## [1.4.4] - 2026-02-10
 
 ### Vaccination Management Overhaul
@@ -465,6 +486,7 @@ Added new colors to `constants/colors.ts`:
 
 | Version | Date | Highlights |
 |---------|------|------------|
+| 1.4.5 | 2026-02-11 | Admin panel bugfixes — wired stub actions, fixed hardcoded statuses, design consistency |
 | 1.4.4 | 2026-02-10 | Vaccination Management overhaul — admin-controlled protocols, approval workflow, shot verification queue |
 | 1.4.3 | 2026-02-05 | Block & Report system, Match Timeline, Rest Period for failed breeding |
 | 1.4.0 | 2026-02-04 | Pet Creation & Vaccination Rework - card system, expiration-based scheduling, booster support, DO Spaces fix |

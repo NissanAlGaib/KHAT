@@ -29,7 +29,7 @@ KHAT/
 │   ├── routes/       # api.php (REST endpoints)
 │   └── .do/          # DigitalOcean App Platform spec (app.yaml)
 ├── docs/             # Deployment guide
-└── CHANGELOG.md      # Version history (current: 1.4.3)
+└── CHANGELOG.md      # Version history (current: 1.4.5)
 ```
 
 ## DEPLOYMENT & INFRASTRUCTURE
