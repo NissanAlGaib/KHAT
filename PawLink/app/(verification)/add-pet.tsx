@@ -21,6 +21,12 @@ import AlertModal from "@/components/core/AlertModal";
 import * as DocumentPicker from "expo-document-picker";
 import * as ImagePicker from "expo-image-picker";
 import { createPet, initializeVaccinationCards } from "@/services/petService";
+import { 
+  identifyBreedFromImage, 
+  DOG_BREEDS, 
+  CAT_BREEDS, 
+  BreedIdentificationResult 
+} from "@/services/breedService";
 import DateTimePickerModal from "react-native-modal-datetime-picker";
 import StyledModal from "@/components/core/StyledModal";
 import { LinearGradient } from "expo-linear-gradient";
@@ -29,26 +35,6 @@ import VaccinationCardComponent from "@/components/pet/VaccinationCard";
 import AddShotModal from "@/components/pet/AddShotModal";
 
 const { width: SCREEN_WIDTH } = Dimensions.get("window");
-
-// Dog breeds list for autocomplete
-const DOG_BREEDS = [
-  "Labrador Retriever", "German Shepherd", "Golden Retriever", "French Bulldog",
-  "Bulldog", "Poodle", "Beagle", "Rottweiler", "German Shorthaired Pointer",
-  "Siberian Husky", "Dachshund", "Doberman Pinscher", "Shih Tzu", "Boxer",
-  "Great Dane", "Yorkshire Terrier", "Australian Shepherd", "Cavalier King Charles Spaniel",
-  "Miniature Schnauzer", "Pembroke Welsh Corgi", "Pomeranian", "Boston Terrier",
-  "Havanese", "Bernese Mountain Dog", "Maltese", "English Springer Spaniel",
-  "Shetland Sheepdog", "Brittany", "Cocker Spaniel", "Border Collie",
-  "Aspin", "Askal", "Mixed Breed",
-];
-
-const CAT_BREEDS = [
-  "Siamese", "Persian", "Maine Coon", "Ragdoll", "British Shorthair",
-  "Sphynx", "Scottish Fold", "Bengal", "Abyssinian", "Russian Blue",
-  "Norwegian Forest Cat", "Birman", "Oriental Shorthair", "Devon Rex",
-  "American Shorthair", "Exotic Shorthair", "Burmese", "Himalayan",
-  "Puspin", "Mixed Breed",
-];
 
 interface ValidationErrors {
   [key: string]: string;
@@ -72,6 +58,11 @@ export default function AddPetScreen() {
   const [showBreedSearch, setShowBreedSearch] = useState(false);
   const [breedSearchQuery, setBreedSearchQuery] = useState("");
   const [activeBreedField, setActiveBreedField] = useState<"breed" | "preferredBreed">("breed");
+  
+  // AI Breed Identification
+  const [isIdentifyingBreed, setIsIdentifyingBreed] = useState(false);
+  const [showPredictionModal, setShowPredictionModal] = useState(false);
+  const [breedPredictions, setBreedPredictions] = useState<Array<{ breed: string; confidence: number }>>([]);
   
   // Form data
   const [formData, setFormData] = useState<Record<string, any>>({
@@ -389,6 +380,48 @@ export default function AddPetScreen() {
     });
   };
 
+  const handleIdentifyBreed = async () => {
+    if (!formData.species) {
+      showAlert({
+        title: "Select Species",
+        message: "Please select Dog or Cat first.",
+        type: "warning",
+      });
+      return;
+    }
+
+    try {
+      const result = await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: ImagePicker.MediaTypeOptions.Images,
+        allowsEditing: true,
+        quality: 0.8,
+      });
+
+      if (!result.canceled && result.assets[0]) {
+        setIsIdentifyingBreed(true);
+        try {
+          const identification = await identifyBreedFromImage(
+            result.assets[0].uri,
+            formData.species
+          );
+          setBreedPredictions(identification.predictions);
+          setShowPredictionModal(true);
+        } catch (error: any) {
+          showAlert({
+            title: "Identification Failed",
+            message: error.message || "Could not identify breed from this image.",
+            type: "error",
+          });
+        } finally {
+          setIsIdentifyingBreed(false);
+        }
+      }
+    } catch (error) {
+      console.error("Error picking image for identification:", error);
+      setIsIdentifyingBreed(false);
+    }
+  };
+
   // Render Progress Header
   const renderProgressHeader = () => (
     <View style={styles.progressHeader}>
@@ -492,7 +525,23 @@ export default function AddPetScreen() {
 
       {/* Breed with Search */}
       <View style={styles.inputGroup}>
-        <Text style={styles.label}>Breed *</Text>
+        <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginBottom: Spacing.sm }}>
+          <Text style={{ fontSize: 14, fontWeight: "600", color: Colors.textSecondary }}>Breed *</Text>
+          <TouchableOpacity 
+            onPress={handleIdentifyBreed}
+            disabled={!formData.species || isIdentifyingBreed}
+            style={{ flexDirection: "row", alignItems: "center", opacity: !formData.species ? 0.5 : 1 }}
+          >
+            {isIdentifyingBreed ? (
+              <ActivityIndicator size="small" color={Colors.primary} style={{ marginRight: 4 }} />
+            ) : (
+              <Ionicons name="sparkles" size={14} color={Colors.primary} style={{ marginRight: 4 }} />
+            )}
+            <Text style={{ fontSize: 12, fontWeight: "600", color: Colors.primary }}>
+              {isIdentifyingBreed ? "Identifying..." : "Identify from Photo"}
+            </Text>
+          </TouchableOpacity>
+        </View>
         <TouchableOpacity
           style={[styles.selectInput, validationErrors.breed && styles.inputError]}
           onPress={() => {
@@ -1111,6 +1160,58 @@ export default function AddPetScreen() {
                 </TouchableOpacity>
               ))}
             </ScrollView>
+          </View>
+        )}
+      />
+
+      {/* AI Prediction Modal */}
+      <StyledModal
+        visible={showPredictionModal}
+        onClose={() => setShowPredictionModal(false)}
+        title="AI Breed Suggestions"
+        content={() => (
+          <View>
+            <Text style={{ fontSize: 14, color: Colors.textSecondary, marginBottom: Spacing.md }}>
+              Here are the top matches based on your photo:
+            </Text>
+            {breedPredictions.map((prediction, index) => (
+              <TouchableOpacity
+                key={index}
+                style={{
+                  flexDirection: "row",
+                  justifyContent: "space-between",
+                  alignItems: "center",
+                  paddingVertical: Spacing.md,
+                  borderBottomWidth: 1,
+                  borderBottomColor: Colors.borderLight,
+                }}
+                onPress={() => {
+                  setFormData({ ...formData, breed: prediction.breed });
+                  setValidationErrors((prev) => ({ ...prev, breed: "" }));
+                  setShowPredictionModal(false);
+                }}
+              >
+                <View>
+                  <Text style={{ fontSize: 16, fontWeight: "600", color: Colors.textPrimary }}>
+                    {prediction.breed}
+                  </Text>
+                  <Text style={{ fontSize: 12, color: Colors.textMuted }}>
+                    {Math.round(prediction.confidence * 100)}% Confidence
+                  </Text>
+                </View>
+                <Ionicons name="chevron-forward" size={20} color={Colors.textMuted} />
+              </TouchableOpacity>
+            ))}
+            <TouchableOpacity
+              style={{
+                marginTop: Spacing.md,
+                paddingVertical: Spacing.md,
+                alignItems: "center",
+              }}
+              onPress={() => setShowPredictionModal(false)}
+            >
+              <Text style={{ color: Colors.textMuted }}>Cancel</Text>
+            </TouchableOpacity>
           </View>
         )}
       />

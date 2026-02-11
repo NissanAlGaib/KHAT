@@ -66,6 +66,19 @@ export interface BreedIdentificationResult {
   topConfidence: number;
 }
 
+export interface BreedPrediction {
+  breed: string;
+  breed_raw: string;
+  species: "cat" | "dog";
+  confidence: number;
+}
+
+export interface BreedIdentifyApiResponse {
+  success: boolean;
+  prediction: BreedPrediction;
+  top_3: BreedPrediction[];
+}
+
 /**
  * Search breeds by query
  * @param query Search query string
@@ -142,60 +155,53 @@ export const getBreedSuggestions = (
 };
 
 /**
- * Identify breed from image using AI
- * NOTE: This is a placeholder for future AI integration.
- * You can integrate with services like:
- * - Google Cloud Vision AI
- * - AWS Rekognition
- * - Custom TensorFlow/PyTorch model
- * - Third-party pet breed identification APIs
- * 
+ * Identify breed from image using the PawLink AI classifier.
+ * Sends the image to the Laravel backend which proxies to the Python breed classifier API.
+ *
  * @param imageUri Local URI of the image
- * @param species "Dog" or "Cat"
+ * @param species "Dog" or "Cat" (used for fallback only; the model detects species automatically)
  * @returns Promise with breed predictions
  */
 export const identifyBreedFromImage = async (
   imageUri: string,
   species: "Dog" | "Cat"
 ): Promise<BreedIdentificationResult> => {
-  // TODO: Implement actual AI breed identification
-  // For now, return a placeholder response
-  
   try {
-    // Create form data for image upload
     const formData = new FormData();
     formData.append("image", {
       uri: imageUri,
-      name: "pet_image.jpg",
+      name: `breed_photo_${Date.now()}.jpg`,
       type: "image/jpeg",
     } as any);
-    formData.append("species", species);
 
-    // Uncomment when backend endpoint is ready:
-    // const response = await axiosInstance.post("/api/breed-identification", formData, {
-    //   headers: {
-    //     "Content-Type": "multipart/form-data",
-    //   },
-    // });
-    // return response.data;
+    const response = await axiosInstance.post("/api/breed-identify", formData, {
+      headers: {
+        "Content-Type": "multipart/form-data",
+      },
+      timeout: 30000, // 30s timeout for model inference
+    });
 
-    // Placeholder response for now
-    const breeds = species === "Cat" ? CAT_BREEDS : DOG_BREEDS;
-    const randomBreeds = breeds
-      .filter(b => b !== "Mixed Breed" && b !== "Unknown")
-      .sort(() => Math.random() - 0.5)
-      .slice(0, 3);
+    const data: BreedIdentifyApiResponse = response.data;
+
+    if (!data.success || !data.top_3) {
+      throw new Error("Invalid response from breed identifier");
+    }
 
     return {
-      predictions: [
-        { breed: randomBreeds[0], confidence: 0.65 },
-        { breed: randomBreeds[1], confidence: 0.20 },
-        { breed: randomBreeds[2], confidence: 0.10 },
-      ],
-      topBreed: randomBreeds[0],
-      topConfidence: 0.65,
+      predictions: data.top_3.map((p) => ({
+        breed: p.breed,
+        confidence: p.confidence / 100, // Convert from percentage to decimal
+      })),
+      topBreed: data.prediction.breed,
+      topConfidence: data.prediction.confidence / 100,
     };
-  } catch (error) {
+  } catch (error: any) {
+    // If the breed API is unavailable, throw a descriptive error
+    if (error.response?.status === 503) {
+      throw new Error(
+        "Breed identification service is currently unavailable. Please try again later."
+      );
+    }
     console.error("Breed identification error:", error);
     throw error;
   }
@@ -295,4 +301,18 @@ export const getPopularBreeds = (species: "Dog" | "Cat", limit: number = 6): str
     return ["Siamese", "Persian", "Maine Coon", "Ragdoll", "British Shorthair", "Puspin"].slice(0, limit);
   }
   return ["Labrador Retriever", "German Shepherd", "Golden Retriever", "Bulldog", "Beagle", "Aspin"].slice(0, limit);
+};
+
+/**
+ * Check if the breed identification AI service is available.
+ */
+export const checkBreedServiceHealth = async (): Promise<boolean> => {
+  try {
+    const response = await axiosInstance.get("/api/breed-identify/health", {
+      timeout: 5000,
+    });
+    return response.data?.available === true;
+  } catch {
+    return false;
+  }
 };

@@ -143,6 +143,25 @@ This will display a QR code in your terminal.
 
 ---
 
+### 4. AI Breed Identifier Setup (Python)
+
+#### 4.1 Install Python Dependencies
+
+```bash
+cd breed-api
+pip install -r requirements.txt
+```
+
+#### 4.2 Start the AI Server
+
+```bash
+python main.py
+```
+
+The service will be available at `http://localhost:5000`.
+
+---
+
 ## NPM Scripts (Mobile App)
 
 | Command | Description |
@@ -188,6 +207,16 @@ This will display a QR code in your terminal.
 | `laravel/framework` ^12.0 | PHP framework |
 | `laravel/sanctum` ^4.0 | API authentication |
 | `laravel/breeze` | Auth scaffolding (dev) |
+
+### Python API (Breed Identifier)
+
+| Package | Purpose |
+|---------|---------|
+| `fastapi` | Web framework |
+| `tensorflow` | ML model runtime |
+| `uvicorn` | ASGI server |
+| `Pillow` | Image processing |
+| `numpy` | Numerical operations |
 
 ---
 
@@ -251,9 +280,10 @@ npx expo start --clear
 ## Development Workflow
 
 1. Start the backend server: `cd backend && php artisan serve`
-2. Start the mobile app: `cd PawLink && npx expo start`
-3. Open Expo Go on your device and scan the QR code
-4. Make changes - the app will hot reload automatically
+2. Start the AI server: `cd breed-api && python main.py`
+3. Start the mobile app: `cd PawLink && npx expo start`
+4. Open Expo Go on your device and scan the QR code
+5. Make changes - the app will hot reload automatically
 
 ---
 

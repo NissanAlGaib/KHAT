@@ -45,4 +45,8 @@ return [
         'verify_ssl' => env('PAYMONGO_VERIFY_SSL', true),
     ],
 
+    'breed_api' => [
+        'url' => env('BREED_API_URL', 'http://localhost:5000'),
+    ],
+
 ];
