@@ -230,7 +230,7 @@
                             <button onclick="toggleDropdown(event, 'dropdown-{{ $user->id }}')" class="text-gray-400 hover:text-gray-600 focus:outline-none transition-colors p-1.5 rounded-lg hover:bg-gray-100">
                                 <i data-lucide="more-horizontal" class="w-5 h-5"></i>
                             </button>
-                            <div id="dropdown-{{ $user->id }}" class="hidden absolute right-0 mt-2 w-52 bg-white rounded-xl shadow-lg z-50 border border-gray-200 overflow-hidden">
+                            <div id="dropdown-{{ $user->id }}" class="hidden fixed w-52 bg-white rounded-xl shadow-lg border border-gray-200 overflow-hidden" style="z-index: 9999;">
                                 <button type="button" onclick="openUserModal({{ $user->id }})" class="w-full flex items-center gap-3 px-4 py-3 text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors">
                                     <i data-lucide="eye" class="w-4 h-4 text-gray-500"></i>
                                     View Details
@@ -270,59 +270,101 @@
 </div>
 
 <!-- User Verification Modal -->
-<div id="userModal" class="hidden fixed inset-0 z-50 overflow-y-auto bg-gray-900 bg-opacity-50">
-    <div class="flex items-center justify-center min-h-screen px-4">
-        <div class="bg-white rounded-2xl shadow-2xl max-w-4xl w-full max-h-[90vh] overflow-hidden">
+<div id="userModal" class="hidden fixed inset-0 z-50 overflow-y-auto bg-gray-900/60 backdrop-blur-sm">
+    <div class="flex items-start justify-center min-h-screen px-4 py-8">
+        <div class="bg-white rounded-2xl shadow-2xl max-w-5xl w-full my-auto">
             <!-- Modal Header -->
-            <div class="flex items-center justify-between px-6 py-4 border-b border-gray-200">
-                <h2 class="text-xl font-bold text-gray-900">User Verification Details: <span id="modalUserName"></span></h2>
-                <button onclick="closeUserModal()" class="text-gray-400 hover:text-gray-600 transition-colors">
-                    <i data-lucide="x" class="w-6 h-6"></i>
-                </button>
+            <div class="sticky top-0 z-10 bg-white rounded-t-2xl border-b border-gray-100">
+                <div class="flex items-center justify-between px-8 py-5">
+                    <div>
+                        <h2 class="text-lg font-bold text-gray-900">Verification Review</h2>
+                        <p class="text-sm text-gray-500 mt-0.5">User: <span id="modalUserName" class="font-medium text-gray-700"></span></p>
+                    </div>
+                    <button onclick="closeUserModal()" class="p-2 rounded-lg text-gray-400 hover:text-gray-600 hover:bg-gray-100 transition-all">
+                        <i data-lucide="x" class="w-5 h-5"></i>
+                    </button>
+                </div>
             </div>
 
-            <!-- Modal Tabs -->
-            <div class="flex border-b border-gray-200 px-6 bg-gray-50">
-                <button onclick="switchTab('documents')" id="tab-documents" class="px-6 py-3 text-sm font-semibold border-b-2 border-[#E75234] text-[#E75234] transition-colors">
-                    Documents
-                </button>
-                <button onclick="switchTab('submission')" id="tab-submission" class="px-6 py-3 text-sm font-semibold border-b-2 border-transparent text-gray-600 hover:text-gray-900 transition-colors">
-                    Submission History
-                </button>
-                <button onclick="switchTab('expiry')" id="tab-expiry" class="px-6 py-3 text-sm font-semibold border-b-2 border-transparent text-gray-600 hover:text-gray-900 transition-colors">
-                    Expiry Tracker
-                </button>
-            </div>
+            <!-- Modal Body - Single Scrollable View -->
+            <div class="px-8 py-6 overflow-y-auto max-h-[calc(90vh-140px)] space-y-8">
 
-            <!-- Modal Body -->
-            <div class="p-6 overflow-y-auto max-h-[calc(90vh-200px)]">
-                <!-- Documents Tab -->
-                <div id="content-documents">
+                <!-- Section: Documents -->
+                <div>
+                    <div class="flex items-center gap-2 mb-4">
+                        <div class="w-8 h-8 rounded-lg bg-orange-100 flex items-center justify-center">
+                            <i data-lucide="file-text" class="w-4 h-4 text-orange-600"></i>
+                        </div>
+                        <h3 class="text-base font-bold text-gray-900">Submitted Documents</h3>
+                        <span id="docCount" class="text-xs font-medium text-gray-400 bg-gray-100 px-2 py-0.5 rounded-full"></span>
+                    </div>
                     <div id="documentsContainer" class="space-y-4">
-                        <!-- Documents will be loaded here -->
+                        <!-- Documents loaded via JS -->
                     </div>
                 </div>
 
-                <!-- Submission History Tab -->
-                <div id="content-submission" class="hidden">
-                    <div id="submissionHistory">
-                        <!-- Submission history will be loaded here -->
-                    </div>
-                </div>
+                <!-- Divider -->
+                <div class="border-t border-gray-100"></div>
 
-                <!-- Expiry Tracker Tab -->
-                <div id="content-expiry" class="hidden">
+                <!-- Section: Expiry Tracker -->
+                <div>
+                    <div class="flex items-center gap-2 mb-4">
+                        <div class="w-8 h-8 rounded-lg bg-blue-100 flex items-center justify-center">
+                            <i data-lucide="calendar-clock" class="w-4 h-4 text-blue-600"></i>
+                        </div>
+                        <h3 class="text-base font-bold text-gray-900">Expiry Tracker</h3>
+                    </div>
                     <div id="expiryTracker">
-                        <!-- Document validity overview will be loaded here -->
+                        <!-- Expiry tracker loaded via JS -->
+                    </div>
+                </div>
+
+                <!-- Divider -->
+                <div class="border-t border-gray-100"></div>
+
+                <!-- Section: Submission History -->
+                <div>
+                    <div class="flex items-center gap-2 mb-4">
+                        <div class="w-8 h-8 rounded-lg bg-purple-100 flex items-center justify-center">
+                            <i data-lucide="history" class="w-4 h-4 text-purple-600"></i>
+                        </div>
+                        <h3 class="text-base font-bold text-gray-900">Submission History</h3>
+                    </div>
+                    <div id="submissionHistory">
+                        <!-- Submission history loaded via JS -->
                     </div>
                 </div>
             </div>
 
             <!-- Modal Footer -->
-            <div class="px-6 py-4 border-t border-gray-200 flex justify-end">
-                <button onclick="closeUserModal()" class="px-6 py-2.5 bg-white text-gray-700 text-sm font-semibold rounded-lg border border-gray-300 hover:bg-gray-50 transition-all">
+            <div class="sticky bottom-0 bg-white rounded-b-2xl px-8 py-4 border-t border-gray-100 flex justify-end">
+                <button onclick="closeUserModal()" class="px-5 py-2.5 bg-gray-100 text-gray-700 text-sm font-semibold rounded-lg hover:bg-gray-200 transition-all">
                     Close
                 </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Document Preview Modal -->
+<div id="docPreviewModal" class="hidden fixed inset-0 z-[60] bg-black/80 backdrop-blur-sm">
+    <div class="flex items-center justify-center min-h-screen p-4">
+        <div class="relative max-w-5xl w-full max-h-[92vh] flex flex-col">
+            <!-- Preview Header -->
+            <div class="flex items-center justify-between bg-gray-900/90 text-white px-5 py-3 rounded-t-xl">
+                <span id="docPreviewTitle" class="text-sm font-medium truncate"></span>
+                <div class="flex items-center gap-2">
+                    <a id="docPreviewNewTab" href="#" target="_blank" class="p-2 rounded-lg text-gray-300 hover:text-white hover:bg-white/10 transition-all" title="Open in new tab">
+                        <i data-lucide="external-link" class="w-4 h-4"></i>
+                    </a>
+                    <button onclick="closeDocPreview()" class="p-2 rounded-lg text-gray-300 hover:text-white hover:bg-white/10 transition-all">
+                        <i data-lucide="x" class="w-5 h-5"></i>
+                    </button>
+                </div>
+            </div>
+            <!-- Preview Content -->
+            <div id="docPreviewContent" class="bg-gray-100 rounded-b-xl flex-1 overflow-auto flex items-center justify-center min-h-[400px]">
+                <!-- Content injected by JS -->
             </div>
         </div>
     </div>
@@ -356,26 +398,45 @@
 @push('scripts')
 <script>
     let currentUserId = null;
-    let currentTab = 'documents';
+
+    function closeAllDropdowns() {
+        document.querySelectorAll('[id^="dropdown-"]').forEach(d => d.classList.add('hidden'));
+    }
 
     function toggleDropdown(event, dropdownId) {
         event.stopPropagation();
         const dropdown = document.getElementById(dropdownId);
-        const allDropdowns = document.querySelectorAll('[id^="dropdown-"]');
+        const button = event.currentTarget;
+        const wasHidden = dropdown.classList.contains('hidden');
 
-        allDropdowns.forEach(d => {
-            if (d.id !== dropdownId) {
-                d.classList.add('hidden');
+        closeAllDropdowns();
+
+        if (wasHidden) {
+            const rect = button.getBoundingClientRect();
+            const dropdownWidth = 208; // w-52 = 13rem = 208px
+            const dropdownHeight = dropdown.scrollHeight || 160;
+
+            let top = rect.bottom + 4;
+            let left = rect.right - dropdownWidth;
+
+            // Prevent going off-screen bottom
+            if (top + dropdownHeight > window.innerHeight) {
+                top = rect.top - dropdownHeight - 4;
             }
-        });
+            // Prevent going off-screen left
+            if (left < 8) {
+                left = 8;
+            }
 
-        dropdown.classList.toggle('hidden');
+            dropdown.style.top = top + 'px';
+            dropdown.style.left = left + 'px';
+            dropdown.classList.remove('hidden');
+        }
     }
 
-    document.addEventListener('click', function() {
-        const allDropdowns = document.querySelectorAll('[id^="dropdown-"]');
-        allDropdowns.forEach(d => d.classList.add('hidden'));
-    });
+    document.addEventListener('click', closeAllDropdowns);
+    window.addEventListener('scroll', closeAllDropdowns, true);
+    window.addEventListener('resize', closeAllDropdowns);
 
     // Open user verification modal
     async function openUserModal(userId) {
@@ -412,144 +473,123 @@
         currentUserId = null;
     }
 
-    function switchTab(tabName) {
-        // Update tab buttons
-        ['documents', 'submission', 'expiry'].forEach(tab => {
-            const button = document.getElementById(`tab-${tab}`);
-            const content = document.getElementById(`content-${tab}`);
-
-            if (tab === tabName) {
-                button.classList.add('border-[#E75234]', 'text-[#E75234]');
-                button.classList.remove('border-transparent', 'text-gray-600');
-                content.classList.remove('hidden');
-            } else {
-                button.classList.remove('border-[#E75234]', 'text-[#E75234]');
-                button.classList.add('border-transparent', 'text-gray-600');
-                content.classList.add('hidden');
-            }
-        });
-        currentTab = tabName;
-    }
-
     function loadDocuments(documents) {
         const container = document.getElementById('documentsContainer');
+        const countBadge = document.getElementById('docCount');
 
         if (!documents || documents.length === 0) {
             container.innerHTML = `
-                <div class="text-center py-8 text-gray-500">
-                    <i data-lucide="file-x" class="w-12 h-12 mx-auto mb-2 text-gray-300"></i>
-                    <p>No documents uploaded</p>
+                <div class="text-center py-10 bg-gray-50 rounded-xl border border-dashed border-gray-200">
+                    <i data-lucide="file-x" class="w-10 h-10 mx-auto mb-3 text-gray-300"></i>
+                    <p class="text-sm font-medium text-gray-500">No documents uploaded yet</p>
+                    <p class="text-xs text-gray-400 mt-1">This user hasn't submitted any verification documents</p>
                 </div>
             `;
+            countBadge.textContent = '0';
             return;
         }
 
-        container.innerHTML = documents.map(doc => {
-            const statusColor = doc.status === 'approved' ? 'green' : (doc.status === 'rejected' ? 'red' : 'yellow');
-            const statusIcon = doc.status === 'approved' ? 'check-circle' : (doc.status === 'rejected' ? 'x-circle' : 'clock');
+        countBadge.textContent = documents.length;
 
-            // Build document details section
-            let detailsHtml = '';
-            if (doc.document_name || doc.document_number || doc.issuing_authority || doc.issue_date || doc.expiry_date) {
-                detailsHtml = `
-                    <div class="bg-white rounded-lg p-4 mb-4 border border-gray-100">
-                        <h5 class="text-sm font-semibold text-gray-700 mb-3 flex items-center gap-2">
-                            <i data-lucide="info" class="w-4 h-4 text-orange-500"></i>
-                            Document Details
-                        </h5>
-                        <div class="grid grid-cols-2 gap-3 text-sm">
-                            ${doc.document_name ? `
-                                <div>
-                                    <p class="text-gray-500 text-xs">Name on Document</p>
-                                    <p class="font-medium text-gray-900">${doc.document_name}</p>
-                                </div>
-                            ` : ''}
-                            ${doc.document_number ? `
-                                <div>
-                                    <p class="text-gray-500 text-xs">Document Number</p>
-                                    <p class="font-medium text-gray-900">${doc.document_number}</p>
-                                </div>
-                            ` : ''}
-                            ${doc.issuing_authority ? `
-                                <div>
-                                    <p class="text-gray-500 text-xs">Issuing Authority</p>
-                                    <p class="font-medium text-gray-900">${doc.issuing_authority}</p>
-                                </div>
-                            ` : ''}
-                            ${doc.issue_date ? `
-                                <div>
-                                    <p class="text-gray-500 text-xs">Issue Date</p>
-                                    <p class="font-medium text-gray-900">${doc.issue_date}</p>
-                                </div>
-                            ` : ''}
-                            ${doc.expiry_date ? `
-                                <div>
-                                    <p class="text-gray-500 text-xs">Expiry Date</p>
-                                    <p class="font-medium text-gray-900">${doc.expiry_date}</p>
-                                </div>
-                            ` : ''}
+        container.innerHTML = documents.map(doc => {
+            const statusMap = {
+                approved: { color: 'green', icon: 'check-circle', label: 'Approved' },
+                rejected: { color: 'red', icon: 'x-circle', label: 'Rejected' },
+                pending: { color: 'yellow', icon: 'clock', label: 'Pending' }
+            };
+            const s = statusMap[doc.status] || statusMap.pending;
+
+            const isImage = doc.document_path && /\.(jpg|jpeg|png|gif|webp|bmp)$/i.test(doc.document_path);
+
+            // Document thumbnail
+            let thumbnailHtml = '';
+            if (doc.document_path && isImage) {
+                thumbnailHtml = `
+                    <div class="w-28 h-28 rounded-lg overflow-hidden bg-gray-100 flex-shrink-0 cursor-pointer border border-gray-200 hover:border-orange-300 hover:shadow-md transition-all group" onclick="viewDocument('${doc.document_path}', '${doc.auth_type.replace(/_/g, ' ')}')">
+                        <img src="${doc.document_path}" alt="Document" class="w-full h-full object-cover group-hover:scale-105 transition-transform" onerror="this.parentElement.innerHTML='<div class=\\'flex items-center justify-center w-full h-full text-gray-400\\'><i data-lucide=\\'image-off\\' class=\\'w-6 h-6\\'></i></div>'">
+                    </div>
+                `;
+            } else if (doc.document_path) {
+                thumbnailHtml = `
+                    <div class="w-28 h-28 rounded-lg bg-gray-50 flex-shrink-0 cursor-pointer border border-gray-200 hover:border-orange-300 hover:shadow-md transition-all flex flex-col items-center justify-center gap-2" onclick="viewDocument('${doc.document_path}', '${doc.auth_type.replace(/_/g, ' ')}')">
+                        <i data-lucide="file-text" class="w-8 h-8 text-orange-400"></i>
+                        <span class="text-[10px] font-medium text-gray-500 uppercase">View File</span>
+                    </div>
+                `;
+            }
+
+            // Details grid
+            const fields = [
+                { label: 'Name on Doc', value: doc.document_name },
+                { label: 'Doc Number', value: doc.document_number },
+                { label: 'Authority', value: doc.issuing_authority },
+                { label: 'Issued', value: doc.issue_date },
+                { label: 'Expires', value: doc.expiry_date }
+            ].filter(f => f.value);
+
+            let detailsGrid = '';
+            if (fields.length > 0) {
+                detailsGrid = `
+                    <div class="grid grid-cols-2 sm:grid-cols-3 gap-x-6 gap-y-2 mt-3 pt-3 border-t border-gray-100">
+                        ${fields.map(f => `
+                            <div>
+                                <p class="text-[11px] font-medium text-gray-400 uppercase tracking-wide">${f.label}</p>
+                                <p class="text-sm text-gray-800 font-medium">${f.value}</p>
+                            </div>
+                        `).join('')}
+                    </div>
+                `;
+            }
+
+            // Rejection banner
+            let rejectionHtml = '';
+            if (doc.status === 'rejected' && doc.rejection_reason) {
+                rejectionHtml = `
+                    <div class="mt-3 bg-red-50 border border-red-100 rounded-lg px-4 py-2.5 flex items-start gap-2">
+                        <i data-lucide="alert-circle" class="w-4 h-4 text-red-500 flex-shrink-0 mt-0.5"></i>
+                        <div>
+                            <p class="text-xs font-semibold text-red-600">Rejection Reason</p>
+                            <p class="text-sm text-red-700 mt-0.5">${doc.rejection_reason}</p>
                         </div>
                     </div>
                 `;
             }
 
-            // Build rejection reason section
-            let rejectionHtml = '';
-            if (doc.status === 'rejected' && doc.rejection_reason) {
-                rejectionHtml = `
-                    <div class="bg-red-50 rounded-lg p-3 mb-4 border border-red-100">
-                        <p class="text-xs text-red-600 font-semibold mb-1">Rejection Reason:</p>
-                        <p class="text-sm text-red-700">${doc.rejection_reason}</p>
+            // Action buttons
+            let actionHtml = '';
+            if (doc.status === 'pending') {
+                actionHtml = `
+                    <div class="flex gap-2 mt-4">
+                        <button onclick="updateVerification(${doc.auth_id}, 'approved')" class="flex-1 inline-flex items-center justify-center gap-1.5 py-2 px-4 bg-green-600 text-white rounded-lg text-sm font-semibold hover:bg-green-700 transition-colors">
+                            <i data-lucide="check" class="w-4 h-4"></i> Approve
+                        </button>
+                        <button onclick="updateVerification(${doc.auth_id}, 'rejected')" class="flex-1 inline-flex items-center justify-center gap-1.5 py-2 px-4 bg-red-600 text-white rounded-lg text-sm font-semibold hover:bg-red-700 transition-colors">
+                            <i data-lucide="x" class="w-4 h-4"></i> Reject
+                        </button>
                     </div>
                 `;
             }
 
             return `
-                <div class="bg-gray-50 rounded-xl p-5 border border-gray-200">
-                    <div class="flex items-start justify-between mb-3">
-                        <div class="flex items-center gap-3">
-                            <div class="w-10 h-10 rounded-lg bg-orange-100 flex items-center justify-center">
-                                <i data-lucide="file-text" class="w-5 h-5 text-orange-600"></i>
+                <div class="bg-white rounded-xl border border-gray-200 p-5 hover:shadow-sm transition-shadow">
+                    <div class="flex gap-5">
+                        ${thumbnailHtml}
+                        <div class="flex-1 min-w-0">
+                            <div class="flex items-start justify-between gap-3">
+                                <div>
+                                    <h4 class="font-semibold text-gray-900 capitalize text-[15px]">${doc.auth_type.replace(/_/g, ' ')}</h4>
+                                    <p class="text-xs text-gray-400 mt-0.5">Submitted ${doc.date_submitted}</p>
+                                </div>
+                                <span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-${s.color}-50 text-${s.color}-700 text-xs font-semibold flex-shrink-0 border border-${s.color}-100">
+                                    <i data-lucide="${s.icon}" class="w-3.5 h-3.5"></i>
+                                    ${s.label}
+                                </span>
                             </div>
-                            <div>
-                                <h4 class="font-semibold text-gray-900 capitalize">${doc.auth_type.replace(/_/g, ' ')}</h4>
-                                <p class="text-xs text-gray-500">Submitted: ${doc.date_submitted}</p>
-                            </div>
+                            ${detailsGrid}
+                            ${rejectionHtml}
+                            ${actionHtml}
                         </div>
-                        <span class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-${statusColor}-100 text-${statusColor}-700 text-xs font-semibold">
-                            <i data-lucide="${statusIcon}" class="w-3.5 h-3.5"></i>
-                            ${doc.status.charAt(0).toUpperCase() + doc.status.slice(1)}
-                        </span>
                     </div>
-                    
-                    ${detailsHtml}
-                    ${rejectionHtml}
-                    
-                    ${doc.document_path ? `
-                        <div class="mb-4">
-                            <button onclick="viewDocument('${doc.document_path}')" class="w-full py-2 px-4 bg-white border border-gray-300 rounded-lg text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors flex items-center justify-center gap-2">
-                                <i data-lucide="eye" class="w-4 h-4"></i>
-                                View Document
-                            </button>
-                        </div>
-                    ` : '<p class="text-sm text-gray-500 mb-4">No document file attached</p>'}
-                    
-                    ${doc.status === 'pending' ? `
-                        <div class="flex gap-2">
-                            <button onclick="updateVerification(${doc.auth_id}, 'approved')" class="flex-1 py-2 px-4 bg-green-600 text-white rounded-lg text-sm font-semibold hover:bg-green-700 transition-colors flex items-center justify-center gap-2">
-                                <i data-lucide="check" class="w-4 h-4"></i>
-                                Approve
-                            </button>
-                            <button onclick="updateVerification(${doc.auth_id}, 'rejected')" class="flex-1 py-2 px-4 bg-red-600 text-white rounded-lg text-sm font-semibold hover:bg-red-700 transition-colors flex items-center justify-center gap-2">
-                                <i data-lucide="x" class="w-4 h-4"></i>
-                                Reject
-                            </button>
-                        </div>
-                    ` : `
-                        <div class="text-xs text-gray-500">
-                            Last updated: ${doc.updated_at}
-                        </div>
-                    `}
                 </div>
             `;
         }).join('');
@@ -559,27 +599,31 @@
         const container = document.getElementById('submissionHistory');
 
         if (!documents || documents.length === 0) {
-            container.innerHTML = '<p class="text-gray-500 text-center py-8">No submission history</p>';
+            container.innerHTML = '<p class="text-gray-400 text-center py-6 text-sm">No submission history available</p>';
             return;
         }
 
         const sortedDocs = [...documents].sort((a, b) => new Date(b.date_created) - new Date(a.date_created));
 
         container.innerHTML = `
-            <div class="space-y-3">
-                ${sortedDocs.map(doc => {
-                    const statusColor = doc.status === 'approved' ? 'green' : (doc.status === 'rejected' ? 'red' : 'yellow');
-                    const statusText = doc.status === 'approved' ? 'Document Approved' : (doc.status === 'rejected' ? 'Document Rejected' : 'Awaiting Verification');
-                    
+            <div class="relative pl-6 border-l-2 border-gray-200 space-y-5">
+                ${sortedDocs.map((doc, idx) => {
+                    const statusMap = {
+                        approved: { color: 'green', icon: 'check', label: 'Approved' },
+                        rejected: { color: 'red', icon: 'x', label: 'Rejected' },
+                        pending: { color: 'yellow', icon: 'clock', label: 'Awaiting Review' }
+                    };
+                    const s = statusMap[doc.status] || statusMap.pending;
+
                     return `
-                        <div class="flex items-start gap-4 pb-4 border-b border-gray-100 last:border-0">
-                            <div class="w-10 h-10 rounded-full bg-${statusColor}-100 flex items-center justify-center flex-shrink-0">
-                                <i data-lucide="${doc.status === 'approved' ? 'check' : (doc.status === 'rejected' ? 'x' : 'clock')}" class="w-5 h-5 text-${statusColor}-600"></i>
+                        <div class="relative">
+                            <div class="absolute -left-[calc(0.75rem+1.5px)] top-1 w-5 h-5 rounded-full bg-${s.color}-100 border-2 border-${s.color}-400 flex items-center justify-center">
+                                <i data-lucide="${s.icon}" class="w-2.5 h-2.5 text-${s.color}-600"></i>
                             </div>
-                            <div class="flex-1">
-                                <p class="font-medium text-gray-900">${statusText}</p>
-                                <p class="text-sm text-gray-600 capitalize">${doc.auth_type.replace(/_/g, ' ')}</p>
-                                <p class="text-xs text-gray-500 mt-1">${doc.date_created}</p>
+                            <div class="ml-4">
+                                <p class="text-sm font-semibold text-gray-900">${s.label}</p>
+                                <p class="text-xs text-gray-600 capitalize">${doc.auth_type.replace(/_/g, ' ')}</p>
+                                <p class="text-[11px] text-gray-400 mt-0.5">${doc.date_created}</p>
                             </div>
                         </div>
                     `;
@@ -592,82 +636,121 @@
         const container = document.getElementById('expiryTracker');
 
         if (!documents || documents.length === 0) {
-            container.innerHTML = '<p class="text-gray-500 text-center py-8">No documents to track</p>';
+            container.innerHTML = '<p class="text-gray-400 text-center py-6 text-sm">No documents to track</p>';
             return;
         }
 
         container.innerHTML = `
-            <div class="bg-white rounded-xl border border-gray-200 overflow-hidden">
-                <table class="w-full">
-                    <thead class="bg-gray-50">
-                        <tr class="text-left text-sm font-semibold text-gray-700">
-                            <th class="px-4 py-3">Document</th>
-                            <th class="px-4 py-3">Name / Number</th>
-                            <th class="px-4 py-3">Issuing Authority</th>
-                            <th class="px-4 py-3">Issue Date</th>
-                            <th class="px-4 py-3">Expiry Date</th>
-                            <th class="px-4 py-3">Days Remaining</th>
-                            <th class="px-4 py-3">Status</th>
-                        </tr>
-                    </thead>
-                    <tbody class="divide-y divide-gray-100">
-                        ${documents.map(doc => {
-                            const daysRemaining = Math.floor(doc.days_remaining);
-                            const expiryDate = doc.expiry_date || 'Not set';
-                            
-                            let statusBadge, statusText, daysText;
-                            
-                            if (doc.days_remaining === null) {
-                                statusBadge = 'bg-gray-100 text-gray-700';
-                                statusText = 'No Expiry';
-                                daysText = '—';
-                            } else if (daysRemaining < 0) {
-                                statusBadge = 'bg-red-100 text-red-700';
-                                statusText = 'Expired';
-                                daysText = `${Math.abs(daysRemaining)} days ago`;
-                            } else if (daysRemaining === 0) {
-                                statusBadge = 'bg-red-100 text-red-700';
-                                statusText = 'Expires Today';
-                                daysText = 'Today';
-                            } else if (daysRemaining <= 30) {
-                                statusBadge = 'bg-orange-100 text-orange-700';
-                                statusText = 'Expiring Soon';
-                                daysText = `${daysRemaining} days`;
-                            } else {
-                                statusBadge = 'bg-green-100 text-green-700';
-                                statusText = 'Active';
-                                daysText = `${daysRemaining} days`;
-                            }
-                            
-                            return `
-                                <tr class="text-sm">
-                                    <td class="px-4 py-3 capitalize font-medium">${doc.auth_type.replace(/_/g, ' ')}</td>
-                                    <td class="px-4 py-3">
-                                        ${doc.document_name ? `<span class="block text-gray-900">${doc.document_name}</span>` : ''}
-                                        ${doc.document_number ? `<span class="block text-xs text-gray-500">${doc.document_number}</span>` : ''}
-                                        ${!doc.document_name && !doc.document_number ? '<span class="text-gray-400">—</span>' : ''}
-                                    </td>
-                                    <td class="px-4 py-3">${doc.issuing_authority || '—'}</td>
-                                    <td class="px-4 py-3">${doc.issue_date || '—'}</td>
-                                    <td class="px-4 py-3">${expiryDate}</td>
-                                    <td class="px-4 py-3">${daysText}</td>
-                                    <td class="px-4 py-3">
-                                        <span class="px-2 py-1 rounded-md text-xs font-semibold ${statusBadge}">
-                                            ${statusText}
-                                        </span>
-                                    </td>
-                                </tr>
-                            `;
-                        }).join('')}
-                    </tbody>
-                </table>
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                ${documents.map(doc => {
+                    const daysRemaining = Math.floor(doc.days_remaining);
+                    const expiryDate = doc.expiry_date || null;
+                    
+                    let statusBadge, statusText, statusIcon, progressColor;
+                    
+                    if (doc.days_remaining === null) {
+                        statusBadge = 'bg-gray-50 border-gray-200 text-gray-600';
+                        statusText = 'No Expiry';
+                        statusIcon = 'infinity';
+                        progressColor = 'bg-gray-300';
+                    } else if (daysRemaining < 0) {
+                        statusBadge = 'bg-red-50 border-red-200 text-red-700';
+                        statusText = `Expired ${Math.abs(daysRemaining)}d ago`;
+                        statusIcon = 'alert-triangle';
+                        progressColor = 'bg-red-500';
+                    } else if (daysRemaining === 0) {
+                        statusBadge = 'bg-red-50 border-red-200 text-red-700';
+                        statusText = 'Expires Today';
+                        statusIcon = 'alert-triangle';
+                        progressColor = 'bg-red-500';
+                    } else if (daysRemaining <= 30) {
+                        statusBadge = 'bg-orange-50 border-orange-200 text-orange-700';
+                        statusText = `${daysRemaining}d remaining`;
+                        statusIcon = 'clock';
+                        progressColor = 'bg-orange-500';
+                    } else {
+                        statusBadge = 'bg-green-50 border-green-200 text-green-700';
+                        statusText = `${daysRemaining}d remaining`;
+                        statusIcon = 'shield-check';
+                        progressColor = 'bg-green-500';
+                    }
+                    
+                    return `
+                        <div class="rounded-xl border ${statusBadge} p-4">
+                            <div class="flex items-start justify-between mb-2">
+                                <div>
+                                    <p class="text-sm font-semibold capitalize text-gray-900">${doc.auth_type.replace(/_/g, ' ')}</p>
+                                    ${doc.document_name ? `<p class="text-xs text-gray-500 mt-0.5">${doc.document_name}</p>` : ''}
+                                </div>
+                                <i data-lucide="${statusIcon}" class="w-5 h-5 flex-shrink-0"></i>
+                            </div>
+                            ${expiryDate ? `<p class="text-xs text-gray-500 mb-2">Expires: ${expiryDate}</p>` : ''}
+                            <div class="flex items-center gap-2">
+                                <div class="h-1.5 flex-1 bg-gray-200 rounded-full overflow-hidden">
+                                    <div class="h-full ${progressColor} rounded-full" style="width: ${doc.days_remaining === null ? 100 : Math.max(0, Math.min(100, (daysRemaining / 365) * 100))}%"></div>
+                                </div>
+                                <span class="text-xs font-semibold whitespace-nowrap">${statusText}</span>
+                            </div>
+                        </div>
+                    `;
+                }).join('')}
             </div>
         `;
     }
 
-    function viewDocument(url) {
-        window.open(url, '_blank');
+    function viewDocument(url, title) {
+        const modal = document.getElementById('docPreviewModal');
+        const content = document.getElementById('docPreviewContent');
+        const titleEl = document.getElementById('docPreviewTitle');
+        const newTabLink = document.getElementById('docPreviewNewTab');
+
+        titleEl.textContent = title || 'Document Preview';
+        newTabLink.href = url;
+
+        const isImage = /\.(jpg|jpeg|png|gif|webp|bmp|svg)(\?.*)?$/i.test(url);
+        const isPdf = /\.pdf(\?.*)?$/i.test(url);
+
+        if (isImage) {
+            content.innerHTML = `
+                <img src="${url}" alt="Document Preview" class="max-w-full max-h-[75vh] object-contain rounded shadow-lg" onerror="this.outerHTML='<div class=\\'text-center py-12 text-gray-400\\'><i data-lucide=\\'image-off\\' class=\\'w-12 h-12 mx-auto mb-3\\'></i><p class=\\'text-sm\\'>Failed to load image</p><a href=\\'${url}\\' target=\\'_blank\\' class=\\'text-orange-600 text-sm font-medium mt-2 inline-block\\'>Open in new tab</a></div>'">
+            `;
+        } else if (isPdf) {
+            content.innerHTML = `
+                <iframe src="${url}" class="w-full h-[75vh] rounded" frameborder="0"></iframe>
+            `;
+        } else {
+            content.innerHTML = `
+                <div class="text-center py-12">
+                    <i data-lucide="file" class="w-16 h-16 mx-auto mb-4 text-gray-400"></i>
+                    <p class="text-sm text-gray-500 mb-3">Preview not available for this file type</p>
+                    <a href="${url}" target="_blank" class="inline-flex items-center gap-2 px-4 py-2 bg-orange-600 text-white rounded-lg text-sm font-medium hover:bg-orange-700 transition-colors">
+                        <i data-lucide="external-link" class="w-4 h-4"></i>
+                        Open in New Tab
+                    </a>
+                </div>
+            `;
+        }
+
+        modal.classList.remove('hidden');
+        setTimeout(() => lucide.createIcons(), 100);
     }
+
+    function closeDocPreview() {
+        const modal = document.getElementById('docPreviewModal');
+        modal.classList.add('hidden');
+        document.getElementById('docPreviewContent').innerHTML = '';
+    }
+
+    // Close doc preview on Escape key
+    document.addEventListener('keydown', function(e) {
+        if (e.key === 'Escape') {
+            if (!document.getElementById('docPreviewModal').classList.contains('hidden')) {
+                closeDocPreview();
+            } else if (!document.getElementById('userModal').classList.contains('hidden')) {
+                closeUserModal();
+            }
+        }
+    });
 
     async function updateVerification(authId, status) {
         const result = await Swal.fire({

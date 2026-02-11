@@ -205,7 +205,7 @@
                             <button onclick="toggleDropdown(event, 'dropdown-{{ $pet->pet_id }}')" class="text-gray-400 hover:text-gray-600 focus:outline-none transition-colors p-1 rounded-md">
                                 <i data-lucide="more-horizontal" class="w-5 h-5"></i>
                             </button>
-                            <div id="dropdown-{{ $pet->pet_id }}" class="hidden absolute right-0 mt-2 w-48 bg-white rounded-xl shadow-[0_10px_40px_-10px_rgba(0,0,0,0.08)] z-50 border border-gray-100 overflow-hidden text-left">
+                            <div id="dropdown-{{ $pet->pet_id }}" class="hidden fixed w-48 bg-white rounded-xl shadow-[0_10px_40px_-10px_rgba(0,0,0,0.08)] border border-gray-100 overflow-hidden text-left" style="z-index: 9999;">
                                 <a href="{{ route('admin.pets.details', $pet->pet_id) }}" class="w-full flex items-center gap-3 px-4 py-3 text-sm font-medium text-gray-600 hover:bg-gray-50 hover:text-gray-900 transition-colors">
                                     <i data-lucide="user" class="w-4 h-4 text-gray-500"></i>
                                     View Profile
@@ -255,18 +255,37 @@
 
 @push('scripts')
 <script>
+    function closeAllDropdowns() {
+        document.querySelectorAll('[id^="dropdown-"]').forEach(d => d.classList.add('hidden'));
+    }
+
     function toggleDropdown(event, dropdownId) {
         event.stopPropagation();
         const dropdown = document.getElementById(dropdownId);
-        const allDropdowns = document.querySelectorAll('[id^="dropdown-"]');
+        const button = event.currentTarget;
+        const wasHidden = dropdown.classList.contains('hidden');
 
-        allDropdowns.forEach(d => {
-            if (d.id !== dropdownId) {
-                d.classList.add('hidden');
+        closeAllDropdowns();
+
+        if (wasHidden) {
+            const rect = button.getBoundingClientRect();
+            const dropdownWidth = 192; // w-48 = 12rem = 192px
+            const dropdownHeight = dropdown.scrollHeight || 160;
+
+            let top = rect.bottom + 4;
+            let left = rect.right - dropdownWidth;
+
+            if (top + dropdownHeight > window.innerHeight) {
+                top = rect.top - dropdownHeight - 4;
             }
-        });
+            if (left < 8) {
+                left = 8;
+            }
 
-        dropdown.classList.toggle('hidden');
+            dropdown.style.top = top + 'px';
+            dropdown.style.left = left + 'px';
+            dropdown.classList.remove('hidden');
+        }
     }
 
     function confirmSuspend(petName, petId) {
@@ -308,10 +327,9 @@
         });
     }
 
-    document.addEventListener('click', function() {
-        const allDropdowns = document.querySelectorAll('[id^="dropdown-"]');
-        allDropdowns.forEach(d => d.classList.add('hidden'));
-    });
+    document.addEventListener('click', closeAllDropdowns);
+    window.addEventListener('scroll', closeAllDropdowns, true);
+    window.addEventListener('resize', closeAllDropdowns);
 
     document.addEventListener('DOMContentLoaded', function() {
         lucide.createIcons();
