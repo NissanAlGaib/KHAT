@@ -194,7 +194,7 @@ class VaccinationController extends Controller
             ->firstOrFail();
 
         // Verify species match
-        if ($protocol->species !== 'all' && $protocol->species !== $pet->species) {
+        if (strtolower($protocol->species) !== 'all' && strtolower($protocol->species) !== strtolower($pet->species)) {
             return response()->json([
                 'success' => false,
                 'message' => 'This protocol is not available for this pet\'s species.',
@@ -244,7 +244,7 @@ class VaccinationController extends Controller
             ->firstOrFail();
 
         // Verify species match
-        if ($newProtocol->species !== 'all' && $newProtocol->species !== $pet->species) {
+        if (strtolower($newProtocol->species) !== 'all' && strtolower($newProtocol->species) !== strtolower($pet->species)) {
             return response()->json([
                 'success' => false,
                 'message' => 'This protocol is not available for this pet\'s species.',

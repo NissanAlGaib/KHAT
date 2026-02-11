@@ -69,7 +69,10 @@ class VaccineProtocol extends Model
      */
     public function scopeForSpecies(Builder $query, string $species): Builder
     {
-        return $query->whereIn('species', [$species, 'all']);
+        return $query->where(function ($q) use ($species) {
+            $q->whereRaw('LOWER(species) = ?', [strtolower($species)])
+              ->orWhere('species', 'all');
+        });
     }
 
     /**

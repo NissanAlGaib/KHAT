@@ -1,3 +1,4 @@
+{{-- 
 @extends('admin.layouts.app')
 
 @section('title', 'Edit Vaccine Protocol - KHAT Admin')
@@ -216,3 +217,4 @@
 </script>
 @endpush
 @endsection
+--}}
