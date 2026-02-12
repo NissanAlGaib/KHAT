@@ -49,4 +49,10 @@ return [
         'url' => env('BREED_API_URL', 'http://localhost:5000'),
     ],
 
+    'gemini' => [
+        'api_key' => env('GEMINI_API_KEY'),
+        'api_url' => env('GEMINI_API_URL', 'https://generativelanguage.googleapis.com/v1beta/openai'),
+        'image_model' => env('GEMINI_IMAGE_MODEL', 'imagen-3.0-generate-002'),
+    ],
+
 ];

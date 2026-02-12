@@ -554,6 +554,8 @@ const renderHealth = () => (
                     router.push({
                       pathname: "/(pet)/ai-offspring",
                       params: {
+                        pet1Id: selectedPet.pet_id,
+                        pet2Id: petData?.pet_id,
                         pet1Name: selectedPet.name,
                         pet2Name: petData?.name || "Unknown",
                         pet1Photo: primaryPhoto?.photo_url || "",
