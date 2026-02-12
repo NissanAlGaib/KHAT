@@ -16,6 +16,7 @@ use App\Http\Controllers\VerificationController;
 use App\Http\Controllers\VaccinationController;
 use App\Http\Controllers\SafetyController;
 use App\Http\Controllers\SearchController;
+use App\Http\Controllers\AiOffspringController;
 use App\Http\Controllers\BreedIdentifierController;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
@@ -179,4 +180,7 @@ Route::middleware(['auth:sanctum'])
         // Breed Identifier
         Route::post('/breed-identify', [BreedIdentifierController::class, 'predict']);
         Route::get('/breed-identify/health', [BreedIdentifierController::class, 'health']);
+
+        // AI Offspring Generation
+        Route::post('/ai/generate-offspring', [AiOffspringController::class, 'generate']);
     });
