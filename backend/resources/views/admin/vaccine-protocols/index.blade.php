@@ -150,7 +150,7 @@
 
             <!-- Modal Body (scrollable) -->
             <div class="overflow-y-auto flex-1 px-6 py-5">
-                <form id="editProtocolForm">
+                <form id="editProtocolForm" onsubmit="event.preventDefault();">
                     @method('PUT')
                     <input type="hidden" name="id" id="edit_protocol_id">
                     
@@ -459,7 +459,7 @@
 
             <!-- Modal Body (scrollable) -->
             <div class="overflow-y-auto flex-1 px-6 py-5">
-                <form id="createProtocolForm">
+                <form id="createProtocolForm" onsubmit="event.preventDefault();">
                     <!-- Validation Errors Container -->
                     <div id="createFormErrors" class="hidden mb-4 bg-red-50 border border-red-200 rounded-lg p-4">
                         <div class="flex items-center gap-2 mb-2">
