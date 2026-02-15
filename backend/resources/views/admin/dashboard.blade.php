@@ -131,7 +131,7 @@
 <p class="text-sm text-gray-500 mb-6">Track user growth, breeding matches, and subscription trends</p>
 
 <!-- Charts (Grid) -->
-<div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+<div class="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-8">
     <!-- Main Chart -->
     <div class="lg:col-span-2 bg-white p-6 rounded-xl shadow-sm border border-gray-50">
         <h3 class="font-semibold text-gray-800 mb-4">Monthly New Users</h3>
@@ -157,6 +157,78 @@
                 <canvas id="subscriptionChart"></canvas>
             </div>
         </div>
+    </div>
+</div>
+
+<!-- Top Rated Users -->
+<div class="bg-white rounded-xl shadow-sm border-2 border-amber-100 overflow-hidden mb-8">
+    <div class="bg-gradient-to-r from-amber-50 to-orange-50 px-6 py-4 border-b border-amber-100 flex items-center justify-between">
+        <div class="flex items-center gap-3">
+            <div class="w-10 h-10 rounded-lg bg-amber-400 flex items-center justify-center shadow-sm">
+                <i data-lucide="trophy" class="w-6 h-6 text-white"></i>
+            </div>
+            <div>
+                <h3 class="font-bold text-gray-900">Top Rated Users</h3>
+                <p class="text-xs text-amber-700 font-medium">Based on community reputation score</p>
+            </div>
+        </div>
+        <a href="{{ route('admin.users.index') }}" class="text-xs font-bold text-orange-600 hover:text-orange-700 flex items-center gap-1">
+            View All Users <i data-lucide="arrow-right" class="w-3 h-3"></i>
+        </a>
+    </div>
+    <div class="overflow-x-auto">
+        <table class="w-full text-left">
+            <thead>
+                <tr class="text-[11px] font-bold text-gray-400 uppercase tracking-wider border-b border-gray-50">
+                    <th class="px-6 py-3">User</th>
+                    <th class="px-6 py-3">Roles</th>
+                    <th class="px-6 py-3">Community Rating</th>
+                    <th class="px-6 py-3 text-right">Reputation Score</th>
+                </tr>
+            </thead>
+            <tbody class="divide-y divide-gray-50">
+                @foreach($topUsers as $user)
+                <tr class="hover:bg-amber-50/30 transition-colors group">
+                    <td class="px-6 py-4">
+                        <div class="flex items-center gap-3">
+                            <div class="w-10 h-10 rounded-full bg-gradient-to-br from-amber-400 to-orange-500 flex items-center justify-center text-white font-bold shadow-sm border-2 border-white">
+                                {{ strtoupper(substr($user->name ?? $user->email, 0, 1)) }}
+                            </div>
+                            <div>
+                                <p class="text-sm font-bold text-gray-900 group-hover:text-orange-600 transition-colors">{{ $user->name }}</p>
+                                <p class="text-xs text-gray-500">{{ $user->email }}</p>
+                            </div>
+                        </div>
+                    </td>
+                    <td class="px-6 py-4">
+                        <div class="flex flex-wrap gap-1">
+                            @foreach($user->roles as $role)
+                            <span class="px-2 py-0.5 rounded text-[10px] font-bold uppercase {{ $role->role_type === 'admin' ? 'bg-purple-100 text-purple-700' : 'bg-orange-100 text-orange-700' }}">
+                                {{ $role->role_type }}
+                            </span>
+                            @endforeach
+                        </div>
+                    </td>
+                    <td class="px-6 py-4">
+                        <div class="flex items-center gap-2">
+                            <div class="flex text-amber-400">
+                                @for($i = 1; $i <= 5; $i++)
+                                    <i data-lucide="star" class="w-3.5 h-3.5 {{ $i <= round($user->average_rating) ? 'fill-current' : 'text-gray-200' }}"></i>
+                                @endfor
+                            </div>
+                            <span class="text-xs font-bold text-gray-700">{{ number_format($user->average_rating, 1) }}</span>
+                            <span class="text-[10px] text-gray-400">({{ $user->review_count }} reviews)</span>
+                        </div>
+                    </td>
+                    <td class="px-6 py-4 text-right">
+                        <span class="inline-flex items-center px-2.5 py-1 rounded-full bg-amber-100 text-amber-800 text-xs font-bold border border-amber-200">
+                            {{ number_format($user->reputation_score) }}
+                        </span>
+                    </td>
+                </tr>
+                @endforeach
+            </tbody>
+        </table>
     </div>
 </div>
 @endsection

@@ -125,6 +125,8 @@
     </form>
 </div>
 
+@include('admin.partials.date-filter')
+
 <!-- Showing entries info -->
 <p class="text-sm text-gray-600 mb-4">
     Showing {{ $pets->firstItem() ?? 0 }} - {{ $pets->lastItem() ?? 0 }} of {{ $pets->total() }} entries

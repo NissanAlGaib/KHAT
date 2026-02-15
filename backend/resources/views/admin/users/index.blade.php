@@ -105,6 +105,8 @@
     </form>
 </div>
 
+@include('admin.partials.date-filter')
+
 <!-- Results Count -->
 <p class="text-sm text-gray-600 mb-4 font-medium">
     Showing {{ $users->firstItem() ?? 0 }} - {{ $users->lastItem() ?? 0 }} of {{ number_format($users->total()) }} entries
@@ -289,6 +291,29 @@
             <!-- Modal Body - Single Scrollable View -->
             <div class="px-8 py-6 overflow-y-auto max-h-[calc(90vh-140px)] space-y-8">
 
+                <!-- Section: Warnings & Safety -->
+                <div>
+                    <div class="flex items-center justify-between mb-4">
+                        <div class="flex items-center gap-2">
+                            <div class="w-8 h-8 rounded-lg bg-red-100 flex items-center justify-center">
+                                <i data-lucide="alert-triangle" class="w-4 h-4 text-red-600"></i>
+                            </div>
+                            <h3 class="text-base font-bold text-gray-900">Safety & Warnings</h3>
+                            <span id="warningCountBadge" class="text-xs font-medium text-white bg-red-500 px-2 py-0.5 rounded-full"></span>
+                        </div>
+                        <button onclick="openWarnModal()" class="inline-flex items-center gap-1.5 px-3 py-1.5 bg-orange-100 text-orange-700 text-xs font-bold rounded-lg hover:bg-orange-200 transition-colors">
+                            <i data-lucide="megaphone" class="w-3.5 h-3.5"></i>
+                            Warn User
+                        </button>
+                    </div>
+                    <div id="warningsContainer" class="space-y-3">
+                        <!-- Warnings loaded via JS -->
+                    </div>
+                </div>
+
+                <!-- Divider -->
+                <div class="border-t border-gray-100"></div>
+
                 <!-- Section: Documents -->
                 <div>
                     <div class="flex items-center gap-2 mb-4">
@@ -298,7 +323,7 @@
                         <h3 class="text-base font-bold text-gray-900">Submitted Documents</h3>
                         <span id="docCount" class="text-xs font-medium text-gray-400 bg-gray-100 px-2 py-0.5 rounded-full"></span>
                     </div>
-                    <div id="documentsContainer" class="space-y-4">
+                    <div id="documentsContainer" class="space-y-4 image-gallery">
                         <!-- Documents loaded via JS -->
                     </div>
                 </div>
@@ -346,26 +371,45 @@
     </div>
 </div>
 
-<!-- Document Preview Modal -->
-<div id="docPreviewModal" class="hidden fixed inset-0 z-[60] bg-black/80 backdrop-blur-sm">
-    <div class="flex items-center justify-center min-h-screen p-4">
-        <div class="relative max-w-5xl w-full max-h-[92vh] flex flex-col">
-            <!-- Preview Header -->
-            <div class="flex items-center justify-between bg-gray-900/90 text-white px-5 py-3 rounded-t-xl">
-                <span id="docPreviewTitle" class="text-sm font-medium truncate"></span>
-                <div class="flex items-center gap-2">
-                    <a id="docPreviewNewTab" href="#" target="_blank" class="p-2 rounded-lg text-gray-300 hover:text-white hover:bg-white/10 transition-all" title="Open in new tab">
-                        <i data-lucide="external-link" class="w-4 h-4"></i>
-                    </a>
-                    <button onclick="closeDocPreview()" class="p-2 rounded-lg text-gray-300 hover:text-white hover:bg-white/10 transition-all">
-                        <i data-lucide="x" class="w-5 h-5"></i>
+<!-- Warn User Modal -->
+<div id="warnModal" class="hidden fixed inset-0 z-[60] overflow-y-auto bg-gray-900/60 backdrop-blur-sm">
+    <div class="flex items-center justify-center min-h-screen px-4">
+        <div class="bg-white rounded-2xl shadow-2xl max-w-md w-full p-6">
+            <div class="flex items-center gap-3 mb-4">
+                <div class="w-10 h-10 rounded-full bg-orange-100 flex items-center justify-center">
+                    <i data-lucide="megaphone" class="w-5 h-5 text-orange-600"></i>
+                </div>
+                <h3 class="text-lg font-bold text-gray-900">Issue Official Warning</h3>
+            </div>
+            
+            <form id="warnForm" onsubmit="submitWarning(event)">
+                <div class="space-y-4">
+                    <div>
+                        <label class="block text-sm font-semibold text-gray-700 mb-1.5">Violation Type</label>
+                        <select name="type" required class="w-full bg-white border border-gray-300 text-gray-700 py-2 px-3 rounded-lg text-sm focus:ring-2 focus:ring-orange-500 focus:border-transparent outline-none">
+                            <option value="Harassment">Harassment</option>
+                            <option value="Spam">Spam</option>
+                            <option value="Fraud">Fraud / Scam</option>
+                            <option value="Terms Violation">Terms of Service Violation</option>
+                            <option value="Inappropriate Content">Inappropriate Content</option>
+                            <option value="Other">Other</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-sm font-semibold text-gray-700 mb-1.5">Detailed Message</label>
+                        <textarea name="message" required rows="4" class="w-full bg-white border border-gray-300 text-gray-700 py-2 px-3 rounded-lg text-sm focus:ring-2 focus:ring-orange-500 focus:border-transparent outline-none" placeholder="Explain the reason for this warning..."></textarea>
+                    </div>
+                </div>
+
+                <div class="mt-6 flex gap-3">
+                    <button type="button" onclick="closeWarnModal()" class="flex-1 px-4 py-2.5 bg-gray-100 text-gray-700 text-sm font-semibold rounded-lg hover:bg-gray-200 transition-all">
+                        Cancel
+                    </button>
+                    <button type="submit" class="flex-1 px-4 py-2.5 bg-orange-600 text-white text-sm font-semibold rounded-lg hover:bg-orange-700 transition-all shadow-sm">
+                        Issue Warning
                     </button>
                 </div>
-            </div>
-            <!-- Preview Content -->
-            <div id="docPreviewContent" class="bg-gray-100 rounded-b-xl flex-1 overflow-auto flex items-center justify-center min-h-[400px]">
-                <!-- Content injected by JS -->
-            </div>
+            </form>
         </div>
     </div>
 </div>
@@ -450,6 +494,7 @@
 
             if (data.success) {
                 document.getElementById('modalUserName').textContent = data.user.name || data.user.email;
+                loadWarnings(data.user.warnings, data.user.warning_count);
                 loadDocuments(data.user.documents);
                 loadSubmissionHistory(data.user.documents);
                 loadExpiryTracker(data.user.documents);
@@ -471,6 +516,98 @@
     function closeUserModal() {
         document.getElementById('userModal').classList.add('hidden');
         currentUserId = null;
+    }
+
+    function loadWarnings(warnings, count) {
+        const container = document.getElementById('warningsContainer');
+        const badge = document.getElementById('warningCountBadge');
+        
+        badge.textContent = count || '0';
+        
+        if (!warnings || warnings.length === 0) {
+            container.innerHTML = `
+                <div class="text-center py-6 bg-gray-50 rounded-xl border border-dashed border-gray-200">
+                    <p class="text-sm text-gray-400">No warnings issued to this user.</p>
+                </div>
+            `;
+            return;
+        }
+
+        container.innerHTML = warnings.map(w => `
+            <div class="bg-white border border-gray-200 rounded-xl p-4 hover:shadow-sm transition-shadow">
+                <div class="flex justify-between items-start mb-2">
+                    <div class="flex items-center gap-2">
+                        <span class="px-2 py-0.5 bg-red-50 text-red-700 text-[10px] font-bold uppercase rounded border border-red-100">${w.type}</span>
+                        <span class="text-[11px] text-gray-400">${w.created_at}</span>
+                    </div>
+                    ${w.acknowledged_at ? `
+                        <span class="inline-flex items-center gap-1 text-[10px] font-bold text-green-600">
+                            <i data-lucide="check-circle-2" class="w-3 h-3"></i> Acknowledged
+                        </span>
+                    ` : `
+                        <span class="inline-flex items-center gap-1 text-[10px] font-bold text-orange-500">
+                            <i data-lucide="clock" class="w-3 h-3"></i> Unread
+                        </span>
+                    `}
+                </div>
+                <p class="text-sm text-gray-700 leading-relaxed mb-2">${w.message}</p>
+                <div class="flex items-center gap-1.5 pt-2 border-t border-gray-50">
+                    <div class="w-4 h-4 rounded-full bg-gray-200 flex items-center justify-center text-[8px] font-bold text-gray-500">
+                        ${w.admin_name.charAt(0)}
+                    </div>
+                    <span class="text-[11px] text-gray-500">Issued by <span class="font-semibold">${w.admin_name}</span></span>
+                </div>
+            </div>
+        `).join('');
+    }
+
+    function openWarnModal() {
+        document.getElementById('warnModal').classList.remove('hidden');
+    }
+
+    function closeWarnModal() {
+        document.getElementById('warnModal').classList.add('hidden');
+        document.getElementById('warnForm').reset();
+    }
+
+    async function submitWarning(e) {
+        e.preventDefault();
+        const form = e.target;
+        const formData = new FormData(form);
+        
+        try {
+            const response = await fetch(`/admin/users/${currentUserId}/warn`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content,
+                    'Accept': 'application/json'
+                },
+                body: JSON.stringify(Object.fromEntries(formData))
+            });
+
+            if (response.ok) {
+                Swal.fire({
+                    title: 'Warning Issued',
+                    text: 'The user has been officially warned.',
+                    icon: 'success',
+                    confirmButtonColor: '#E75234'
+                }).then(() => {
+                    closeWarnModal();
+                    openUserModal(currentUserId); // Refresh data
+                });
+            } else {
+                const data = await response.json();
+                throw new Error(data.message || 'Failed to issue warning');
+            }
+        } catch (error) {
+            Swal.fire({
+                title: 'Error',
+                text: error.message,
+                icon: 'error',
+                confirmButtonColor: '#E75234'
+            });
+        }
     }
 
     function loadDocuments(documents) {
@@ -698,55 +835,10 @@
         `;
     }
 
-    function viewDocument(url, title) {
-        const modal = document.getElementById('docPreviewModal');
-        const content = document.getElementById('docPreviewContent');
-        const titleEl = document.getElementById('docPreviewTitle');
-        const newTabLink = document.getElementById('docPreviewNewTab');
-
-        titleEl.textContent = title || 'Document Preview';
-        newTabLink.href = url;
-
-        const isImage = /\.(jpg|jpeg|png|gif|webp|bmp|svg)(\?.*)?$/i.test(url);
-        const isPdf = /\.pdf(\?.*)?$/i.test(url);
-
-        if (isImage) {
-            content.innerHTML = `
-                <img src="${url}" alt="Document Preview" class="max-w-full max-h-[75vh] object-contain rounded shadow-lg" onerror="this.outerHTML='<div class=\\'text-center py-12 text-gray-400\\'><i data-lucide=\\'image-off\\' class=\\'w-12 h-12 mx-auto mb-3\\'></i><p class=\\'text-sm\\'>Failed to load image</p><a href=\\'${url}\\' target=\\'_blank\\' class=\\'text-orange-600 text-sm font-medium mt-2 inline-block\\'>Open in new tab</a></div>'">
-            `;
-        } else if (isPdf) {
-            content.innerHTML = `
-                <iframe src="${url}" class="w-full h-[75vh] rounded" frameborder="0"></iframe>
-            `;
-        } else {
-            content.innerHTML = `
-                <div class="text-center py-12">
-                    <i data-lucide="file" class="w-16 h-16 mx-auto mb-4 text-gray-400"></i>
-                    <p class="text-sm text-gray-500 mb-3">Preview not available for this file type</p>
-                    <a href="${url}" target="_blank" class="inline-flex items-center gap-2 px-4 py-2 bg-orange-600 text-white rounded-lg text-sm font-medium hover:bg-orange-700 transition-colors">
-                        <i data-lucide="external-link" class="w-4 h-4"></i>
-                        Open in New Tab
-                    </a>
-                </div>
-            `;
-        }
-
-        modal.classList.remove('hidden');
-        setTimeout(() => lucide.createIcons(), 100);
-    }
-
-    function closeDocPreview() {
-        const modal = document.getElementById('docPreviewModal');
-        modal.classList.add('hidden');
-        document.getElementById('docPreviewContent').innerHTML = '';
-    }
-
     // Close doc preview on Escape key
     document.addEventListener('keydown', function(e) {
         if (e.key === 'Escape') {
-            if (!document.getElementById('docPreviewModal').classList.contains('hidden')) {
-                closeDocPreview();
-            } else if (!document.getElementById('userModal').classList.contains('hidden')) {
+            if (!document.getElementById('userModal').classList.contains('hidden')) {
                 closeUserModal();
             }
         }

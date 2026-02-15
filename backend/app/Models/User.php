@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Traits\FiltersByDate;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
@@ -14,9 +15,7 @@ use Laravel\Sanctum\HasApiTokens;
 class User extends Authenticatable
 {
     /** @use HasFactory<\Database\Factories\UserFactory> */
-    use HasFactory, Notifiable;
-
-    use HasApiTokens;
+    use HasFactory, Notifiable, HasApiTokens, FiltersByDate;
     /**
      * The attributes that are mass assignable.
      *
@@ -34,6 +33,9 @@ class User extends Authenticatable
         'sex',
         'address',
         'profile_image',
+        'warning_count',
+        'average_rating',
+        'review_count',
     ];
 
     /**
@@ -143,5 +145,55 @@ class User extends Authenticatable
             // If the user_blocks table doesn't exist or query fails, return empty array
             return [];
         }
+    }
+
+    /**
+     * Get warnings issued to the user
+     */
+    public function warnings()
+    {
+        return $this->hasMany(UserWarning::class, 'user_id');
+    }
+
+    /**
+     * Get reviews received by the user
+     */
+    public function reviewsReceived()
+    {
+        return $this->hasMany(UserReview::class, 'subject_id');
+    }
+
+    /**
+     * Get reviews given by the user
+     */
+    public function reviewsGiven()
+    {
+        return $this->hasMany(UserReview::class, 'reviewer_id');
+    }
+
+    /**
+     * Recalculate and update the user's average rating and review count
+     */
+    public function recalculateRating()
+    {
+        $this->average_rating = $this->reviewsReceived()->avg('rating') ?? 0.00;
+        $this->review_count = $this->reviewsReceived()->count();
+        $this->save();
+    }
+
+    /**
+     * Get the count of active (unacknowledged) warnings
+     */
+    public function activeWarnings()
+    {
+        return $this->warnings()->whereNull('acknowledged_at')->count();
+    }
+
+    /**
+     * Increment the user's warning count
+     */
+    public function incrementWarningCount()
+    {
+        $this->increment('warning_count');
     }
 }

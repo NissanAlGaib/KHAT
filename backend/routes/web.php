@@ -3,9 +3,10 @@
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\Admin\AdminController;
 use App\Http\Controllers\Admin\VaccineProtocolController;
+use App\Http\Controllers\Admin\UserWarningController;
 
 Route::get('/', function () {
-    return ['Laravel' => app()->version()];
+    return redirect()->route('admin.login');
 });
 
 // Admin Routes
@@ -25,6 +26,7 @@ Route::prefix('admin')->group(function () {
         Route::get('/users', [AdminController::class, 'usersIndex'])->name('admin.users.index');
         Route::get('/users/{userId}/details', [AdminController::class, 'getUserDetails'])->name('admin.users.details');
         Route::post('/users/verification/{authId}/update', [AdminController::class, 'updateVerificationStatus'])->name('admin.users.verification.update');
+        Route::post('/users/{user}/warn', [UserWarningController::class, 'store'])->name('admin.users.warn');
         Route::delete('/users/{userId}', [AdminController::class, 'deleteUser'])->name('admin.users.delete');
 
         // Admin Management

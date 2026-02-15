@@ -161,10 +161,10 @@
                         </div>
 
                         @if($shot->vaccination_record)
-                        <a href="{{ Storage::disk('do_spaces')->url($shot->vaccination_record) }}" target="_blank" class="mt-3 inline-flex items-center gap-2 px-3 py-2 text-xs font-medium text-[#E75234] bg-[#FDF4F2] rounded-lg hover:bg-orange-100 transition-colors">
+                        <button type="button" onclick="viewDocument('{{ Storage::disk('do_spaces')->url($shot->vaccination_record) }}', 'Proof for {{ addslashes($shot->card->pet->name ?? 'Pet') }}')" class="mt-3 inline-flex items-center gap-2 px-3 py-2 text-xs font-medium text-[#E75234] bg-[#FDF4F2] rounded-lg hover:bg-orange-100 transition-colors">
                             <i data-lucide="file-text" class="w-4 h-4"></i>
                             View Proof Document
-                        </a>
+                        </button>
                         @else
                         <p class="mt-3 text-xs text-gray-400 italic">No proof document attached</p>
                         @endif

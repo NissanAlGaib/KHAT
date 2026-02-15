@@ -2,12 +2,15 @@
 
 namespace App\Models;
 
+use App\Traits\FiltersByDate;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasOne;
 
 class MatchRequest extends Model
 {
+    use FiltersByDate;
+
     protected $fillable = [
         'requester_pet_id',
         'target_pet_id',
@@ -36,5 +39,13 @@ class MatchRequest extends Model
     public function conversation(): HasOne
     {
         return $this->hasOne(Conversation::class);
+    }
+
+    /**
+     * Get the reviews associated with this match request
+     */
+    public function reviews()
+    {
+        return $this->hasMany(UserReview::class, 'match_id');
     }
 }

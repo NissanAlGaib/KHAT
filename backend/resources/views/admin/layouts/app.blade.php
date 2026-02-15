@@ -11,6 +11,7 @@
     <script src="https://unpkg.com/lucide@latest"></script>
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/viewerjs/1.11.6/viewer.min.css">
 
     <style>
         body { font-family: 'Inter', sans-serif; }
@@ -361,6 +362,7 @@
         </aside>
     </div>
 
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/viewerjs/1.11.6/viewer.min.js"></script>
     <script>
         lucide.createIcons();
 
@@ -389,6 +391,63 @@
             closeMenuBtn.addEventListener('click', () => {
                 mobileMenu.classList.add('hidden');
             });
+        }
+
+        // Initialize Viewer.js
+        document.addEventListener('DOMContentLoaded', function() {
+            const galleries = document.querySelectorAll('.image-gallery');
+            galleries.forEach(gallery => {
+                new Viewer(gallery, {
+                    url: 'data-src', // Use data-src if available, otherwise src
+                    toolbar: {
+                        zoomIn: 1,
+                        zoomOut: 1,
+                        oneToOne: 1,
+                        reset: 1,
+                        prev: 1,
+                        play: {
+                            show: 1,
+                            size: 'large',
+                        },
+                        next: 1,
+                        rotateLeft: 1,
+                        rotateRight: 1,
+                        flipHorizontal: 1,
+                        flipVertical: 1,
+                    },
+                });
+            });
+        });
+
+        function viewDocument(url, title = 'Document Preview') {
+            const isImage = /\.(jpg|jpeg|png|gif|webp|bmp|svg)(\?.*)?$/i.test(url);
+            if (isImage) {
+                const img = document.createElement('img');
+                img.src = url;
+                img.alt = title;
+                const viewer = new Viewer(img, {
+                    hidden: function() {
+                        viewer.destroy();
+                    },
+                    title: title,
+                    toolbar: {
+                        zoomIn: 1,
+                        zoomOut: 1,
+                        oneToOne: 1,
+                        reset: 1,
+                        prev: 0,
+                        play: 0,
+                        next: 0,
+                        rotateLeft: 1,
+                        rotateRight: 1,
+                        flipHorizontal: 1,
+                        flipVertical: 1,
+                    },
+                });
+                viewer.show();
+            } else {
+                window.open(url, '_blank');
+            }
         }
     </script>
     @stack('scripts')

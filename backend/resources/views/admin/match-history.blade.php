@@ -49,37 +49,48 @@
 <!-- Filters -->
 <div class="bg-white p-6 rounded-xl shadow-sm border border-gray-100 mb-6">
     <form action="{{ route('admin.matches') }}" method="GET">
-        <div class="grid grid-cols-1 md:grid-cols-4 gap-4 mb-4">
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
             <div class="relative">
-                <input type="text" name="search" value="{{ request('search') }}" placeholder="Search by pet or owner name..." class="w-full bg-white border border-gray-300 text-gray-700 py-2.5 px-4 pl-10 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#E75234]">
-                <div class="pointer-events-none absolute inset-y-0 left-0 flex items-center px-3 text-gray-400">
-                    <i data-lucide="search" class="w-4 h-4"></i>
+                <label class="block text-sm font-semibold text-gray-700 mb-2">Search</label>
+                <div class="relative">
+                    <input type="text" name="search" value="{{ request('search') }}" placeholder="Search by pet or owner name..." class="w-full bg-white border border-gray-300 text-gray-700 py-2.5 px-4 pl-10 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#E75234]">
+                    <div class="pointer-events-none absolute inset-y-0 left-0 flex items-center px-3 text-gray-400">
+                        <i data-lucide="search" class="w-4 h-4"></i>
+                    </div>
                 </div>
             </div>
-            <select name="status" class="w-full bg-white border border-gray-300 text-gray-700 py-2.5 px-4 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#E75234]">
-                <option value="">All Statuses</option>
-                <option value="pending" {{ request('status') == 'pending' ? 'selected' : '' }}>Pending</option>
-                <option value="accepted" {{ request('status') == 'accepted' ? 'selected' : '' }}>Accepted</option>
-                <option value="declined" {{ request('status') == 'declined' ? 'selected' : '' }}>Declined</option>
-                <option value="completed" {{ request('status') == 'completed' ? 'selected' : '' }}>Completed</option>
-            </select>
-            <select name="date_range" class="w-full bg-white border border-gray-300 text-gray-700 py-2.5 px-4 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#E75234]">
-                <option value="">All Time</option>
-                <option value="7" {{ request('date_range') == '7' ? 'selected' : '' }}>Last 7 Days</option>
-                <option value="30" {{ request('date_range') == '30' ? 'selected' : '' }}>Last 30 Days</option>
-                <option value="90" {{ request('date_range') == '90' ? 'selected' : '' }}>Last 90 Days</option>
-            </select>
-            <div class="flex gap-2">
-                <button type="submit" class="flex-1 px-4 py-2.5 bg-[#E75234] text-white rounded-lg text-sm font-semibold hover:bg-[#d14024]">
-                    Apply
-                </button>
-                <a href="{{ route('admin.matches') }}" class="px-4 py-2.5 bg-gray-100 text-gray-700 rounded-lg text-sm font-semibold hover:bg-gray-200">
-                    Reset
-                </a>
+            <div>
+                <label class="block text-sm font-semibold text-gray-700 mb-2">Status</label>
+                <select name="status" class="w-full bg-white border border-gray-300 text-gray-700 py-2.5 px-4 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#E75234]">
+                    <option value="">All Statuses</option>
+                    <option value="pending" {{ request('status') == 'pending' ? 'selected' : '' }}>Pending</option>
+                    <option value="accepted" {{ request('status') == 'accepted' ? 'selected' : '' }}>Accepted</option>
+                    <option value="declined" {{ request('status') == 'declined' ? 'selected' : '' }}>Declined</option>
+                    <option value="completed" {{ request('status') == 'completed' ? 'selected' : '' }}>Completed</option>
+                </select>
             </div>
+            <div>
+                <label class="block text-sm font-semibold text-gray-700 mb-2">Date Range Preset</label>
+                <select name="date_range" class="w-full bg-white border border-gray-300 text-gray-700 py-2.5 px-4 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#E75234]">
+                    <option value="">All Time</option>
+                    <option value="7" {{ request('date_range') == '7' ? 'selected' : '' }}>Last 7 Days</option>
+                    <option value="30" {{ request('date_range') == '30' ? 'selected' : '' }}>Last 30 Days</option>
+                    <option value="90" {{ request('date_range') == '90' ? 'selected' : '' }}>Last 90 Days</option>
+                </select>
+            </div>
+        </div>
+        <div class="flex gap-2">
+            <button type="submit" class="px-6 py-2.5 bg-[#E75234] text-white rounded-lg text-sm font-semibold hover:bg-[#d14024] transition-all shadow-sm">
+                Apply Filters
+            </button>
+            <a href="{{ route('admin.matches') }}" class="px-6 py-2.5 bg-gray-100 text-gray-700 rounded-lg text-sm font-semibold hover:bg-gray-200 transition-all shadow-sm">
+                Reset
+            </a>
         </div>
     </form>
 </div>
+
+@include('admin.partials.date-filter')
 
 <!-- Match List -->
 <div class="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">

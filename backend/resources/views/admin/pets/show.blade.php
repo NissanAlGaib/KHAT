@@ -884,10 +884,6 @@
         selectedTab.classList.add('text-white', 'bg-[#E75234]', 'border-[#E75234]');
     }
 
-    function viewDocument(url) {
-        window.open(url, '_blank');
-    }
-
     function requestUpdate(documentType) {
         Swal.fire({
             title: 'Send Update Request?',

@@ -18,6 +18,7 @@ use App\Http\Controllers\SafetyController;
 use App\Http\Controllers\SearchController;
 use App\Http\Controllers\AiOffspringController;
 use App\Http\Controllers\BreedIdentifierController;
+use App\Http\Controllers\Api\UserReviewController;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
 
@@ -116,6 +117,7 @@ Route::middleware(['auth:sanctum'])
         Route::get('/match-requests/matches', [MatchRequestController::class, 'matches']);
         Route::put('/match-requests/{id}/accept', [MatchRequestController::class, 'accept']);
         Route::put('/match-requests/{id}/decline', [MatchRequestController::class, 'decline']);
+        Route::post('/match-requests/{match}/review', [UserReviewController::class, 'store']);
 
         // Conversation routes
         Route::get('/conversations', [MatchRequestController::class, 'getConversations']);

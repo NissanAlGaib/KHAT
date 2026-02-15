@@ -191,6 +191,14 @@ class AdminController extends Controller
             ->orderBy('month')
             ->get();
 
+        // Top Rated Users based on reputation score
+        $topUsers = User::query()
+            ->selectRaw('*, (average_rating * 10 + review_count * 2 - warning_count * 50) as reputation_score')
+            ->with('roles')
+            ->orderByDesc('reputation_score')
+            ->take(5)
+            ->get();
+
         return compact(
             'totalUsers', 'usersGrowth',
             'verifiedBreeders', 'breedersGrowth',
@@ -201,7 +209,8 @@ class AdminController extends Controller
             'standardSubscribers', 'standardGrowth',
             'premiumSubscribers', 'premiumGrowth',
             'pendingReports',
-            'monthlyUsers', 'matchesTrend'
+            'monthlyUsers', 'matchesTrend',
+            'topUsers'
         );
     }
 
@@ -297,7 +306,7 @@ class AdminController extends Controller
             });
         }
 
-        $users = $query->paginate(15);
+        $users = $query->filterByDate($request)->paginate(15)->appends($request->all());
 
         return view('admin.users.index', compact('users', 'status'));
     }
@@ -427,7 +436,7 @@ class AdminController extends Controller
             });
         }
 
-        $pets = $query->paginate(10)->appends($request->query());
+        $pets = $query->filterByDate($request)->paginate(10)->appends($request->query());
 
         return view('admin.pets.index', compact('pets'));
     }
@@ -640,7 +649,7 @@ class AdminController extends Controller
             });
         }
 
-        $matches = $query->orderBy('created_at', 'desc')->paginate(15)->appends($request->query());
+        $matches = $query->filterByDate($request)->orderBy('created_at', 'desc')->paginate(15)->appends($request->query());
 
         // Get statistics
         $totalMatches = MatchRequest::count();
@@ -1073,7 +1082,7 @@ class AdminController extends Controller
      */
     public function auditLogs(Request $request)
     {
-        $query = AuditLog::with('user')->orderBy('created_at', 'desc');
+        $query = AuditLog::with('user')->filterByDate($request)->orderBy('created_at', 'desc');
 
         // Filter by action type
         if ($request->filled('action_type')) {
@@ -1087,7 +1096,7 @@ class AdminController extends Controller
             });
         }
 
-        // Filter by date range
+        // Filter by date range (legacy - replaced by trait but keeping for compatibility if needed)
         if ($request->filled('date_from')) {
             $query->whereDate('created_at', '>=', $request->date_from);
         }
@@ -1257,7 +1266,7 @@ class AdminController extends Controller
      */
     public function getUserDetails($userId)
     {
-        $user = User::with(['roles', 'userAuth'])->findOrFail($userId);
+        $user = User::with(['roles', 'userAuth', 'warnings.admin'])->findOrFail($userId);
 
         return response()->json([
             'success' => true,
@@ -1267,6 +1276,17 @@ class AdminController extends Controller
                 'email' => $user->email,
                 'created_at' => $user->created_at->format('M d, Y'),
                 'roles' => $user->roles->pluck('role_type'),
+                'warning_count' => $user->warning_count,
+                'warnings' => $user->warnings->map(function ($warning) {
+                    return [
+                        'id' => $warning->id,
+                        'type' => $warning->type,
+                        'message' => $warning->message,
+                        'admin_name' => $warning->admin->name ?? 'System',
+                        'created_at' => $warning->created_at->format('M d, Y h:i A'),
+                        'acknowledged_at' => $warning->acknowledged_at ? $warning->acknowledged_at->format('M d, Y h:i A') : null,
+                    ];
+                }),
                 'documents' => $user->userAuth->map(function ($auth) {
                     $expiryDate = $auth->expiry_date;
                     $daysRemaining = null;
