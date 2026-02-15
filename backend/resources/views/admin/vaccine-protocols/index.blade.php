@@ -128,6 +128,9 @@
                     <div class="pointer-events-none absolute inset-y-0 left-0 flex items-center px-3 text-gray-400">
                         <i data-lucide="search" class="w-4 h-4"></i>
                     </div>
+                </div>
+            </div>
+        </div>
 
         <!-- Action Buttons -->
         <div class="flex gap-3">
