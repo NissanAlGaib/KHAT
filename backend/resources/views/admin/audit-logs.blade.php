@@ -3,7 +3,19 @@
 @section('title', 'Audit Logs - KHAT Admin')
 
 @section('content')
-<h1 class="text-3xl font-bold text-gray-900 mb-2">Audit Logs</h1>
+<div class="flex justify-between items-center mb-2">
+    <h1 class="text-3xl font-bold text-gray-900">Audit Logs</h1>
+    <div class="flex gap-2">
+        <a href="{{ request()->fullUrlWithQuery(['export' => 'csv']) }}" class="inline-flex items-center gap-2 px-4 py-2 bg-green-600 text-white text-sm font-semibold rounded-lg hover:bg-green-700 transition-all shadow-sm" title="Export to CSV">
+            <i data-lucide="file-spreadsheet" class="w-4 h-4"></i>
+            <span class="hidden sm:inline">CSV</span>
+        </a>
+        <a href="{{ request()->fullUrlWithQuery(['export' => 'pdf']) }}" class="inline-flex items-center gap-2 px-4 py-2 bg-red-600 text-white text-sm font-semibold rounded-lg hover:bg-red-700 transition-all shadow-sm" title="Export to PDF">
+            <i data-lucide="file-text" class="w-4 h-4"></i>
+            <span class="hidden sm:inline">PDF</span>
+        </a>
+    </div>
+</div>
 <p class="text-sm text-gray-500 mb-6">Track all admin actions and system events</p>
 
 <div class="bg-white p-6 rounded-xl shadow-sm border border-gray-100 mb-6">

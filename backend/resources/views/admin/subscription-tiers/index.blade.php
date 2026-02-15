@@ -17,6 +17,16 @@
         <h1 class="text-3xl font-bold text-gray-900">Subscription Tiers</h1>
         <p class="text-sm text-gray-500 mt-1">Manage subscription plans and feature limits</p>
     </div>
+    <div class="flex gap-2">
+        <a href="{{ request()->fullUrlWithQuery(['export' => 'csv']) }}" class="flex items-center gap-2 px-4 py-2.5 bg-green-600 text-white text-sm font-semibold rounded-lg hover:bg-green-700 transition-all shadow-sm" title="Export to CSV">
+            <i data-lucide="file-spreadsheet" class="w-4 h-4"></i>
+            <span class="hidden sm:inline">CSV</span>
+        </a>
+        <a href="{{ request()->fullUrlWithQuery(['export' => 'pdf']) }}" class="flex items-center gap-2 px-4 py-2.5 bg-red-600 text-white text-sm font-semibold rounded-lg hover:bg-red-700 transition-all shadow-sm" title="Export to PDF">
+            <i data-lucide="file-text" class="w-4 h-4"></i>
+            <span class="hidden sm:inline">PDF</span>
+        </a>
+    </div>
 </div>
 
 <!-- Tiers Table -->

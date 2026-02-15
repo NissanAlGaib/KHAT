@@ -7,11 +7,14 @@ use App\Models\VaccineProtocol;
 use App\Models\ProtocolCategory;
 use App\Models\VaccinationShot;
 use App\Models\AuditLog;
+use App\Http\Controllers\Admin\Traits\Exportable;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
 
 class VaccineProtocolController extends Controller
 {
+    use Exportable;
+
     /**
      * Display list of vaccine protocols with filters.
      */
@@ -46,6 +49,19 @@ class VaccineProtocolController extends Controller
                   ->orWhere('slug', 'like', "%{$search}%")
                   ->orWhere('description', 'like', "%{$search}%");
             });
+        }
+
+        if ($request->has('export')) {
+            $csvColumns = [
+                'Name' => 'name',
+                'Slug' => 'slug',
+                'Category' => function($row) { return $row->category->name ?? 'None'; },
+                'Species' => 'species',
+                'Required' => function($row) { return $row->is_required ? 'Yes' : 'No'; },
+                'Type' => 'protocol_type',
+                'Status' => function($row) { return $row->is_active ? 'Active' : 'Inactive'; }
+            ];
+            return $this->export($query, $request->export, 'vaccine_protocols', 'admin.exports.vaccine-protocols-pdf', [], $csvColumns);
         }
 
         // Stats

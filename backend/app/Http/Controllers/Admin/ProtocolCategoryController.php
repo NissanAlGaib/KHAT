@@ -5,17 +5,31 @@ namespace App\Http\Controllers\Admin;
 use App\Http\Controllers\Controller;
 use App\Models\ProtocolCategory;
 use App\Models\AuditLog;
+use App\Http\Controllers\Admin\Traits\Exportable;
 use Illuminate\Http\Request;
 use Illuminate\Support\Str;
 
 class ProtocolCategoryController extends Controller
 {
+    use Exportable;
+
     /**
      * Display a listing of the protocol categories.
      */
-    public function index()
+    public function index(Request $request)
     {
-        $categories = ProtocolCategory::all();
+        $categories = ProtocolCategory::query();
+
+        if ($request->has('export')) {
+            $csvColumns = [
+                'Name' => 'name',
+                'Slug' => 'slug',
+                'Description' => 'description'
+            ];
+            return $this->export($categories, $request->export, 'protocol_categories', 'admin.exports.protocol-categories-pdf', [], $csvColumns);
+        }
+
+        $categories = $categories->get();
         return view('admin.protocol-categories.index', compact('categories'));
     }
 

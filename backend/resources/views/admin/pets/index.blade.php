@@ -121,6 +121,17 @@
             <a href="{{ route('admin.pets.index') }}" class="px-6 py-2.5 bg-white text-gray-700 text-sm font-medium rounded-lg border border-gray-300 hover:bg-gray-50 transition">
                 Reset Filters
             </a>
+
+            <div class="border-l border-gray-300 mx-1"></div>
+
+            <a href="{{ request()->fullUrlWithQuery(['export' => 'csv']) }}" class="flex items-center gap-2 px-4 py-2.5 bg-green-600 text-white text-sm font-semibold rounded-lg hover:bg-green-700 transition-all shadow-sm" title="Export to CSV">
+                <i data-lucide="file-spreadsheet" class="w-4 h-4"></i>
+                <span class="hidden sm:inline">CSV</span>
+            </a>
+            <a href="{{ request()->fullUrlWithQuery(['export' => 'pdf']) }}" class="flex items-center gap-2 px-4 py-2.5 bg-red-600 text-white text-sm font-semibold rounded-lg hover:bg-red-700 transition-all shadow-sm" title="Export to PDF">
+                <i data-lucide="file-text" class="w-4 h-4"></i>
+                <span class="hidden sm:inline">PDF</span>
+            </a>
         </div>
     </form>
 </div>

@@ -14,6 +14,7 @@ use App\Models\AuditLog;
 use App\Models\SafetyReport;
 use App\Models\UserBlock;
 use App\Models\SubscriptionTier;
+use App\Http\Controllers\Admin\Traits\Exportable;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
@@ -24,6 +25,8 @@ use Carbon\Carbon;
 
 class AdminController extends Controller
 {
+    use Exportable;
+
     /**
      * Calculate percentage growth between two values.
      *
@@ -307,6 +310,33 @@ class AdminController extends Controller
             });
         }
 
+        if ($request->has('export')) {
+            $viewData = ['status' => $status];
+            $csvColumns = [
+                'ID' => 'id',
+                'Name' => 'name',
+                'Email' => 'email',
+                'Roles' => function($user) {
+                    return $user->roles->pluck('role_type')->implode(', ');
+                },
+                'Status' => function($user) {
+                    return $user->status ?? 'active';
+                },
+                'Document Status' => function($user) {
+                    $auth = $user->userAuth->first();
+                    return $auth ? $auth->status : 'missing';
+                },
+                'Subscription' => function($user) {
+                    return $user->subscription_tier ?? 'free';
+                },
+                'Joined' => function($user) {
+                    return $user->created_at->format('Y-m-d H:i');
+                }
+            ];
+
+            return $this->export($query->filterByDate($request), $request->export, 'users_export', 'admin.exports.users-pdf', $viewData, $csvColumns);
+        }
+
         $users = $query->filterByDate($request)->paginate(15)->appends($request->all());
 
         return view('admin.users.index', compact('users', 'status'));
@@ -317,9 +347,21 @@ class AdminController extends Controller
      */
     public function adminsIndex(Request $request)
     {
-        $admins = User::whereHas('roles', function ($q) {
+        $query = User::whereHas('roles', function ($q) {
             $q->where('role_type', 'admin');
-        })->with('roles')->paginate(15);
+        })->with('roles');
+
+        if ($request->has('export')) {
+            $csvColumns = [
+                'ID' => 'id',
+                'Name' => 'name',
+                'Email' => 'email',
+                'Joined' => function($row) { return $row->created_at->format('Y-m-d H:i'); }
+            ];
+            return $this->export($query, $request->export, 'admins_export', 'admin.exports.admins-pdf', [], $csvColumns);
+        }
+
+        $admins = $query->paginate(15);
 
         return view('admin.admins.index', compact('admins'));
     }
@@ -435,6 +477,19 @@ class AdminController extends Controller
                 $q->where('name', 'like', "%{$search}%")
                     ->orWhere('pet_id', 'like', "%{$search}%");
             });
+        }
+
+        if ($request->has('export')) {
+            $csvColumns = [
+                'ID' => 'pet_id',
+                'Name' => 'name',
+                'Type' => 'species',
+                'Breed' => 'breed',
+                'Owner' => function($row) { return $row->owner->name ?? 'Unknown'; },
+                'Sex' => 'sex',
+                'Status' => 'status'
+            ];
+            return $this->export($query->filterByDate($request), $request->export, 'pets_export', 'admin.exports.pets-pdf', [], $csvColumns);
         }
 
         $pets = $query->filterByDate($request)->paginate(10)->appends($request->query());
@@ -833,6 +888,18 @@ class AdminController extends Controller
             });
         }
 
+        if ($request->has('export')) {
+             $csvColumns = [
+                'Date' => function($row) { return $row->created_at->format('Y-m-d'); },
+                'Requester Pet' => function($row) { return $row->requesterPet->name ?? 'Unknown'; },
+                'Requester Owner' => function($row) { return $row->requesterPet->owner->name ?? 'Unknown'; },
+                'Target Pet' => function($row) { return $row->targetPet->name ?? 'Unknown'; },
+                'Target Owner' => function($row) { return $row->targetPet->owner->name ?? 'Unknown'; },
+                'Status' => 'status'
+            ];
+            return $this->export($query->filterByDate($request), $request->export, 'matches_export', 'admin.exports.matches-pdf', [], $csvColumns);
+        }
+
         $matches = $query->filterByDate($request)->orderBy('created_at', 'desc')->paginate(15)->appends($request->query());
 
         // Get statistics
@@ -1066,6 +1133,18 @@ class AdminController extends Controller
             });
         }
 
+        if ($request->has('export')) {
+            $csvColumns = [
+                'ID' => 'id',
+                'Reporter' => function($row) { return $row->reporter->name ?? 'Unknown'; },
+                'Reported User' => function($row) { return $row->reported->name ?? 'Unknown'; },
+                'Reason' => 'reason',
+                'Status' => 'status',
+                'Date' => function($row) { return $row->created_at->format('Y-m-d H:i'); }
+            ];
+            return $this->export($query, $request->export, 'reports_export', 'admin.exports.reports-pdf', [], $csvColumns);
+        }
+
         $reports = $query->orderBy('created_at', 'desc')->paginate(15)->appends($request->query());
 
         // Statistics
@@ -1222,6 +1301,15 @@ class AdminController extends Controller
             });
         }
 
+        if ($request->has('export')) {
+            $csvColumns = [
+                'Date' => function($row) { return $row->created_at->format('Y-m-d'); },
+                'Blocker' => function($row) { return $row->blocker->name ?? 'Unknown'; },
+                'Blocked User' => function($row) { return $row->blocked->name ?? 'Unknown'; }
+            ];
+            return $this->export($query, $request->export, 'blocks_export', 'admin.exports.blocks-pdf', [], $csvColumns);
+        }
+
         $blocks = $query->orderBy('created_at', 'desc')->paginate(15)->appends($request->query());
         $totalBlocks = UserBlock::count();
 
@@ -1286,6 +1374,18 @@ class AdminController extends Controller
         }
         if ($request->filled('date_to')) {
             $query->whereDate('created_at', '<=', $request->date_to);
+        }
+
+        if ($request->has('export')) {
+            $csvColumns = [
+                'Date' => function($row) { return $row->created_at->format('Y-m-d H:i:s'); },
+                'User' => function($row) { return $row->user->name ?? 'System'; },
+                'Action' => 'action',
+                'Description' => 'description',
+                'Target Type' => 'target_type',
+                'Target ID' => 'target_id'
+            ];
+            return $this->export($query, $request->export, 'audit_logs_export', 'admin.exports.audit-logs-pdf', [], $csvColumns);
         }
 
         $logs = $query->paginate(20)->appends($request->query());

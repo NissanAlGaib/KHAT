@@ -5,16 +5,32 @@ namespace App\Http\Controllers\Admin;
 use App\Http\Controllers\Controller;
 use App\Models\SubscriptionTier;
 use App\Models\AuditLog;
+use App\Http\Controllers\Admin\Traits\Exportable;
 use Illuminate\Http\Request;
 
 class SubscriptionTierController extends Controller
 {
+    use Exportable;
+
     /**
      * Display a listing of the subscription tiers.
      */
-    public function index()
+    public function index(Request $request)
     {
-        $tiers = SubscriptionTier::all();
+        $tiers = SubscriptionTier::query();
+
+        if ($request->has('export')) {
+            $csvColumns = [
+                'Name' => 'name',
+                'Slug' => 'slug',
+                'Price' => 'price',
+                'Duration' => 'duration_days',
+                'Active' => function($row) { return $row->is_active ? 'Yes' : 'No'; }
+            ];
+            return $this->export($tiers, $request->export, 'subscription_tiers', 'admin.exports.subscription-tiers-pdf', [], $csvColumns);
+        }
+
+        $tiers = $tiers->get();
         return view('admin.subscription-tiers.index', compact('tiers'));
     }
 

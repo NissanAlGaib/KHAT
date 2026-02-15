@@ -8,10 +8,20 @@
         <h1 class="text-3xl font-bold text-gray-900 mb-2">Admin Management</h1>
         <p class="text-sm text-gray-500">Manage administrative accounts and access levels</p>
     </div>
-    <button onclick="openAddAdminModal()" class="inline-flex items-center gap-2 px-6 py-2.5 bg-[#E75234] text-white text-sm font-semibold rounded-lg shadow-sm hover:bg-[#d14024] transition-all hover:shadow-md">
-        <i data-lucide="user-plus" class="w-4 h-4"></i>
-        Add New Admin
-    </button>
+    <div class="flex gap-3">
+        <a href="{{ request()->fullUrlWithQuery(['export' => 'csv']) }}" class="inline-flex items-center gap-2 px-4 py-2.5 bg-green-600 text-white text-sm font-semibold rounded-lg shadow-sm hover:bg-green-700 transition-all" title="Export to CSV">
+            <i data-lucide="file-spreadsheet" class="w-4 h-4"></i>
+            <span class="hidden sm:inline">CSV</span>
+        </a>
+        <a href="{{ request()->fullUrlWithQuery(['export' => 'pdf']) }}" class="inline-flex items-center gap-2 px-4 py-2.5 bg-red-600 text-white text-sm font-semibold rounded-lg shadow-sm hover:bg-red-700 transition-all" title="Export to PDF">
+            <i data-lucide="file-text" class="w-4 h-4"></i>
+            <span class="hidden sm:inline">PDF</span>
+        </a>
+        <button onclick="openAddAdminModal()" class="inline-flex items-center gap-2 px-6 py-2.5 bg-[#E75234] text-white text-sm font-semibold rounded-lg shadow-sm hover:bg-[#d14024] transition-all hover:shadow-md">
+            <i data-lucide="user-plus" class="w-4 h-4"></i>
+            Add New Admin
+        </button>
+    </div>
 </div>
 
 @if(session('success'))
