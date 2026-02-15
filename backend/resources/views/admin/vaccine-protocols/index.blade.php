@@ -888,34 +888,6 @@
                 throw new Error('Server error');
             }
         })
-                            text: data.message || 'Protocol updated successfully.',
-                            timer: 1500,
-                            showConfirmButton: false
-                        }).then(function() {
-                            window.location.reload();
-                        });
-                    } else {
-                        window.location.reload();
-                    }
-                });
-            } else if (response.status === 422) {
-                return response.json().then(function(data) {
-                    errorList.innerHTML = '';
-                    errorsContainer.classList.remove('hidden');
-                    const errors = data.errors || {};
-                    Object.keys(errors).forEach(function(field) {
-                        errors[field].forEach(function(msg) {
-                            const li = document.createElement('li');
-                            li.textContent = msg;
-                            errorList.appendChild(li);
-                        });
-                    });
-                    errorsContainer.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
-                });
-            } else {
-                throw new Error('Server error');
-            }
-        })
         .catch(function(error) {
             console.error('Error:', error);
             if (typeof Swal !== 'undefined') {
