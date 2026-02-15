@@ -56,7 +56,7 @@ class CheckUserSuspension
                 }
 
                 if (Auth::guard('sanctum')->check()) {
-                     // Revoke token
+                     // Revoke token immediately
                      if (method_exists($user, 'currentAccessToken')) {
                          /** @var \Laravel\Sanctum\PersonalAccessToken|null $token */
                          $token = $user->currentAccessToken();
@@ -64,7 +64,15 @@ class CheckUserSuspension
                              $token->delete();
                          }
                      }
-                     return response()->json(['message' => $message], 403);
+                     
+                     return response()->json([
+                         'message' => $user->status === 'banned' ? 'Account Banned' : 'Account Suspended',
+                         'error' => $user->status === 'banned' ? 'account_banned' : 'account_suspended',
+                         'reason' => $user->suspension_reason,
+                         'suspended_at' => $user->suspended_at,
+                         'end_date' => $user->suspension_end_date,
+                         'support_email' => 'support@pawlink.ph'
+                     ], 403);
                 }
             }
         }

@@ -532,7 +532,30 @@ class AdminController extends Controller
             } else {
                 $user->suspension_end_date = null; // Indefinite
             }
+
+            // Send notification
+            try {
+                $user->notify(new \App\Notifications\UserStatusNotification(
+                    $request->status, // 'suspended' or 'banned'
+                    $request->suspension_reason,
+                    $request->suspension_duration,
+                    $user->suspension_end_date
+                ));
+            } catch (\Exception $e) {
+                // Log error but don't fail the request
+                \Illuminate\Support\Facades\Log::error("Failed to send suspension notification to User {$user->id}: " . $e->getMessage());
+            }
+
         } else {
+            // If reactivating from suspended/banned
+            if (in_array($oldStatus, ['suspended', 'banned']) && $request->status === 'active') {
+                try {
+                    $user->notify(new \App\Notifications\UserStatusNotification('reactivated'));
+                } catch (\Exception $e) {
+                    \Illuminate\Support\Facades\Log::error("Failed to send reactivation notification to User {$user->id}: " . $e->getMessage());
+                }
+            }
+            
             $user->suspension_reason = null;
             $user->suspended_at = null;
             $user->suspension_end_date = null;

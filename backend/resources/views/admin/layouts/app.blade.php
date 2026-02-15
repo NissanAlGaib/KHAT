@@ -90,6 +90,12 @@
                         <span>Admin Management</span>
                     </a>
                 </li>
+                <li>
+                    <a href="{{ route('admin.reviews.index') }}" class="flex items-center gap-3 px-3 py-2.5 rounded-lg {{ request()->routeIs('admin.reviews.*') ? 'bg-white/10 text-white font-semibold border-l-[3px] border-[#E75234]' : 'text-gray-400 hover:text-white hover:bg-white/10 font-medium' }}">
+                        <i data-lucide="star" class="w-5 h-5 {{ request()->routeIs('admin.reviews.*') ? 'text-white' : 'text-gray-500' }}"></i>
+                        <span>Reviews</span>
+                    </a>
+                </li>
 
                 {{-- Pet Management collapsible group --}}
                 <li>

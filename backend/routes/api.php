@@ -105,9 +105,12 @@ Route::middleware(['auth:sanctum'])
         Route::put('/verification/{authId}/status', [VerificationController::class, 'updateVerificationStatus']);
         Route::post('/verification/{authId}/resubmit', [VerificationController::class, 'resubmitVerification']);
 
-        // Notification routes
+        // Notifications
         Route::get('/notifications', [NotificationController::class, 'getNotifications']);
         Route::get('/notifications/count', [NotificationController::class, 'getNotificationCount']);
+
+        // User Status & Warnings
+        Route::put('/user/warnings/{id}/acknowledge', [\App\Http\Controllers\Api\UserWarningController::class, 'acknowledge']);
 
         // Match request routes
         Route::post('/match-requests', [MatchRequestController::class, 'store']);

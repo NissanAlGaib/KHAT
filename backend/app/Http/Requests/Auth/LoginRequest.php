@@ -49,6 +49,31 @@ class LoginRequest extends FormRequest
             ]);
         }
 
+        $user = Auth::user();
+
+        if ($user->status === 'suspended') {
+            Auth::logout();
+            
+            $message = 'Your account is suspended.';
+            if ($user->suspension_end_date) {
+                $message .= ' Suspension lifts on ' . $user->suspension_end_date->format('M d, Y');
+            }
+            if ($user->suspension_reason) {
+                $message .= ' Reason: ' . $user->suspension_reason;
+            }
+
+            throw ValidationException::withMessages([
+                'email' => [$message],
+            ]);
+        }
+
+        if ($user->status === 'banned') {
+            Auth::logout();
+            throw ValidationException::withMessages([
+                'email' => ['Your account has been permanently banned.' . ($user->suspension_reason ? ' Reason: ' . $user->suspension_reason : '')],
+            ]);
+        }
+
         RateLimiter::clear($this->throttleKey());
     }
 

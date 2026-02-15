@@ -36,6 +36,10 @@ Route::prefix('admin')->group(function () {
         Route::post('/admins', [AdminController::class, 'storeAdmin'])->name('admin.admins.store');
         Route::delete('/admins/{userId}/revoke', [AdminController::class, 'revokeAdmin'])->name('admin.admins.revoke');
 
+        // Review Management
+        Route::get('/reviews', [\App\Http\Controllers\Admin\UserReviewController::class, 'index'])->name('admin.reviews.index');
+        Route::delete('/reviews/{id}', [\App\Http\Controllers\Admin\UserReviewController::class, 'destroy'])->name('admin.reviews.destroy');
+
         // Pet Management
         Route::get('/pets', [AdminController::class, 'petsIndex'])->name('admin.pets.index');
         Route::get('/pets/{petId}/details', [AdminController::class, 'petDetails'])->name('admin.pets.details');

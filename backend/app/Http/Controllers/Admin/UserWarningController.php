@@ -40,6 +40,7 @@ class UserWarningController extends Controller
         if ($user->warning_count >= 3 && $user->status !== 'banned') {
             $oldStatus = $user->status;
             $user->status = 'banned';
+            $user->suspension_reason = "Account banned due to accumulating multiple warnings (Threshold: 3).";
             $user->save();
 
             $statusMessage .= " User has been automatically banned due to reaching the warning threshold.";
@@ -54,6 +55,27 @@ class UserWarningController extends Controller
                 ['status' => $oldStatus],
                 ['status' => 'banned']
             );
+
+            // Notify user about ban
+            try {
+                $user->notify(new \App\Notifications\UserStatusNotification(
+                    'banned',
+                    $user->suspension_reason
+                ));
+            } catch (\Exception $e) {
+                // Log but continue
+            }
+
+        } else {
+            // Notify user about warning
+            try {
+                $user->notify(new \App\Notifications\UserStatusNotification(
+                    'warning',
+                    $request->message
+                ));
+            } catch (\Exception $e) {
+                // Log but continue
+            }
         }
 
         // Log the warning action
