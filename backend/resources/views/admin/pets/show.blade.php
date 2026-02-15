@@ -186,7 +186,7 @@
                     <p class="text-xs text-gray-500 mb-1">Verification Status</p>
                     @php
                     $userAuthRecord = optional($pet->owner)->userAuth ? optional($pet->owner)->userAuth->first() : null;
-                    $verificationStatus = $userAuthRecord->status ?? 'unknown';
+                    $verificationStatus = optional($userAuthRecord)->status ?? 'unknown';
                     @endphp
                     <span class="inline-block px-3 py-1 rounded-full text-xs font-medium
                         @if($verificationStatus === 'approved') bg-green-100 text-green-700
@@ -409,7 +409,8 @@
                                         <div class="flex items-center gap-2 mb-1">
                                             <h4 class="font-semibold text-gray-900">Rabies Vaccination</h4>
                                             @php
-                                            $daysRemaining = \Carbon\Carbon::now()->diffInDays(\Carbon\Carbon::parse($rabiesVaccination->expiration_date), false);
+                                            $expiryDate = $rabiesVaccination->expiration_date ? \Carbon\Carbon::parse($rabiesVaccination->expiration_date) : null;
+                                            $daysRemaining = $expiryDate ? \Carbon\Carbon::now()->diffInDays($expiryDate, false) : 0;
                                             @endphp
                                             <span class="px-2 py-0.5 {{ $daysRemaining > 30 ? 'bg-green-100 text-green-700' : ($daysRemaining > 0 ? 'bg-yellow-100 text-yellow-700' : 'bg-red-100 text-red-700') }} text-xs font-medium rounded-full">
                                                 {{ $daysRemaining > 0 ? 'Active' : 'Expired' }}
@@ -419,13 +420,13 @@
                                         <div class="text-xs text-gray-500 space-y-1">
                                             <p><span class="font-medium">Clinic:</span> {{ $rabiesVaccination->clinic_name }}</p>
                                             <p><span class="font-medium">Veterinarian:</span> {{ $rabiesVaccination->veterinarian_name }}</p>
-                                            <p><span class="font-medium">Given Date:</span> {{ \Carbon\Carbon::parse($rabiesVaccination->given_date)->format('d M Y') }}</p>
-                                            <p><span class="font-medium">Expiry:</span> {{ \Carbon\Carbon::parse($rabiesVaccination->expiration_date)->format('d M Y') }}</p>
+                                            <p><span class="font-medium">Given Date:</span> {{ $rabiesVaccination->given_date ? \Carbon\Carbon::parse($rabiesVaccination->given_date)->format('d M Y') : 'N/A' }}</p>
+                                            <p><span class="font-medium">Expiry:</span> {{ $expiryDate ? $expiryDate->format('d M Y') : 'N/A' }}</p>
                                         </div>
                                     </div>
                                 </div>
                                 <div class="flex items-center gap-2">
-                                    <button onclick="viewDocument('{{ Storage::disk('do_spaces')->url($rabiesVaccination->vaccination_record) }}')" class="px-3 py-1.5 bg-white border border-gray-300 text-gray-700 text-xs font-medium rounded hover:bg-gray-50 transition">
+                                    <button onclick="viewDocument('{{ $rabiesVaccination->vaccination_record ? Storage::disk('do_spaces')->url($rabiesVaccination->vaccination_record) : '#' }}')" class="px-3 py-1.5 bg-white border border-gray-300 text-gray-700 text-xs font-medium rounded hover:bg-gray-50 transition">
                                         View
                                     </button>
                                     @if($rabiesVaccination->status === 'pending')
@@ -461,7 +462,8 @@
                                         <div class="flex items-center gap-2 mb-1">
                                             <h4 class="font-semibold text-gray-900">DHPP Vaccination</h4>
                                             @php
-                                            $daysRemaining = \Carbon\Carbon::now()->diffInDays(\Carbon\Carbon::parse($dhppVaccination->expiration_date), false);
+                                            $expiryDate = $dhppVaccination->expiration_date ? \Carbon\Carbon::parse($dhppVaccination->expiration_date) : null;
+                                            $daysRemaining = $expiryDate ? \Carbon\Carbon::now()->diffInDays($expiryDate, false) : 0;
                                             @endphp
                                             <span class="px-2 py-0.5 {{ $daysRemaining > 30 ? 'bg-green-100 text-green-700' : ($daysRemaining > 0 ? 'bg-yellow-100 text-yellow-700' : 'bg-red-100 text-red-700') }} text-xs font-medium rounded-full">
                                                 {{ $daysRemaining > 0 ? 'Active' : 'Expired' }}
@@ -471,13 +473,13 @@
                                         <div class="text-xs text-gray-500 space-y-1">
                                             <p><span class="font-medium">Clinic:</span> {{ $dhppVaccination->clinic_name }}</p>
                                             <p><span class="font-medium">Veterinarian:</span> {{ $dhppVaccination->veterinarian_name }}</p>
-                                            <p><span class="font-medium">Given Date:</span> {{ \Carbon\Carbon::parse($dhppVaccination->given_date)->format('d M Y') }}</p>
-                                            <p><span class="font-medium">Expiry:</span> {{ \Carbon\Carbon::parse($dhppVaccination->expiration_date)->format('d M Y') }}</p>
+                                            <p><span class="font-medium">Given Date:</span> {{ $dhppVaccination->given_date ? \Carbon\Carbon::parse($dhppVaccination->given_date)->format('d M Y') : 'N/A' }}</p>
+                                            <p><span class="font-medium">Expiry:</span> {{ $expiryDate ? $expiryDate->format('d M Y') : 'N/A' }}</p>
                                         </div>
                                     </div>
                                 </div>
                                 <div class="flex items-center gap-2">
-                                    <button onclick="viewDocument('{{ Storage::disk('do_spaces')->url($dhppVaccination->vaccination_record) }}')" class="px-3 py-1.5 bg-white border border-gray-300 text-gray-700 text-xs font-medium rounded hover:bg-gray-50 transition">
+                                    <button onclick="viewDocument('{{ $dhppVaccination->vaccination_record ? Storage::disk('do_spaces')->url($dhppVaccination->vaccination_record) : '#' }}')" class="px-3 py-1.5 bg-white border border-gray-300 text-gray-700 text-xs font-medium rounded hover:bg-gray-50 transition">
                                         View
                                     </button>
                                     @if($dhppVaccination->status === 'pending')
@@ -513,7 +515,8 @@
                                         <div class="flex items-center gap-2 mb-1">
                                             <h4 class="font-semibold text-gray-900">{{ $vaccination->vaccine_name }} Vaccination</h4>
                                             @php
-                                            $daysRemaining = \Carbon\Carbon::now()->diffInDays(\Carbon\Carbon::parse($vaccination->expiration_date), false);
+                                            $expiryDate = $vaccination->expiration_date ? \Carbon\Carbon::parse($vaccination->expiration_date) : null;
+                                            $daysRemaining = $expiryDate ? \Carbon\Carbon::now()->diffInDays($expiryDate, false) : 0;
                                             @endphp
                                             <span class="px-2 py-0.5 {{ $daysRemaining > 30 ? 'bg-green-100 text-green-700' : ($daysRemaining > 0 ? 'bg-yellow-100 text-yellow-700' : 'bg-red-100 text-red-700') }} text-xs font-medium rounded-full">
                                                 {{ $daysRemaining > 0 ? 'Active' : 'Expired' }}
@@ -523,13 +526,13 @@
                                         <div class="text-xs text-gray-500 space-y-1">
                                             <p><span class="font-medium">Clinic:</span> {{ $vaccination->clinic_name }}</p>
                                             <p><span class="font-medium">Veterinarian:</span> {{ $vaccination->veterinarian_name }}</p>
-                                            <p><span class="font-medium">Given Date:</span> {{ \Carbon\Carbon::parse($vaccination->given_date)->format('d M Y') }}</p>
-                                            <p><span class="font-medium">Expiry:</span> {{ \Carbon\Carbon::parse($vaccination->expiration_date)->format('d M Y') }}</p>
+                                            <p><span class="font-medium">Given Date:</span> {{ $vaccination->given_date ? \Carbon\Carbon::parse($vaccination->given_date)->format('d M Y') : 'N/A' }}</p>
+                                            <p><span class="font-medium">Expiry:</span> {{ $expiryDate ? $expiryDate->format('d M Y') : 'N/A' }}</p>
                                         </div>
                                     </div>
                                 </div>
                                 <div class="flex items-center gap-2">
-                                    <button onclick="viewDocument('{{ Storage::disk('do_spaces')->url($vaccination->vaccination_record) }}')" class="px-3 py-1.5 bg-white border border-gray-300 text-gray-700 text-xs font-medium rounded hover:bg-gray-50 transition">
+                                    <button onclick="viewDocument('{{ $vaccination->vaccination_record ? Storage::disk('do_spaces')->url($vaccination->vaccination_record) : '#' }}')" class="px-3 py-1.5 bg-white border border-gray-300 text-gray-700 text-xs font-medium rounded hover:bg-gray-50 transition">
                                         View
                                     </button>
                                     @if($vaccination->status === 'pending')
@@ -565,7 +568,8 @@
                                         <div class="flex items-center gap-2 mb-1">
                                             <h4 class="font-semibold text-gray-900">Health Certificate</h4>
                                             @php
-                                            $daysRemaining = \Carbon\Carbon::now()->diffInDays(\Carbon\Carbon::parse($healthRecord->expiration_date), false);
+                                            $expiryDate = $healthRecord->expiration_date ? \Carbon\Carbon::parse($healthRecord->expiration_date) : null;
+                                            $daysRemaining = $expiryDate ? \Carbon\Carbon::now()->diffInDays($expiryDate, false) : 0;
                                             @endphp
                                             <span class="px-2 py-0.5 {{ $daysRemaining > 30 ? 'bg-green-100 text-green-700' : ($daysRemaining > 0 ? 'bg-yellow-100 text-yellow-700' : 'bg-red-100 text-red-700') }} text-xs font-medium rounded-full">
                                                 {{ $daysRemaining > 0 ? 'Active' : 'Expired' }}
@@ -575,13 +579,13 @@
                                         <div class="text-xs text-gray-500 space-y-1">
                                             <p><span class="font-medium">Clinic:</span> {{ $healthRecord->clinic_name }}</p>
                                             <p><span class="font-medium">Veterinarian:</span> {{ $healthRecord->veterinarian_name }}</p>
-                                            <p><span class="font-medium">Given Date:</span> {{ \Carbon\Carbon::parse($healthRecord->given_date)->format('d M Y') }}</p>
-                                            <p><span class="font-medium">Expiry:</span> {{ \Carbon\Carbon::parse($healthRecord->expiration_date)->format('d M Y') }}</p>
+                                            <p><span class="font-medium">Given Date:</span> {{ $healthRecord->given_date ? \Carbon\Carbon::parse($healthRecord->given_date)->format('d M Y') : 'N/A' }}</p>
+                                            <p><span class="font-medium">Expiry:</span> {{ $expiryDate ? $expiryDate->format('d M Y') : 'N/A' }}</p>
                                         </div>
                                     </div>
                                 </div>
                                 <div class="flex items-center gap-2">
-                                    <button onclick="viewDocument('{{ Storage::disk('do_spaces')->url($healthRecord->record_path) }}')" class="px-3 py-1.5 bg-white border border-gray-300 text-gray-700 text-xs font-medium rounded hover:bg-gray-50 transition">
+                                    <button onclick="viewDocument('{{ $healthRecord->record_path ? Storage::disk('do_spaces')->url($healthRecord->record_path) : '#' }}')" class="px-3 py-1.5 bg-white border border-gray-300 text-gray-700 text-xs font-medium rounded hover:bg-gray-50 transition">
                                         View
                                     </button>
                                     @if($healthRecord->status === 'pending')
