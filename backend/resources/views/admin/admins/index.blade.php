@@ -61,7 +61,12 @@
                         <span class="inline-block px-2.5 py-1 rounded-md text-xs font-semibold bg-orange-100 text-orange-700 capitalize mr-1 mb-1">{{ $role->role_type }}</span>
                         @endforeach
                     </td>
-                    <td class="px-6 py-4 text-gray-500">{{ $admin->created_at->format('M d, Y') }}</td>
+                    <td class="px-6 py-4" title="{{ $admin->created_at->format('M d, Y h:i A') }} ({{ $admin->created_at->diffForHumans() }})">
+                        <div class="flex flex-col">
+                            <span class="text-sm font-medium text-gray-900">{{ $admin->created_at->format('M d, Y') }}</span>
+                            <span class="text-xs text-gray-500">{{ $admin->created_at->format('h:i A') }}</span>
+                        </div>
+                    </td>
                     <td class="px-6 py-4 text-center">
                         @if($admin->id !== Auth::id())
                         <button onclick="confirmRevoke({{ $admin->id }}, '{{ $admin->name ?? $admin->email }}')" class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold text-red-600 hover:bg-red-50 transition-colors">

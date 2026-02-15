@@ -314,6 +314,7 @@
                     <th class="px-6 py-4 font-semibold">Series Doses</th>
                     <th class="px-6 py-4 font-semibold">Booster Interval</th>
                     <th class="px-6 py-4 font-semibold text-center">Status</th>
+                    <th class="px-6 py-4 font-semibold">Created</th>
                     <th class="px-6 py-4 font-semibold text-center">Actions</th>
                 </tr>
             </thead>
@@ -361,6 +362,12 @@
                         @else
                             <span class="inline-block rounded-full px-2.5 py-0.5 text-xs font-medium bg-gray-100 text-gray-800">Inactive</span>
                         @endif
+                    </td>
+                    <td class="px-6 py-4" title="{{ $protocol->created_at->format('M d, Y h:i A') }} ({{ $protocol->created_at->diffForHumans() }})">
+                        <div class="flex flex-col">
+                            <span class="text-sm font-medium text-gray-900">{{ $protocol->created_at->format('M d, Y') }}</span>
+                            <span class="text-xs text-gray-500">{{ $protocol->created_at->format('h:i A') }}</span>
+                        </div>
                     </td>
                     <td class="px-6 py-4 text-center">
                         <div class="flex items-center justify-center gap-2">

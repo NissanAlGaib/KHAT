@@ -191,6 +191,7 @@
                     <th class="px-6 py-4 font-semibold">Age</th>
                     <th class="px-6 py-4 font-semibold">Sex</th>
                     <th class="px-6 py-4 font-semibold">Owner</th>
+                    <th class="px-6 py-4 font-semibold">Registered</th>
                     <th class="px-6 py-4 font-semibold text-center">Status</th>
                     <th class="px-6 py-4 font-semibold text-center rounded-tr-xl">Actions</th>
                 </tr>
@@ -236,6 +237,12 @@
                                     <i data-lucide="clock" class="w-3 h-3"></i> Verification Pending
                                 </span>
                             @endif
+                        </div>
+                    </td>
+                    <td class="px-6 py-4" title="{{ $pet->created_at->format('M d, Y h:i A') }} ({{ $pet->created_at->diffForHumans() }})">
+                        <div class="flex flex-col">
+                            <span class="text-sm font-medium text-gray-900">{{ $pet->created_at->format('M d, Y') }}</span>
+                            <span class="text-xs text-gray-500">{{ $pet->created_at->format('h:i A') }}</span>
                         </div>
                     </td>
                     <td class="px-6 py-4 text-center">

@@ -171,6 +171,7 @@
                     <th class="px-6 py-4 font-semibold">Account Status</th>
                     <th class="px-6 py-4 font-semibold">Document Status</th>
                     <th class="px-6 py-4 font-semibold">Subscription Tier</th>
+                    <th class="px-6 py-4 font-semibold">Joined</th>
                     <th class="px-6 py-4 font-semibold text-center">Reports</th>
                     <th class="px-6 py-4 font-semibold text-center">Actions</th>
                 </tr>
@@ -282,6 +283,12 @@
                         <span class="inline-block px-3 py-1.5 rounded-lg text-xs font-semibold {{ $tierColors[$tier] }}">
                             {{ ucfirst($tier) }}
                         </span>
+                    </td>
+                    <td class="px-6 py-4" title="{{ $user->created_at->format('M d, Y h:i A') }} ({{ $user->created_at->diffForHumans() }})">
+                        <div class="flex flex-col">
+                            <span class="text-sm font-medium text-gray-900">{{ $user->created_at->format('M d, Y') }}</span>
+                            <span class="text-xs text-gray-500">{{ $user->created_at->format('h:i A') }}</span>
+                        </div>
                     </td>
                     <td class="px-6 py-4 text-center">
                         @if($user->reports_against_count > 0)

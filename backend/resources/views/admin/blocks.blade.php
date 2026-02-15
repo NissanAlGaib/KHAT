@@ -59,7 +59,7 @@
                 <tr class="bg-[#E75234] text-white text-sm">
                     <th class="px-6 py-4 font-semibold">Blocker</th>
                     <th class="px-6 py-4 font-semibold">Blocked User</th>
-                    <th class="px-6 py-4 font-semibold">Date</th>
+                    <th class="px-6 py-4 font-semibold">Blocked On</th>
                     <th class="px-6 py-4 font-semibold">Actions</th>
                 </tr>
             </thead>
@@ -86,8 +86,11 @@
                             </div>
                         </div>
                     </td>
-                    <td class="px-6 py-4 text-gray-500">
-                        {{ $block->created_at->format('M d, Y H:i') }}
+                    <td class="px-6 py-4" title="{{ $block->created_at->format('M d, Y h:i A') }} ({{ $block->created_at->diffForHumans() }})">
+                        <div class="flex flex-col">
+                            <span class="text-sm font-medium text-gray-900">{{ $block->created_at->format('M d, Y') }}</span>
+                            <span class="text-xs text-gray-500">{{ $block->created_at->format('h:i A') }}</span>
+                        </div>
                     </td>
                     <td class="px-6 py-4">
                         <button onclick="forceUnblock({{ $block->id }})" class="text-red-600 hover:text-red-800 font-semibold text-xs border border-red-200 bg-red-50 px-3 py-1.5 rounded-lg hover:bg-red-100 transition-colors">

@@ -113,7 +113,7 @@
                     <th class="px-6 py-4 font-semibold">Reported User</th>
                     <th class="px-6 py-4 font-semibold">Reason</th>
                     <th class="px-6 py-4 font-semibold">Status</th>
-                    <th class="px-6 py-4 font-semibold">Date</th>
+                    <th class="px-6 py-4 font-semibold">Reported</th>
                     <th class="px-6 py-4 font-semibold">Actions</th>
                 </tr>
             </thead>
@@ -153,8 +153,11 @@
                             {{ ucfirst($report->status) }}
                         </span>
                     </td>
-                    <td class="px-6 py-4 text-gray-500">
-                        {{ $report->created_at->format('M d, Y') }}
+                    <td class="px-6 py-4" title="{{ $report->created_at->format('M d, Y h:i A') }} ({{ $report->created_at->diffForHumans() }})">
+                        <div class="flex flex-col">
+                            <span class="text-sm font-medium text-gray-900">{{ $report->created_at->format('M d, Y') }}</span>
+                            <span class="text-xs text-gray-500">{{ $report->created_at->format('h:i A') }}</span>
+                        </div>
                     </td>
                     <td class="px-6 py-4">
                         <button onclick="openReportModal({{ $report->id }})" class="text-[#E75234] hover:text-[#d14024] font-semibold text-sm">
