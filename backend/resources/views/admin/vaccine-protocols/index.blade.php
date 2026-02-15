@@ -208,21 +208,21 @@
                         <label class="block text-sm font-semibold text-gray-700 mb-3">Protocol Type <span class="text-red-500">*</span></label>
                         <div class="space-y-2">
                             <label class="flex items-start gap-3 p-3 rounded-lg border border-gray-200 cursor-pointer hover:border-[#E75234] hover:bg-[#FDF4F2] transition-colors">
-                                <input type="radio" name="protocol_type" id="edit_type_series" value="series_only" class="mt-0.5 w-4 h-4 text-[#E75234] focus:ring-[#E75234] border-gray-300">
+                                <input type="radio" name="protocol_type" id="edit_type_series" value="series_only" onchange="updateEditFieldVisibility()" class="mt-0.5 w-4 h-4 text-[#E75234] focus:ring-[#E75234] border-gray-300">
                                 <div>
                                     <span class="block text-sm font-medium text-gray-900">Fixed Series</span>
                                     <span class="block text-xs text-gray-500 mt-0.5">A set number of doses with intervals (e.g., DHPP puppy series)</span>
                                 </div>
                             </label>
                             <label class="flex items-start gap-3 p-3 rounded-lg border border-gray-200 cursor-pointer hover:border-[#E75234] hover:bg-[#FDF4F2] transition-colors">
-                                <input type="radio" name="protocol_type" id="edit_type_booster" value="series_with_booster" class="mt-0.5 w-4 h-4 text-[#E75234] focus:ring-[#E75234] border-gray-300">
+                                <input type="radio" name="protocol_type" id="edit_type_booster" value="series_with_booster" onchange="updateEditFieldVisibility()" class="mt-0.5 w-4 h-4 text-[#E75234] focus:ring-[#E75234] border-gray-300">
                                 <div>
                                     <span class="block text-sm font-medium text-gray-900">Series + Booster</span>
                                     <span class="block text-xs text-gray-500 mt-0.5">Initial series followed by recurring boosters (e.g., Rabies)</span>
                                 </div>
                             </label>
                             <label class="flex items-start gap-3 p-3 rounded-lg border border-gray-200 cursor-pointer hover:border-[#E75234] hover:bg-[#FDF4F2] transition-colors">
-                                <input type="radio" name="protocol_type" id="edit_type_recurring" value="recurring" class="mt-0.5 w-4 h-4 text-[#E75234] focus:ring-[#E75234] border-gray-300">
+                                <input type="radio" name="protocol_type" id="edit_type_recurring" value="recurring" onchange="updateEditFieldVisibility()" class="mt-0.5 w-4 h-4 text-[#E75234] focus:ring-[#E75234] border-gray-300">
                                 <div>
                                     <span class="block text-sm font-medium text-gray-900">Recurring Only</span>
                                     <span class="block text-xs text-gray-500 mt-0.5">Regular recurring shots with no initial series (e.g., annual heartworm)</span>
@@ -795,12 +795,14 @@
         document.getElementById('edit_booster_interval_days').value = boosterInterval > 0 ? boosterInterval : '';
         document.getElementById('edit_sort_order').value = sortOrder;
 
-        // Set radio (Robust ID-based selection)
+        // Set radio (Robust ID-based selection with fallback)
+        console.log('Edit Type:', type);
         if (type === 'series_only') {
             document.getElementById('edit_type_series').checked = true;
         } else if (type === 'series_with_booster') {
             document.getElementById('edit_type_booster').checked = true;
-        } else if (type === 'recurring') {
+        } else {
+            // Default/Fallback
             document.getElementById('edit_type_recurring').checked = true;
         }
         
