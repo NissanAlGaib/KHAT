@@ -275,7 +275,7 @@
                 <button onclick="closeEditModal()" class="px-5 py-2.5 bg-white text-gray-700 text-sm font-semibold rounded-lg border border-gray-300 hover:bg-gray-50 transition-all">
                     Cancel
                 </button>
-                <button onclick="submitEditForm()" id="editSubmitBtn" class="px-6 py-2.5 bg-gradient-to-r from-[#E75234] to-[#d14024] text-white text-sm font-semibold rounded-lg shadow-sm hover:shadow-md transition-all inline-flex items-center gap-2">
+                <button type="button" onclick="submitEditForm()" id="editSubmitBtn" class="px-6 py-2.5 bg-gradient-to-r from-[#E75234] to-[#d14024] text-white text-sm font-semibold rounded-lg shadow-sm hover:shadow-md transition-all inline-flex items-center gap-2">
                     <i data-lucide="save" class="w-4 h-4"></i>
                     Update Protocol
                 </button>
@@ -320,6 +320,14 @@
             </thead>
             <tbody class="divide-y divide-gray-100 text-sm">
                 @forelse($protocols as $protocol)
+                @php
+                    $protocolType = 'recurring';
+                    if ($protocol->series_doses > 0 && $protocol->booster_interval_days > 0) {
+                        $protocolType = 'series_with_booster';
+                    } elseif ($protocol->series_doses > 0) {
+                        $protocolType = 'series_only';
+                    }
+                @endphp
                 <tr class="hover:bg-orange-50/50 transition-colors">
                     <td class="px-6 py-4 font-medium text-gray-900">{{ $protocol->name }}</td>
                     <td class="px-6 py-4">
@@ -389,6 +397,7 @@
                                 data-series-interval="{{ $protocol->series_interval_days }}"
                                 data-booster-interval="{{ $protocol->booster_interval_days }}"
                                 data-sort-order="{{ $protocol->sort_order }}"
+                                data-protocol-type="{{ $protocolType }}"
                                 class="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors">
                                 <i data-lucide="pencil" class="w-3.5 h-3.5"></i>
                                 Edit
@@ -572,7 +581,7 @@
                 <button onclick="closeCreateModal()" class="px-5 py-2.5 bg-white text-gray-700 text-sm font-semibold rounded-lg border border-gray-300 hover:bg-gray-50 transition-all">
                     Cancel
                 </button>
-                <button onclick="submitCreateForm()" id="createSubmitBtn" class="px-6 py-2.5 bg-gradient-to-r from-[#E75234] to-[#d14024] text-white text-sm font-semibold rounded-lg shadow-sm hover:shadow-md transition-all inline-flex items-center gap-2">
+                <button type="button" onclick="submitCreateForm()" id="createSubmitBtn" class="px-6 py-2.5 bg-gradient-to-r from-[#E75234] to-[#d14024] text-white text-sm font-semibold rounded-lg shadow-sm hover:shadow-md transition-all inline-flex items-center gap-2">
                     <i data-lucide="plus" class="w-4 h-4"></i>
                     Create Protocol
                 </button>
@@ -773,6 +782,7 @@
         const seriesInterval = btn.getAttribute('data-series-interval');
         const boosterInterval = parseInt(btn.getAttribute('data-booster-interval') || 0);
         const sortOrder = btn.getAttribute('data-sort-order');
+        const type = btn.getAttribute('data-protocol-type');
 
         // Populate fields
         document.getElementById('edit_protocol_id').value = id;
@@ -784,16 +794,6 @@
         document.getElementById('edit_series_interval_days').value = seriesInterval > 0 ? seriesInterval : '';
         document.getElementById('edit_booster_interval_days').value = boosterInterval > 0 ? boosterInterval : '';
         document.getElementById('edit_sort_order').value = sortOrder;
-
-        // Determine Protocol Type
-        let type = 'recurring';
-        if (seriesDoses > 0 && boosterInterval > 0) {
-            type = 'series_with_booster';
-        } else if (seriesDoses > 0) {
-            type = 'series_only';
-        } else {
-            type = 'recurring';
-        }
 
         // Set radio
         const radio = document.querySelector(`#editProtocolForm input[name="protocol_type"][value="${type}"]`);
