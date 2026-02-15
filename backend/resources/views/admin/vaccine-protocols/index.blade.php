@@ -143,7 +143,7 @@
                     <h2 class="text-xl font-bold text-gray-900">Edit Vaccine Protocol</h2>
                     <p class="text-sm text-gray-500 mt-0.5">Update protocol details and dosing schedule</p>
                 </div>
-                <button onclick="closeEditModal()" class="w-8 h-8 rounded-lg flex items-center justify-center text-gray-400 hover:text-gray-600 hover:bg-gray-100 transition-colors">
+                <button type="button" onclick="closeEditModal()" class="w-8 h-8 rounded-lg flex items-center justify-center text-gray-400 hover:text-gray-600 hover:bg-gray-100 transition-colors">
                     <i data-lucide="x" class="w-5 h-5"></i>
                 </button>
             </div>
@@ -272,7 +272,7 @@
 
             <!-- Modal Footer -->
             <div class="flex items-center justify-end gap-3 px-6 py-4 border-t border-gray-200 bg-gray-50 flex-shrink-0">
-                <button onclick="closeEditModal()" class="px-5 py-2.5 bg-white text-gray-700 text-sm font-semibold rounded-lg border border-gray-300 hover:bg-gray-50 transition-all">
+                <button type="button" onclick="closeEditModal()" class="px-5 py-2.5 bg-white text-gray-700 text-sm font-semibold rounded-lg border border-gray-300 hover:bg-gray-50 transition-all">
                     Cancel
                 </button>
                 <button type="button" onclick="submitEditForm()" id="editSubmitBtn" class="px-6 py-2.5 bg-gradient-to-r from-[#E75234] to-[#d14024] text-white text-sm font-semibold rounded-lg shadow-sm hover:shadow-md transition-all inline-flex items-center gap-2">
@@ -452,7 +452,7 @@
                     <h2 class="text-xl font-bold text-gray-900">Create Vaccine Protocol</h2>
                     <p class="text-sm text-gray-500 mt-0.5">Define a new vaccination protocol with dosing schedule</p>
                 </div>
-                <button onclick="closeCreateModal()" class="w-8 h-8 rounded-lg flex items-center justify-center text-gray-400 hover:text-gray-600 hover:bg-gray-100 transition-colors">
+                <button type="button" onclick="closeCreateModal()" class="w-8 h-8 rounded-lg flex items-center justify-center text-gray-400 hover:text-gray-600 hover:bg-gray-100 transition-colors">
                     <i data-lucide="x" class="w-5 h-5"></i>
                 </button>
             </div>
@@ -578,7 +578,7 @@
 
             <!-- Modal Footer -->
             <div class="flex items-center justify-end gap-3 px-6 py-4 border-t border-gray-200 bg-gray-50 flex-shrink-0">
-                <button onclick="closeCreateModal()" class="px-5 py-2.5 bg-white text-gray-700 text-sm font-semibold rounded-lg border border-gray-300 hover:bg-gray-50 transition-all">
+                <button type="button" onclick="closeCreateModal()" class="px-5 py-2.5 bg-white text-gray-700 text-sm font-semibold rounded-lg border border-gray-300 hover:bg-gray-50 transition-all">
                     Cancel
                 </button>
                 <button type="button" onclick="submitCreateForm()" id="createSubmitBtn" class="px-6 py-2.5 bg-gradient-to-r from-[#E75234] to-[#d14024] text-white text-sm font-semibold rounded-lg shadow-sm hover:shadow-md transition-all inline-flex items-center gap-2">
