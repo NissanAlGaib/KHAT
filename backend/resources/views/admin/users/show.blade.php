@@ -101,6 +101,32 @@
                     <p class="text-xs text-gray-500 uppercase tracking-wide font-medium">Joined</p>
                     <p class="text-sm font-semibold text-gray-900">{{ $user->created_at->format('F d, Y') }}</p>
                 </div>
+
+                @if(in_array($user->status, ['suspended', 'banned']))
+                <div class="border-t border-gray-100 pt-4 bg-red-50 -mx-6 px-6 pb-4 mb-[-1.5rem] rounded-b-xl border-b border-red-100">
+                    <div class="flex items-center gap-2 mb-3">
+                        <i data-lucide="alert-circle" class="w-4 h-4 text-red-600"></i>
+                        <p class="text-xs text-red-700 uppercase tracking-wide font-bold">Suspension Details</p>
+                    </div>
+                    <div class="space-y-3">
+                        <div>
+                            <p class="text-xs text-red-500 font-medium uppercase">Reason</p>
+                            <p class="text-sm text-gray-900">{{ $user->suspension_reason ?? 'No reason provided' }}</p>
+                        </div>
+                        <div>
+                            <p class="text-xs text-red-500 font-medium uppercase">Duration</p>
+                            <p class="text-sm text-gray-900 font-medium">
+                                @if($user->suspension_end_date)
+                                    Until {{ $user->suspension_end_date->format('M d, Y H:i') }}
+                                    <span class="text-xs text-red-600 font-normal">({{ $user->suspension_end_date->diffForHumans() }})</span>
+                                @else
+                                    Indefinite
+                                @endif
+                            </p>
+                        </div>
+                    </div>
+                </div>
+                @endif
             </div>
         </div>
 

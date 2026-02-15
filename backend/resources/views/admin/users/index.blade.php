@@ -197,7 +197,26 @@
                         @endif
                     </td>
                     <td class="px-6 py-4">
-                        @if($user->userAuth->first()?->status === 'approved')
+                        @if($user->status === 'suspended')
+                        <div class="flex flex-col items-start gap-1">
+                            <span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-orange-100 text-orange-700 text-xs font-bold border border-orange-200">
+                                <i data-lucide="pause-circle" class="w-3.5 h-3.5"></i>
+                                Suspended
+                            </span>
+                            @if($user->suspension_end_date)
+                            <span class="text-[10px] text-orange-600 font-medium pl-1">
+                                Until {{ $user->suspension_end_date->format('M d, Y') }}
+                            </span>
+                            @else
+                            <span class="text-[10px] text-orange-600 font-medium pl-1">Indefinite</span>
+                            @endif
+                        </div>
+                        @elseif($user->status === 'banned')
+                        <span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-red-100 text-red-700 text-xs font-bold border border-red-200">
+                            <i data-lucide="ban" class="w-3.5 h-3.5"></i>
+                            Banned
+                        </span>
+                        @elseif($user->userAuth->first()?->status === 'approved')
                         <span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-green-100 text-green-700 text-xs font-semibold">
                             <i data-lucide="check-circle" class="w-3.5 h-3.5"></i>
                             Verified
