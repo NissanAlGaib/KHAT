@@ -3,18 +3,20 @@
 namespace App\Models;
 
 use App\Traits\FiltersByDate;
+use App\Traits\TracksUpdates;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasOne;
 
 class MatchRequest extends Model
 {
-    use FiltersByDate;
+    use FiltersByDate, TracksUpdates;
 
     protected $fillable = [
         'requester_pet_id',
         'target_pet_id',
         'status',
+        'updated_by',
     ];
 
     /**

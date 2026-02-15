@@ -22,6 +22,7 @@ function RootNavigator() {
   const segments = useSegments();
 
   const inAuthGroup = useMemo(() => segments[0] === "(auth)", [segments]);
+  const isBannedRoute = useMemo(() => segments[0] === "banned", [segments]);
 
   useEffect(() => {
     console.log(
@@ -32,15 +33,17 @@ function RootNavigator() {
       "segments:",
       segments,
       "inAuthGroup:",
-      inAuthGroup
+      inAuthGroup,
+      "isBannedRoute:",
+      isBannedRoute
     );
-  }, [isLoading, session, segments, inAuthGroup]);
+  }, [isLoading, session, segments, inAuthGroup, isBannedRoute]);
 
   if (isLoading) {
     return null;
   }
 
-  if (!session && !inAuthGroup) {
+  if (!session && !inAuthGroup && !isBannedRoute) {
     return <Redirect href="/login" />;
   }
   if (session && inAuthGroup) {

@@ -157,6 +157,14 @@
                         <div class="flex flex-col">
                             <span class="text-sm font-medium text-gray-900">{{ $report->created_at->format('M d, Y') }}</span>
                             <span class="text-xs text-gray-500">{{ $report->created_at->format('h:i A') }}</span>
+                            @if($report->updated_at && $report->created_at && $report->updated_at->gt($report->created_at))
+                                <span class="text-[10px] text-gray-400 mt-1 italic" title="Updated {{ $report->updated_at->format('M d, Y h:i A') }}">
+                                    Updated {{ $report->updated_at->diffForHumans() }}
+                                    @if($report->updater)
+                                        by {{ $report->updater->name }}
+                                    @endif
+                                </span>
+                            @endif
                         </div>
                     </td>
                     <td class="px-6 py-4">

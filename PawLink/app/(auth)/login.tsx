@@ -53,6 +53,12 @@ const Login = () => {
     } catch (error) {
       if (isAxiosError(error)) {
         const responseData = error.response?.data;
+        
+        // Ignore 403 suspended/banned errors as they are handled by the global interceptor
+        if (error.response?.status === 403 && (responseData?.error === 'account_suspended' || responseData?.error === 'account_banned')) {
+          return;
+        }
+
         if (responseData?.errors) {
           setErrors(responseData.errors);
         } else if (responseData?.message) {

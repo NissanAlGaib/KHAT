@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use App\Traits\FiltersByDate;
+use App\Traits\TracksUpdates;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
@@ -15,7 +16,7 @@ use Laravel\Sanctum\HasApiTokens;
 class User extends Authenticatable
 {
     /** @use HasFactory<\Database\Factories\UserFactory> */
-    use HasFactory, Notifiable, HasApiTokens, FiltersByDate;
+    use HasFactory, Notifiable, HasApiTokens, FiltersByDate, TracksUpdates;
     /**
      * The attributes that are mass assignable.
      *
@@ -40,6 +41,7 @@ class User extends Authenticatable
         'suspension_reason',
         'suspended_at',
         'suspension_end_date',
+        'updated_by',
     ];
 
     /**

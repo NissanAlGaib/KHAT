@@ -243,6 +243,14 @@
                         <div class="flex flex-col">
                             <span class="text-sm font-medium text-gray-900">{{ $pet->created_at->format('M d, Y') }}</span>
                             <span class="text-xs text-gray-500">{{ $pet->created_at->format('h:i A') }}</span>
+                            @if($pet->updated_at && $pet->created_at && $pet->updated_at->gt($pet->created_at))
+                                <span class="text-[10px] text-gray-400 mt-1 italic" title="Updated {{ $pet->updated_at->format('M d, Y h:i A') }}">
+                                    Updated {{ $pet->updated_at->diffForHumans() }}
+                                    @if($pet->updater)
+                                        by {{ $pet->updater->name }}
+                                    @endif
+                                </span>
+                            @endif
                         </div>
                     </td>
                     <td class="px-6 py-4 text-center">

@@ -367,6 +367,14 @@
                         <div class="flex flex-col">
                             <span class="text-sm font-medium text-gray-900">{{ $protocol->created_at->format('M d, Y') }}</span>
                             <span class="text-xs text-gray-500">{{ $protocol->created_at->format('h:i A') }}</span>
+                            @if($protocol->updated_at && $protocol->created_at && $protocol->updated_at->gt($protocol->created_at))
+                                <span class="text-[10px] text-gray-400 mt-1 italic" title="Updated {{ $protocol->updated_at->format('M d, Y h:i A') }}">
+                                    Updated {{ $protocol->updated_at->diffForHumans() }}
+                                    @if($protocol->updater)
+                                        by {{ $protocol->updater->name }}
+                                    @endif
+                                </span>
+                            @endif
                         </div>
                     </td>
                     <td class="px-6 py-4 text-center">

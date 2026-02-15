@@ -182,6 +182,14 @@
                         <div class="flex flex-col">
                             <span class="text-sm font-medium text-gray-900">{{ $match->created_at->format('M d, Y') }}</span>
                             <span class="text-xs text-gray-500">{{ $match->created_at->format('h:i A') }}</span>
+                            @if($match->updated_at && $match->created_at && $match->updated_at->gt($match->created_at))
+                                <span class="text-[10px] text-gray-400 mt-1 italic" title="Updated {{ $match->updated_at->format('M d, Y h:i A') }}">
+                                    Updated {{ $match->updated_at->diffForHumans() }}
+                                    @if($match->updater)
+                                        by {{ $match->updater->name }}
+                                    @endif
+                                </span>
+                            @endif
                         </div>
                     </td>
                 </tr>

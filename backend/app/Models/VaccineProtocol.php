@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Traits\TracksUpdates;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Builder;
@@ -17,6 +18,8 @@ use Illuminate\Database\Eloquent\Builder;
  */
 class VaccineProtocol extends Model
 {
+    use TracksUpdates;
+
     protected $fillable = [
         'name',
         'slug',
@@ -29,6 +32,7 @@ class VaccineProtocol extends Model
         'booster_interval_days',
         'is_active',
         'sort_order',
+        'updated_by',
     ];
 
     protected $casts = [

@@ -2,11 +2,14 @@
 
 namespace App\Models;
 
+use App\Traits\TracksUpdates;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 class SafetyReport extends Model
 {
+    use TracksUpdates;
+
     public const REASON_HARASSMENT = 'harassment';
     public const REASON_SCAM = 'scam';
     public const REASON_INAPPROPRIATE = 'inappropriate';
@@ -32,6 +35,7 @@ class SafetyReport extends Model
         'resolution_action',
         'reviewed_by',
         'reviewed_at',
+        'updated_by',
     ];
 
     protected function casts(): array

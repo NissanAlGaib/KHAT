@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use App\Traits\FiltersByDate;
+use App\Traits\TracksUpdates;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
@@ -11,7 +12,7 @@ use Carbon\Carbon;
 
 class Pet extends Model
 {
-    use SoftDeletes, FiltersByDate;
+    use SoftDeletes, FiltersByDate, TracksUpdates;
 
     protected $primaryKey = 'pet_id';
 
@@ -66,6 +67,7 @@ class Pet extends Model
         'suspension_reason',
         'suspended_at',
         'suspension_end_date',
+        'updated_by',
     ];
 
     protected $casts = [
