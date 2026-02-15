@@ -479,17 +479,126 @@ class AdminController extends Controller
     }
 
     /**
+     * Display user details page.
+     */
+    public function userDetails($userId)
+    {
+        $user = User::with([
+            'roles',
+            'userAuth',
+            'pets',
+            'warnings.admin',
+            'reportsAgainst'
+        ])->withCount(['pets', 'reportsAgainst'])->findOrFail($userId);
+
+        return view('admin.users.show', compact('user'));
+    }
+
+    /**
+     * Update user status (suspend/ban).
+     */
+    public function updateUserStatus(Request $request, $userId)
+    {
+        $request->validate([
+            'status' => 'required|in:active,suspended,banned',
+            'suspension_reason' => 'required_if:status,suspended,banned|nullable|string|max:500',
+            'suspension_duration' => 'nullable|string|in:1_day,3_days,7_days,30_days,indefinite',
+        ]);
+
+        $user = User::findOrFail($userId);
+        $oldStatus = $user->status ?? 'active';
+        
+        $user->status = $request->status;
+        
+        if (in_array($request->status, ['suspended', 'banned'])) {
+            $user->suspension_reason = $request->suspension_reason;
+            $user->suspended_at = now();
+            
+            // Handle duration
+            if ($request->suspension_duration && $request->suspension_duration !== 'indefinite') {
+                $days = match($request->suspension_duration) {
+                    '1_day' => 1,
+                    '3_days' => 3,
+                    '7_days' => 7,
+                    '30_days' => 30,
+                    default => null
+                };
+                
+                if ($days) {
+                    $user->suspension_end_date = now()->addDays($days);
+                } else {
+                    $user->suspension_end_date = null;
+                }
+            } else {
+                $user->suspension_end_date = null; // Indefinite
+            }
+        } else {
+            $user->suspension_reason = null;
+            $user->suspended_at = null;
+            $user->suspension_end_date = null;
+        }
+        
+        $user->save();
+
+        AuditLog::log(
+            'user.status_updated',
+            AuditLog::TYPE_UPDATE,
+            "User {$user->name} status changed from {$oldStatus} to {$request->status}",
+            User::class,
+            $userId,
+            ['status' => $oldStatus],
+            ['status' => $request->status, 'reason' => $request->suspension_reason, 'end_date' => $user->suspension_end_date]
+        );
+
+        return redirect()->back()->with('success', 'User status updated successfully.');
+    }
+
+    /**
      * Update pet status.
      */
     public function updatePetStatus(Request $request, $petId)
     {
         $request->validate([
             'status' => 'required|in:active,disabled,cooldown,banned',
+            'suspension_reason' => 'required_if:status,disabled,banned|nullable|string|max:500',
+            'suspension_duration' => 'nullable|string|in:1_day,3_days,7_days,30_days,indefinite',
         ]);
 
         $pet = Pet::findOrFail($petId);
         $oldStatus = $pet->status;
+        
         $pet->status = $request->status;
+        
+        if (in_array($request->status, ['disabled', 'banned'])) {
+            $pet->suspension_reason = $request->suspension_reason;
+            $pet->suspended_at = now();
+            
+            // Handle duration
+            if ($request->suspension_duration && $request->suspension_duration !== 'indefinite') {
+                $days = match($request->suspension_duration) {
+                    '1_day' => 1,
+                    '3_days' => 3,
+                    '7_days' => 7,
+                    '30_days' => 30,
+                    default => null
+                };
+                
+                if ($days) {
+                    $pet->suspension_end_date = now()->addDays($days);
+                } else {
+                    $pet->suspension_end_date = null;
+                }
+            } else {
+                $pet->suspension_end_date = null; // Indefinite
+            }
+        } elseif ($request->status === 'active') {
+            // Only clear reason if reactivating, keep history if just cooling down? 
+            // Cooldown is separate from suspension, but let's clear suspension fields if active.
+            $pet->suspension_reason = null;
+            $pet->suspended_at = null;
+            $pet->suspension_end_date = null;
+        }
+        
         $pet->save();
 
         // Log pet status update
@@ -500,11 +609,10 @@ class AdminController extends Controller
             Pet::class,
             $petId,
             ['status' => $oldStatus],
-            ['status' => $request->status]
+            ['status' => $request->status, 'reason' => $request->suspension_reason, 'end_date' => $pet->suspension_end_date]
         );
 
-        return redirect()->route('admin.pets.details', $petId)
-            ->with('success', 'Pet status updated successfully.');
+        return redirect()->back()->with('success', 'Pet status updated successfully.');
     }
 
     /**

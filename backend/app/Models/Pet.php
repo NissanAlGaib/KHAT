@@ -63,6 +63,9 @@ class Pet extends Model
         'attributes',
         'profile_image',
         'date_added',
+        'suspension_reason',
+        'suspended_at',
+        'suspension_end_date',
     ];
 
     protected $casts = [
@@ -75,6 +78,8 @@ class Pet extends Model
         'weight' => 'decimal:2',
         'behaviors' => 'array',
         'attributes' => 'array',
+        'suspended_at' => 'datetime',
+        'suspension_end_date' => 'datetime',
     ];
 
     /**

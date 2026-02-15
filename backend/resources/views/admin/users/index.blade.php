@@ -107,6 +107,53 @@
 
 @include('admin.partials.date-filter')
 
+<!-- Suspend User Modal -->
+<div id="suspendModal" class="hidden fixed inset-0 z-[60] overflow-y-auto bg-gray-900/60 backdrop-blur-sm">
+    <div class="flex items-center justify-center min-h-screen px-4">
+        <div class="bg-white rounded-2xl shadow-2xl max-w-md w-full p-6">
+            <div class="flex items-center gap-3 mb-4">
+                <div class="w-10 h-10 rounded-full bg-orange-100 flex items-center justify-center">
+                    <i data-lucide="pause-circle" class="w-5 h-5 text-orange-600"></i>
+                </div>
+                <div>
+                    <h3 class="text-lg font-bold text-gray-900">Suspend User</h3>
+                    <p class="text-sm text-gray-500" id="suspendUserName">User Name</p>
+                </div>
+            </div>
+            
+            <form id="suspendForm" method="POST">
+                @csrf
+                <input type="hidden" name="status" value="suspended">
+                <div class="space-y-4">
+                    <div>
+                        <label class="block text-sm font-semibold text-gray-700 mb-1.5">Suspension Duration</label>
+                        <select name="suspension_duration" class="w-full bg-white border border-gray-300 text-gray-700 py-2 px-3 rounded-lg text-sm focus:ring-2 focus:ring-orange-500 focus:border-transparent outline-none">
+                            <option value="indefinite">Indefinite (Until manually lifted)</option>
+                            <option value="1_day">24 Hours</option>
+                            <option value="3_days">3 Days</option>
+                            <option value="7_days">7 Days</option>
+                            <option value="30_days">30 Days</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-sm font-semibold text-gray-700 mb-1.5">Reason for Suspension</label>
+                        <textarea name="suspension_reason" required rows="4" class="w-full bg-white border border-gray-300 text-gray-700 py-2 px-3 rounded-lg text-sm focus:ring-2 focus:ring-orange-500 focus:border-transparent outline-none" placeholder="Explain why this user is being suspended..."></textarea>
+                    </div>
+                </div>
+
+                <div class="mt-6 flex gap-3">
+                    <button type="button" onclick="closeSuspendModal()" class="flex-1 px-4 py-2.5 bg-gray-100 text-gray-700 text-sm font-semibold rounded-lg hover:bg-gray-200 transition-all">
+                        Cancel
+                    </button>
+                    <button type="submit" class="flex-1 px-4 py-2.5 bg-orange-600 text-white text-sm font-semibold rounded-lg hover:bg-orange-700 transition-all shadow-sm">
+                        Suspend User
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
 <!-- Results Count -->
 <p class="text-sm text-gray-600 mb-4 font-medium">
     Showing {{ $users->firstItem() ?? 0 }} - {{ $users->lastItem() ?? 0 }} of {{ number_format($users->total()) }} entries
@@ -233,14 +280,14 @@
                                 <i data-lucide="more-horizontal" class="w-5 h-5"></i>
                             </button>
                             <div id="dropdown-{{ $user->id }}" class="hidden fixed w-52 bg-white rounded-xl shadow-lg border border-gray-200 overflow-hidden" style="z-index: 9999;">
-                                <button type="button" onclick="openUserModal({{ $user->id }})" class="w-full flex items-center gap-3 px-4 py-3 text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors">
+                                <a href="{{ route('admin.users.show', $user->id) }}" class="w-full flex items-center gap-3 px-4 py-3 text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors">
                                     <i data-lucide="eye" class="w-4 h-4 text-gray-500"></i>
                                     View Details
-                                </button>
-                                <a href="#" class="flex items-center gap-3 px-4 py-3 text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors">
+                                </a>
+                                <button onclick="openSuspendModal({{ $user->id }}, '{{ $user->name ?? $user->email }}')" class="w-full flex items-center gap-3 px-4 py-3 text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors text-left">
                                     <i data-lucide="pause-circle" class="w-4 h-4 text-gray-500"></i>
                                     Suspend Account
-                                </a>
+                                </button>
                                 <div class="border-t border-gray-100"></div>
                                 <button type="button" onclick="deleteUser({{ $user->id }})" class="w-full flex items-center gap-3 px-4 py-3 text-sm font-medium text-red-600 hover:bg-red-50 transition-colors">
                                     <i data-lucide="trash-2" class="w-4 h-4"></i>
@@ -568,6 +615,23 @@
     function closeWarnModal() {
         document.getElementById('warnModal').classList.add('hidden');
         document.getElementById('warnForm').reset();
+    }
+
+    // Suspend Modal Functions
+    function openSuspendModal(userId, userName) {
+        const modal = document.getElementById('suspendModal');
+        const nameEl = document.getElementById('suspendUserName');
+        const form = document.getElementById('suspendForm');
+        
+        nameEl.textContent = userName;
+        form.action = `/admin/users/${userId}/status`;
+        
+        modal.classList.remove('hidden');
+    }
+
+    function closeSuspendModal() {
+        document.getElementById('suspendModal').classList.add('hidden');
+        document.getElementById('suspendForm').reset();
     }
 
     async function submitWarning(e) {

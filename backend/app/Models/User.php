@@ -36,6 +36,10 @@ class User extends Authenticatable
         'warning_count',
         'average_rating',
         'review_count',
+        'status',
+        'suspension_reason',
+        'suspended_at',
+        'suspension_end_date',
     ];
 
     /**
@@ -60,6 +64,8 @@ class User extends Authenticatable
             'password' => 'hashed',
             'birthday' => 'date',
             'address' => 'array',
+            'suspended_at' => 'datetime',
+            'suspension_end_date' => 'datetime',
         ];
     }
 

@@ -24,6 +24,8 @@ Route::prefix('admin')->group(function () {
 
         // User Management
         Route::get('/users', [AdminController::class, 'usersIndex'])->name('admin.users.index');
+        Route::get('/users/{user}', [AdminController::class, 'userDetails'])->name('admin.users.show');
+        Route::post('/users/{user}/status', [AdminController::class, 'updateUserStatus'])->name('admin.users.status');
         Route::get('/users/{userId}/details', [AdminController::class, 'getUserDetails'])->name('admin.users.details');
         Route::post('/users/verification/{authId}/update', [AdminController::class, 'updateVerificationStatus'])->name('admin.users.verification.update');
         Route::post('/users/{user}/warn', [UserWarningController::class, 'store'])->name('admin.users.warn');

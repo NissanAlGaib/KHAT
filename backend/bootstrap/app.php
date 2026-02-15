@@ -23,7 +23,10 @@ return Application::configure(basePath: dirname(__DIR__))
 
         $middleware->alias([
             'verified' => \App\Http\Middleware\EnsureEmailIsVerified::class,
+            'check.suspension' => \App\Http\Middleware\CheckUserSuspension::class,
         ]);
+
+        $middleware->append(\App\Http\Middleware\CheckUserSuspension::class);
 
         //
     })

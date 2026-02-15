@@ -127,6 +127,53 @@
 
 @include('admin.partials.date-filter')
 
+<!-- Suspend Pet Modal -->
+<div id="suspendModal" class="hidden fixed inset-0 z-[60] overflow-y-auto bg-gray-900/60 backdrop-blur-sm">
+    <div class="flex items-center justify-center min-h-screen px-4">
+        <div class="bg-white rounded-2xl shadow-2xl max-w-md w-full p-6">
+            <div class="flex items-center gap-3 mb-4">
+                <div class="w-10 h-10 rounded-full bg-orange-100 flex items-center justify-center">
+                    <i data-lucide="pause-circle" class="w-5 h-5 text-orange-600"></i>
+                </div>
+                <div>
+                    <h3 class="text-lg font-bold text-gray-900">Suspend Pet</h3>
+                    <p class="text-sm text-gray-500" id="suspendPetName">Pet Name</p>
+                </div>
+            </div>
+            
+            <form id="suspendForm" method="POST">
+                @csrf
+                <input type="hidden" name="status" value="disabled">
+                <div class="space-y-4">
+                    <div>
+                        <label class="block text-sm font-semibold text-gray-700 mb-1.5">Suspension Duration</label>
+                        <select name="suspension_duration" class="w-full bg-white border border-gray-300 text-gray-700 py-2 px-3 rounded-lg text-sm focus:ring-2 focus:ring-orange-500 focus:border-transparent outline-none">
+                            <option value="indefinite">Indefinite (Until manually lifted)</option>
+                            <option value="1_day">24 Hours</option>
+                            <option value="3_days">3 Days</option>
+                            <option value="7_days">7 Days</option>
+                            <option value="30_days">30 Days</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-sm font-semibold text-gray-700 mb-1.5">Reason for Suspension</label>
+                        <textarea name="suspension_reason" required rows="4" class="w-full bg-white border border-gray-300 text-gray-700 py-2 px-3 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#E75234] focus:border-transparent" placeholder="Explain why this pet is being suspended..."></textarea>
+                    </div>
+                </div>
+
+                <div class="mt-6 flex gap-3">
+                    <button type="button" onclick="closeSuspendModal()" class="flex-1 px-4 py-2.5 bg-gray-100 text-gray-700 text-sm font-semibold rounded-lg hover:bg-gray-200 transition-all">
+                        Cancel
+                    </button>
+                    <button type="submit" class="flex-1 px-4 py-2.5 bg-orange-600 text-white text-sm font-semibold rounded-lg hover:bg-orange-700 transition-all shadow-sm">
+                        Suspend Pet
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
 <!-- Showing entries info -->
 <p class="text-sm text-gray-600 mb-4">
     Showing {{ $pets->firstItem() ?? 0 }} - {{ $pets->lastItem() ?? 0 }} of {{ $pets->total() }} entries
@@ -212,7 +259,7 @@
                                     <i data-lucide="user" class="w-4 h-4 text-gray-500"></i>
                                     View Profile
                                 </a>
-                                <button onclick="confirmSuspend('{{ $pet->name }}', {{ $pet->pet_id }})" class="w-full flex items-center gap-3 px-4 py-3 text-sm font-medium text-gray-600 hover:bg-gray-50 hover:text-gray-900 transition-colors">
+                                <button onclick="openSuspendModal({{ $pet->pet_id }}, '{{ $pet->name }}')" class="w-full flex items-center gap-3 px-4 py-3 text-sm font-medium text-gray-600 hover:bg-gray-50 hover:text-gray-900 transition-colors text-left">
                                     <i data-lucide="pause-circle" class="w-4 h-4 text-gray-500"></i>
                                     Suspend
                                 </button>
@@ -290,24 +337,20 @@
         }
     }
 
-    function confirmSuspend(petName, petId) {
-        Swal.fire({
-            title: 'Suspend Pet?',
-            html: `Are you sure you want to suspend <strong>${petName}</strong>?`,
-            icon: 'warning',
-            showCancelButton: true,
-            confirmButtonColor: '#F59E0B',
-            cancelButtonColor: '#6B7280',
-            confirmButtonText: 'Yes, suspend',
-            cancelButtonText: 'Cancel'
-        }).then((result) => {
-            if (result.isConfirmed) {
-                const form = document.getElementById('pet-status-form');
-                form.action = `/admin/pets/${petId}/status`;
-                form.querySelector('[name="status"]').value = 'disabled';
-                form.submit();
-            }
-        });
+    function openSuspendModal(petId, petName) {
+        const modal = document.getElementById('suspendModal');
+        const nameEl = document.getElementById('suspendPetName');
+        const form = document.getElementById('suspendForm');
+        
+        nameEl.textContent = petName;
+        form.action = `/admin/pets/${petId}/status`;
+        
+        modal.classList.remove('hidden');
+    }
+
+    function closeSuspendModal() {
+        document.getElementById('suspendModal').classList.add('hidden');
+        document.getElementById('suspendForm').reset();
     }
 
     function confirmDelete(petName, petId) {
