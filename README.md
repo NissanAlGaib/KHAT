@@ -1,10 +1,10 @@
 # KHAT - PawLink
 
-![Version](https://img.shields.io/badge/version-1.4.5-blue)
+![Version](https://img.shields.io/badge/version-1.4.6-blue)
 ![Platform](https://img.shields.io/badge/platform-iOS%20%7C%20Android-lightgrey)
 ![Framework](https://img.shields.io/badge/framework-React%20Native%20%7C%20Laravel-green)
 
-**Current Version: 1.4.5** | [View Changelog](./CHANGELOG.md)
+**Current Version: 1.4.6** | [View Changelog](./CHANGELOG.md)
 
 A pet breeding matchmaking platform built with React Native (Expo) and Laravel.
 

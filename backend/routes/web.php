@@ -27,6 +27,11 @@ Route::prefix('admin')->group(function () {
         Route::post('/users/verification/{authId}/update', [AdminController::class, 'updateVerificationStatus'])->name('admin.users.verification.update');
         Route::delete('/users/{userId}', [AdminController::class, 'deleteUser'])->name('admin.users.delete');
 
+        // Admin Management
+        Route::get('/admins', [AdminController::class, 'adminsIndex'])->name('admin.admins.index');
+        Route::post('/admins', [AdminController::class, 'storeAdmin'])->name('admin.admins.store');
+        Route::delete('/admins/{userId}/revoke', [AdminController::class, 'revokeAdmin'])->name('admin.admins.revoke');
+
         // Pet Management
         Route::get('/pets', [AdminController::class, 'petsIndex'])->name('admin.pets.index');
         Route::get('/pets/{petId}/details', [AdminController::class, 'petDetails'])->name('admin.pets.details');

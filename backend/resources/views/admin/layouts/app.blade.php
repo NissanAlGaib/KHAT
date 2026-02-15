@@ -83,6 +83,12 @@
                         <span>User Management</span>
                     </a>
                 </li>
+                <li>
+                    <a href="{{ route('admin.admins.index') }}" class="flex items-center gap-3 px-3 py-2.5 rounded-lg {{ request()->routeIs('admin.admins.*') ? 'bg-white/10 text-white font-semibold border-l-[3px] border-[#E75234]' : 'text-gray-400 hover:text-white hover:bg-white/10 font-medium' }}">
+                        <i data-lucide="shield-check" class="w-5 h-5 {{ request()->routeIs('admin.admins.*') ? 'text-white' : 'text-gray-500' }}"></i>
+                        <span>Admin Management</span>
+                    </a>
+                </li>
 
                 {{-- Pet Management collapsible group --}}
                 <li>

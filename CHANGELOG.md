@@ -6,6 +6,59 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ---
+## [1.4.6] - 2026-02-11
+
+### AI Breed Identification, Admin Safety Management & Vaccination UX
+
+#### New: Pet Breed Identification AI
+- **New Python Service**: `breed-api/` — FastAPI server with TensorFlow/Keras model for breed classification (55 breeds across dogs and cats)
+- **New Controller**: `BreedIdentifierController.php` — Laravel proxy endpoint to the Python AI service
+- **New Service**: Updated `breedService.ts` — replaced placeholder stub with real AI integration (`identifyBreedFromImage()`, `checkBreedServiceHealth()`)
+- **Model Training**: `PawLinkPetBreedClassifier.py` — training script for the `.h5` classifier model
+- **Add Pet Screen**: AI "Identify Breed" button in `add-pet.tsx` — opens image picker, shows top-3 breed predictions with confidence percentages in a modal
+- Breed lists (`DOG_BREEDS`, `CAT_BREEDS`) moved from `add-pet.tsx` to centralized `breedService.ts`
+- **New API Routes**: `POST /api/breed-identify`, `GET /api/breed-identify/health`
+
+#### New: Admin Reports & Safety Management
+- **New Page**: `reports.blade.php` — full reports management with search, filters (status, reason, date range), stats cards (total/pending/resolved/dismissed), and detail modal with reported user history
+- **New Page**: `blocks.blade.php` — user blocks management with admin force-unblock capability
+- **Removed**: `tickets.blade.php` (replaced by reports system)
+- **New Migration**: `add_resolution_action_to_safety_reports_table` — adds resolution action tracking (warning, temporary ban, permanent ban, content removal)
+- **New Config**: `backend/config/safety.php` — safety system configuration
+- **SafetyReport Model**: Added resolution action constants (`ACTION_WARNING`, `ACTION_TEMPORARY_BAN`, `ACTION_PERMANENT_BAN`, `ACTION_CONTENT_REMOVAL`), status constants, `getReasonLabel()` helper, `reportsAgainst` relationship on User model
+- **AdminController**: Added `reports()`, `getReportDetails()`, `reviewReport()`, `blocks()`, `forceUnblock()` methods
+- **Dashboard**: Added pending reports count stat card
+- **User Management**: Added report count badge per user (`withCount('reportsAgainst')`)
+- **Admin Web Routes**: Added `/reports`, `/reports/{id}/details`, `/reports/{id}/review`, `/blocks`, `/blocks/{id}` (DELETE)
+
+#### New: In-App Warning Notifications
+- **NotificationController**: Users now receive in-app warning notifications when admin resolves a safety report with `ACTION_WARNING`
+- **notifications.tsx**: Added warning notification card rendering with distinct styling
+- **notificationService.ts**: Updated to handle `admin_warning` notification type
+- **NotificationContext**: Notification count now includes warning count alongside rejected documents
+
+#### Changed: Vaccination UX Improvements
+- **New Component**: `AddVaccineSheet.tsx` — bottom sheet (via `@gorhom/bottom-sheet`) replacing the inline opt-in modal for adding optional vaccines; includes search/filter, swipe-to-dismiss, polished protocol cards
+- **New Feature**: Protocol change — users can now switch a vaccination card's protocol via `changeProtocol()` endpoint
+- **vaccinations.tsx**: Refactored — extracted opt-in UI to `AddVaccineSheet`, added edit protocol modal
+- **VaccinationCard.tsx**: Added edit protocol button
+- **VaccinationController**: Added `changeProtocol()` method
+- **New API Route**: `POST /api/pets/{petId}/vaccination-cards/{cardId}/change-protocol`
+
+#### Changed: Admin Panel Enhancements
+- **Vaccine Protocol Management**: Replaced separate create page with inline modal in `index.blade.php`; added edit modal; removed `/vaccine-protocols/create` route
+- **Sidebar**: Reorganized into logical groups with collapsible section headers
+- **Users Page** (`users/index.blade.php`): Redesigned layout and table structure
+- **Pets Page** (`pets/index.blade.php`): UI fixes and improvements
+
+#### Backend
+- **CORS**: Added CORS middleware configuration in `bootstrap/app.php`
+- **VaccineProtocol Model**: Minor updates for protocol management
+
+#### Dependencies
+- Added `@gorhom/bottom-sheet` for vaccine opt-in bottom sheet
+
+---
 ## [1.4.5] - 2026-02-11
 
 ### Admin Panel Bugfixes & Design Consistency
@@ -486,6 +539,7 @@ Added new colors to `constants/colors.ts`:
 
 | Version | Date | Highlights |
 |---------|------|------------|
+| 1.4.6 | 2026-02-11 | AI breed identification, admin reports & safety management, vaccination UX (bottom sheet, protocol change), in-app warnings |
 | 1.4.5 | 2026-02-11 | Admin panel bugfixes — wired stub actions, fixed hardcoded statuses, design consistency |
 | 1.4.4 | 2026-02-10 | Vaccination Management overhaul — admin-controlled protocols, approval workflow, shot verification queue |
 | 1.4.3 | 2026-02-05 | Block & Report system, Match Timeline, Rest Period for failed breeding |

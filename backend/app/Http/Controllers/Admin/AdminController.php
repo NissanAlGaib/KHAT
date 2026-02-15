@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
 use App\Models\User;
+use App\Models\Role;
 use App\Models\Pet;
 use App\Models\MatchRequest;
 use App\Models\BreedingContract;
@@ -16,6 +17,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Facades\Hash;
 use Illuminate\Validation\ValidationException;
 use Carbon\Carbon;
 
@@ -298,6 +300,88 @@ class AdminController extends Controller
         $users = $query->paginate(15);
 
         return view('admin.users.index', compact('users', 'status'));
+    }
+
+    /**
+     * Display admin management page.
+     */
+    public function adminsIndex(Request $request)
+    {
+        $admins = User::whereHas('roles', function ($q) {
+            $q->where('role_type', 'admin');
+        })->with('roles')->paginate(15);
+
+        return view('admin.admins.index', compact('admins'));
+    }
+
+    /**
+     * Store a new admin user or promote existing.
+     */
+    public function storeAdmin(Request $request)
+    {
+        $request->validate([
+            'email' => 'required|email',
+            'name' => 'required_without:existing_user|string|max:255',
+            'password' => 'required_without:existing_user|string|min:8',
+        ]);
+
+        $user = User::where('email', $request->email)->first();
+
+        if (!$user) {
+            $user = User::create([
+                'name' => $request->name,
+                'email' => $request->email,
+                'password' => Hash::make($request->password),
+            ]);
+            $action = 'admin.create';
+            $description = "New admin created: {$user->email}";
+        } else {
+            $action = 'admin.promote';
+            $description = "Existing user promoted to admin: {$user->email}";
+        }
+
+        $adminRole = Role::firstOrCreate(['role_type' => 'admin']);
+        
+        if (!$user->roles()->where('roles.role_id', $adminRole->role_id)->exists()) {
+            $user->roles()->attach($adminRole->role_id);
+        }
+
+        AuditLog::log(
+            $action,
+            AuditLog::TYPE_CREATE,
+            $description,
+            User::class,
+            $user->id
+        );
+
+        return redirect()->route('admin.admins.index')->with('success', 'Admin added successfully.');
+    }
+
+    /**
+     * Revoke admin status from a user.
+     */
+    public function revokeAdmin($userId)
+    {
+        if ($userId == Auth::id()) {
+            return redirect()->back()->with('error', 'You cannot revoke your own admin status.');
+        }
+
+        $user = User::findOrFail($userId);
+        $adminRole = Role::where('role_type', 'admin')->first();
+
+        if ($adminRole) {
+            $user->roles()->detach($adminRole->role_id);
+            
+            AuditLog::log(
+                'admin.revoke',
+                AuditLog::TYPE_DELETE,
+                "Admin status revoked from: {$user->email}",
+                User::class,
+                $user->id
+            );
+        }
+
+        return redirect()->route('admin.admins.index')->with('success', 'Admin status revoked successfully.');
     }
 
     /**
