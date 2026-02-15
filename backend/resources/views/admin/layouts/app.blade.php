@@ -362,6 +362,21 @@
         </aside>
     </div>
 
+    <!-- Generic Document Viewer Modal -->
+    <div id="globalDocumentModal" class="hidden fixed inset-0 z-[100] bg-black bg-opacity-75 flex items-center justify-center p-4">
+        <div class="relative w-full max-w-5xl h-[85vh] bg-white rounded-lg shadow-2xl flex flex-col">
+            <div class="flex justify-between items-center px-4 py-3 border-b bg-gray-50 rounded-t-lg">
+                <h3 class="font-semibold text-gray-800" id="globalDocumentTitle">Document Viewer</h3>
+                <button onclick="closeGlobalDocumentModal()" class="text-gray-500 hover:text-gray-700 focus:outline-none">
+                    <i data-lucide="x" class="w-6 h-6"></i>
+                </button>
+            </div>
+            <div id="globalDocumentContent" class="flex-1 bg-gray-100 p-1 overflow-hidden relative">
+                <!-- Content injected via JS -->
+            </div>
+        </div>
+    </div>
+
     <script src="https://cdnjs.cloudflare.com/ajax/libs/viewerjs/1.11.6/viewer.min.js"></script>
     <script>
         lucide.createIcons();
@@ -420,7 +435,12 @@
         });
 
         function viewDocument(url, title = 'Document Preview') {
-            const isImage = /\.(jpg|jpeg|png|gif|webp|bmp|svg)(\?.*)?$/i.test(url);
+            if (!url || url === '#') return;
+
+            const ext = url.split('.').pop().toLowerCase().split('?')[0];
+            const isImage = ['jpg', 'jpeg', 'png', 'gif', 'webp', 'bmp', 'svg'].includes(ext);
+            const isPdf = ext === 'pdf';
+
             if (isImage) {
                 const img = document.createElement('img');
                 img.src = url;
@@ -445,10 +465,36 @@
                     },
                 });
                 viewer.show();
+            } else if (isPdf) {
+                const modal = document.getElementById('globalDocumentModal');
+                const content = document.getElementById('globalDocumentContent');
+                const titleEl = document.getElementById('globalDocumentTitle');
+                
+                titleEl.textContent = title;
+                content.innerHTML = `<iframe src="${url}" class="w-full h-full border-0 rounded bg-white"></iframe>`;
+                
+                modal.classList.remove('hidden');
+                document.body.style.overflow = 'hidden';
             } else {
                 window.open(url, '_blank');
             }
         }
+
+        function closeGlobalDocumentModal() {
+            const modal = document.getElementById('globalDocumentModal');
+            if (modal) {
+                modal.classList.add('hidden');
+                document.body.style.overflow = 'auto';
+                document.getElementById('globalDocumentContent').innerHTML = '';
+            }
+        }
+
+        // Close on click outside
+        document.getElementById('globalDocumentModal')?.addEventListener('click', function(e) {
+            if (e.target === this) {
+                closeGlobalDocumentModal();
+            }
+        });
     </script>
     @stack('scripts')
 </body>

@@ -122,9 +122,9 @@
                     </div>
                     
                     @if($auth->document_path)
-                        <a href="{{ Storage::disk('do_spaces')->url($auth->document_path) }}" target="_blank" class="text-xs text-[#E75234] hover:underline flex items-center gap-1">
+                        <button onclick="viewDocument('{{ Storage::disk('do_spaces')->url($auth->document_path) }}', '{{ $auth->auth_type }}')" class="text-xs text-[#E75234] hover:underline flex items-center gap-1 focus:outline-none">
                             <i data-lucide="file-text" class="w-3 h-3"></i> View Document
-                        </a>
+                        </button>
                     @endif
                     
                     @if($auth->status === 'pending')

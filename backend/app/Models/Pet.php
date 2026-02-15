@@ -306,13 +306,12 @@ class Pet extends Model
     public function getPrimaryPhotoUrlAttribute(): ?string
     {
         $primaryPhoto = $this->photos->firstWhere('is_primary', true);
+        $path = $primaryPhoto ? $primaryPhoto->photo_url : $this->photos->first()?->photo_url;
 
-        if ($primaryPhoto) {
-            return $primaryPhoto->photo_url;
+        if ($path) {
+            return \Illuminate\Support\Facades\Storage::disk('do_spaces')->url($path);
         }
 
-        $firstPhoto = $this->photos->first();
-
-        return $firstPhoto?->photo_url;
+        return null;
     }
 }
