@@ -6,6 +6,64 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ---
+## [1.4.7] - 2026-02-16
+
+### Admin Data Export (CSV/PDF)
+
+#### New: Data Export System
+- **Admin Pages**: Added **CSV** and **PDF** export buttons to all data-rich admin management pages:
+  - User Management
+  - Admin Management
+  - Pet Management
+  - Match History
+  - Safety Reports & Blocked Users
+  - Audit Logs
+  - Subscription Tiers
+  - Protocol Categories
+  - Vaccine Protocols
+- **Functionality**: Exports match current active filters (status, search, dates, etc.) and include all matching records (ignoring pagination).
+- **PDF Generation**: Implemented professional PDF reports using `dompdf` with consistent layout, branding, and generation metadata.
+- **CSV Streaming**: Implemented memory-efficient CSV streaming for large datasets.
+
+#### Backend Architecture
+- **New Trait**: `Exportable.php` — Reusable trait for controllers to handle CSV streaming and PDF generation logic centrally.
+- **New Views**: `admin/exports/` — Dedicated Blade templates for PDF reports (`layout.blade.php`, `users-pdf.blade.php`, `pets-pdf.blade.php`, etc.).
+- **Controllers**: Updated 9 admin controllers (`AdminController`, `SubscriptionTierController`, etc.) to support `?export=csv` and `?export=pdf` query parameters.
+- **Dependency**: Added `barryvdh/laravel-dompdf` package for PDF generation.
+
+### Administrative Controls & Configuration
+
+#### New: Subscription Management
+- **New Page**: `subscription-tiers/index.blade.php` — manage subscription plans and limits
+- **Features**: Configure price, duration, max pets, max matches, and AI generation limits per tier
+- **Models**: Created `SubscriptionTier` model and migration
+- **Controller**: `SubscriptionTierController` for full CRUD operations
+
+#### New: Protocol Categories
+- **New Page**: `protocol-categories/index.blade.php` — organize vaccine protocols
+- **Features**: Create/Edit/Delete categories for better protocol organization
+- **Models**: Created `ProtocolCategory` model and migration
+- **Controller**: `ProtocolCategoryController` for management
+
+#### New: Multi-Admin Management
+- **New Feature**: Ability to invite/add new admin users directly from the Admin Panel
+- **Page Update**: `admin/admins/index.blade.php` — added "Add New Admin" modal and listing
+
+### User Safety & Auditing
+
+#### New: User Suspension System
+- **Database**: Added `is_suspended` and `suspension_end_date` columns to `users` and `pets` tables
+- **Logic**: Implemented `CheckUserStatus` logic (in `LoginRequest`) to block suspended/banned users with 403 Forbidden
+- **Admin UI**: Added "Suspend User" and "Ban User" actions in User Management with duration selector (7 days, 30 days, Permanent)
+- **Pet Suspension**: Suspending a user automatically suspends their pets (hiding them from matchmaking)
+
+#### New: Audit Logging
+- **New System**: Comprehensive audit logging for all admin actions
+- **New Page**: `admin/audit-logs.blade.php` — searchable log of who did what and when
+- **Model**: `AuditLog` model with `log()` helper
+- **Tracking**: Logs creations, updates, deletions, and verification actions (e.g., "Admin X approved vaccine Y for Pet Z")
+
+---
 ## [1.4.6] - 2026-02-11
 
 ### AI Breed Identification, Admin Safety Management & Vaccination UX
@@ -539,6 +597,7 @@ Added new colors to `constants/colors.ts`:
 
 | Version | Date | Highlights |
 |---------|------|------------|
+| 1.4.7 | 2026-02-16 | Admin data export, user suspension system, audit logs, subscription management |
 | 1.4.6 | 2026-02-11 | AI breed identification, admin reports & safety management, vaccination UX (bottom sheet, protocol change), in-app warnings |
 | 1.4.5 | 2026-02-11 | Admin panel bugfixes — wired stub actions, fixed hardcoded statuses, design consistency |
 | 1.4.4 | 2026-02-10 | Vaccination Management overhaul — admin-controlled protocols, approval workflow, shot verification queue |
