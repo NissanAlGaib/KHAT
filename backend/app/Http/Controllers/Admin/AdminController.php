@@ -13,6 +13,7 @@ use App\Models\UserAuth;
 use App\Models\AuditLog;
 use App\Models\SafetyReport;
 use App\Models\UserBlock;
+use App\Models\SubscriptionTier;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
@@ -491,7 +492,37 @@ class AdminController extends Controller
             'reportsAgainst'
         ])->withCount(['pets', 'reportsAgainst'])->findOrFail($userId);
 
-        return view('admin.users.show', compact('user'));
+        $subscriptionTiers = SubscriptionTier::where('is_active', true)->get();
+
+        return view('admin.users.show', compact('user', 'subscriptionTiers'));
+    }
+
+    /**
+     * Update user subscription tier.
+     */
+    public function updateUserSubscription(Request $request, $userId)
+    {
+        $request->validate([
+            'tier_slug' => 'required|string|exists:subscription_tiers,slug',
+        ]);
+
+        $user = User::findOrFail($userId);
+        $oldTier = $user->subscription_tier;
+        
+        $user->subscription_tier = $request->tier_slug;
+        $user->save();
+
+        AuditLog::log(
+            'user.subscription_updated',
+            AuditLog::TYPE_UPDATE,
+            "User {$user->name} subscription updated from {$oldTier} to {$request->tier_slug}",
+            User::class,
+            $userId,
+            ['subscription_tier' => $oldTier],
+            ['subscription_tier' => $request->tier_slug]
+        );
+
+        return redirect()->back()->with('success', 'User subscription updated successfully.');
     }
 
     /**

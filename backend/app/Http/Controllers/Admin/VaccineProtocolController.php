@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
 use App\Models\VaccineProtocol;
+use App\Models\ProtocolCategory;
 use App\Models\VaccinationShot;
 use App\Models\AuditLog;
 use Illuminate\Http\Request;
@@ -54,9 +55,11 @@ class VaccineProtocolController extends Controller
         $catProtocols = VaccineProtocol::where('species', 'cat')->count();
 
         $protocols = $query->ordered()->paginate(15)->appends($request->query());
+        $categories = ProtocolCategory::all();
 
         return view('admin.vaccine-protocols.index', compact(
             'protocols',
+            'categories',
             'totalProtocols',
             'activeProtocols',
             'dogProtocols',
@@ -79,6 +82,7 @@ class VaccineProtocolController extends Controller
     {
         $validated = $request->validate([
             'name' => 'required|string|max:255',
+            'protocol_category_id' => 'nullable|exists:protocol_categories,id',
             'species' => 'required|in:dog,cat,all',
             'is_required' => 'boolean',
             'description' => 'nullable|string|max:1000',
@@ -93,6 +97,7 @@ class VaccineProtocolController extends Controller
         $data = [
             'name' => $validated['name'],
             'slug' => VaccineProtocol::generateSlug($validated['name']),
+            'protocol_category_id' => $validated['protocol_category_id'] ?? null,
             'species' => $validated['species'],
             'is_required' => $validated['is_required'] ?? false,
             'description' => $validated['description'] ?? null,
@@ -163,6 +168,7 @@ class VaccineProtocolController extends Controller
 
         $validated = $request->validate([
             'name' => 'required|string|max:255',
+            'protocol_category_id' => 'nullable|exists:protocol_categories,id',
             'species' => 'required|in:dog,cat,all',
             'is_required' => 'boolean',
             'description' => 'nullable|string|max:1000',
@@ -177,6 +183,7 @@ class VaccineProtocolController extends Controller
 
         // Update basic fields
         $protocol->name = $validated['name'];
+        $protocol->protocol_category_id = $validated['protocol_category_id'] ?? null;
         $protocol->species = $validated['species'];
         $protocol->is_required = $validated['is_required'] ?? false;
         $protocol->description = $validated['description'] ?? null;

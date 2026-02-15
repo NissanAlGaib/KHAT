@@ -23,6 +23,7 @@ class VaccineProtocol extends Model
     protected $fillable = [
         'name',
         'slug',
+        'protocol_category_id',
         'species',
         'is_required',
         'description',
@@ -58,6 +59,11 @@ class VaccineProtocol extends Model
     public function vaccinationCards(): HasMany
     {
         return $this->hasMany(VaccinationCard::class, 'vaccine_protocol_id');
+    }
+
+    public function category()
+    {
+        return $this->belongsTo(ProtocolCategory::class, 'protocol_category_id');
     }
 
     /**

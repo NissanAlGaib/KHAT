@@ -45,6 +45,10 @@
         </div>
         
         <div class="flex gap-3">
+            <button onclick="openSubscriptionModal()" class="px-4 py-2 bg-blue-100 text-blue-700 text-sm font-medium rounded-lg hover:bg-blue-200 transition">
+                <i data-lucide="credit-card" class="w-4 h-4 inline mr-1"></i>
+                Grant Subscription
+            </button>
             <button onclick="openStatusModal()" class="px-4 py-2 bg-orange-100 text-orange-700 text-sm font-medium rounded-lg hover:bg-orange-200 transition">
                 <i data-lucide="shield-alert" class="w-4 h-4 inline mr-1"></i>
                 Change Status
@@ -68,6 +72,20 @@
                 <div>
                     <p class="text-xs text-gray-500 uppercase tracking-wide font-medium">Full Name</p>
                     <p class="text-sm font-semibold text-gray-900">{{ $user->firstName }} {{ $user->lastName }}</p>
+                </div>
+
+                <div>
+                    <p class="text-xs text-gray-500 uppercase tracking-wide font-medium">Subscription Tier</p>
+                    <div class="flex items-center gap-2">
+                        <span class="text-sm font-semibold text-gray-900 capitalize">{{ $user->subscription_tier ?? 'Free' }}</span>
+                        @if($user->subscription_tier === 'premium')
+                            <span class="px-2 py-0.5 rounded text-[10px] font-bold bg-purple-100 text-purple-700 uppercase">Premium</span>
+                        @elseif($user->subscription_tier === 'basic')
+                            <span class="px-2 py-0.5 rounded text-[10px] font-bold bg-blue-100 text-blue-700 uppercase">Basic</span>
+                        @else
+                            <span class="px-2 py-0.5 rounded text-[10px] font-bold bg-gray-100 text-gray-700 uppercase">Free</span>
+                        @endif
+                    </div>
                 </div>
                 
                 <div>
@@ -263,6 +281,32 @@
     </div>
 </div>
 
+<!-- Subscription Modal -->
+<div id="subscriptionModal" class="hidden fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4">
+    <div class="bg-white rounded-xl shadow-xl max-w-md w-full p-6">
+        <h3 class="text-xl font-bold text-gray-900 mb-4">Grant Subscription</h3>
+        <form action="{{ route('admin.users.subscription', $user->id) }}" method="POST">
+            @csrf
+            <div class="mb-4">
+                <label class="block text-sm font-semibold text-gray-700 mb-2">Select Subscription Tier</label>
+                <select name="tier_slug" class="w-full bg-white border border-gray-300 text-gray-700 py-2.5 px-4 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#E75234]">
+                    @foreach($subscriptionTiers as $tier)
+                        <option value="{{ $tier->slug }}" {{ $user->subscription_tier === $tier->slug ? 'selected' : '' }}>
+                            {{ $tier->name }} (₱{{ number_format($tier->price, 2) }})
+                        </option>
+                    @endforeach
+                </select>
+                <p class="mt-2 text-xs text-gray-500 italic">This will immediately update the user's subscription tier.</p>
+            </div>
+
+            <div class="flex gap-3 mt-6">
+                <button type="submit" class="flex-1 px-4 py-2.5 bg-blue-600 text-white text-sm font-medium rounded-lg hover:bg-blue-700 transition">Update Subscription</button>
+                <button type="button" onclick="closeSubscriptionModal()" class="flex-1 px-4 py-2.5 bg-white text-gray-700 text-sm font-medium rounded-lg border border-gray-300 hover:bg-gray-50 transition">Cancel</button>
+            </div>
+        </form>
+    </div>
+</div>
+
 <!-- Status Change Modal -->
 <div id="statusModal" class="hidden fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4">
     <div class="bg-white rounded-xl shadow-xl max-w-md w-full p-6">
@@ -311,6 +355,14 @@
 
 @push('scripts')
 <script>
+    function openSubscriptionModal() {
+        document.getElementById('subscriptionModal').classList.remove('hidden');
+    }
+
+    function closeSubscriptionModal() {
+        document.getElementById('subscriptionModal').classList.add('hidden');
+    }
+
     function openStatusModal() {
         document.getElementById('statusModal').classList.remove('hidden');
     }

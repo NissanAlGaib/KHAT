@@ -60,8 +60,8 @@
         </div>
 
         @php
-            $petGroupActive = request()->routeIs('admin.pets.*') || request()->routeIs('admin.vaccine-protocols.*') || request()->routeIs('admin.vaccination-shots.*');
-            $businessGroupActive = request()->routeIs('admin.analytics') || request()->routeIs('admin.billing');
+            $petGroupActive = request()->routeIs('admin.pets.*') || request()->routeIs('admin.vaccine-protocols.*') || request()->routeIs('admin.vaccination-shots.*') || request()->routeIs('admin.protocol-categories.*');
+            $businessGroupActive = request()->routeIs('admin.analytics') || request()->routeIs('admin.billing') || request()->routeIs('admin.subscription-tiers.*');
             $systemGroupActive = request()->routeIs('admin.reports') || request()->routeIs('admin.blocks') || request()->routeIs('admin.audit-logs');
         @endphp
 
@@ -120,6 +120,12 @@
                             </a>
                         </li>
                         <li>
+                            <a href="{{ route('admin.protocol-categories.index') }}" class="flex items-center gap-3 px-3 py-2 rounded-lg text-sm {{ request()->routeIs('admin.protocol-categories.*') ? 'text-white font-semibold border-l-[3px] border-[#E75234] bg-white/5' : 'text-gray-400 hover:text-white hover:bg-white/5 font-medium' }}">
+                                <i data-lucide="folder-open" class="w-4 h-4 {{ request()->routeIs('admin.protocol-categories.*') ? 'text-white' : 'text-gray-500' }}"></i>
+                                <span>Protocol Categories</span>
+                            </a>
+                        </li>
+                        <li>
                             <a href="{{ route('admin.vaccination-shots.pending') }}" class="flex items-center gap-3 px-3 py-2 rounded-lg text-sm {{ request()->routeIs('admin.vaccination-shots.*') ? 'text-white font-semibold border-l-[3px] border-[#E75234] bg-white/5' : 'text-gray-400 hover:text-white hover:bg-white/5 font-medium' }}">
                                 <i data-lucide="clipboard-check" class="w-4 h-4 {{ request()->routeIs('admin.vaccination-shots.*') ? 'text-white' : 'text-gray-500' }}"></i>
                                 <span>Shot Verification</span>
@@ -142,6 +148,12 @@
                     <a href="{{ route('admin.analytics') }}" class="flex items-center gap-3 px-3 py-2.5 rounded-lg {{ request()->routeIs('admin.analytics') ? 'bg-white/10 text-white font-semibold border-l-[3px] border-[#E75234]' : 'text-gray-400 hover:text-white hover:bg-white/10 font-medium' }}">
                         <i data-lucide="bar-chart-2" class="w-5 h-5 {{ request()->routeIs('admin.analytics') ? 'text-white' : 'text-gray-500' }}"></i>
                         <span>Analytics</span>
+                    </a>
+                </li>
+                <li>
+                    <a href="{{ route('admin.subscription-tiers.index') }}" class="flex items-center gap-3 px-3 py-2.5 rounded-lg {{ request()->routeIs('admin.subscription-tiers.*') ? 'bg-white/10 text-white font-semibold border-l-[3px] border-[#E75234]' : 'text-gray-400 hover:text-white hover:bg-white/10 font-medium' }}">
+                        <i data-lucide="layers" class="w-5 h-5 {{ request()->routeIs('admin.subscription-tiers.*') ? 'text-white' : 'text-gray-500' }}"></i>
+                        <span>Subscription Tiers</span>
                     </a>
                 </li>
                 <li>
@@ -295,6 +307,12 @@
                                 </a>
                             </li>
                             <li>
+                                <a href="{{ route('admin.protocol-categories.index') }}" class="flex items-center gap-3 px-3 py-2 rounded-lg text-sm {{ request()->routeIs('admin.protocol-categories.*') ? 'text-white font-semibold border-l-[3px] border-[#E75234] bg-white/5' : 'text-gray-400 hover:text-white hover:bg-white/5 font-medium' }}">
+                                    <i data-lucide="folder-open" class="w-4 h-4 {{ request()->routeIs('admin.protocol-categories.*') ? 'text-white' : 'text-gray-500' }}"></i>
+                                    <span>Protocol Categories</span>
+                                </a>
+                            </li>
+                            <li>
                                 <a href="{{ route('admin.vaccination-shots.pending') }}" class="flex items-center gap-3 px-3 py-2 rounded-lg text-sm {{ request()->routeIs('admin.vaccination-shots.*') ? 'text-white font-semibold border-l-[3px] border-[#E75234] bg-white/5' : 'text-gray-400 hover:text-white hover:bg-white/5 font-medium' }}">
                                     <i data-lucide="clipboard-check" class="w-4 h-4 {{ request()->routeIs('admin.vaccination-shots.*') ? 'text-white' : 'text-gray-500' }}"></i>
                                     <span>Shot Verification</span>
@@ -317,6 +335,12 @@
                         <a href="{{ route('admin.analytics') }}" class="flex items-center gap-3 px-3 py-2.5 rounded-lg {{ request()->routeIs('admin.analytics') ? 'bg-white/10 text-white font-semibold border-l-[3px] border-[#E75234]' : 'text-gray-400 hover:text-white hover:bg-white/10 font-medium' }}">
                             <i data-lucide="bar-chart-2" class="w-5 h-5 {{ request()->routeIs('admin.analytics') ? 'text-white' : 'text-gray-500' }}"></i>
                             <span>Analytics</span>
+                        </a>
+                    </li>
+                    <li>
+                        <a href="{{ route('admin.subscription-tiers.index') }}" class="flex items-center gap-3 px-3 py-2.5 rounded-lg {{ request()->routeIs('admin.subscription-tiers.*') ? 'bg-white/10 text-white font-semibold border-l-[3px] border-[#E75234]' : 'text-gray-400 hover:text-white hover:bg-white/10 font-medium' }}">
+                            <i data-lucide="layers" class="w-5 h-5 {{ request()->routeIs('admin.subscription-tiers.*') ? 'text-white' : 'text-gray-500' }}"></i>
+                            <span>Subscription Tiers</span>
                         </a>
                     </li>
                     <li>

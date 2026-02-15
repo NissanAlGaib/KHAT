@@ -4,6 +4,8 @@ use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\Admin\AdminController;
 use App\Http\Controllers\Admin\VaccineProtocolController;
 use App\Http\Controllers\Admin\UserWarningController;
+use App\Http\Controllers\Admin\SubscriptionTierController;
+use App\Http\Controllers\Admin\ProtocolCategoryController;
 
 Route::get('/', function () {
     return redirect()->route('admin.login');
@@ -26,6 +28,7 @@ Route::prefix('admin')->group(function () {
         Route::get('/users', [AdminController::class, 'usersIndex'])->name('admin.users.index');
         Route::get('/users/{user}', [AdminController::class, 'userDetails'])->name('admin.users.show');
         Route::post('/users/{user}/status', [AdminController::class, 'updateUserStatus'])->name('admin.users.status');
+        Route::post('/users/{user}/subscription', [AdminController::class, 'updateUserSubscription'])->name('admin.users.subscription');
         Route::get('/users/{userId}/details', [AdminController::class, 'getUserDetails'])->name('admin.users.details');
         Route::post('/users/verification/{authId}/update', [AdminController::class, 'updateVerificationStatus'])->name('admin.users.verification.update');
         Route::post('/users/{user}/warn', [UserWarningController::class, 'store'])->name('admin.users.warn');
@@ -64,6 +67,12 @@ Route::prefix('admin')->group(function () {
         Route::get('/vaccination-shots/pending', [VaccineProtocolController::class, 'pendingShots'])->name('admin.vaccination-shots.pending');
         Route::post('/vaccination-shots/{shotId}/approve', [VaccineProtocolController::class, 'approveShot'])->name('admin.vaccination-shots.approve');
         Route::post('/vaccination-shots/{shotId}/reject', [VaccineProtocolController::class, 'rejectShot'])->name('admin.vaccination-shots.reject');
+
+        // Subscription Tier Management
+        Route::resource('subscription-tiers', SubscriptionTierController::class)->only(['index', 'update'])->names('admin.subscription-tiers');
+
+        // Protocol Category Management
+        Route::resource('protocol-categories', ProtocolCategoryController::class)->except(['create', 'edit', 'show'])->names('admin.protocol-categories');
 
         // Reports & Safety Management
         Route::get('/reports', [AdminController::class, 'reports'])->name('admin.reports');

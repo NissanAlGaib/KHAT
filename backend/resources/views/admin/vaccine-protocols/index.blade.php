@@ -156,6 +156,7 @@
             <thead>
                 <tr class="bg-[#E75234] text-white text-sm">
                     <th class="px-6 py-4 font-semibold">Name</th>
+                    <th class="px-6 py-4 font-semibold">Category</th>
                     <th class="px-6 py-4 font-semibold">Species</th>
                     <th class="px-6 py-4 font-semibold">Type</th>
                     <th class="px-6 py-4 font-semibold">Required</th>
@@ -178,6 +179,13 @@
                 @endphp
                 <tr class="hover:bg-orange-50/50 transition-colors">
                     <td class="px-6 py-4 font-medium text-gray-900">{{ $protocol->name }}</td>
+                    <td class="px-6 py-4">
+                        @if($protocol->category)
+                            <span class="inline-block rounded-full px-2.5 py-0.5 text-xs font-medium bg-blue-100 text-blue-800">{{ $protocol->category->name }}</span>
+                        @else
+                            <span class="text-gray-400 text-xs italic">None</span>
+                        @endif
+                    </td>
                     <td class="px-6 py-4">
                         @if($protocol->species === 'dog')
                             <span class="inline-block rounded-full px-2.5 py-0.5 text-xs font-medium bg-amber-100 text-amber-800">Dog</span>
@@ -238,6 +246,7 @@
                             <button onclick="openEditModal(this)"
                                 data-id="{{ $protocol->id }}"
                                 data-name="{{ $protocol->name }}"
+                                data-category-id="{{ $protocol->protocol_category_id }}"
                                 data-species="{{ $protocol->species }}"
                                 data-required="{{ $protocol->is_required }}"
                                 data-description="{{ $protocol->description }}"
@@ -321,6 +330,22 @@
                     <div class="mb-5">
                         <label for="create_name" class="block text-sm font-semibold text-gray-700 mb-2">Protocol Name <span class="text-red-500">*</span></label>
                         <input type="text" name="name" id="create_name" required placeholder="e.g., Rabies, DHPP, FVRCP" class="w-full bg-white border border-gray-300 text-gray-700 py-2.5 px-4 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#E75234] focus:border-transparent transition">
+                    </div>
+
+                    <!-- Category -->
+                    <div class="mb-5">
+                        <label for="create_category" class="block text-sm font-semibold text-gray-700 mb-2">Category</label>
+                        <div class="relative">
+                            <select name="protocol_category_id" id="create_category" class="w-full appearance-none bg-white border border-gray-300 text-gray-700 py-2.5 px-4 pr-10 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#E75234] focus:border-transparent transition">
+                                <option value="">Select category (optional)</option>
+                                @foreach($categories as $category)
+                                    <option value="{{ $category->id }}">{{ $category->name }}</option>
+                                @endforeach
+                            </select>
+                            <div class="pointer-events-none absolute inset-y-0 right-0 flex items-center px-3 text-gray-500">
+                                <i data-lucide="chevron-down" class="w-4 h-4"></i>
+                            </div>
+                        </div>
                     </div>
 
                     <!-- Species & Required Row -->
@@ -473,6 +498,22 @@
                     <div class="mb-5">
                         <label for="edit_name" class="block text-sm font-semibold text-gray-700 mb-2">Protocol Name <span class="text-red-500">*</span></label>
                         <input type="text" name="name" id="edit_name" required placeholder="e.g., Rabies, DHPP, FVRCP" class="w-full bg-white border border-gray-300 text-gray-700 py-2.5 px-4 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#E75234] focus:border-transparent transition">
+                    </div>
+
+                    <!-- Category -->
+                    <div class="mb-5">
+                        <label for="edit_category" class="block text-sm font-semibold text-gray-700 mb-2">Category</label>
+                        <div class="relative">
+                            <select name="protocol_category_id" id="edit_category" class="w-full appearance-none bg-white border border-gray-300 text-gray-700 py-2.5 px-4 pr-10 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#E75234] focus:border-transparent transition">
+                                <option value="">Select category (optional)</option>
+                                @foreach($categories as $category)
+                                    <option value="{{ $category->id }}">{{ $category->name }}</option>
+                                @endforeach
+                            </select>
+                            <div class="pointer-events-none absolute inset-y-0 right-0 flex items-center px-3 text-gray-500">
+                                <i data-lucide="chevron-down" class="w-4 h-4"></i>
+                            </div>
+                        </div>
                     </div>
 
                     <!-- Species & Required Row -->
@@ -775,6 +816,7 @@
         // Get data from attributes
         const id = btn.getAttribute('data-id');
         const name = btn.getAttribute('data-name');
+        const categoryId = btn.getAttribute('data-category-id');
         const species = btn.getAttribute('data-species');
         const isRequired = btn.getAttribute('data-required') == '1';
         const description = btn.getAttribute('data-description');
@@ -787,6 +829,7 @@
         // Populate fields
         document.getElementById('edit_protocol_id').value = id;
         document.getElementById('edit_name').value = name;
+        document.getElementById('edit_category').value = categoryId || '';
         document.getElementById('edit_species').value = species;
         document.getElementById('edit_is_required').checked = isRequired;
         document.getElementById('edit_description').value = description || '';
