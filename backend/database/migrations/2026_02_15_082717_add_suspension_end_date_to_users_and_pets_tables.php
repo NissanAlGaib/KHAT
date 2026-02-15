@@ -30,11 +30,15 @@ return new class extends Migration
     public function down(): void
     {
         Schema::table('users', function (Blueprint $table) {
-            $table->dropColumn('suspension_end_date');
+            if (Schema::hasColumn('users', 'suspension_end_date')) {
+                $table->dropColumn('suspension_end_date');
+            }
         });
 
         Schema::table('pets', function (Blueprint $table) {
-            $table->dropColumn('suspension_end_date');
+            if (Schema::hasColumn('pets', 'suspension_end_date')) {
+                $table->dropColumn('suspension_end_date');
+            }
         });
     }
 };
