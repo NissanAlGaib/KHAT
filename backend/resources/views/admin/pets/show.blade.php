@@ -121,7 +121,7 @@
                 </div>
                 <div>
                     <p class="text-xs text-gray-500 mb-1">Owner</p>
-                    <p class="text-sm font-semibold text-gray-900">{{ $pet->owner->name ?? 'Unknown' }}</p>
+                    <p class="text-sm font-semibold text-gray-900">{{ optional($pet->owner)->name ?? 'Unknown' }}</p>
                 </div>
             </div>
 
@@ -185,7 +185,7 @@
                 <div>
                     <p class="text-xs text-gray-500 mb-1">Verification Status</p>
                     @php
-                    $userAuthRecord = $pet->owner->userAuth->first();
+                    $userAuthRecord = optional($pet->owner)->userAuth ? optional($pet->owner)->userAuth->first() : null;
                     $verificationStatus = $userAuthRecord->status ?? 'unknown';
                     @endphp
                     <span class="inline-block px-3 py-1 rounded-full text-xs font-medium
@@ -323,8 +323,8 @@
                 <tr class="hover:bg-orange-50 transition-colors {{ $loop->even ? 'bg-gray-50/30' : '' }}">
                     <td class="px-6 py-4 font-mono text-xs text-gray-500">MTC-{{ str_pad($litter->litter_id, 5, '0', STR_PAD_LEFT) }}</td>
                     <td class="px-6 py-4">
-                        <span class="font-medium">{{ $partner->name ?? 'Unknown' }}</span>
-                        <span class="text-gray-500 text-xs">(ID: PET-{{ str_pad($partner->pet_id ?? 0, 5, '0', STR_PAD_LEFT) }})</span>
+                        <span class="font-medium">{{ optional($partner)->name ?? 'Unknown' }}</span>
+                        <span class="text-gray-500 text-xs">(ID: PET-{{ str_pad(optional($partner)->pet_id ?? 0, 5, '0', STR_PAD_LEFT) }})</span>
                     </td>
                     <td class="px-6 py-4">
                         <span class="px-3 py-1 rounded-full text-xs font-medium {{ $statusClass }}">
@@ -359,7 +359,7 @@
     <div class="bg-white rounded-xl shadow-xl max-w-6xl w-full max-h-[90vh] overflow-hidden flex flex-col">
         <!-- Modal Header -->
         <div class="px-6 py-4 border-b border-gray-200 flex justify-between items-center">
-            <h2 class="text-xl font-bold text-gray-900">User Verification Details: <span>{{ $pet->owner->name ?? 'Unknown' }}</span></h2>
+            <h2 class="text-xl font-bold text-gray-900">User Verification Details: <span>{{ optional($pet->owner)->name ?? 'Unknown' }}</span></h2>
             <button onclick="closeDocumentTrackerModal()" class="text-gray-400 hover:text-gray-600 transition-colors">
                 <i data-lucide="x" class="w-6 h-6"></i>
             </button>
