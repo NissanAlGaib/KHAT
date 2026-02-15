@@ -79,9 +79,9 @@
                 </div>
             </div>
 
-            <!-- Verification Status -->
+            <!-- Owner Verification -->
             <div class="space-y-1.5">
-                <label class="text-xs font-semibold text-gray-700">Verification Status</label>
+                <label class="text-xs font-semibold text-gray-700">Owner Verification</label>
                 <div class="relative">
                     <select name="verification_status" class="w-full appearance-none bg-white border border-gray-300 text-gray-700 py-2.5 px-4 pr-8 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#E75234] focus:border-transparent">
                         <option value="">All Statuses</option>
@@ -97,7 +97,7 @@
 
             <!-- Activity Status -->
             <div class="space-y-1.5">
-                <label class="text-xs font-semibold text-gray-700">Activity Status</label>
+                <label class="text-xs font-semibold text-gray-700">Status</label>
                 <div class="relative">
                     <select name="activity_status" class="w-full appearance-none bg-white border border-gray-300 text-gray-700 py-2.5 px-4 pr-8 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#E75234] focus:border-transparent">
                         <option value="">All Statuses</option>
@@ -191,11 +191,11 @@
                     <th class="px-6 py-4 font-semibold">Age</th>
                     <th class="px-6 py-4 font-semibold">Sex</th>
                     <th class="px-6 py-4 font-semibold">Owner</th>
-                    <th class="px-6 py-4 font-semibold text-center">Verification Status</th>
-                    <th class="px-6 py-4 font-semibold text-center">Activity Status</th>
+                    <th class="px-6 py-4 font-semibold text-center">Status</th>
                     <th class="px-6 py-4 font-semibold text-center rounded-tr-xl">Actions</th>
                 </tr>
             </thead>
+
             <tbody class="divide-y divide-gray-100 text-sm text-gray-700">
                 @forelse($pets as $pet)
                 <tr class="hover:bg-orange-50 transition-colors {{ $loop->even ? 'bg-gray-50/30' : '' }}">
@@ -219,24 +219,24 @@
                         @endif
                     </td>
                     <td class="px-6 py-4 capitalize">{{ $pet->sex ?? 'N/A' }}</td>
-                    <td class="px-6 py-4">{{ $pet->owner->name ?? $pet->owner->email ?? 'Unknown' }}</td>
-                    <td class="px-6 py-4 text-center">
-                        @php
-                        $userAuthRecord = $pet->owner->userAuth->first();
-                        $verificationStatus = $userAuthRecord->status ?? 'unknown';
-                        @endphp
-                        <span class="px-3 py-1 rounded-full text-xs font-medium
-                            @if($verificationStatus === 'approved') bg-green-100 text-green-700
-                            @elseif($verificationStatus === 'pending') bg-yellow-100 text-yellow-700
-                            @elseif($verificationStatus === 'rejected') bg-red-100 text-red-700
-                            @else bg-gray-100 text-gray-500
-                            @endif">
+                    <td class="px-6 py-4">
+                        <div class="flex flex-col">
+                            <span class="font-medium text-gray-900">{{ $pet->owner->name ?? $pet->owner->email ?? 'Unknown' }}</span>
+                            @php
+                            $userAuthRecord = $pet->owner->userAuth->first();
+                            $verificationStatus = $userAuthRecord->status ?? 'unknown';
+                            @endphp
+                            
                             @if($verificationStatus === 'approved')
-                            Verified
-                            @else
-                            {{ ucfirst($verificationStatus) }}
+                                <span class="inline-flex items-center gap-1 text-xs text-green-600 mt-0.5">
+                                    <i data-lucide="badge-check" class="w-3 h-3"></i> Verified Owner
+                                </span>
+                            @elseif($verificationStatus === 'pending')
+                                <span class="inline-flex items-center gap-1 text-xs text-yellow-600 mt-0.5">
+                                    <i data-lucide="clock" class="w-3 h-3"></i> Verification Pending
+                                </span>
                             @endif
-                        </span>
+                        </div>
                     </td>
                     <td class="px-6 py-4 text-center">
                         <span class="px-3 py-1 rounded-full text-xs font-medium
@@ -246,7 +246,7 @@
                             @elseif($pet->status === 'banned') bg-red-200 text-red-800
                             @else bg-gray-100 text-gray-500
                             @endif">
-                            {{ ucfirst($pet->status ?? 'Unknown') }}
+                            {{ ucfirst(str_replace('_', ' ', $pet->status ?? 'Unknown')) }}
                         </span>
                     </td>
                     <td class="px-6 py-4 text-center">

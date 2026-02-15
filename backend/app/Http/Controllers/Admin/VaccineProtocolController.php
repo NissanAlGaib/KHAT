@@ -222,8 +222,17 @@ class VaccineProtocolController extends Controller
             $protocol->toArray()
         );
 
-        return redirect()->route('admin.vaccine-protocols.edit', $protocol->id)
+        if ($request->expectsJson()) {
+            return response()->json([
+                'success' => true,
+                'message' => "Protocol \"{$protocol->name}\" updated successfully.",
+                'protocol' => $protocol,
+            ]);
+        }
+
+        return redirect()->route('admin.vaccine-protocols.index')
             ->with('success', "Protocol \"{$protocol->name}\" updated successfully.");
+
     }
 
     /**
