@@ -829,13 +829,50 @@
             body: formData
         })
         .then(function(response) {
-            if (response.ok) {
+            if (response.ok || response.status === 200) {
+                // Check if the response is JSON
+                const contentType = response.headers.get('content-type');
+                if (contentType && contentType.includes('application/json')) {
+                    return response.json().then(function(data) {
+                        closeEditModal();
+                        if (typeof Swal !== 'undefined') {
+                            Swal.fire({
+                                icon: 'success',
+                                title: 'Protocol Updated',
+                                text: data.message || 'Protocol updated successfully.',
+                                timer: 1500,
+                                showConfirmButton: false
+                            }).then(function() {
+                                window.location.reload();
+                            });
+                        } else {
+                            window.location.reload();
+                        }
+                    });
+                } else {
+                    // Fallback for non-JSON success (e.g. redirect)
+                    window.location.reload();
+                }
+            } else if (response.status === 422) {
                 return response.json().then(function(data) {
-                    closeEditModal();
-                    if (typeof Swal !== 'undefined') {
-                        Swal.fire({
-                            icon: 'success',
-                            title: 'Protocol Updated',
+                    // Show validation errors
+                    errorList.innerHTML = '';
+                    errorsContainer.classList.remove('hidden');
+                    const errors = data.errors || {};
+                    Object.keys(errors).forEach(function(field) {
+                        errors[field].forEach(function(msg) {
+                            const li = document.createElement('li');
+                            li.textContent = msg;
+                            errorList.appendChild(li);
+                        });
+                    });
+                    // Scroll to errors
+                    errorsContainer.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+                });
+            } else {
+                throw new Error('Server error');
+            }
+        })
                             text: data.message || 'Protocol updated successfully.',
                             timer: 1500,
                             showConfirmButton: false

@@ -11,8 +11,16 @@ return new class extends Migration
      */
     public function up(): void
     {
-        Schema::table('users_and_pets_tables', function (Blueprint $table) {
-            //
+        Schema::table('users', function (Blueprint $table) {
+            if (!Schema::hasColumn('users', 'suspension_end_date')) {
+                $table->timestamp('suspension_end_date')->nullable()->after('suspended_at');
+            }
+        });
+
+        Schema::table('pets', function (Blueprint $table) {
+            if (!Schema::hasColumn('pets', 'suspension_end_date')) {
+                $table->timestamp('suspension_end_date')->nullable()->after('suspended_at');
+            }
         });
     }
 
@@ -21,8 +29,12 @@ return new class extends Migration
      */
     public function down(): void
     {
-        Schema::table('users_and_pets_tables', function (Blueprint $table) {
-            //
+        Schema::table('users', function (Blueprint $table) {
+            $table->dropColumn('suspension_end_date');
+        });
+
+        Schema::table('pets', function (Blueprint $table) {
+            $table->dropColumn('suspension_end_date');
         });
     }
 };
