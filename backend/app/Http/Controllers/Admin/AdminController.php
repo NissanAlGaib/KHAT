@@ -711,63 +711,6 @@ class AdminController extends Controller
         return redirect()->back()->with('success', $message);
     }
 
-
-        $vaccination->save();
-
-        AuditLog::log(
-            'vaccination.status_updated',
-            AuditLog::TYPE_UPDATE,
-            "Vaccination status updated to {$request->status} for vaccination #{$vaccination->id}",
-            \App\Models\Vaccination::class,
-            $vaccination->id,
-            $oldValues,
-            $vaccination->toArray()
-        );
-
-        $message = $request->status === 'approved'
-            ? 'Vaccination approved successfully.'
-            : 'Vaccination rejected successfully.';
-
-        return redirect()->back()->with('success', $message);
-    }
-
-    /**
-     * Update health record status (approve/reject).
-     */
-    public function updateHealthRecordStatus(Request $request, $healthRecordId)
-    {
-        $request->validate([
-            'status' => 'required|in:approved,rejected',
-            'rejection_reason' => 'required_if:status,rejected|string|max:500',
-        ]);
-
-        $healthRecord = \App\Models\HealthRecord::findOrFail($healthRecordId);
-        $oldValues = $healthRecord->toArray();
-        $healthRecord->status = $request->status;
-
-        if ($request->status === 'rejected' && $request->rejection_reason) {
-            $healthRecord->rejection_reason = $request->rejection_reason;
-        }
-
-        $healthRecord->save();
-
-        AuditLog::log(
-            'health_record.status_updated',
-            AuditLog::TYPE_UPDATE,
-            "Health certificate status updated to {$request->status} for record #{$healthRecord->id}",
-            \App\Models\HealthRecord::class,
-            $healthRecord->id,
-            $oldValues,
-            $healthRecord->toArray()
-        );
-
-        $message = $request->status === 'approved'
-            ? 'Health certificate approved successfully.'
-            : 'Health certificate rejected successfully.';
-
-        return redirect()->back()->with('success', $message);
-    }
-
     /**
      * Display litter details page.
      */
