@@ -360,7 +360,10 @@ export default function ProfileScreen() {
               activeOpacity={0.7}
             >
               <View
-                style={[styles.settingsIconBox, { backgroundColor: item.iconBg }]}
+                style={[
+                  styles.settingsIconBox,
+                  { backgroundColor: item.iconBg },
+                ]}
               >
                 <Feather name={item.icon} size={18} color="white" />
               </View>
@@ -380,7 +383,9 @@ export default function ProfileScreen() {
             onPress={handleLogout}
             activeOpacity={0.7}
           >
-            <View style={[styles.settingsIconBox, { backgroundColor: "#EF4444" }]}>
+            <View
+              style={[styles.settingsIconBox, { backgroundColor: "#EF4444" }]}
+            >
               <Feather name="log-out" size={18} color="white" />
             </View>
             <View style={styles.settingsRowContent}>

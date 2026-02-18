@@ -32,12 +32,7 @@ export const SettingsItem = ({
   const labelColor = isDestructive ? "#EF4444" : "#111827";
 
   const Content = (
-    <View
-      style={[
-        styles.row,
-        !borderless && styles.rowBorder,
-      ]}
-    >
+    <View style={[styles.row, !borderless && styles.rowBorder]}>
       {/* iOS-style icon tile */}
       {icon && (
         <View style={[styles.iconTile, { backgroundColor: tileBg }]}>

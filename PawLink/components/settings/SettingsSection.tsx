@@ -19,7 +19,16 @@ export const SettingsSection = ({
           {title}
         </Text>
       )}
-      <View className="bg-white rounded-2xl overflow-hidden mx-4" style={{ shadowColor: "#000", shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.06, shadowRadius: 8, elevation: 2 }}>
+      <View
+        className="bg-white rounded-2xl overflow-hidden mx-4"
+        style={{
+          shadowColor: "#000",
+          shadowOffset: { width: 0, height: 2 },
+          shadowOpacity: 0.06,
+          shadowRadius: 8,
+          elevation: 2,
+        }}
+      >
         {children}
       </View>
     </View>
