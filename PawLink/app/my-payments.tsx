@@ -6,8 +6,8 @@ import {
   FlatList,
   ActivityIndicator,
   RefreshControl,
+  StyleSheet,
 } from "react-native";
-import { SafeAreaView } from "react-native-safe-area-context";
 import { useRouter } from "expo-router";
 import { Feather } from "@expo/vector-icons";
 import {
@@ -28,6 +28,7 @@ import {
   getDisputeStatusColor,
   Dispute,
 } from "@/services/disputeService";
+import { SettingsLayout } from "@/components/settings";
 
 type TabType = "transactions" | "disputes";
 type FilterType = "all" | PoolTransactionType;
@@ -120,7 +121,7 @@ export default function MyPaymentsScreen() {
   const renderBalanceCard = () => {
     if (!balance) return null;
     return (
-      <View className="mx-4 mt-4 mb-2 bg-gray-900 rounded-2xl p-5">
+      <View className="mx-4 mt-4 mb-2 bg-gray-900 rounded-2xl p-5 shadow-sm">
         <Text className="text-gray-400 text-sm font-medium mb-1">
           Pool Balance
         </Text>
@@ -159,7 +160,7 @@ export default function MyPaymentsScreen() {
 
     return (
       <TouchableOpacity
-        className="mx-4 mb-2 bg-white rounded-xl p-4 border border-gray-100"
+        className="mx-4 mb-3 bg-white rounded-xl p-4 shadow-sm border border-gray-100"
         activeOpacity={0.7}
       >
         <View className="flex-row items-center justify-between mb-2">
@@ -191,7 +192,7 @@ export default function MyPaymentsScreen() {
           </Text>
         )}
 
-        <View className="flex-row items-center justify-between">
+        <View className="flex-row items-center justify-between mt-2 pt-2 border-t border-gray-50">
           {item.contract_id ? (
             <Text className="text-gray-400 text-xs">
               Contract #{item.contract_id}
@@ -218,7 +219,7 @@ export default function MyPaymentsScreen() {
     const date = new Date(item.created_at);
 
     return (
-      <View className="mx-4 mb-2 bg-white rounded-xl p-4 border border-gray-100">
+      <View className="mx-4 mb-3 bg-white rounded-xl p-4 shadow-sm border border-gray-100">
         <View className="flex-row items-center justify-between mb-2">
           <View className="flex-row items-center gap-2">
             <View className={`px-2 py-1 rounded-md ${statusColor.bg}`}>
@@ -237,7 +238,10 @@ export default function MyPaymentsScreen() {
           />
         </View>
 
-        <Text className="text-gray-800 text-sm mb-2" numberOfLines={2}>
+        <Text
+          className="text-gray-800 text-sm mb-2 font-medium"
+          numberOfLines={2}
+        >
           {item.reason}
         </Text>
 
@@ -257,7 +261,7 @@ export default function MyPaymentsScreen() {
           </View>
         )}
 
-        <Text className="text-gray-400 text-xs">
+        <Text className="text-gray-400 text-xs text-right mt-1">
           Filed{" "}
           {date.toLocaleDateString("en-PH", {
             month: "short",
@@ -280,7 +284,9 @@ export default function MyPaymentsScreen() {
           <TouchableOpacity
             onPress={() => setFilter(opt.value)}
             className={`mr-2 px-4 py-2 rounded-full ${
-              filter === opt.value ? "bg-[#E75234]" : "bg-gray-100"
+              filter === opt.value
+                ? "bg-[#E75234]"
+                : "bg-white border border-gray-200"
             }`}
           >
             <Text
@@ -297,50 +303,42 @@ export default function MyPaymentsScreen() {
   );
 
   const renderEmptyState = () => (
-    <View className="items-center justify-center py-16">
-      <Feather
-        name={activeTab === "transactions" ? "inbox" : "check-circle"}
-        size={48}
-        color="#D1D5DB"
-      />
-      <Text className="text-gray-400 text-base font-medium mt-3">
+    <View className="items-center justify-center py-16 px-4">
+      <View className="bg-gray-100 p-4 rounded-full mb-4">
+        <Feather
+          name={activeTab === "transactions" ? "inbox" : "check-circle"}
+          size={32}
+          color="#9CA3AF"
+        />
+      </View>
+      <Text className="text-gray-900 text-lg font-semibold text-center">
         {activeTab === "transactions"
-          ? "No pool transactions yet"
+          ? "No transactions yet"
           : "No disputes filed"}
       </Text>
-      <Text className="text-gray-300 text-sm mt-1">
+      <Text className="text-gray-500 text-sm mt-2 text-center leading-5 px-8">
         {activeTab === "transactions"
-          ? "Payments from contracts will appear here"
-          : "All clear! You have no disputes."}
+          ? "Payments from your breeding contracts will appear here automatically."
+          : "Great news! You don't have any active disputes at the moment."}
       </Text>
     </View>
   );
 
-  return (
-    <SafeAreaView className="flex-1 bg-gray-50" edges={["top"]}>
-      {/* Header */}
-      <View className="flex-row items-center px-4 py-3 bg-white border-b border-gray-100">
-        <TouchableOpacity onPress={() => router.back()} className="mr-3 p-1">
-          <Feather name="arrow-left" size={24} color="#111827" />
-        </TouchableOpacity>
-        <Text className="text-xl font-bold text-gray-900 flex-1">
-          My Payments
-        </Text>
-      </View>
-
+  const renderHeader = () => (
+    <View>
       {/* Balance Card */}
       {renderBalanceCard()}
 
       {/* Tabs */}
-      <View className="flex-row mx-4 mt-3 mb-3 bg-gray-100 rounded-xl p-1">
+      <View className="flex-row mx-4 mt-3 mb-4 bg-gray-200/50 p-1 rounded-xl">
         <TouchableOpacity
           onPress={() => setActiveTab("transactions")}
-          className={`flex-1 py-2.5 rounded-lg ${
+          className={`flex-1 py-2.5 rounded-lg items-center justify-center ${
             activeTab === "transactions" ? "bg-white shadow-sm" : ""
           }`}
         >
           <Text
-            className={`text-center text-sm font-semibold ${
+            className={`text-sm font-semibold ${
               activeTab === "transactions" ? "text-gray-900" : "text-gray-500"
             }`}
           >
@@ -349,12 +347,12 @@ export default function MyPaymentsScreen() {
         </TouchableOpacity>
         <TouchableOpacity
           onPress={() => setActiveTab("disputes")}
-          className={`flex-1 py-2.5 rounded-lg ${
+          className={`flex-1 py-2.5 rounded-lg items-center justify-center ${
             activeTab === "disputes" ? "bg-white shadow-sm" : ""
           }`}
         >
           <Text
-            className={`text-center text-sm font-semibold ${
+            className={`text-sm font-semibold ${
               activeTab === "disputes" ? "text-gray-900" : "text-gray-500"
             }`}
           >
@@ -365,10 +363,18 @@ export default function MyPaymentsScreen() {
 
       {/* Filters (transactions tab only) */}
       {activeTab === "transactions" && renderFilters()}
+    </View>
+  );
 
+  return (
+    <SettingsLayout
+      headerTitle="My Payments"
+      scrollable={false}
+      contentContainerStyle={{ backgroundColor: "#F9FAFB" }}
+    >
       {/* Content */}
       {loading ? (
-        <View className="flex-1 items-center justify-center">
+        <View className="flex-1 items-center justify-center pt-20">
           <ActivityIndicator size="large" color="#E75234" />
         </View>
       ) : activeTab === "transactions" ? (
@@ -376,6 +382,7 @@ export default function MyPaymentsScreen() {
           data={transactions}
           keyExtractor={(item) => item.id.toString()}
           renderItem={renderTransactionItem}
+          ListHeaderComponent={renderHeader}
           ListEmptyComponent={renderEmptyState}
           onEndReached={loadMore}
           onEndReachedThreshold={0.3}
@@ -386,13 +393,15 @@ export default function MyPaymentsScreen() {
               tintColor="#E75234"
             />
           }
-          contentContainerStyle={{ paddingBottom: 20 }}
+          contentContainerStyle={{ paddingBottom: 40 }}
+          showsVerticalScrollIndicator={false}
         />
       ) : (
         <FlatList
           data={disputes}
           keyExtractor={(item) => item.id.toString()}
           renderItem={renderDisputeItem}
+          ListHeaderComponent={renderHeader}
           ListEmptyComponent={renderEmptyState}
           refreshControl={
             <RefreshControl
@@ -401,9 +410,10 @@ export default function MyPaymentsScreen() {
               tintColor="#E75234"
             />
           }
-          contentContainerStyle={{ paddingBottom: 20 }}
+          contentContainerStyle={{ paddingBottom: 40 }}
+          showsVerticalScrollIndicator={false}
         />
       )}
-    </SafeAreaView>
+    </SettingsLayout>
   );
 }

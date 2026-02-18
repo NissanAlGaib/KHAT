@@ -2,16 +2,12 @@ import React, { useState, useEffect } from "react";
 import {
   View,
   Text,
-  TextInput,
   TouchableOpacity,
-  ScrollView,
   Image,
-  ActivityIndicator,
-  StyleSheet,
-  KeyboardAvoidingView,
   Platform,
+  KeyboardAvoidingView,
+  ScrollView,
 } from "react-native";
-import { SafeAreaView } from "react-native-safe-area-context";
 import { useRouter } from "expo-router";
 import { Feather } from "@expo/vector-icons";
 import * as ImagePicker from "expo-image-picker";
@@ -30,6 +26,13 @@ import { useAlert } from "@/hooks/useAlert";
 import AlertModal from "@/components/core/AlertModal";
 import { Colors } from "@/constants";
 
+import {
+  SettingsLayout,
+  SettingsSection,
+  SettingsInput,
+  SettingsButton,
+} from "@/components/settings";
+
 export default function EditProfileScreen() {
   const router = useRouter();
   const { user } = useSession();
@@ -41,11 +44,15 @@ export default function EditProfileScreen() {
 
   // Form state
   const [name, setName] = useState("");
+  const [email, setEmail] = useState("");
   const [contactNumber, setContactNumber] = useState("");
   const [birthdate, setBirthdate] = useState<Date | null>(null);
   const [sex, setSex] = useState<string>("");
   const [profileImage, setProfileImage] = useState<string | null>(null);
   const [newImageUri, setNewImageUri] = useState<string | null>(null);
+
+  // Validation state
+  const [errors, setErrors] = useState<{ name?: string; contact?: string }>({});
 
   // Date picker
   const [showDatePicker, setShowDatePicker] = useState(false);
@@ -60,6 +67,7 @@ export default function EditProfileScreen() {
       const data = await getUserProfile();
       setProfile(data);
       setName(data.name || "");
+      setEmail(data.email || "");
       setContactNumber(data.contact_number || "");
       setBirthdate(data.birthdate ? new Date(data.birthdate) : null);
       setSex(data.sex || "");
@@ -77,8 +85,9 @@ export default function EditProfileScreen() {
   };
 
   const pickImage = async () => {
-    const permissionResult = await ImagePicker.requestMediaLibraryPermissionsAsync();
-    
+    const permissionResult =
+      await ImagePicker.requestMediaLibraryPermissionsAsync();
+
     if (!permissionResult.granted) {
       showAlert({
         title: "Permission Required",
@@ -100,15 +109,21 @@ export default function EditProfileScreen() {
     }
   };
 
-  const handleSave = async () => {
+  const validate = () => {
+    let valid = true;
+    const newErrors: { name?: string; contact?: string } = {};
+
     if (!name.trim()) {
-      showAlert({
-        title: "Validation Error",
-        message: "Name is required",
-        type: "warning",
-      });
-      return;
+      newErrors.name = "Name is required";
+      valid = false;
     }
+
+    setErrors(newErrors);
+    return valid;
+  };
+
+  const handleSave = async () => {
+    if (!validate()) return;
 
     try {
       setSaving(true);
@@ -122,7 +137,9 @@ export default function EditProfileScreen() {
       await updateUserProfile({
         name: name.trim(),
         contact_number: contactNumber.trim() || undefined,
-        birthdate: birthdate ? dayjs(birthdate).format("YYYY-MM-DD") : undefined,
+        birthdate: birthdate
+          ? dayjs(birthdate).format("YYYY-MM-DD")
+          : undefined,
         sex: sex || undefined,
       });
 
@@ -153,104 +170,128 @@ export default function EditProfileScreen() {
     if (newImageUri) {
       return { uri: newImageUri };
     }
-    const storageUrl = getStorageUrl(profileImage);
-    if (storageUrl) {
-      return { uri: storageUrl };
+    if (profileImage) {
+      const storageUrl = getStorageUrl(profileImage);
+      if (storageUrl) {
+        return { uri: storageUrl };
+      }
     }
     return require("@/assets/images/icon.png");
   };
 
-  if (loading) {
+  // Gender selection helper
+  const GenderButton = ({
+    value,
+    label,
+    icon,
+  }: {
+    value: string;
+    label: string;
+    icon: string;
+  }) => {
+    const isSelected = sex === value;
     return (
-      <SafeAreaView style={styles.container}>
-        <View style={styles.loadingContainer}>
-          <ActivityIndicator size="large" color={Colors.primary} />
-        </View>
-      </SafeAreaView>
+      <TouchableOpacity
+        onPress={() => setSex(value)}
+        className={`flex-1 flex-row items-center justify-center p-3 rounded-lg border mr-2 ${
+          isSelected
+            ? "bg-orange-50 border-orange-500"
+            : "bg-white border-gray-200"
+        }`}
+      >
+        <Text
+          className={`mr-2 ${isSelected ? "text-orange-600" : "text-gray-500"}`}
+        >
+          {icon}
+        </Text>
+        <Text
+          className={`font-medium ${isSelected ? "text-orange-700" : "text-gray-700"}`}
+        >
+          {label}
+        </Text>
+      </TouchableOpacity>
     );
-  }
+  };
 
   return (
-    <SafeAreaView style={styles.container} edges={["top"]}>
+    <SettingsLayout
+      headerTitle="Edit Profile"
+      contentContainerStyle={{ paddingBottom: 100 }}
+    >
       <KeyboardAvoidingView
         behavior={Platform.OS === "ios" ? "padding" : "height"}
-        style={styles.flex1}
+        style={{ flex: 1 }}
       >
-        {/* Header */}
-        <View style={styles.header}>
-          <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
-            <Feather name="arrow-left" size={24} color="#333" />
-          </TouchableOpacity>
-          <Text style={styles.headerTitle}>Edit Profile</Text>
-          <TouchableOpacity
-            onPress={handleSave}
-            disabled={saving}
-            style={styles.saveButton}
-          >
-            {saving ? (
-              <ActivityIndicator size="small" color={Colors.primary} />
-            ) : (
-              <Text style={styles.saveText}>Save</Text>
-            )}
-          </TouchableOpacity>
-        </View>
-
-        <ScrollView
-          style={styles.content}
-          contentContainerStyle={styles.contentContainer}
-          showsVerticalScrollIndicator={false}
-        >
-          {/* Profile Image */}
-          <View style={styles.imageSection}>
-            <TouchableOpacity onPress={pickImage} style={styles.imageContainer}>
-              <Image source={getImageSource()} style={styles.profileImage} />
-              <View style={styles.editBadge}>
+        <View className="mb-6 items-center pt-4">
+          <TouchableOpacity onPress={pickImage} activeOpacity={0.8}>
+            <View className="relative">
+              <Image
+                source={getImageSource()}
+                className="w-32 h-32 rounded-full border-4 border-white shadow-sm"
+              />
+              <View className="absolute bottom-0 right-0 bg-orange-500 p-2 rounded-full border-2 border-white">
                 <Feather name="camera" size={16} color="white" />
               </View>
-            </TouchableOpacity>
-            <Text style={styles.changePhotoText}>Tap to change photo</Text>
-          </View>
-
-          {/* Form Fields */}
-          <View style={styles.form}>
-            {/* Name */}
-            <View style={styles.inputGroup}>
-              <Text style={styles.label}>Display Name *</Text>
-              <TextInput
-                style={styles.input}
-                value={name}
-                onChangeText={setName}
-                placeholder="Enter your name"
-                placeholderTextColor="#999"
-              />
             </View>
+          </TouchableOpacity>
+          <Text className="text-gray-500 text-sm mt-3">
+            Tap to change photo
+          </Text>
+        </View>
 
-            {/* Contact Number */}
-            <View style={styles.inputGroup}>
-              <Text style={styles.label}>Contact Number</Text>
-              <TextInput
-                style={styles.input}
-                value={contactNumber}
-                onChangeText={setContactNumber}
-                placeholder="Enter phone number"
-                placeholderTextColor="#999"
-                keyboardType="phone-pad"
-              />
-            </View>
+        <SettingsSection title="Personal Information">
+          <View className="p-4 bg-white">
+            <SettingsInput
+              label="Full Name"
+              value={name}
+              onChangeText={setName}
+              placeholder="e.g. John Doe"
+              icon="user"
+              error={errors.name}
+            />
 
-            {/* Birthdate */}
-            <View style={styles.inputGroup}>
-              <Text style={styles.label}>Birthdate</Text>
+            <SettingsInput
+              label="Email Address"
+              value={email}
+              editable={false}
+              icon="mail"
+              className="opacity-60"
+            />
+
+            <SettingsInput
+              label="Phone Number"
+              value={contactNumber}
+              onChangeText={setContactNumber}
+              placeholder="e.g. 09123456789"
+              keyboardType="phone-pad"
+              icon="phone"
+            />
+
+            <View className="mb-4 mx-4">
+              <Text className="text-sm font-medium text-gray-700 mb-1.5 ml-1">
+                Date of Birth
+              </Text>
               <TouchableOpacity
-                style={styles.input}
                 onPress={() => setShowDatePicker(true)}
+                className="flex-row items-center bg-white border border-gray-200 rounded-xl px-3 h-12"
               >
-                <Text style={birthdate ? styles.inputText : styles.placeholder}>
+                <Feather
+                  name="calendar"
+                  size={20}
+                  color="#9ca3af"
+                  style={{ marginRight: 10 }}
+                />
+                <Text
+                  className={
+                    birthdate
+                      ? "text-gray-900 text-base"
+                      : "text-gray-400 text-base"
+                  }
+                >
                   {birthdate
                     ? dayjs(birthdate).format("MMMM D, YYYY")
-                    : "Select birthdate"}
+                    : "Select date"}
                 </Text>
-                <Feather name="calendar" size={20} color="#999" />
               </TouchableOpacity>
             </View>
 
@@ -267,197 +308,36 @@ export default function EditProfileScreen() {
               />
             )}
 
-            {/* Sex/Gender */}
-            <View style={styles.inputGroup}>
-              <Text style={styles.label}>Gender</Text>
-              <View style={styles.genderButtons}>
-                {["male", "female"].map((option) => (
-                  <TouchableOpacity
-                    key={option}
-                    style={[
-                      styles.genderButton,
-                      sex === option && styles.genderButtonActive,
-                    ]}
-                    onPress={() => setSex(option)}
-                  >
-                    <Text
-                      style={[
-                        styles.genderButtonText,
-                        sex === option && styles.genderButtonTextActive,
-                      ]}
-                    >
-                      {option === "male" ? "♂ Male" : "♀ Female"}
-                    </Text>
-                  </TouchableOpacity>
-                ))}
-              </View>
-            </View>
-
-            {/* Email (read-only) */}
-            <View style={styles.inputGroup}>
-              <Text style={styles.label}>Email</Text>
-              <View style={[styles.input, styles.disabledInput]}>
-                <Text style={styles.disabledText}>{profile?.email}</Text>
-                <Feather name="lock" size={16} color="#999" />
-              </View>
-              <Text style={styles.helperText}>
-                Email cannot be changed
+            <View className="mb-2 mx-4">
+              <Text className="text-sm font-medium text-gray-700 mb-1.5 ml-1">
+                Gender
               </Text>
+              <View className="flex-row">
+                <GenderButton value="male" label="Male" icon="♂" />
+                <GenderButton value="female" label="Female" icon="♀" />
+              </View>
             </View>
           </View>
-        </ScrollView>
+        </SettingsSection>
+
+        <View className="px-4 mt-4">
+          <SettingsButton
+            title={saving ? "Saving Changes..." : "Save Changes"}
+            onPress={handleSave}
+            loading={saving}
+            disabled={loading}
+          />
+        </View>
       </KeyboardAvoidingView>
 
-      <AlertModal {...{ visible, ...alertOptions, onClose: hideAlert }} />
-    </SafeAreaView>
+      <AlertModal
+        visible={visible}
+        title={alertOptions.title}
+        message={alertOptions.message}
+        type={alertOptions.type}
+        buttons={alertOptions.buttons}
+        onClose={hideAlert}
+      />
+    </SettingsLayout>
   );
 }
-
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: "#F8F9FA",
-  },
-  flex1: {
-    flex: 1,
-  },
-  loadingContainer: {
-    flex: 1,
-    justifyContent: "center",
-    alignItems: "center",
-  },
-  header: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    backgroundColor: "white",
-    borderBottomWidth: 1,
-    borderBottomColor: "#E5E7EB",
-  },
-  backButton: {
-    padding: 4,
-  },
-  headerTitle: {
-    fontSize: 18,
-    fontWeight: "700",
-    color: "#333",
-  },
-  saveButton: {
-    paddingHorizontal: 16,
-    paddingVertical: 8,
-  },
-  saveText: {
-    fontSize: 16,
-    fontWeight: "600",
-    color: Colors.primary,
-  },
-  content: {
-    flex: 1,
-  },
-  contentContainer: {
-    padding: 20,
-    paddingBottom: 40,
-  },
-  imageSection: {
-    alignItems: "center",
-    marginBottom: 32,
-  },
-  imageContainer: {
-    position: "relative",
-  },
-  profileImage: {
-    width: 120,
-    height: 120,
-    borderRadius: 60,
-    borderWidth: 4,
-    borderColor: Colors.primary,
-  },
-  editBadge: {
-    position: "absolute",
-    bottom: 0,
-    right: 0,
-    backgroundColor: Colors.primary,
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    justifyContent: "center",
-    alignItems: "center",
-    borderWidth: 3,
-    borderColor: "white",
-  },
-  changePhotoText: {
-    marginTop: 8,
-    fontSize: 14,
-    color: "#666",
-  },
-  form: {
-    gap: 20,
-  },
-  inputGroup: {
-    gap: 8,
-  },
-  label: {
-    fontSize: 14,
-    fontWeight: "600",
-    color: "#333",
-  },
-  input: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    backgroundColor: "white",
-    borderRadius: 12,
-    paddingHorizontal: 16,
-    paddingVertical: 14,
-    fontSize: 16,
-    color: "#333",
-    borderWidth: 1,
-    borderColor: "#E5E7EB",
-  },
-  inputText: {
-    fontSize: 16,
-    color: "#333",
-  },
-  placeholder: {
-    fontSize: 16,
-    color: "#999",
-  },
-  disabledInput: {
-    backgroundColor: "#F3F4F6",
-  },
-  disabledText: {
-    fontSize: 16,
-    color: "#666",
-  },
-  helperText: {
-    fontSize: 12,
-    color: "#999",
-  },
-  genderButtons: {
-    flexDirection: "row",
-    gap: 12,
-  },
-  genderButton: {
-    flex: 1,
-    paddingVertical: 14,
-    borderRadius: 12,
-    backgroundColor: "white",
-    alignItems: "center",
-    borderWidth: 1,
-    borderColor: "#E5E7EB",
-  },
-  genderButtonActive: {
-    backgroundColor: Colors.primary,
-    borderColor: Colors.primary,
-  },
-  genderButtonText: {
-    fontSize: 16,
-    fontWeight: "600",
-    color: "#666",
-  },
-  genderButtonTextActive: {
-    color: "white",
-  },
-});

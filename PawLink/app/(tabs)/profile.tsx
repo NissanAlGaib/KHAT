@@ -7,6 +7,7 @@ import {
   ScrollView,
   ActivityIndicator,
   StyleSheet,
+  Platform,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Feather, Ionicons } from "@expo/vector-icons";
@@ -314,83 +315,81 @@ export default function ProfileScreen() {
   };
 
   const renderSettings = () => {
-    // Check if user has both Breeder and Shooter roles
-    const hasBothRoles =
-      userProfile?.roles &&
-      userProfile.roles.some((r) => r.role_type === "Breeder") &&
-      userProfile.roles.some((r) => r.role_type === "Shooter");
+    const menuItems = [
+      {
+        icon: "user" as const,
+        label: "Account",
+        subtitle: "Name, photo, contact info",
+        iconBg: "#3B82F6",
+        onPress: () => router.push("/edit-profile"),
+      },
+      {
+        icon: "bell" as const,
+        label: "Notifications",
+        subtitle: "Alerts and activity updates",
+        iconBg: "#F59E0B",
+        onPress: () => router.push("/notifications"),
+      },
+      {
+        icon: "shield" as const,
+        label: "Privacy & Security",
+        subtitle: "Password, account safety",
+        iconBg: "#10B981",
+        onPress: () => router.push("/privacy-security"),
+      },
+      {
+        icon: "credit-card" as const,
+        label: "My Payments",
+        subtitle: "Transactions and disputes",
+        iconBg: "#8B5CF6",
+        onPress: () => router.push("/my-payments"),
+      },
+    ];
 
     return (
       <View style={styles.tabContent}>
-        {hasBothRoles && (
-          <SettingsCard title="Role">
-            <View style={styles.roleSwitcher}>
-              <TouchableOpacity
-                style={[
-                  styles.roleButton,
-                  role === "Breeder" && styles.roleActive,
-                ]}
-                onPress={() => setRole("Breeder")}
+        <View style={styles.settingsCard}>
+          {menuItems.map((item, index) => (
+            <TouchableOpacity
+              key={item.label}
+              style={[
+                styles.settingsRow,
+                index < menuItems.length - 1 && styles.settingsRowBorder,
+              ]}
+              onPress={item.onPress}
+              activeOpacity={0.7}
+            >
+              <View
+                style={[styles.settingsIconBox, { backgroundColor: item.iconBg }]}
               >
-                <Text
-                  style={[
-                    styles.roleText,
-                    role === "Breeder" && styles.roleTextActive,
-                  ]}
-                >
-                  Breeder
-                </Text>
-              </TouchableOpacity>
-              <TouchableOpacity
-                style={[
-                  styles.roleButton,
-                  role === "Shooter" && styles.roleActive,
-                ]}
-                onPress={() => setRole("Shooter")}
-              >
-                <Text
-                  style={[
-                    styles.roleText,
-                    role === "Shooter" && styles.roleTextActive,
-                  ]}
-                >
-                  Shooter
-                </Text>
-              </TouchableOpacity>
+                <Feather name={item.icon} size={18} color="white" />
+              </View>
+              <View style={styles.settingsRowContent}>
+                <Text style={styles.settingsRowLabel}>{item.label}</Text>
+                <Text style={styles.settingsRowSubtitle}>{item.subtitle}</Text>
+              </View>
+              <Feather name="chevron-right" size={18} color="#C0C0C0" />
+            </TouchableOpacity>
+          ))}
+        </View>
+
+        {/* Sign Out — separate danger card */}
+        <View style={styles.settingsCard}>
+          <TouchableOpacity
+            style={styles.settingsRow}
+            onPress={handleLogout}
+            activeOpacity={0.7}
+          >
+            <View style={[styles.settingsIconBox, { backgroundColor: "#EF4444" }]}>
+              <Feather name="log-out" size={18} color="white" />
             </View>
-          </SettingsCard>
-        )}
-        <SettingsItem
-          icon="user"
-          title="Account"
-          description="Update personal information"
-          onPress={() => router.push("/edit-profile")}
-        />
-        <SettingsItem
-          icon="bell"
-          title="Notifications"
-          description="Manage notifications"
-          onPress={() => router.push("/notifications")}
-        />
-        <SettingsItem
-          icon="shield"
-          title="Privacy & Security"
-          description="Control your privacy"
-          onPress={() => router.push("/privacy-security")}
-        />
-        <SettingsItem
-          icon="credit-card"
-          title="My Payments"
-          description="Pool transactions & disputes"
-          onPress={() => router.push("/my-payments")}
-        />
-        <SettingsItem
-          icon="log-out"
-          title="Sign Out"
-          description="Log out of your account"
-          onPress={handleLogout}
-          isDestructive
-        />
+            <View style={styles.settingsRowContent}>
+              <Text style={[styles.settingsRowLabel, { color: "#EF4444" }]}>
+                Sign Out
+              </Text>
+            </View>
+          </TouchableOpacity>
+        </View>
       </View>
     );
   };
@@ -459,6 +458,46 @@ export default function ProfileScreen() {
               </Text>
             </TouchableOpacity>
           )}
+
+          {/* Role Switcher in header — only shown when user has both roles */}
+          {userProfile?.roles &&
+            userProfile.roles.some((r) => r.role_type === "Breeder") &&
+            userProfile.roles.some((r) => r.role_type === "Shooter") && (
+              <View style={styles.headerRoleSwitcher}>
+                <TouchableOpacity
+                  style={[
+                    styles.headerRoleButton,
+                    role === "Breeder" && styles.headerRoleActive,
+                  ]}
+                  onPress={() => setRole("Breeder")}
+                >
+                  <Text
+                    style={[
+                      styles.headerRoleText,
+                      role === "Breeder" && styles.headerRoleTextActive,
+                    ]}
+                  >
+                    Breeder
+                  </Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={[
+                    styles.headerRoleButton,
+                    role === "Shooter" && styles.headerRoleActive,
+                  ]}
+                  onPress={() => setRole("Shooter")}
+                >
+                  <Text
+                    style={[
+                      styles.headerRoleText,
+                      role === "Shooter" && styles.headerRoleTextActive,
+                    ]}
+                  >
+                    Shooter
+                  </Text>
+                </TouchableOpacity>
+              </View>
+            )}
         </LinearGradient>
 
         <View style={styles.tabContainer}>
@@ -531,50 +570,6 @@ const StatCard = ({
     <Text style={styles.statValue}>{value}</Text>
     <Text style={styles.statLabel}>{label}</Text>
   </View>
-);
-
-const SettingsCard = ({
-  title,
-  children,
-}: {
-  title: string;
-  children: React.ReactNode;
-}) => (
-  <View style={styles.settingsCard}>
-    <Text style={styles.settingsCardTitle}>{title}</Text>
-    {children}
-  </View>
-);
-
-const SettingsItem = ({
-  icon,
-  title,
-  description,
-  onPress,
-  isDestructive,
-}: {
-  icon: any;
-  title: string;
-  description: string;
-  onPress: () => void;
-  isDestructive?: boolean;
-}) => (
-  <TouchableOpacity style={styles.settingsItem} onPress={onPress}>
-    <Feather
-      name={icon}
-      size={24}
-      color={isDestructive ? "#DC2626" : "#FF6B4A"}
-    />
-    <View style={styles.settingsInfo}>
-      <Text
-        style={[styles.settingsTitle, isDestructive && { color: "#DC2626" }]}
-      >
-        {title}
-      </Text>
-      <Text style={styles.settingsDescription}>{description}</Text>
-    </View>
-    <Feather name="chevron-right" size={24} color="#9CA3AF" />
-  </TouchableOpacity>
 );
 
 const styles = StyleSheet.create({
@@ -701,45 +696,62 @@ const styles = StyleSheet.create({
   },
   petNameTextGrid: { fontSize: 16, fontWeight: "bold", color: "white" },
   petInfoTextGrid: { fontSize: 13, color: "white", opacity: 0.9 },
-  settingsCard: {
-    backgroundColor: "white",
-    borderRadius: 20,
-    padding: 16,
-    marginBottom: 16,
-    elevation: 1,
-  },
-  settingsCardTitle: {
-    fontSize: 16,
-    fontWeight: "bold",
-    color: "#555",
-    marginBottom: 12,
-  },
-  roleSwitcher: {
+  // Header role switcher
+  headerRoleSwitcher: {
     flexDirection: "row",
-    backgroundColor: "#F3F4F6",
-    borderRadius: 20,
+    backgroundColor: "rgba(255,255,255,0.25)",
+    borderRadius: 22,
     padding: 4,
+    marginTop: 14,
+    width: 200,
   },
-  roleButton: {
+  headerRoleButton: {
     flex: 1,
-    paddingVertical: 8,
+    paddingVertical: 7,
     borderRadius: 18,
     alignItems: "center",
   },
-  roleActive: { backgroundColor: "#FF6B4A" },
-  roleText: { fontWeight: "bold", color: "#333" },
-  roleTextActive: { color: "white" },
-  settingsItem: {
+  headerRoleActive: { backgroundColor: "white" },
+  headerRoleText: {
+    fontWeight: "700",
+    color: "rgba(255,255,255,0.85)",
+    fontSize: 13,
+  },
+  headerRoleTextActive: { color: "#FF6B4A" },
+  // iOS-style settings cards
+  settingsCard: {
+    backgroundColor: "white",
+    borderRadius: 16,
+    marginHorizontal: 4,
+    marginBottom: 16,
+    overflow: "hidden",
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.07,
+    shadowRadius: 8,
+    elevation: 3,
+  },
+  settingsRow: {
     flexDirection: "row",
     alignItems: "center",
-    backgroundColor: "white",
-    paddingVertical: 20,
-    borderBottomWidth: 1,
-    borderBottomColor: "#F3F4F6",
+    paddingVertical: 13,
+    paddingHorizontal: 16,
   },
-  settingsInfo: { flex: 1, marginLeft: 16 },
-  settingsTitle: { fontSize: 16, fontWeight: "600", color: "#333" },
-  settingsDescription: { fontSize: 13, color: "#777", marginTop: 2 },
+  settingsRowBorder: {
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: "#E5E7EB",
+  },
+  settingsIconBox: {
+    width: 36,
+    height: 36,
+    borderRadius: 9,
+    justifyContent: "center",
+    alignItems: "center",
+    marginRight: 14,
+  },
+  settingsRowContent: { flex: 1 },
+  settingsRowLabel: { fontSize: 15, fontWeight: "600", color: "#111827" },
+  settingsRowSubtitle: { fontSize: 12, color: "#9CA3AF", marginTop: 2 },
   fab: {
     position: "absolute",
     bottom: 30,
