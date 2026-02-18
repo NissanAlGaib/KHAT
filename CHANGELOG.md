@@ -5,6 +5,20 @@ All notable changes to the PawLink project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+---
+## [1.5.0] - 2026-02-18
+
+### Payment & Transaction Pooling
+
+- **New: Money Pool feature** — virtual escrow-style pooling for contract collateral, shooter collateral, shooter service payments, and monetary compensation. Funds are tracked with an auditable ledger and released according to contract state or admin resolution.
+- **Database**: Added `pool_transactions` and `disputes` migrations and `pool_status` on `payments` to track pooled/refunded/released states.
+- **Backend**: Implemented `PoolService` with PayMongo refund integration, dispute resolution (full/partial/refund/release/forfeit), cancellation fee handling, freeze/unfreeze flows, and admin statistics endpoints.
+- **API**: New user endpoints: `GET /api/pool/my-transactions`, `GET /api/pool/contracts/{contractId}/summary`, `GET /api/pool/balance`; dispute endpoints: `POST /api/disputes`, `GET /api/disputes`, `GET /api/disputes/{id}`; contract cancel endpoint added.
+- **Admin UI**: Money Pool dashboard, transactions list, contract detail, disputes management, CSV/PDF export, and admin actions (freeze, unfreeze, force-release, resolve dispute).
+- **Frontend (Mobile)**: `My Payments` screen, `ContractPoolStatus` and `DisputeButton` components, `poolService.ts` and `disputeService.ts`, and route registration in app layout.
+- **Testing**: Added Pest feature tests covering PoolService logic and API endpoints (deposits, releases, cancellations, disputes, freeze/unfreeze, statistics).
+- **Notes & Limitations**: Shooter payouts are marked `released` in the pool; actual payout to third parties is handled manually (PayMongo Refunds return to original payer). Pool is a virtual ledger — actual funds are refunded via PayMongo Refund API when releasing collateral/compensation.
+
 ## [1.4.7] - 2026-02-16
 
 ### Admin Data Export (CSV/PDF)
