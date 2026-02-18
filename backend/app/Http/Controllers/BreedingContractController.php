@@ -7,6 +7,7 @@ use App\Models\Conversation;
 use App\Models\Litter;
 use App\Models\LitterOffspring;
 use App\Models\Pet;
+use App\Services\PoolService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
@@ -14,6 +15,13 @@ use Illuminate\Support\Facades\Storage;
 
 class BreedingContractController extends Controller
 {
+    private PoolService $poolService;
+
+    public function __construct(PoolService $poolService)
+    {
+        $this->poolService = $poolService;
+    }
+
     /**
      * Create a new breeding contract for a conversation
      */
@@ -972,6 +980,22 @@ class BreedingContractController extends Controller
                 'breeding_notes' => $validated['breeding_notes'] ?? null,
             ]);
 
+            // If breeding completed successfully, release shooter payment from pool
+            if ($validated['breeding_status'] === 'completed') {
+                try {
+                    $this->poolService->releaseShooterPayment($contract);
+                    Log::info('Shooter payment released from pool', [
+                        'contract_id' => $contract->id,
+                    ]);
+                } catch (\Exception $e) {
+                    Log::error('Failed to release shooter payment from pool', [
+                        'contract_id' => $contract->id,
+                        'error' => $e->getMessage(),
+                    ]);
+                    // Don't fail the breeding completion - pool release can be retried by admin
+                }
+            }
+
             // If breeding failed, apply rest period cooldown to the female (dam) only
             if ($validated['breeding_status'] === 'failed') {
                 $pets = $contract->getSireAndDam();
@@ -1606,6 +1630,20 @@ class BreedingContractController extends Controller
                 ]);
             }
 
+            // Release collaterals from pool back to owners
+            try {
+                $this->poolService->releaseCollateral($contract);
+                Log::info('Collaterals released from pool on match completion', [
+                    'contract_id' => $contract->id,
+                ]);
+            } catch (\Exception $e) {
+                Log::error('Failed to release collaterals from pool', [
+                    'contract_id' => $contract->id,
+                    'error' => $e->getMessage(),
+                ]);
+                // Don't fail the match completion - pool release can be retried by admin
+            }
+
             // Mark the conversation as completed and archive it
             $conversation = $contract->conversation;
             $conversation->markAsCompleted();
@@ -1637,6 +1675,94 @@ class BreedingContractController extends Controller
             return response()->json([
                 'success' => false,
                 'message' => 'Failed to complete match',
+            ], 500);
+        }
+    }
+
+    /**
+     * Cancel a breeding contract
+     * Triggers pool cancellation logic (partial refunds minus cancellation fee)
+     */
+    public function cancelContract(Request $request, $contractId)
+    {
+        $validated = $request->validate([
+            'reason' => 'required|string|max:1000',
+        ]);
+
+        $user = $request->user();
+        $userPetIds = Pet::where('user_id', $user->id)->pluck('pet_id');
+
+        $contract = BreedingContract::where('id', $contractId)
+            ->where('status', 'accepted')
+            ->where(function ($query) use ($userPetIds, $user) {
+                $query->whereHas('conversation.matchRequest', function ($q) use ($userPetIds) {
+                    $q->whereIn('requester_pet_id', $userPetIds)
+                        ->orWhereIn('target_pet_id', $userPetIds);
+                })
+                    ->orWhere('shooter_user_id', $user->id);
+            })
+            ->with(['conversation'])
+            ->first();
+
+        if (!$contract) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Contract not found or you do not have access',
+            ], 404);
+        }
+
+        // Cannot cancel if there's an active dispute
+        if ($contract->hasActiveDispute()) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Cannot cancel contract while there is an active dispute. Please resolve the dispute first.',
+            ], 400);
+        }
+
+        try {
+            DB::beginTransaction();
+
+            // Update contract status
+            $contract->update([
+                'status' => 'cancelled',
+                'cancellation_reason' => $validated['reason'],
+                'cancelled_by' => $user->id,
+                'cancelled_at' => now(),
+            ]);
+
+            // Handle pool cancellation (partial refunds with fee deduction)
+            try {
+                $this->poolService->handleCancellation($contract, $user->id);
+                Log::info('Pool cancellation processed', [
+                    'contract_id' => $contract->id,
+                    'cancelled_by' => $user->id,
+                ]);
+            } catch (\Exception $e) {
+                Log::error('Failed to process pool cancellation', [
+                    'contract_id' => $contract->id,
+                    'error' => $e->getMessage(),
+                ]);
+                // Don't fail the cancellation - pool can be handled by admin
+            }
+
+            // Archive the conversation
+            if ($contract->conversation) {
+                $contract->conversation->archive();
+            }
+
+            DB::commit();
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Contract cancelled. Refunds will be processed according to the cancellation policy.',
+                'data' => $this->formatContract($contract->fresh(), $user),
+            ]);
+        } catch (\Exception $e) {
+            DB::rollBack();
+            Log::error('Failed to cancel contract: ' . $e->getMessage());
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to cancel contract',
             ], 500);
         }
     }
@@ -1899,7 +2025,7 @@ class BreedingContractController extends Controller
 
         // Check if user can submit reports
         $canSubmitReport = \App\Models\DailyReport::canUserReport($contract, $user);
-        
+
         // Check if report already exists for today
         $todayReportExists = $reports->where('report_date', now()->toDateString())->isNotEmpty();
 

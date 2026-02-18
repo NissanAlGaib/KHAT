@@ -14,7 +14,10 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/viewerjs/1.11.6/viewer.min.css">
 
     <style>
-        body { font-family: 'Inter', sans-serif; }
+        body {
+            font-family: 'Inter', sans-serif;
+        }
+
         ::-webkit-scrollbar {
             width: 6px;
             height: 6px;
@@ -43,10 +46,20 @@
         }
 
         @keyframes fadeInUp {
-            from { opacity: 0; transform: translateY(10px); }
-            to { opacity: 1; transform: translateY(0); }
+            from {
+                opacity: 0;
+                transform: translateY(10px);
+            }
+
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
         }
-        .animate-fade-in-up { animation: fadeInUp 0.3s ease-out; }
+
+        .animate-fade-in-up {
+            animation: fadeInUp 0.3s ease-out;
+        }
     </style>
     @stack('styles')
 </head>
@@ -60,9 +73,10 @@
         </div>
 
         @php
-            $petGroupActive = request()->routeIs('admin.pets.*') || request()->routeIs('admin.vaccine-protocols.*') || request()->routeIs('admin.vaccination-shots.*') || request()->routeIs('admin.protocol-categories.*');
-            $businessGroupActive = request()->routeIs('admin.analytics') || request()->routeIs('admin.billing') || request()->routeIs('admin.subscription-tiers.*');
-            $systemGroupActive = request()->routeIs('admin.reports') || request()->routeIs('admin.blocks') || request()->routeIs('admin.audit-logs');
+        $petGroupActive = request()->routeIs('admin.pets.*') || request()->routeIs('admin.vaccine-protocols.*') || request()->routeIs('admin.vaccination-shots.*') || request()->routeIs('admin.protocol-categories.*');
+        $businessGroupActive = request()->routeIs('admin.analytics') || request()->routeIs('admin.billing') || request()->routeIs('admin.subscription-tiers.*');
+        $poolGroupActive = request()->routeIs('admin.pool.*');
+        $systemGroupActive = request()->routeIs('admin.reports') || request()->routeIs('admin.blocks') || request()->routeIs('admin.audit-logs');
         @endphp
 
         <nav class="flex-grow p-4 overflow-y-auto">
@@ -161,6 +175,37 @@
                         <i data-lucide="credit-card" class="w-5 h-5 {{ request()->routeIs('admin.billing') ? 'text-white' : 'text-gray-500' }}"></i>
                         <span>Subscription & Billing</span>
                     </a>
+                </li>
+
+                {{-- Money Pool collapsible group --}}
+                <li>
+                    <button onclick="toggleSidebarGroup('pool-group')" class="w-full flex items-center justify-between px-3 py-2.5 rounded-lg {{ $poolGroupActive ? 'bg-white/10 text-white font-semibold' : 'text-gray-400 hover:text-white hover:bg-white/10 font-medium' }}">
+                        <span class="flex items-center gap-3">
+                            <i data-lucide="landmark" class="w-5 h-5 {{ $poolGroupActive ? 'text-white' : 'text-gray-500' }}"></i>
+                            <span>Money Pool</span>
+                        </span>
+                        <i data-lucide="chevron-down" class="w-4 h-4 sidebar-chevron transition-transform duration-200 {{ $poolGroupActive ? 'rotate-180' : '' }}" id="pool-group-chevron"></i>
+                    </button>
+                    <ul id="pool-group" class="mt-1 ml-5 space-y-1 border-l border-gray-700 pl-3 overflow-hidden transition-all duration-200 {{ $poolGroupActive ? '' : 'hidden' }}">
+                        <li>
+                            <a href="{{ route('admin.pool.dashboard') }}" class="flex items-center gap-3 px-3 py-2 rounded-lg text-sm {{ request()->routeIs('admin.pool.dashboard') ? 'text-white font-semibold border-l-[3px] border-[#E75234] bg-white/5' : 'text-gray-400 hover:text-white hover:bg-white/5 font-medium' }}">
+                                <i data-lucide="gauge" class="w-4 h-4 {{ request()->routeIs('admin.pool.dashboard') ? 'text-white' : 'text-gray-500' }}"></i>
+                                <span>Dashboard</span>
+                            </a>
+                        </li>
+                        <li>
+                            <a href="{{ route('admin.pool.transactions') }}" class="flex items-center gap-3 px-3 py-2 rounded-lg text-sm {{ request()->routeIs('admin.pool.transactions') ? 'text-white font-semibold border-l-[3px] border-[#E75234] bg-white/5' : 'text-gray-400 hover:text-white hover:bg-white/5 font-medium' }}">
+                                <i data-lucide="list" class="w-4 h-4 {{ request()->routeIs('admin.pool.transactions') ? 'text-white' : 'text-gray-500' }}"></i>
+                                <span>Transactions</span>
+                            </a>
+                        </li>
+                        <li>
+                            <a href="{{ route('admin.pool.disputes') }}" class="flex items-center gap-3 px-3 py-2 rounded-lg text-sm {{ request()->routeIs('admin.pool.disputes*') ? 'text-white font-semibold border-l-[3px] border-[#E75234] bg-white/5' : 'text-gray-400 hover:text-white hover:bg-white/5 font-medium' }}">
+                                <i data-lucide="alert-triangle" class="w-4 h-4 {{ request()->routeIs('admin.pool.disputes*') ? 'text-white' : 'text-gray-500' }}"></i>
+                                <span>Disputes</span>
+                            </a>
+                        </li>
+                    </ul>
                 </li>
             </ul>
 
@@ -499,10 +544,10 @@
                 const modal = document.getElementById('globalDocumentModal');
                 const content = document.getElementById('globalDocumentContent');
                 const titleEl = document.getElementById('globalDocumentTitle');
-                
+
                 titleEl.textContent = title;
                 content.innerHTML = `<iframe src="${url}" class="w-full h-full border-0 rounded bg-white"></iframe>`;
-                
+
                 modal.classList.remove('hidden');
                 document.body.style.overflow = 'hidden';
             } else {

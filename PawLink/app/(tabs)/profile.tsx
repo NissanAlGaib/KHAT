@@ -47,7 +47,7 @@ export default function ProfileScreen() {
     income: 0,
   });
   const [activeTab, setActiveTab] = useState<"dashboard" | "pets" | "settings">(
-    "dashboard"
+    "dashboard",
   );
   const router = useRouter();
   const { signOut, user } = useSession();
@@ -80,27 +80,50 @@ export default function ProfileScreen() {
   useFocusEffect(
     useCallback(() => {
       fetchAllData();
-    }, [fetchAllData])
+    }, [fetchAllData]),
   );
 
   const getVerificationDisplay = () => {
     if (!verificationStatus || verificationStatus.length === 0)
-      return { text: "Not Verified", color: "#6B7280", showButton: true, hasRejected: false, hasPending: false };
-    
+      return {
+        text: "Not Verified",
+        color: "#6B7280",
+        showButton: true,
+        hasRejected: false,
+        hasPending: false,
+      };
+
     const idVerification = verificationStatus.find((v) => v.auth_type === "id");
-    const hasAnyRejected = verificationStatus.some((v) => v.status === "rejected");
-    const hasAnyPending = verificationStatus.some((v) => v.status === "pending");
-    const allApproved = verificationStatus.every((v) => v.status === "approved");
-    
+    const hasAnyRejected = verificationStatus.some(
+      (v) => v.status === "rejected",
+    );
+    const hasAnyPending = verificationStatus.some(
+      (v) => v.status === "pending",
+    );
+    const allApproved = verificationStatus.every(
+      (v) => v.status === "approved",
+    );
+
     // ID verification is the primary check
     if (!idVerification)
-      return { text: "Not Verified", color: "#6B7280", showButton: true, hasRejected: false, hasPending: false };
+      return {
+        text: "Not Verified",
+        color: "#6B7280",
+        showButton: true,
+        hasRejected: false,
+        hasPending: false,
+      };
 
     // Check for rejected documents first (highest priority)
     if (hasAnyRejected) {
-      const rejectedCount = verificationStatus.filter((v) => v.status === "rejected").length;
+      const rejectedCount = verificationStatus.filter(
+        (v) => v.status === "rejected",
+      ).length;
       return {
-        text: rejectedCount > 1 ? `${rejectedCount} Documents Rejected` : "Document Rejected",
+        text:
+          rejectedCount > 1
+            ? `${rejectedCount} Documents Rejected`
+            : "Document Rejected",
         color: "#DC2626",
         showButton: true,
         hasRejected: true,
@@ -121,10 +144,22 @@ export default function ProfileScreen() {
 
     // All approved
     if (allApproved && idVerification.status === "approved") {
-      return { text: "Verified", color: "#16A34A", showButton: true, hasRejected: false, hasPending: false };
+      return {
+        text: "Verified",
+        color: "#16A34A",
+        showButton: true,
+        hasRejected: false,
+        hasPending: false,
+      };
     }
 
-    return { text: "Not Verified", color: "#6B7280", showButton: true, hasRejected: false, hasPending: false };
+    return {
+      text: "Not Verified",
+      color: "#6B7280",
+      showButton: true,
+      hasRejected: false,
+      hasPending: false,
+    };
   };
 
   const handleVerifyPress = () => {
@@ -149,7 +184,7 @@ export default function ProfileScreen() {
       const verification = getVerificationDisplay();
       showAlert({
         title: "Verification Required",
-        message: verification.hasRejected 
+        message: verification.hasRejected
           ? "Your verification was rejected. Please resubmit your document before adding a pet."
           : "You must complete identity verification before adding a pet",
         type: "warning",
@@ -222,7 +257,7 @@ export default function ProfileScreen() {
           // Check if pet is on cooldown
           const isOnCooldown = pet.is_on_cooldown;
           const cooldownDaysRemaining = pet.cooldown_days_remaining;
-          
+
           // Determine status badge to show
           let statusBadge;
           if (isOnCooldown) {
@@ -236,18 +271,21 @@ export default function ProfileScreen() {
               style: "bg-gray-500",
             };
           }
-          
+
           return (
             <TouchableOpacity
               key={index}
               style={styles.petCardGrid}
               onPress={() => router.push(`/(pet)/pet-profile?id=${pet.pet_id}`)}
             >
-<Image
+              <Image
                 source={
                   pet.photos?.length > 0
                     ? {
-                        uri: getStorageUrl(pet.photos.find((p: any) => p.is_primary)?.photo_url || pet.photos[0].photo_url),
+                        uri: getStorageUrl(
+                          pet.photos.find((p: any) => p.is_primary)
+                            ?.photo_url || pet.photos[0].photo_url,
+                        ),
                       }
                     : require("@/assets/images/icon.png")
                 }
@@ -277,9 +315,10 @@ export default function ProfileScreen() {
 
   const renderSettings = () => {
     // Check if user has both Breeder and Shooter roles
-    const hasBothRoles = userProfile?.roles && 
-      userProfile.roles.some(r => r.role_type === "Breeder") &&
-      userProfile.roles.some(r => r.role_type === "Shooter");
+    const hasBothRoles =
+      userProfile?.roles &&
+      userProfile.roles.some((r) => r.role_type === "Breeder") &&
+      userProfile.roles.some((r) => r.role_type === "Shooter");
 
     return (
       <View style={styles.tabContent}>
@@ -303,7 +342,10 @@ export default function ProfileScreen() {
                 </Text>
               </TouchableOpacity>
               <TouchableOpacity
-                style={[styles.roleButton, role === "Shooter" && styles.roleActive]}
+                style={[
+                  styles.roleButton,
+                  role === "Shooter" && styles.roleActive,
+                ]}
                 onPress={() => setRole("Shooter")}
               >
                 <Text
@@ -335,6 +377,12 @@ export default function ProfileScreen() {
           title="Privacy & Security"
           description="Control your privacy"
           onPress={() => router.push("/privacy-security")}
+        />
+        <SettingsItem
+          icon="credit-card"
+          title="My Payments"
+          description="Pool transactions & disputes"
+          onPress={() => router.push("/my-payments")}
         />
         <SettingsItem
           icon="log-out"
@@ -377,7 +425,7 @@ export default function ProfileScreen() {
           colors={["#FF6B4A", "#FF9A8B"]}
           style={styles.headerGradient}
         >
-<Image
+          <Image
             source={
               userProfile?.profile_image
                 ? {
@@ -406,8 +454,8 @@ export default function ProfileScreen() {
                 {verification.hasRejected
                   ? "View Status"
                   : verification.text === "Verified"
-                  ? "View Status"
-                  : "Verify Now"}
+                    ? "View Status"
+                    : "Verify Now"}
               </Text>
             </TouchableOpacity>
           )}
@@ -435,10 +483,7 @@ export default function ProfileScreen() {
       </ScrollView>
 
       {activeTab === "pets" && (
-        <TouchableOpacity
-          style={styles.fab}
-          onPress={handleAddPetPress}
-        >
+        <TouchableOpacity style={styles.fab} onPress={handleAddPetPress}>
           <Feather name="plus" size={30} color="white" />
         </TouchableOpacity>
       )}

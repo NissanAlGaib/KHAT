@@ -9,7 +9,10 @@ import { useUpdateChecker } from "@/hooks/useUpdateChecker";
 import { useEffect, useMemo } from "react";
 import { Text, View } from "react-native";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
-import { SafeAreaProvider, initialWindowMetrics } from "react-native-safe-area-context";
+import {
+  SafeAreaProvider,
+  initialWindowMetrics,
+} from "react-native-safe-area-context";
 import { WarningChecker } from "@/components/core/WarningChecker";
 import "./globals.css";
 
@@ -35,7 +38,7 @@ function RootNavigator() {
       "inAuthGroup:",
       inAuthGroup,
       "isBannedRoute:",
-      isBannedRoute
+      isBannedRoute,
     );
   }, [isLoading, session, segments, inAuthGroup, isBannedRoute]);
 
@@ -56,8 +59,8 @@ function RootNavigator() {
       <Stack
         screenOptions={{
           headerShown: false,
-          contentStyle: { backgroundColor: '#FFFFFF' },
-          animation: 'fade',
+          contentStyle: { backgroundColor: "#FFFFFF" },
+          animation: "fade",
         }}
       >
         <Stack.Screen name="(auth)" />
@@ -72,16 +75,16 @@ function RootNavigator() {
         <Stack.Screen name="subscription" />
         <Stack.Screen name="edit-profile" />
         <Stack.Screen name="privacy-security" />
+        <Stack.Screen name="my-payments" />
         <Stack.Screen name="banned" options={{ gestureEnabled: false }} />
       </Stack>
     </>
   );
 }
 
-
 export default function RootLayout() {
   const fontsLoaded = useLoadFonts();
-  
+
   // Check for OTA updates
   useUpdateChecker();
 

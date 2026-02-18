@@ -1,10 +1,10 @@
 # KHAT - PawLink
 
-![Version](https://img.shields.io/badge/version-1.4.6-blue)
+![Version](https://img.shields.io/badge/version-1.5.0-blue)
 ![Platform](https://img.shields.io/badge/platform-iOS%20%7C%20Android-lightgrey)
 ![Framework](https://img.shields.io/badge/framework-React%20Native%20%7C%20Laravel-green)
 
-**Current Version: 1.4.6** | [View Changelog](./CHANGELOG.md)
+**Current Version: 1.5.0** | [View Changelog](./CHANGELOG.md)
 
 A pet breeding matchmaking platform built with React Native (Expo) and Laravel.
 
@@ -22,21 +22,21 @@ Before you begin, ensure you have the following installed:
 
 ### Required Software
 
-| Software | Version | Download |
-|----------|---------|----------|
-| Node.js | v18+ | [nodejs.org](https://nodejs.org/) |
-| npm | v9+ | Comes with Node.js |
-| PHP | v8.2+ | [php.net](https://www.php.net/downloads) |
-| Composer | v2+ | [getcomposer.org](https://getcomposer.org/download/) |
-| MySQL | v8+ | [mysql.com](https://dev.mysql.com/downloads/) |
+| Software | Version | Download                                             |
+| -------- | ------- | ---------------------------------------------------- |
+| Node.js  | v18+    | [nodejs.org](https://nodejs.org/)                    |
+| npm      | v9+     | Comes with Node.js                                   |
+| PHP      | v8.2+   | [php.net](https://www.php.net/downloads)             |
+| Composer | v2+     | [getcomposer.org](https://getcomposer.org/download/) |
+| MySQL    | v8+     | [mysql.com](https://dev.mysql.com/downloads/)        |
 
 ### Mobile Development
 
-| Tool | Purpose | Download |
-|------|---------|----------|
-| Expo Go | Run app on physical device | [iOS App Store](https://apps.apple.com/app/expo-go/id982107779) / [Google Play](https://play.google.com/store/apps/details?id=host.exp.exponent) |
-| Android Studio | Android emulator (optional) | [developer.android.com](https://developer.android.com/studio) |
-| Xcode | iOS simulator (macOS only) | Mac App Store |
+| Tool           | Purpose                     | Download                                                                                                                                         |
+| -------------- | --------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------ |
+| Expo Go        | Run app on physical device  | [iOS App Store](https://apps.apple.com/app/expo-go/id982107779) / [Google Play](https://play.google.com/store/apps/details?id=host.exp.exponent) |
+| Android Studio | Android emulator (optional) | [developer.android.com](https://developer.android.com/studio)                                                                                    |
+| Xcode          | iOS simulator (macOS only)  | Mac App Store                                                                                                                                    |
 
 ---
 
@@ -127,17 +127,20 @@ This will display a QR code in your terminal.
 #### 3.3 Run on Device/Emulator
 
 **Option A: Physical Device (Recommended)**
+
 1. Install **Expo Go** on your mobile device
 2. Scan the QR code with:
    - iOS: Camera app
    - Android: Expo Go app
 
 **Option B: Android Emulator**
+
 1. Open Android Studio
 2. Start an Android Virtual Device (AVD)
 3. Press `a` in the Expo terminal
 
 **Option C: iOS Simulator (macOS only)**
+
 1. Install Xcode from the Mac App Store
 2. Press `i` in the Expo terminal
 
@@ -164,23 +167,23 @@ The service will be available at `http://localhost:5000`.
 
 ## NPM Scripts (Mobile App)
 
-| Command | Description |
-|---------|-------------|
-| `npm start` | Start Expo development server |
+| Command           | Description                    |
+| ----------------- | ------------------------------ |
+| `npm start`       | Start Expo development server  |
 | `npm run android` | Run on Android device/emulator |
-| `npm run ios` | Run on iOS simulator |
-| `npm run web` | Run in web browser |
-| `npm run lint` | Run ESLint |
+| `npm run ios`     | Run on iOS simulator           |
+| `npm run web`     | Run in web browser             |
+| `npm run lint`    | Run ESLint                     |
 
 ---
 
 ## Composer Scripts (Backend)
 
-| Command | Description |
-|---------|-------------|
+| Command          | Description                          |
+| ---------------- | ------------------------------------ |
 | `composer setup` | Full setup (install, migrate, build) |
-| `composer dev` | Start dev server with queue and Vite |
-| `composer test` | Run tests |
+| `composer dev`   | Start dev server with queue and Vite |
+| `composer test`  | Run tests                            |
 
 ---
 
@@ -188,35 +191,35 @@ The service will be available at `http://localhost:5000`.
 
 ### Mobile App (PawLink)
 
-| Package | Purpose |
-|---------|---------|
-| `expo` ~54.0 | Development framework |
-| `expo-router` | File-based routing |
-| `react-native` 0.81 | Mobile UI framework |
-| `nativewind` | Tailwind CSS for React Native |
-| `axios` | HTTP client for API calls |
-| `expo-secure-store` | Secure storage for tokens |
-| `expo-image-picker` | Image selection |
-| `react-native-reanimated` | Animations |
-| `lucide-react-native` | Icons |
+| Package                   | Purpose                       |
+| ------------------------- | ----------------------------- |
+| `expo` ~54.0              | Development framework         |
+| `expo-router`             | File-based routing            |
+| `react-native` 0.81       | Mobile UI framework           |
+| `nativewind`              | Tailwind CSS for React Native |
+| `axios`                   | HTTP client for API calls     |
+| `expo-secure-store`       | Secure storage for tokens     |
+| `expo-image-picker`       | Image selection               |
+| `react-native-reanimated` | Animations                    |
+| `lucide-react-native`     | Icons                         |
 
 ### Backend
 
-| Package | Purpose |
-|---------|---------|
-| `laravel/framework` ^12.0 | PHP framework |
-| `laravel/sanctum` ^4.0 | API authentication |
-| `laravel/breeze` | Auth scaffolding (dev) |
+| Package                   | Purpose                |
+| ------------------------- | ---------------------- |
+| `laravel/framework` ^12.0 | PHP framework          |
+| `laravel/sanctum` ^4.0    | API authentication     |
+| `laravel/breeze`          | Auth scaffolding (dev) |
 
 ### Python API (Breed Identifier)
 
-| Package | Purpose |
-|---------|---------|
-| `fastapi` | Web framework |
-| `tensorflow` | ML model runtime |
-| `uvicorn` | ASGI server |
-| `Pillow` | Image processing |
-| `numpy` | Numerical operations |
+| Package      | Purpose              |
+| ------------ | -------------------- |
+| `fastapi`    | Web framework        |
+| `tensorflow` | ML model runtime     |
+| `uvicorn`    | ASGI server          |
+| `Pillow`     | Image processing     |
+| `numpy`      | Numerical operations |
 
 ---
 
@@ -224,14 +227,14 @@ The service will be available at `http://localhost:5000`.
 
 ### Backend (.env)
 
-| Variable | Description | Example |
-|----------|-------------|---------|
-| `APP_KEY` | Application encryption key | Auto-generated |
-| `DB_DATABASE` | Database name | `backend` |
-| `DB_USERNAME` | Database user | `root` |
-| `DB_PASSWORD` | Database password | `your_password` |
-| `PAYMONGO_PUBLIC_KEY` | PayMongo public key | `pk_test_...` |
-| `PAYMONGO_SECRET_KEY` | PayMongo secret key | `sk_test_...` |
+| Variable              | Description                | Example         |
+| --------------------- | -------------------------- | --------------- |
+| `APP_KEY`             | Application encryption key | Auto-generated  |
+| `DB_DATABASE`         | Database name              | `backend`       |
+| `DB_USERNAME`         | Database user              | `root`          |
+| `DB_PASSWORD`         | Database password          | `your_password` |
+| `PAYMONGO_PUBLIC_KEY` | PayMongo public key        | `pk_test_...`   |
+| `PAYMONGO_SECRET_KEY` | PayMongo secret key        | `sk_test_...`   |
 
 ---
 
@@ -284,8 +287,6 @@ npx expo start --clear
 3. Start the mobile app: `cd PawLink && npx expo start`
 4. Open Expo Go on your device and scan the QR code
 5. Make changes - the app will hot reload automatically
-
----
 
 ## Team
 

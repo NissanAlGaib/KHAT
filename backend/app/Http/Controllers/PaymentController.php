@@ -6,16 +6,19 @@ use App\Models\BreedingContract;
 use App\Models\Payment;
 use App\Models\Pet;
 use App\Services\PayMongoService;
+use App\Services\PoolService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
 
 class PaymentController extends Controller
 {
     private PayMongoService $payMongoService;
+    private PoolService $poolService;
 
-    public function __construct(PayMongoService $payMongoService)
+    public function __construct(PayMongoService $payMongoService, PoolService $poolService)
     {
         $this->payMongoService = $payMongoService;
+        $this->poolService = $poolService;
     }
 
     /**
@@ -192,16 +195,16 @@ class PaymentController extends Controller
                     // Check if any payment in the array has status 'paid'
                     foreach ($payments as $paymentData) {
                         // Handle different PayMongo response formats
-                        $paymentStatus = $paymentData['attributes']['status'] 
-                            ?? $paymentData['status'] 
+                        $paymentStatus = $paymentData['attributes']['status']
+                            ?? $paymentData['status']
                             ?? null;
-                        
+
                         Log::info('Checking payment in checkout', [
                             'payment_data_id' => $paymentData['id'] ?? 'unknown',
                             'payment_status' => $paymentStatus,
                             'payment_data' => $paymentData,
                         ]);
-                        
+
                         if ($paymentStatus === 'paid') {
                             $hasSuccessfulPayment = true;
                             $paymongoPaymentId = $paymentData['id'] ?? null;
@@ -481,9 +484,33 @@ class PaymentController extends Controller
             return;
         }
 
+        // Deposit payment into the money pool
+        $poolableTypes = [
+            Payment::TYPE_COLLATERAL,
+            Payment::TYPE_SHOOTER_COLLATERAL,
+            Payment::TYPE_SHOOTER_PAYMENT,
+            Payment::TYPE_MONETARY_COMPENSATION,
+        ];
+
+        if (in_array($payment->payment_type, $poolableTypes)) {
+            try {
+                $this->poolService->depositToPool($payment);
+                Log::info('Payment deposited to pool', [
+                    'payment_id' => $payment->id,
+                    'payment_type' => $payment->payment_type,
+                    'contract_id' => $contract->id,
+                    'amount' => $payment->amount,
+                ]);
+            } catch (\Exception $e) {
+                Log::error('Failed to deposit payment to pool', [
+                    'payment_id' => $payment->id,
+                    'error' => $e->getMessage(),
+                ]);
+            }
+        }
+
         switch ($payment->payment_type) {
             case Payment::TYPE_COLLATERAL:
-                // Could track owner collateral payment here
                 Log::info('Collateral payment received', [
                     'contract_id' => $contract->id,
                     'user_id' => $payment->user_id,
@@ -498,8 +525,13 @@ class PaymentController extends Controller
                 break;
 
             case Payment::TYPE_SHOOTER_PAYMENT:
-                // Could track shooter payment status
                 Log::info('Shooter payment received', [
+                    'contract_id' => $contract->id,
+                ]);
+                break;
+
+            case Payment::TYPE_MONETARY_COMPENSATION:
+                Log::info('Monetary compensation payment received', [
                     'contract_id' => $contract->id,
                 ]);
                 break;

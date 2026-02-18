@@ -3,12 +3,14 @@
 use App\Http\Controllers\Auth\AuthenticatedSessionController;
 use App\Http\Controllers\Auth\RegisteredUserController;
 use App\Http\Controllers\BreedingContractController;
+use App\Http\Controllers\DisputeController;
 use App\Http\Controllers\LitterController;
 use App\Http\Controllers\MatchController;
 use App\Http\Controllers\MatchRequestController;
 use App\Http\Controllers\NotificationController;
 use App\Http\Controllers\PaymentController;
 use App\Http\Controllers\PetController;
+use App\Http\Controllers\PoolController;
 use App\Http\Controllers\ShooterController;
 use App\Http\Controllers\SubscriptionController;
 use App\Http\Controllers\UserController;
@@ -142,6 +144,7 @@ Route::middleware(['auth:sanctum'])
         Route::put('/contracts/{id}/offspring/allocate', [BreedingContractController::class, 'allocateOffspring']);
         Route::post('/contracts/{id}/offspring/auto-allocate', [BreedingContractController::class, 'autoAllocateOffspring']);
         Route::post('/contracts/{id}/complete-match', [BreedingContractController::class, 'completeMatch']);
+        Route::post('/contracts/{id}/cancel', [BreedingContractController::class, 'cancelContract']);
 
         // Daily report routes
         Route::post('/contracts/{id}/daily-reports', [BreedingContractController::class, 'storeDailyReport']);
@@ -188,4 +191,14 @@ Route::middleware(['auth:sanctum'])
 
         // AI Offspring Generation
         Route::post('/ai/generate-offspring', [AiOffspringController::class, 'generate']);
+
+        // Money Pool routes
+        Route::get('/pool/my-transactions', [PoolController::class, 'index']);
+        Route::get('/pool/contracts/{contractId}/summary', [PoolController::class, 'contractSummary']);
+        Route::get('/pool/balance', [PoolController::class, 'balance']);
+
+        // Dispute routes
+        Route::post('/disputes', [DisputeController::class, 'store']);
+        Route::get('/disputes', [DisputeController::class, 'index']);
+        Route::get('/disputes/{id}', [DisputeController::class, 'show']);
     });

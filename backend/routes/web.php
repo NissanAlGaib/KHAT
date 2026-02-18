@@ -6,6 +6,7 @@ use App\Http\Controllers\Admin\VaccineProtocolController;
 use App\Http\Controllers\Admin\UserWarningController;
 use App\Http\Controllers\Admin\SubscriptionTierController;
 use App\Http\Controllers\Admin\ProtocolCategoryController;
+use App\Http\Controllers\Admin\PoolController as AdminPoolController;
 
 Route::get('/', function () {
     return redirect()->route('admin.login');
@@ -90,6 +91,17 @@ Route::prefix('admin')->group(function () {
         Route::put('/profile', [AdminController::class, 'updateProfile'])->name('admin.profile.update');
         Route::get('/notifications', [AdminController::class, 'notifications'])->name('admin.notifications');
         Route::get('/settings', [AdminController::class, 'settings'])->name('admin.settings');
+
+        // Money Pool Management
+        Route::get('/pool', [AdminPoolController::class, 'dashboard'])->name('admin.pool.dashboard');
+        Route::get('/pool/transactions', [AdminPoolController::class, 'transactions'])->name('admin.pool.transactions');
+        Route::get('/pool/contracts/{id}', [AdminPoolController::class, 'contractDetail'])->name('admin.pool.contract-detail');
+        Route::get('/pool/disputes', [AdminPoolController::class, 'disputes'])->name('admin.pool.disputes');
+        Route::put('/pool/disputes/{id}/resolve', [AdminPoolController::class, 'resolveDispute'])->name('admin.pool.disputes.resolve');
+        Route::post('/pool/transactions/{id}/freeze', [AdminPoolController::class, 'freezeTransaction'])->name('admin.pool.transactions.freeze');
+        Route::post('/pool/transactions/{id}/unfreeze', [AdminPoolController::class, 'unfreezeTransaction'])->name('admin.pool.transactions.unfreeze');
+        Route::post('/pool/transactions/{id}/force-release', [AdminPoolController::class, 'forceRelease'])->name('admin.pool.transactions.force-release');
+        Route::get('/pool/export', [AdminPoolController::class, 'export'])->name('admin.pool.export');
     });
 });
 
