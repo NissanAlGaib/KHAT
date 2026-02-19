@@ -9,6 +9,8 @@ import {
   ActivityIndicator,
   KeyboardAvoidingView,
   Platform,
+  AppState,
+  AppStateStatus,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Feather } from "@expo/vector-icons";
@@ -37,7 +39,7 @@ export default function ConversationScreen() {
   const scrollViewRef = useRef<ScrollView>(null);
 
   const [conversation, setConversation] = useState<ConversationDetail | null>(
-    null
+    null,
   );
   const [loading, setLoading] = useState(true);
   const [sending, setSending] = useState(false);
@@ -94,6 +96,25 @@ export default function ConversationScreen() {
 
     return () => clearInterval(interval);
   }, [conversationId, fetchMessages, fetchContract, sending]);
+
+  // Refresh immediately when the app returns to foreground (e.g., after PayMongo payment)
+  useEffect(() => {
+    const appStateRef = AppState.currentState;
+    const sub = AppState.addEventListener(
+      "change",
+      (nextState: AppStateStatus) => {
+        if (
+          appStateRef.match(/inactive|background/) &&
+          nextState === "active" &&
+          conversationId
+        ) {
+          fetchMessages();
+          fetchContract();
+        }
+      },
+    );
+    return () => sub.remove();
+  }, [conversationId, fetchMessages, fetchContract]);
 
   const handleContractSuccess = (newContract: BreedingContract) => {
     setContract(newContract);
@@ -326,16 +347,14 @@ export default function ConversationScreen() {
             <TouchableOpacity
               onPress={() =>
                 router.push(
-                  `/(pet)/view-profile?id=${conversation?.matched_pet?.pet_id}`
+                  `/(pet)/view-profile?id=${conversation?.matched_pet?.pet_id}`,
                 )
               }
               className="mr-2"
             >
               <Feather name="info" size={24} color="#FF6B6B" />
             </TouchableOpacity>
-            <TouchableOpacity
-              onPress={() => setShowBlockReportModal(true)}
-            >
+            <TouchableOpacity onPress={() => setShowBlockReportModal(true)}>
               <Feather name="shield" size={24} color="#9CA3AF" />
             </TouchableOpacity>
           </>

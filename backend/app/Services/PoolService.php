@@ -430,12 +430,16 @@ class PoolService
         return [
             'total_balance' => $totalBalance,
             'frozen_amount' => (float) $frozenAmount,
+            'total_frozen' => (float) $frozenAmount,
             'deposits_this_month' => (float) $depositsThisMonth,
             'deposits_count_this_month' => $depositsCountThisMonth,
             'deposits_growth' => $depositsGrowth,
             'releases_this_month' => (float) $releasesThisMonth,
             'releases_count_this_month' => $releasesCountThisMonth,
             'releases_growth' => $releasesGrowth,
+            'total_deposited' => (float) PoolTransaction::deposits()->completed()->sum('amount'),
+            'total_released' => (float) PoolTransaction::releases()->completed()->sum('amount'),
+            'total_transactions' => PoolTransaction::count(),
         ];
     }
 
@@ -444,12 +448,41 @@ class PoolService
      */
     public function getRevenueByType(): array
     {
-        return PoolTransaction::deposits()
+        $colorMap = [
+            'collateral' => '#22C55E',
+            'shooter_payment' => '#3B82F6',
+            'monetary_compensation' => '#F59E0B',
+            'shooter_collateral' => '#8B5CF6',
+        ];
+
+        $labelMap = [
+            'collateral' => 'Collateral',
+            'shooter_payment' => 'Shooter Payment',
+            'monetary_compensation' => 'Monetary Compensation',
+            'shooter_collateral' => 'Shooter Collateral',
+        ];
+
+        $raw = PoolTransaction::deposits()
             ->completed()
+            ->whereNotNull('metadata')
             ->selectRaw("JSON_UNQUOTE(JSON_EXTRACT(metadata, '$.payment_type')) as payment_type, SUM(amount) as total")
             ->groupBy('payment_type')
             ->pluck('total', 'payment_type')
             ->toArray();
+
+        $result = [];
+        foreach ($raw as $type => $total) {
+            if ($type === null) {
+                continue;
+            }
+            $result[] = [
+                'label' => $labelMap[$type] ?? ucfirst(str_replace('_', ' ', $type)),
+                'amount' => (float) $total,
+                'color' => $colorMap[$type] ?? '#9CA3AF',
+            ];
+        }
+
+        return $result;
     }
 
     /**

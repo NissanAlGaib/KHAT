@@ -12,6 +12,32 @@ Route::get('/', function () {
     return redirect()->route('admin.login');
 });
 
+// Payment redirect routes — PayMongo redirects here after checkout,
+// then we bounce the user back into the mobile app via the pawlink:// scheme
+Route::get('/payment/redirect', function (\Illuminate\Http\Request $request) {
+    $status = $request->query('status', 'success');
+    $deepLink = 'pawlink://payment/' . ($status === 'cancel' ? 'cancel' : 'success');
+
+    return response(
+        '<html><head><meta charset="utf-8">'
+            . '<meta name="viewport" content="width=device-width, initial-scale=1">'
+            . '<title>Redirecting to PawLink…</title>'
+            . '<style>body{display:flex;align-items:center;justify-content:center;min-height:100vh;'
+            . 'font-family:-apple-system,sans-serif;background:#FFF5F5;margin:0;}'
+            . '.card{text-align:center;padding:2rem;border-radius:1rem;background:#fff;box-shadow:0 2px 12px rgba(0,0,0,.08)}'
+            . 'a{display:inline-block;margin-top:1rem;padding:.75rem 2rem;background:#FF6B6B;color:#fff;'
+            . 'border-radius:2rem;text-decoration:none;font-weight:600}'
+            . '</style></head><body><div class="card">'
+            . '<p style="font-size:1.1rem;color:#333">' . ($status === 'cancel' ? 'Payment cancelled.' : 'Payment complete!') . '</p>'
+            . '<p style="color:#666;font-size:.9rem">Returning you to PawLink…</p>'
+            . '<a href="' . $deepLink . '">Open PawLink</a>'
+            . '<script>setTimeout(function(){window.location="' . $deepLink . '"},1500);</script>'
+            . '</div></body></html>',
+        200,
+        ['Content-Type' => 'text/html']
+    );
+})->name('payment.redirect');
+
 // Admin Routes
 Route::prefix('admin')->group(function () {
     // Guest routes (not authenticated)

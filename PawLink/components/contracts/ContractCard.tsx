@@ -7,6 +7,13 @@ import {
   Alert,
   TextInput,
 } from "react-native";
+import { useSession } from "@/context/AuthContext";
+import {
+  getContractPayments,
+  Payment,
+  PaymentType,
+} from "@/services/paymentService";
+import PaymentPromptModal from "./PaymentPromptModal";
 import {
   FileText,
   ChevronDown,
@@ -26,6 +33,7 @@ import {
   Archive,
   Award,
   ClipboardList,
+  CreditCard,
 } from "lucide-react-native";
 import dayjs from "dayjs";
 import {
@@ -91,7 +99,10 @@ const CollapsibleSection = ({
 };
 
 const StatusBadge = ({ status }: { status: BreedingContract["status"] }) => {
-  const statusStyles: Record<string, { bg: string; text: string; label: string }> = {
+  const statusStyles: Record<
+    string,
+    { bg: string; text: string; label: string }
+  > = {
     draft: { bg: "bg-gray-200", text: "text-gray-700", label: "Draft" },
     pending_review: {
       bg: "bg-yellow-100",
@@ -139,19 +150,34 @@ export default function ContractCard({
   const [showOffspringModal, setShowOffspringModal] = useState(false);
   const [showAllocationModal, setShowAllocationModal] = useState(false);
   const [hasOffspringRecorded, setHasOffspringRecorded] = useState(false);
-  const [allocationSummary, setAllocationSummary] = useState<AllocationSummaryData | null>(null);
+  const [allocationSummary, setAllocationSummary] =
+    useState<AllocationSummaryData | null>(null);
   const [showDailyReportModal, setShowDailyReportModal] = useState(false);
+
+  // Payment state
+  const [contractPayments, setContractPayments] = useState<Payment[]>([]);
+  const [paymentModalConfig, setPaymentModalConfig] = useState<{
+    type: PaymentType;
+    amount: number;
+    label: string;
+    description?: string;
+  } | null>(null);
+
+  const { user } = useSession();
+  const currentUserId = Number(user?.id ?? 0);
 
   // Check if offspring have been recorded
   React.useEffect(() => {
     let isMounted = true;
-    
+
     const checkOffspring = async () => {
       if (contract.breeding_status === "completed" && contract.has_offspring) {
         try {
           const offspring = await getOffspring(contract.id);
           if (isMounted) {
-            setHasOffspringRecorded(offspring !== null && offspring.offspring.length > 0);
+            setHasOffspringRecorded(
+              offspring !== null && offspring.offspring.length > 0,
+            );
           }
         } catch {
           // Silently handle error - component may have unmounted
@@ -159,7 +185,7 @@ export default function ContractCard({
       }
     };
     checkOffspring();
-    
+
     return () => {
       isMounted = false;
     };
@@ -168,9 +194,13 @@ export default function ContractCard({
   // Fetch allocation summary when contract is fulfilled
   React.useEffect(() => {
     let isMounted = true;
-    
+
     const fetchAllocationSummary = async () => {
-      if (contract.status === "fulfilled" && contract.has_offspring === true && contract.share_offspring === true) {
+      if (
+        contract.status === "fulfilled" &&
+        contract.has_offspring === true &&
+        contract.share_offspring === true
+      ) {
         try {
           const result = await getOffspringAllocationSummary(contract.id);
           if (isMounted && result.success && result.data) {
@@ -182,11 +212,66 @@ export default function ContractCard({
       }
     };
     fetchAllocationSummary();
-    
+
     return () => {
       isMounted = false;
     };
-  }, [contract.id, contract.status, contract.has_offspring, contract.share_offspring]);
+  }, [
+    contract.id,
+    contract.status,
+    contract.has_offspring,
+    contract.share_offspring,
+  ]);
+
+  // Fetch contract payments when contract is active
+  React.useEffect(() => {
+    let isMounted = true;
+    const fetchPayments = async () => {
+      if (contract.status !== "accepted") return;
+      const result = await getContractPayments(contract.id);
+      if (isMounted && result.success && result.data) {
+        setContractPayments(result.data);
+      }
+    };
+    fetchPayments();
+    return () => {
+      isMounted = false;
+    };
+  }, [contract.id, contract.status]);
+
+  // Check if current user has a paid record for the given payment type
+  const isTypePaidByCurrentUser = (type: PaymentType): boolean =>
+    contractPayments.some(
+      (p) =>
+        p.payment_type === type &&
+        p.user_id === currentUserId &&
+        p.status === "paid",
+    );
+
+  // Check if any user has a paid record for the given payment type (single-payer types)
+  const isTypePaidByAny = (type: PaymentType): boolean =>
+    contractPayments.some(
+      (p) => p.payment_type === type && p.status === "paid",
+    );
+
+  const openPaymentModal = (
+    type: PaymentType,
+    amount: number,
+    label: string,
+    description?: string,
+  ) => setPaymentModalConfig({ type, amount, label, description });
+
+  const closePaymentModal = () => setPaymentModalConfig(null);
+
+  const handlePaymentSuccess = () => {
+    closePaymentModal();
+    // Refresh contract payments list
+    getContractPayments(contract.id).then((result) => {
+      if (result.success && result.data) {
+        setContractPayments(result.data);
+      }
+    });
+  };
 
   const handleAccept = async () => {
     setIsAccepting(true);
@@ -194,6 +279,20 @@ export default function ContractCard({
       const result = await acceptContract(contract.id);
       if (result.success && result.data) {
         onContractUpdate(result.data);
+        // Auto-prompt for collateral once contract is accepted
+        const updated = result.data;
+        if (
+          updated.status === "accepted" &&
+          !updated.is_shooter &&
+          updated.collateral_per_owner > 0
+        ) {
+          setPaymentModalConfig({
+            type: "collateral",
+            amount: updated.collateral_per_owner,
+            label: "Pay Collateral",
+            description: `Both parties deposit ₱${updated.collateral_per_owner.toLocaleString("en-PH", { minimumFractionDigits: 2 })} as a security bond. It is fully refunded when the contract is fulfilled.`,
+          });
+        }
       }
     } catch (error) {
       console.error("Error accepting contract:", error);
@@ -222,6 +321,20 @@ export default function ContractCard({
       const result = await acceptShooterRequest(contract.id);
       if (result.success && result.data) {
         onContractUpdate(result.data);
+        // If shooter is now fully confirmed by both owners, prompt for shooter payment
+        const updated = result.data;
+        if (
+          updated.shooter_status === "accepted_by_owners" &&
+          !updated.is_shooter &&
+          updated.shooter_payment
+        ) {
+          setPaymentModalConfig({
+            type: "shooter_payment",
+            amount: updated.shooter_payment,
+            label: "Pay Shooter Fee",
+            description: `Pay the service fee for shooter ${updated.shooter?.name ?? updated.shooter_name ?? "confirmed shooter"}.`,
+          });
+        }
       }
     } catch (error) {
       console.error("Error accepting shooter:", error);
@@ -246,7 +359,7 @@ export default function ContractCard({
 
   const handleShooterEditSubmit = async (
     payment: number,
-    collateral: number
+    collateral: number,
   ) => {
     return await updateShooterTerms(contract.id, payment, collateral);
   };
@@ -287,13 +400,13 @@ export default function ContractCard({
                 if (hasOffspring) {
                   Alert.alert(
                     "Success",
-                    "Breeding marked as complete! You can now input offspring details."
+                    "Breeding marked as complete! You can now input offspring details.",
                   );
                 }
               } else {
                 Alert.alert(
                   "Error",
-                  result.message || "Failed to update breeding status"
+                  result.message || "Failed to update breeding status",
                 );
               }
             } catch (error) {
@@ -304,7 +417,7 @@ export default function ContractCard({
             }
           },
         },
-      ]
+      ],
     );
   };
 
@@ -469,6 +582,72 @@ export default function ContractCard({
                               </View>
                             </View>
                           )}
+
+                        {/* Pay Shooter Fee — shown to owners */}
+                        {!contract.is_shooter && contract.shooter_payment && (
+                          <>
+                            {!isTypePaidByCurrentUser("shooter_payment") ? (
+                              <TouchableOpacity
+                                onPress={() =>
+                                  openPaymentModal(
+                                    "shooter_payment",
+                                    contract.shooter_payment!,
+                                    "Pay Shooter Fee",
+                                    `Service fee for shooter ${contract.shooter?.name ?? contract.shooter_name ?? "confirmed shooter"}.`,
+                                  )
+                                }
+                                className="mt-3 bg-[#FF6B6B] py-2 rounded-full flex-row items-center justify-center"
+                              >
+                                <CreditCard size={16} color="white" />
+                                <Text className="text-white font-semibold ml-2 text-sm">
+                                  Pay Shooter Fee
+                                </Text>
+                              </TouchableOpacity>
+                            ) : (
+                              <View className="mt-3 bg-white rounded-full py-2 flex-row items-center justify-center border border-green-200">
+                                <CheckCircle size={16} color="#10b981" />
+                                <Text className="text-green-700 font-semibold ml-2 text-sm">
+                                  Shooter Fee Paid
+                                </Text>
+                              </View>
+                            )}
+                          </>
+                        )}
+
+                        {/* Pay Shooter Collateral — shown to the shooter */}
+                        {contract.is_shooter &&
+                          contract.shooter_collateral &&
+                          contract.shooter_collateral > 0 && (
+                            <>
+                              {!isTypePaidByCurrentUser(
+                                "shooter_collateral",
+                              ) ? (
+                                <TouchableOpacity
+                                  onPress={() =>
+                                    openPaymentModal(
+                                      "shooter_collateral",
+                                      contract.shooter_collateral!,
+                                      "Pay Shooter Collateral",
+                                      `Security deposit as shooter for Contract #${contract.id}. Fully refunded after the breeding is complete.`,
+                                    )
+                                  }
+                                  className="mt-3 bg-[#FF6B6B] py-2 rounded-full flex-row items-center justify-center"
+                                >
+                                  <CreditCard size={16} color="white" />
+                                  <Text className="text-white font-semibold ml-2 text-sm">
+                                    Pay Shooter Collateral
+                                  </Text>
+                                </TouchableOpacity>
+                              ) : (
+                                <View className="mt-3 bg-white rounded-full py-2 flex-row items-center justify-center border border-green-200">
+                                  <CheckCircle size={16} color="#10b981" />
+                                  <Text className="text-green-700 font-semibold ml-2 text-sm">
+                                    Shooter Collateral Paid
+                                  </Text>
+                                </View>
+                              )}
+                            </>
+                          )}
                       </View>
                     )}
 
@@ -561,6 +740,80 @@ export default function ContractCard({
                 </Text>
               </View>
             </View>
+
+            {/* Pay Collateral Button */}
+            {contract.status === "accepted" &&
+              !contract.is_shooter &&
+              contract.collateral_per_owner > 0 &&
+              !isTypePaidByCurrentUser("collateral") && (
+                <TouchableOpacity
+                  onPress={() =>
+                    openPaymentModal(
+                      "collateral",
+                      contract.collateral_per_owner,
+                      "Pay Collateral",
+                      `Security bond of ₱${contract.collateral_per_owner.toLocaleString("en-PH", { minimumFractionDigits: 2 })} per owner. Fully refunded when the contract is fulfilled.`,
+                    )
+                  }
+                  className="mt-3 bg-[#FF6B6B] py-2 rounded-full flex-row items-center justify-center"
+                >
+                  <CreditCard size={16} color="white" />
+                  <Text className="text-white font-semibold ml-2 text-sm">
+                    Pay Collateral
+                  </Text>
+                </TouchableOpacity>
+              )}
+
+            {/* Collateral paid badge */}
+            {contract.status === "accepted" &&
+              !contract.is_shooter &&
+              contract.collateral_per_owner > 0 &&
+              isTypePaidByCurrentUser("collateral") && (
+                <View className="mt-3 bg-green-50 rounded-full py-2 flex-row items-center justify-center">
+                  <CheckCircle size={16} color="#10b981" />
+                  <Text className="text-green-700 font-semibold ml-2 text-sm">
+                    Collateral Paid
+                  </Text>
+                </View>
+              )}
+
+            {/* Pay Monetary Compensation Button */}
+            {contract.status === "accepted" &&
+              !contract.is_shooter &&
+              contract.include_monetary_amount &&
+              contract.monetary_amount &&
+              !isTypePaidByAny("monetary_compensation") && (
+                <TouchableOpacity
+                  onPress={() =>
+                    openPaymentModal(
+                      "monetary_compensation",
+                      contract.monetary_amount!,
+                      "Pay Monetary Compensation",
+                      `Breeding compensation as agreed in Contract #${contract.id}.`,
+                    )
+                  }
+                  className="mt-3 bg-[#FF6B6B] py-2 rounded-full flex-row items-center justify-center"
+                >
+                  <CreditCard size={16} color="white" />
+                  <Text className="text-white font-semibold ml-2 text-sm">
+                    Pay Compensation
+                  </Text>
+                </TouchableOpacity>
+              )}
+
+            {/* Compensation paid badge */}
+            {contract.status === "accepted" &&
+              !contract.is_shooter &&
+              contract.include_monetary_amount &&
+              contract.monetary_amount &&
+              isTypePaidByAny("monetary_compensation") && (
+                <View className="mt-3 bg-green-50 rounded-full py-2 flex-row items-center justify-center">
+                  <CheckCircle size={16} color="#10b981" />
+                  <Text className="text-green-700 font-semibold ml-2 text-sm">
+                    Compensation Paid
+                  </Text>
+                </View>
+              )}
           </View>
         </CollapsibleSection>
 
@@ -775,8 +1028,8 @@ export default function ContractCard({
                     <View className="bg-blue-50 rounded-lg p-3 flex-row items-center">
                       <Clock size={18} color="#3b82f6" />
                       <Text className="text-blue-800 text-sm ml-2">
-                        You&apos;ve accepted the shooter. Waiting for the other owner
-                        to confirm.
+                        You&apos;ve accepted the shooter. Waiting for the other
+                        owner to confirm.
                       </Text>
                     </View>
                   )}
@@ -882,7 +1135,7 @@ export default function ContractCard({
                     : "complete without offspring"}
                   {contract.breeding_completed_at &&
                     ` on ${dayjs(contract.breeding_completed_at).format(
-                      "MMM D, YYYY"
+                      "MMM D, YYYY",
                     )}`}
                 </Text>
                 {contract.breeding_notes && (
@@ -892,46 +1145,52 @@ export default function ContractCard({
                 )}
 
                 {/* Add Offspring Button - show when offspring not yet recorded */}
-                {contract.has_offspring && contract.can_input_offspring && !hasOffspringRecorded && (
-                  <TouchableOpacity
-                    onPress={() => setShowOffspringModal(true)}
-                    style={{ backgroundColor: "#16a34a" }}
-                    className="mt-3 py-2 rounded-full flex-row items-center justify-center"
-                  >
-                    <Baby size={16} color="white" />
-                    <Text className="text-white font-semibold ml-1">
-                      Add Offspring Details
-                    </Text>
-                  </TouchableOpacity>
-                )}
+                {contract.has_offspring &&
+                  contract.can_input_offspring &&
+                  !hasOffspringRecorded && (
+                    <TouchableOpacity
+                      onPress={() => setShowOffspringModal(true)}
+                      style={{ backgroundColor: "#16a34a" }}
+                      className="mt-3 py-2 rounded-full flex-row items-center justify-center"
+                    >
+                      <Baby size={16} color="white" />
+                      <Text className="text-white font-semibold ml-1">
+                        Add Offspring Details
+                      </Text>
+                    </TouchableOpacity>
+                  )}
 
                 {/* View/Manage Offspring Allocation - show when offspring are recorded and share_offspring is enabled */}
-                {contract.has_offspring && hasOffspringRecorded && contract.share_offspring && (
-                  <TouchableOpacity
-                    onPress={() => setShowAllocationModal(true)}
-                    style={{ backgroundColor: "#8b5cf6" }}
-                    className="mt-3 py-2 rounded-full flex-row items-center justify-center"
-                  >
-                    <Award size={16} color="white" />
-                    <Text className="text-white font-semibold ml-1">
-                      Manage Offspring Allocation
-                    </Text>
-                  </TouchableOpacity>
-                )}
+                {contract.has_offspring &&
+                  hasOffspringRecorded &&
+                  contract.share_offspring && (
+                    <TouchableOpacity
+                      onPress={() => setShowAllocationModal(true)}
+                      style={{ backgroundColor: "#8b5cf6" }}
+                      className="mt-3 py-2 rounded-full flex-row items-center justify-center"
+                    >
+                      <Award size={16} color="white" />
+                      <Text className="text-white font-semibold ml-1">
+                        Manage Offspring Allocation
+                      </Text>
+                    </TouchableOpacity>
+                  )}
 
                 {/* Complete Match Button - show when offspring are recorded but no sharing needed */}
-                {contract.has_offspring && hasOffspringRecorded && !contract.share_offspring && (
-                  <TouchableOpacity
-                    onPress={() => setShowAllocationModal(true)}
-                    style={{ backgroundColor: "#059669" }}
-                    className="mt-3 py-2 rounded-full flex-row items-center justify-center"
-                  >
-                    <Archive size={16} color="white" />
-                    <Text className="text-white font-semibold ml-1">
-                      Complete Match
-                    </Text>
-                  </TouchableOpacity>
-                )}
+                {contract.has_offspring &&
+                  hasOffspringRecorded &&
+                  !contract.share_offspring && (
+                    <TouchableOpacity
+                      onPress={() => setShowAllocationModal(true)}
+                      style={{ backgroundColor: "#059669" }}
+                      className="mt-3 py-2 rounded-full flex-row items-center justify-center"
+                    >
+                      <Archive size={16} color="white" />
+                      <Text className="text-white font-semibold ml-1">
+                        Complete Match
+                      </Text>
+                    </TouchableOpacity>
+                  )}
               </View>
             )}
             {contract.breeding_status === "failed" && (
@@ -946,7 +1205,7 @@ export default function ContractCard({
                   Marked as failed
                   {contract.breeding_completed_at &&
                     ` on ${dayjs(contract.breeding_completed_at).format(
-                      "MMM D, YYYY"
+                      "MMM D, YYYY",
                     )}`}
                 </Text>
                 {contract.breeding_notes && (
@@ -1042,7 +1301,7 @@ export default function ContractCard({
                 Match completed and archived
                 {contract.breeding_completed_at &&
                   ` on ${dayjs(contract.breeding_completed_at).format(
-                    "MMMM D, YYYY"
+                    "MMMM D, YYYY",
                   )}`}
               </Text>
             </View>
@@ -1057,17 +1316,20 @@ export default function ContractCard({
                 {/* Litter Statistics */}
                 <View className="bg-gray-50 rounded-lg p-3 mb-3">
                   <View className="flex-row justify-between mb-1">
-                    <Text className="text-gray-600 text-sm">Total Offspring:</Text>
+                    <Text className="text-gray-600 text-sm">
+                      Total Offspring:
+                    </Text>
                     <Text className="text-gray-800 font-medium text-sm">
                       {allocationSummary.statistics.total_alive} alive
-                      {allocationSummary.statistics.total_died > 0 && 
+                      {allocationSummary.statistics.total_died > 0 &&
                         `, ${allocationSummary.statistics.total_died} died`}
                     </Text>
                   </View>
                   <View className="flex-row justify-between">
                     <Text className="text-gray-600 text-sm">Gender Split:</Text>
                     <Text className="text-gray-800 font-medium text-sm">
-                      {allocationSummary.statistics.male_count} ♂ / {allocationSummary.statistics.female_count} ♀
+                      {allocationSummary.statistics.male_count} ♂ /{" "}
+                      {allocationSummary.statistics.female_count} ♀
                     </Text>
                   </View>
                 </View>
@@ -1091,7 +1353,11 @@ export default function ContractCard({
                     </View>
                     <View className="bg-pink-100 px-3 py-1 rounded-full">
                       <Text className="text-pink-700 font-bold">
-                        {allocationSummary.expected_allocation.dam_owner.current_count} offspring
+                        {
+                          allocationSummary.expected_allocation.dam_owner
+                            .current_count
+                        }{" "}
+                        offspring
                       </Text>
                     </View>
                   </View>
@@ -1104,7 +1370,10 @@ export default function ContractCard({
                       </View>
                       <View className="ml-2">
                         <Text className="text-gray-800 font-medium text-sm">
-                          {allocationSummary.expected_allocation.sire_owner.name}
+                          {
+                            allocationSummary.expected_allocation.sire_owner
+                              .name
+                          }
                         </Text>
                         <Text className="text-gray-500 text-xs">
                           Sire ({allocationSummary.parents.sire.name}) Owner
@@ -1113,7 +1382,11 @@ export default function ContractCard({
                     </View>
                     <View className="bg-blue-100 px-3 py-1 rounded-full">
                       <Text className="text-blue-700 font-bold">
-                        {allocationSummary.expected_allocation.sire_owner.current_count} offspring
+                        {
+                          allocationSummary.expected_allocation.sire_owner
+                            .current_count
+                        }{" "}
+                        offspring
                       </Text>
                     </View>
                   </View>
@@ -1127,38 +1400,58 @@ export default function ContractCard({
                   {allocationSummary.offspring
                     .filter((o) => o.status === "alive" && o.assigned_to)
                     .map((offspring) => {
-                      const isDamOwner = offspring.assigned_to?.id === allocationSummary.expected_allocation.dam_owner.id;
+                      const isDamOwner =
+                        offspring.assigned_to?.id ===
+                        allocationSummary.expected_allocation.dam_owner.id;
                       return (
-                        <View 
-                          key={offspring.offspring_id} 
+                        <View
+                          key={offspring.offspring_id}
                           className="flex-row items-center justify-between py-2 border-b border-gray-50"
                         >
                           <View className="flex-row items-center flex-1">
-                            <View className={`w-6 h-6 rounded-full items-center justify-center mr-2 ${
-                              offspring.sex === "male" ? "bg-blue-100" : "bg-pink-100"
-                            }`}>
-                              <Text className={`text-xs font-bold ${
-                                offspring.sex === "male" ? "text-blue-600" : "text-pink-600"
-                              }`}>
+                            <View
+                              className={`w-6 h-6 rounded-full items-center justify-center mr-2 ${
+                                offspring.sex === "male"
+                                  ? "bg-blue-100"
+                                  : "bg-pink-100"
+                              }`}
+                            >
+                              <Text
+                                className={`text-xs font-bold ${
+                                  offspring.sex === "male"
+                                    ? "text-blue-600"
+                                    : "text-pink-600"
+                                }`}
+                              >
                                 {offspring.sex === "male" ? "♂" : "♀"}
                               </Text>
                             </View>
                             <View className="flex-1">
                               <Text className="text-gray-800 text-sm">
-                                {offspring.name || `Offspring #${offspring.offspring_id}`}
+                                {offspring.name ||
+                                  `Offspring #${offspring.offspring_id}`}
                               </Text>
                               {offspring.color && (
-                                <Text className="text-gray-500 text-xs">{offspring.color}</Text>
+                                <Text className="text-gray-500 text-xs">
+                                  {offspring.color}
+                                </Text>
                               )}
                             </View>
                           </View>
-                          <View className={`px-2 py-1 rounded-full ${
-                            isDamOwner ? "bg-pink-100" : "bg-blue-100"
-                          }`}>
-                            <Text className={`text-xs font-medium ${
-                              isDamOwner ? "text-pink-700" : "text-blue-700"
-                            }`}>
-                              → {(offspring.assigned_to?.name?.trim().split(' ')[0]) || 'Unknown'}
+                          <View
+                            className={`px-2 py-1 rounded-full ${
+                              isDamOwner ? "bg-pink-100" : "bg-blue-100"
+                            }`}
+                          >
+                            <Text
+                              className={`text-xs font-medium ${
+                                isDamOwner ? "text-pink-700" : "text-blue-700"
+                              }`}
+                            >
+                              →{" "}
+                              {offspring.assigned_to?.name
+                                ?.trim()
+                                .split(" ")[0] || "Unknown"}
                             </Text>
                           </View>
                         </View>
@@ -1170,7 +1463,9 @@ export default function ContractCard({
                 <View className="bg-blue-50 rounded-lg p-2 flex-row items-center">
                   <Award size={14} color="#3b82f6" />
                   <Text className="text-blue-700 text-xs ml-1">
-                    Allocated using {allocationSummary.allocation_method.selection_method_label} method
+                    Allocated using{" "}
+                    {allocationSummary.allocation_method.selection_method_label}{" "}
+                    method
                   </Text>
                 </View>
               </View>
@@ -1225,6 +1520,20 @@ export default function ContractCard({
         onClose={() => setShowDailyReportModal(false)}
         contract={contract}
       />
+
+      {/* Payment Prompt Modal */}
+      {paymentModalConfig && (
+        <PaymentPromptModal
+          visible={paymentModalConfig !== null}
+          contractId={contract.id}
+          paymentType={paymentModalConfig.type}
+          amount={paymentModalConfig.amount}
+          label={paymentModalConfig.label}
+          description={paymentModalConfig.description}
+          onSuccess={handlePaymentSuccess}
+          onDismiss={closePaymentModal}
+        />
+      )}
     </View>
   );
 }
