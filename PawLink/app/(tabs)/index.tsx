@@ -183,14 +183,14 @@ export default function Homepage() {
     console.log("Message match:", match);
   };
 
-  // Filter matches for selected pet
+  // Filter matches for selected pet — show nothing if no pet is selected
   const filteredMatches = selectedPet
     ? topMatches.filter(
         (match) =>
           match.pet1.pet_id === selectedPet.pet_id ||
           match.pet2.pet_id === selectedPet.pet_id
       )
-    : topMatches;
+    : [];
 
   // Filter pets (exclude own pets and same sex if selected)
   const filteredPets = selectedPet
