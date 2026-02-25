@@ -126,14 +126,17 @@ class MatchRequestController extends Controller
             ], 400);
         }
 
-        // Check if a match request already exists between these pets
+        // Check if an active (pending/accepted) match request already exists between these pets
+        // Completed or declined match requests should NOT block re-matching
         $existingRequest = MatchRequest::where(function ($query) use ($validated) {
-            $query->where('requester_pet_id', $validated['requester_pet_id'])
-                ->where('target_pet_id', $validated['target_pet_id']);
-        })->orWhere(function ($query) use ($validated) {
-            $query->where('requester_pet_id', $validated['target_pet_id'])
-                ->where('target_pet_id', $validated['requester_pet_id']);
-        })->first();
+            $query->where(function ($q) use ($validated) {
+                $q->where('requester_pet_id', $validated['requester_pet_id'])
+                    ->where('target_pet_id', $validated['target_pet_id']);
+            })->orWhere(function ($q) use ($validated) {
+                $q->where('requester_pet_id', $validated['target_pet_id'])
+                    ->where('target_pet_id', $validated['requester_pet_id']);
+            });
+        })->whereIn('status', ['pending', 'accepted'])->first();
 
         if ($existingRequest) {
             return response()->json([
@@ -880,13 +883,13 @@ class MatchRequestController extends Controller
             $pet1Photo = $pet1->photos->firstWhere('is_primary', true) ?? $pet1->photos->first();
             $pet2Photo = $pet2->photos->firstWhere('is_primary', true) ?? $pet2->photos->first();
 
-        return response()->json([
-            'success' => true,
-            'data' => [
-                'conversation_id' => $conversation->id,
-                'is_shooter_view' => true,
-                'match_accepted_at' => $matchRequest->updated_at,
-                'pet1' => [
+            return response()->json([
+                'success' => true,
+                'data' => [
+                    'conversation_id' => $conversation->id,
+                    'is_shooter_view' => true,
+                    'match_accepted_at' => $matchRequest->updated_at,
+                    'pet1' => [
                         'pet_id' => $pet1->pet_id,
                         'name' => $pet1->name,
                         'photo_url' => $pet1Photo?->photo_url,

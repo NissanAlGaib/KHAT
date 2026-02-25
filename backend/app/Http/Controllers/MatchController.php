@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\Pet;
+use App\Models\MatchRequest;
 use Illuminate\Http\Request;
 
 class MatchController extends Controller
@@ -129,25 +130,40 @@ class MatchController extends Controller
 
             $potentialMatches = $query->get();
 
+            // Get pet IDs that have active (pending/accepted) match requests with user's pets
+            $userPetIds = $userPets->pluck('pet_id')->toArray();
+            $activeRequestPairs = MatchRequest::where(function ($query) use ($userPetIds) {
+                $query->whereIn('requester_pet_id', $userPetIds)
+                    ->orWhereIn('target_pet_id', $userPetIds);
+            })->whereIn('status', ['pending', 'accepted'])
+                ->get()
+                ->map(function ($request) use ($userPetIds) {
+                    // Return the pair as [userPetId => otherPetId]
+                    if (in_array($request->requester_pet_id, $userPetIds)) {
+                        return ['user_pet' => $request->requester_pet_id, 'other_pet' => $request->target_pet_id];
+                    }
+                    return ['user_pet' => $request->target_pet_id, 'other_pet' => $request->requester_pet_id];
+                });
+
             $topMatches = [];
 
             foreach ($userPets as $userPet) {
-                $bestMatch = null;
-                $bestScore = 0;
+                // Build set of pet IDs that have active requests with this user pet
+                $excludedPetIds = $activeRequestPairs
+                    ->where('user_pet', $userPet->pet_id)
+                    ->pluck('other_pet')
+                    ->toArray();
 
                 foreach ($potentialMatches as $potentialPet) {
+                    // Skip pets that already have an active match request with this user pet
+                    if (in_array($potentialPet->pet_id, $excludedPetIds)) {
+                        continue;
+                    }
+
                     $compatibility = $this->calculateCompatibilityScore($potentialPet, $userPet);
 
-                    if ($compatibility['score'] > $bestScore) {
-                        $bestScore = $compatibility['score'];
-                        $bestMatch = $potentialPet;
-                    }
-                }
-
-                // Show match if there's any potential match (removed 50% threshold)
-                if ($bestMatch) {
                     $primaryPhoto1 = $userPet->photos->firstWhere('is_primary', true) ?? $userPet->photos->first();
-                    $primaryPhoto2 = $bestMatch->photos->firstWhere('is_primary', true) ?? $bestMatch->photos->first();
+                    $primaryPhoto2 = $potentialPet->photos->firstWhere('is_primary', true) ?? $potentialPet->photos->first();
 
                     $topMatches[] = [
                         'pet1' => [
@@ -159,18 +175,21 @@ class MatchController extends Controller
                             'birthdate' => $userPet->birthdate,
                         ],
                         'pet2' => [
-                            'pet_id' => $bestMatch->pet_id,
-                            'name' => $bestMatch->name,
+                            'pet_id' => $potentialPet->pet_id,
+                            'name' => $potentialPet->name,
                             'photo_url' => $primaryPhoto2?->photo_url,
-                            'breed' => $bestMatch->breed,
-                            'sex' => $bestMatch->sex,
-                            'birthdate' => $bestMatch->birthdate,
+                            'breed' => $potentialPet->breed,
+                            'sex' => $potentialPet->sex,
+                            'birthdate' => $potentialPet->birthdate,
                         ],
-                        'compatibility_score' => $bestScore,
+                        'compatibility_score' => $compatibility['score'],
                         'match_reasons' => $compatibility['reasons'],
                     ];
                 }
             }
+
+            // Sort all matches by compatibility score descending
+            usort($topMatches, fn($a, $b) => $b['compatibility_score'] <=> $a['compatibility_score']);
 
             return response()->json([
                 'success' => true,
@@ -344,8 +363,8 @@ class MatchController extends Controller
         // Hidden Neuron 3: Feature interaction term (multiplicative interaction)
         // Captures synergy between good breed match AND good behavior match
         $interactionTerm = $inputFeatures['breed'] * $inputFeatures['behaviors'] * 0.5 +
-                          $inputFeatures['breed'] * $inputFeatures['attributes'] * 0.3 +
-                          $inputFeatures['age'] * $inputFeatures['sex'] * 0.2;
+            $inputFeatures['breed'] * $inputFeatures['attributes'] * 0.3 +
+            $inputFeatures['age'] * $inputFeatures['sex'] * 0.2;
         $hidden['interaction'] = $this->tanh($interactionTerm);
 
         // Hidden Neuron 4: Bonus neuron for multiple feature matches
