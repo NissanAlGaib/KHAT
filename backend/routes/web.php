@@ -7,6 +7,7 @@ use App\Http\Controllers\Admin\UserWarningController;
 use App\Http\Controllers\Admin\SubscriptionTierController;
 use App\Http\Controllers\Admin\ProtocolCategoryController;
 use App\Http\Controllers\Admin\PoolController as AdminPoolController;
+use App\Http\Controllers\Admin\TestingToolsController;
 
 Route::get('/', function () {
     return redirect()->route('admin.login');
@@ -128,6 +129,18 @@ Route::prefix('admin')->group(function () {
         Route::post('/pool/transactions/{id}/unfreeze', [AdminPoolController::class, 'unfreezeTransaction'])->name('admin.pool.transactions.unfreeze');
         Route::post('/pool/transactions/{id}/force-release', [AdminPoolController::class, 'forceRelease'])->name('admin.pool.transactions.force-release');
         Route::get('/pool/export', [AdminPoolController::class, 'export'])->name('admin.pool.export');
+
+        // Testing Tools
+        Route::get('/testing-tools', [TestingToolsController::class, 'index'])->name('admin.testing-tools');
+        Route::post('/testing-tools/pets/{petId}/clear-cooldown', [TestingToolsController::class, 'clearPetCooldown'])->name('admin.testing-tools.clear-cooldown');
+        Route::post('/testing-tools/pets/{petId}/fast-forward-cooldown', [TestingToolsController::class, 'fastForwardPetCooldown'])->name('admin.testing-tools.fast-forward-cooldown');
+        Route::post('/testing-tools/pets/{petId}/reset-breeding', [TestingToolsController::class, 'resetBreedingHistory'])->name('admin.testing-tools.reset-breeding');
+        Route::post('/testing-tools/pets/{petId}/reset-full', [TestingToolsController::class, 'resetPetFull'])->name('admin.testing-tools.reset-pet-full');
+        Route::post('/testing-tools/pets/{petId}/reset-match-requests', [TestingToolsController::class, 'resetAllMatchRequestsForPet'])->name('admin.testing-tools.reset-pet-matches');
+        Route::post('/testing-tools/match-requests/reset', [TestingToolsController::class, 'resetMatchRequests'])->name('admin.testing-tools.reset-match-requests');
+        Route::post('/testing-tools/users/{userId}/fast-forward-suspension', [TestingToolsController::class, 'fastForwardSuspension'])->name('admin.testing-tools.fast-forward-suspension');
+        Route::post('/testing-tools/payments/{paymentId}/fast-forward-expiry', [TestingToolsController::class, 'fastForwardPaymentExpiry'])->name('admin.testing-tools.fast-forward-payment');
+        Route::post('/testing-tools/payments/{paymentId}/expire', [TestingToolsController::class, 'expirePayment'])->name('admin.testing-tools.expire-payment');
     });
 });
 

@@ -201,4 +201,17 @@ Route::middleware(['auth:sanctum'])
         Route::post('/disputes', [DisputeController::class, 'store']);
         Route::get('/disputes', [DisputeController::class, 'index']);
         Route::get('/disputes/{id}', [DisputeController::class, 'show']);
+
+        // Admin Testing Tools API (requires admin role)
+        Route::prefix('admin/testing-tools')->group(function () {
+            Route::post('/pets/{petId}/clear-cooldown', [\App\Http\Controllers\Admin\TestingToolsController::class, 'clearPetCooldown']);
+            Route::post('/pets/{petId}/fast-forward-cooldown', [\App\Http\Controllers\Admin\TestingToolsController::class, 'fastForwardPetCooldown']);
+            Route::post('/pets/{petId}/reset-breeding', [\App\Http\Controllers\Admin\TestingToolsController::class, 'resetBreedingHistory']);
+            Route::post('/pets/{petId}/reset-full', [\App\Http\Controllers\Admin\TestingToolsController::class, 'resetPetFull']);
+            Route::post('/pets/{petId}/reset-match-requests', [\App\Http\Controllers\Admin\TestingToolsController::class, 'resetAllMatchRequestsForPet']);
+            Route::post('/match-requests/reset', [\App\Http\Controllers\Admin\TestingToolsController::class, 'resetMatchRequests']);
+            Route::post('/users/{userId}/fast-forward-suspension', [\App\Http\Controllers\Admin\TestingToolsController::class, 'fastForwardSuspension']);
+            Route::post('/payments/{paymentId}/fast-forward-expiry', [\App\Http\Controllers\Admin\TestingToolsController::class, 'fastForwardPaymentExpiry']);
+            Route::post('/payments/{paymentId}/expire', [\App\Http\Controllers\Admin\TestingToolsController::class, 'expirePayment']);
+        });
     });

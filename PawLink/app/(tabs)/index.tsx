@@ -71,7 +71,7 @@ export default function Homepage() {
       setTopMatches(tops);
 
       const filteredShooters = shootersList.filter(
-        (shooter) => shooter.id !== Number(user?.id)
+        (shooter) => shooter.id !== Number(user?.id),
       );
       setShooters(filteredShooters);
     } catch (error) {
@@ -88,7 +88,7 @@ export default function Homepage() {
       setLoading(true);
       fetchData();
       refreshBadgeCount();
-    }, [fetchData, refreshBadgeCount])
+    }, [fetchData, refreshBadgeCount]),
   );
 
   const onRefresh = useCallback(() => {
@@ -127,7 +127,10 @@ export default function Homepage() {
     const targetPetName = isUserPet1 ? match.pet2.name : match.pet1.name;
 
     if (!selectedPet) {
-      Alert.alert("No Pet Selected", "Please select a pet to send match requests.");
+      Alert.alert(
+        "No Pet Selected",
+        "Please select a pet to send match requests.",
+      );
       return;
     }
 
@@ -144,7 +147,7 @@ export default function Homepage() {
       if (result.success) {
         Alert.alert(
           "Match Request Sent! 💕",
-          `Your request to match with ${targetPetName} has been sent to their owner.`
+          `Your request to match with ${targetPetName} has been sent to their owner.`,
         );
       } else if (result.requires_verification) {
         // Handle unverified users
@@ -157,7 +160,7 @@ export default function Homepage() {
               text: "Verify Now",
               onPress: () => router.push("/(verification)/verification-status"),
             },
-          ]
+          ],
         );
       } else if (result.requires_payment) {
         // Handle free tier users who need to pay
@@ -165,7 +168,7 @@ export default function Homepage() {
         Alert.alert(
           "Upgrade Required",
           `Free users need to pay ₱${result.payment_amount} per match request, or upgrade to a subscription for unlimited requests.`,
-          [{ text: "OK", style: "default" }]
+          [{ text: "OK", style: "default" }],
         );
       } else {
         Alert.alert("Request Failed", result.message);
@@ -188,15 +191,14 @@ export default function Homepage() {
     ? topMatches.filter(
         (match) =>
           match.pet1.pet_id === selectedPet.pet_id ||
-          match.pet2.pet_id === selectedPet.pet_id
+          match.pet2.pet_id === selectedPet.pet_id,
       )
     : [];
 
   // Filter pets (exclude own pets and same sex if selected)
   const filteredPets = selectedPet
     ? allPets.filter(
-        (pet) =>
-          pet.sex?.toLowerCase() !== selectedPet.sex?.toLowerCase()
+        (pet) => pet.sex?.toLowerCase() !== selectedPet.sex?.toLowerCase(),
       )
     : allPets;
 
@@ -218,14 +220,18 @@ export default function Homepage() {
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
         refreshControl={
-          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={Colors.primary} />
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={onRefresh}
+            tintColor={Colors.primary}
+          />
         }
       >
         {/* Match Stack */}
         <View style={styles.matchSectionContainer}>
           <View style={styles.matchHeader}>
-            <Image 
-              source={require("@/assets/images/Heart_Icon.png")} 
+            <Image
+              source={require("@/assets/images/Heart_Icon.png")}
               style={styles.heartIcon}
             />
             <Text style={styles.matchTitle}>Top Matches</Text>
@@ -248,16 +254,19 @@ export default function Homepage() {
         </View>
 
         {/* Tab Switcher */}
-        <TabSwitcher 
-          tabs={[{ key: "pets", label: "Pets" }, { key: "shooters", label: "Shooters" }]}
+        <TabSwitcher
+          tabs={[
+            { key: "pets", label: "Pets" },
+            { key: "shooters", label: "Shooters" },
+          ]}
           activeTab={selectedTab}
           onTabChange={setSelectedTab}
         />
 
         {/* Conditional Content */}
         {selectedTab === "pets" ? (
-          <SectionContainer 
-            title="Nearby Pets" 
+          <SectionContainer
+            title="Nearby Pets"
             icon="🐕"
             showSeeAll
             onSeeAllPress={() => router.navigate("/search?tab=pets")}
@@ -276,8 +285,8 @@ export default function Homepage() {
             )}
           </SectionContainer>
         ) : (
-          <SectionContainer 
-            title="Shooters" 
+          <SectionContainer
+            title="Shooters"
             icon="📸"
             showSeeAll
             onSeeAllPress={() => router.navigate("/search?tab=shooters")}

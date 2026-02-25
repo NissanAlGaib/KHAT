@@ -49,6 +49,43 @@
                 <i data-lucide="trash-2" class="w-4 h-4 inline mr-1"></i>
                 Delete Pet
             </button>
+            {{-- Testing Tools Dropdown --}}
+            <div class="relative">
+                <button onclick="document.getElementById('testingToolsDropdown').classList.toggle('hidden')" class="px-4 py-2 bg-amber-100 text-amber-700 text-sm font-medium rounded-lg hover:bg-amber-200 transition flex items-center gap-1">
+                    <i data-lucide="flask-conical" class="w-4 h-4"></i>
+                    Testing Tools
+                    <i data-lucide="chevron-down" class="w-3 h-3"></i>
+                </button>
+                <div id="testingToolsDropdown" class="hidden absolute right-0 mt-2 w-56 bg-white rounded-lg shadow-lg border border-gray-200 py-2 z-50">
+                    @if($pet->cooldown_until && $pet->cooldown_until > now())
+                    <form action="{{ route('admin.testing-tools.clear-cooldown', $pet->pet_id) }}" method="POST">
+                        @csrf
+                        <button type="submit" class="w-full text-left px-4 py-2 text-sm text-blue-700 hover:bg-blue-50 flex items-center gap-2">
+                            <i data-lucide="timer-off" class="w-4 h-4"></i> Clear Cooldown
+                        </button>
+                    </form>
+                    @endif
+                    <form action="{{ route('admin.testing-tools.reset-breeding', $pet->pet_id) }}" method="POST" onsubmit="return confirm('Reset breeding history for {{ $pet->name }}?')">
+                        @csrf
+                        <button type="submit" class="w-full text-left px-4 py-2 text-sm text-green-700 hover:bg-green-50 flex items-center gap-2">
+                            <i data-lucide="rotate-ccw" class="w-4 h-4"></i> Reset Breeding History
+                        </button>
+                    </form>
+                    <form action="{{ route('admin.testing-tools.reset-pet-matches', $pet->pet_id) }}" method="POST" onsubmit="return confirm('Delete ALL match requests for {{ $pet->name }}?')">
+                        @csrf
+                        <button type="submit" class="w-full text-left px-4 py-2 text-sm text-pink-700 hover:bg-pink-50 flex items-center gap-2">
+                            <i data-lucide="heart-off" class="w-4 h-4"></i> Reset Match Requests
+                        </button>
+                    </form>
+                    <hr class="my-1 border-gray-100">
+                    <form action="{{ route('admin.testing-tools.reset-pet-full', $pet->pet_id) }}" method="POST" onsubmit="return confirm('Perform FULL RESET for {{ $pet->name }}? This clears cooldown and breeding history.')">
+                        @csrf
+                        <button type="submit" class="w-full text-left px-4 py-2 text-sm text-[#E75234] hover:bg-red-50 font-medium flex items-center gap-2">
+                            <i data-lucide="refresh-cw" class="w-4 h-4"></i> Full Reset
+                        </button>
+                    </form>
+                </div>
+            </div>
         </div>
     </div>
 </div>

@@ -34,16 +34,16 @@
                 <div class="flex items-center gap-2 mt-1">
                     <span class="text-gray-500 text-sm">{{ $user->email }}</span>
                     @if($user->status === 'suspended')
-                        <span class="px-2 py-0.5 rounded text-xs font-bold bg-red-100 text-red-700 uppercase">Suspended</span>
+                    <span class="px-2 py-0.5 rounded text-xs font-bold bg-red-100 text-red-700 uppercase">Suspended</span>
                     @elseif($user->status === 'banned')
-                        <span class="px-2 py-0.5 rounded text-xs font-bold bg-gray-800 text-white uppercase">Banned</span>
+                    <span class="px-2 py-0.5 rounded text-xs font-bold bg-gray-800 text-white uppercase">Banned</span>
                     @else
-                        <span class="px-2 py-0.5 rounded text-xs font-bold bg-green-100 text-green-700 uppercase">Active</span>
+                    <span class="px-2 py-0.5 rounded text-xs font-bold bg-green-100 text-green-700 uppercase">Active</span>
                     @endif
                 </div>
             </div>
         </div>
-        
+
         <div class="flex gap-3">
             <button onclick="openSubscriptionModal()" class="px-4 py-2 bg-blue-100 text-blue-700 text-sm font-medium rounded-lg hover:bg-blue-200 transition">
                 <i data-lucide="credit-card" class="w-4 h-4 inline mr-1"></i>
@@ -57,6 +57,17 @@
                 <i data-lucide="trash-2" class="w-4 h-4 inline mr-1"></i>
                 Delete User
             </button>
+            @if($user->status === 'suspended' && $user->suspension_end_date)
+            {{-- Testing: Fast-forward suspension --}}
+            <form action="{{ route('admin.testing-tools.fast-forward-suspension', $user->id) }}" method="POST" class="flex items-center gap-1">
+                @csrf
+                <input type="number" name="days" value="7" min="1" class="w-14 text-xs border border-gray-300 rounded-lg px-2 py-2 text-center">
+                <button type="submit" class="px-3 py-2 bg-amber-100 text-amber-700 text-sm font-medium rounded-lg hover:bg-amber-200 transition flex items-center gap-1" title="Fast-forward suspension end date">
+                    <i data-lucide="fast-forward" class="w-4 h-4"></i>
+                    FF Suspension
+                </button>
+            </form>
+            @endif
         </div>
     </div>
 </div>
@@ -67,7 +78,7 @@
         <!-- User Information -->
         <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
             <h2 class="text-lg font-bold text-gray-900 mb-4">User Information</h2>
-            
+
             <div class="space-y-4">
                 <div>
                     <p class="text-xs text-gray-500 uppercase tracking-wide font-medium">Full Name</p>
@@ -79,31 +90,31 @@
                     <div class="flex items-center gap-2">
                         <span class="text-sm font-semibold text-gray-900 capitalize">{{ $user->subscription_tier ?? 'Free' }}</span>
                         @if($user->subscription_tier === 'premium')
-                            <span class="px-2 py-0.5 rounded text-[10px] font-bold bg-purple-100 text-purple-700 uppercase">Premium</span>
+                        <span class="px-2 py-0.5 rounded text-[10px] font-bold bg-purple-100 text-purple-700 uppercase">Premium</span>
                         @elseif($user->subscription_tier === 'basic')
-                            <span class="px-2 py-0.5 rounded text-[10px] font-bold bg-blue-100 text-blue-700 uppercase">Basic</span>
+                        <span class="px-2 py-0.5 rounded text-[10px] font-bold bg-blue-100 text-blue-700 uppercase">Basic</span>
                         @else
-                            <span class="px-2 py-0.5 rounded text-[10px] font-bold bg-gray-100 text-gray-700 uppercase">Free</span>
+                        <span class="px-2 py-0.5 rounded text-[10px] font-bold bg-gray-100 text-gray-700 uppercase">Free</span>
                         @endif
                     </div>
                 </div>
-                
+
                 <div>
                     <p class="text-xs text-gray-500 uppercase tracking-wide font-medium">Contact Number</p>
                     <p class="text-sm font-semibold text-gray-900">{{ $user->contact_number ?? 'N/A' }}</p>
                 </div>
-                
+
                 <div>
                     <p class="text-xs text-gray-500 uppercase tracking-wide font-medium">Address</p>
                     <p class="text-sm font-semibold text-gray-900">
                         @if($user->address)
-                            {{ is_array($user->address) ? implode(', ', array_filter($user->address)) : $user->address }}
+                        {{ is_array($user->address) ? implode(', ', array_filter($user->address)) : $user->address }}
                         @else
-                            N/A
+                        N/A
                         @endif
                     </p>
                 </div>
-                
+
                 <div class="grid grid-cols-2 gap-4">
                     <div>
                         <p class="text-xs text-gray-500 uppercase tracking-wide font-medium">Gender</p>
@@ -135,10 +146,10 @@
                             <p class="text-xs text-red-500 font-medium uppercase">Duration</p>
                             <p class="text-sm text-gray-900 font-medium">
                                 @if($user->suspension_end_date)
-                                    Until {{ $user->suspension_end_date->format('M d, Y H:i') }}
-                                    <span class="text-xs text-red-600 font-normal">({{ $user->suspension_end_date->diffForHumans() }})</span>
+                                Until {{ $user->suspension_end_date->format('M d, Y H:i') }}
+                                <span class="text-xs text-red-600 font-normal">({{ $user->suspension_end_date->diffForHumans() }})</span>
                                 @else
-                                    Indefinite
+                                Indefinite
                                 @endif
                             </p>
                         </div>
@@ -151,35 +162,35 @@
         <!-- Verification Status -->
         <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
             <h2 class="text-lg font-bold text-gray-900 mb-4">Verification Documents</h2>
-            
+
             @forelse($user->userAuth as $auth)
-                <div class="mb-4 last:mb-0 p-3 bg-gray-50 rounded-lg border border-gray-200">
-                    <div class="flex justify-between items-start mb-2">
-                        <span class="text-sm font-bold text-gray-900 capitalize">{{ str_replace('_', ' ', $auth->auth_type) }}</span>
-                        @if($auth->status === 'approved')
-                            <span class="px-2 py-0.5 rounded text-[10px] font-bold bg-green-100 text-green-700 uppercase">Verified</span>
-                        @elseif($auth->status === 'pending')
-                            <span class="px-2 py-0.5 rounded text-[10px] font-bold bg-yellow-100 text-yellow-700 uppercase">Pending</span>
-                        @else
-                            <span class="px-2 py-0.5 rounded text-[10px] font-bold bg-red-100 text-red-700 uppercase">Rejected</span>
-                        @endif
-                    </div>
-                    
-                    @if($auth->document_path)
-                        <button onclick="viewDocument('{{ Storage::disk('do_spaces')->url($auth->document_path) }}', '{{ $auth->auth_type }}')" class="text-xs text-[#E75234] hover:underline flex items-center gap-1 focus:outline-none">
-                            <i data-lucide="file-text" class="w-3 h-3"></i> View Document
-                        </button>
-                    @endif
-                    
-                    @if($auth->status === 'pending')
-                    <div class="mt-3 flex gap-2">
-                        <button onclick="verifyDocument({{ $auth->auth_id }}, 'approved')" class="flex-1 py-1.5 bg-green-600 text-white text-xs font-bold rounded hover:bg-green-700 transition">Approve</button>
-                        <button onclick="verifyDocument({{ $auth->auth_id }}, 'rejected')" class="flex-1 py-1.5 bg-red-600 text-white text-xs font-bold rounded hover:bg-red-700 transition">Reject</button>
-                    </div>
+            <div class="mb-4 last:mb-0 p-3 bg-gray-50 rounded-lg border border-gray-200">
+                <div class="flex justify-between items-start mb-2">
+                    <span class="text-sm font-bold text-gray-900 capitalize">{{ str_replace('_', ' ', $auth->auth_type) }}</span>
+                    @if($auth->status === 'approved')
+                    <span class="px-2 py-0.5 rounded text-[10px] font-bold bg-green-100 text-green-700 uppercase">Verified</span>
+                    @elseif($auth->status === 'pending')
+                    <span class="px-2 py-0.5 rounded text-[10px] font-bold bg-yellow-100 text-yellow-700 uppercase">Pending</span>
+                    @else
+                    <span class="px-2 py-0.5 rounded text-[10px] font-bold bg-red-100 text-red-700 uppercase">Rejected</span>
                     @endif
                 </div>
+
+                @if($auth->document_path)
+                <button onclick="viewDocument('{{ Storage::disk('do_spaces')->url($auth->document_path) }}', '{{ $auth->auth_type }}')" class="text-xs text-[#E75234] hover:underline flex items-center gap-1 focus:outline-none">
+                    <i data-lucide="file-text" class="w-3 h-3"></i> View Document
+                </button>
+                @endif
+
+                @if($auth->status === 'pending')
+                <div class="mt-3 flex gap-2">
+                    <button onclick="verifyDocument({{ $auth->auth_id }}, 'approved')" class="flex-1 py-1.5 bg-green-600 text-white text-xs font-bold rounded hover:bg-green-700 transition">Approve</button>
+                    <button onclick="verifyDocument({{ $auth->auth_id }}, 'rejected')" class="flex-1 py-1.5 bg-red-600 text-white text-xs font-bold rounded hover:bg-red-700 transition">Reject</button>
+                </div>
+                @endif
+            </div>
             @empty
-                <p class="text-sm text-gray-500 italic">No verification documents submitted.</p>
+            <p class="text-sm text-gray-500 italic">No verification documents submitted.</p>
             @endforelse
         </div>
     </div>
@@ -224,11 +235,11 @@
                                 <div class="flex items-center gap-3">
                                     <div class="w-10 h-10 rounded-lg bg-gray-200 overflow-hidden">
                                         @if($pet->primary_photo_url)
-                                            <img src="{{ $pet->primary_photo_url }}" class="w-full h-full object-cover">
+                                        <img src="{{ $pet->primary_photo_url }}" class="w-full h-full object-cover">
                                         @else
-                                            <div class="w-full h-full flex items-center justify-center text-gray-400">
-                                                <i data-lucide="paw-print" class="w-5 h-5"></i>
-                                            </div>
+                                        <div class="w-full h-full flex items-center justify-center text-gray-400">
+                                            <i data-lucide="paw-print" class="w-5 h-5"></i>
+                                        </div>
                                         @endif
                                     </div>
                                     <div>
@@ -291,9 +302,9 @@
                 <label class="block text-sm font-semibold text-gray-700 mb-2">Select Subscription Tier</label>
                 <select name="tier_slug" class="w-full bg-white border border-gray-300 text-gray-700 py-2.5 px-4 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#E75234]">
                     @foreach($subscriptionTiers as $tier)
-                        <option value="{{ $tier->slug }}" {{ $user->subscription_tier === $tier->slug ? 'selected' : '' }}>
-                            {{ $tier->name }} (₱{{ number_format($tier->price, 2) }})
-                        </option>
+                    <option value="{{ $tier->slug }}" {{ $user->subscription_tier === $tier->slug ? 'selected' : '' }}>
+                        {{ $tier->name }} (₱{{ number_format($tier->price, 2) }})
+                    </option>
                     @endforeach
                 </select>
                 <p class="mt-2 text-xs text-gray-500 italic">This will immediately update the user's subscription tier.</p>
@@ -321,7 +332,7 @@
                     <option value="banned" {{ $user->status === 'banned' ? 'selected' : '' }}>Banned</option>
                 </select>
             </div>
-            
+
             <div id="reasonField" class="space-y-4 {{ in_array($user->status, ['suspended', 'banned']) ? '' : 'hidden' }}">
                 <div>
                     <label class="block text-sm font-semibold text-gray-700 mb-1.5">Suspension Duration</label>
@@ -407,7 +418,9 @@
                     'Content-Type': 'application/json',
                     'X-CSRF-TOKEN': '{{ csrf_token() }}'
                 },
-                body: JSON.stringify({ status })
+                body: JSON.stringify({
+                    status
+                })
             });
             const data = await response.json();
             if (data.success) {

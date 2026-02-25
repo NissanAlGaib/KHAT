@@ -76,7 +76,7 @@
         $petGroupActive = request()->routeIs('admin.pets.*') || request()->routeIs('admin.vaccine-protocols.*') || request()->routeIs('admin.vaccination-shots.*') || request()->routeIs('admin.protocol-categories.*');
         $businessGroupActive = request()->routeIs('admin.analytics') || request()->routeIs('admin.billing') || request()->routeIs('admin.subscription-tiers.*');
         $poolGroupActive = request()->routeIs('admin.pool.*');
-        $systemGroupActive = request()->routeIs('admin.reports') || request()->routeIs('admin.blocks') || request()->routeIs('admin.audit-logs');
+        $systemGroupActive = request()->routeIs('admin.reports') || request()->routeIs('admin.blocks') || request()->routeIs('admin.audit-logs') || request()->routeIs('admin.testing-tools');
         @endphp
 
         <nav class="flex-grow p-4 overflow-y-auto">
@@ -221,6 +221,12 @@
                     <a href="{{ route('admin.audit-logs') }}" class="flex items-center gap-3 px-3 py-2.5 rounded-lg {{ request()->routeIs('admin.audit-logs') ? 'bg-white/10 text-white font-semibold border-l-[3px] border-[#E75234]' : 'text-gray-400 hover:text-white hover:bg-white/10 font-medium' }}">
                         <i data-lucide="book-lock" class="w-5 h-5 {{ request()->routeIs('admin.audit-logs') ? 'text-white' : 'text-gray-500' }}"></i>
                         <span>Audit Logs</span>
+                    </a>
+                </li>
+                <li>
+                    <a href="{{ route('admin.testing-tools') }}" class="flex items-center gap-3 px-3 py-2.5 rounded-lg {{ request()->routeIs('admin.testing-tools') ? 'bg-white/10 text-white font-semibold border-l-[3px] border-[#E75234]' : 'text-gray-400 hover:text-white hover:bg-white/10 font-medium' }}">
+                        <i data-lucide="flask-conical" class="w-5 h-5 {{ request()->routeIs('admin.testing-tools') ? 'text-white' : 'text-gray-500' }}"></i>
+                        <span>Testing Tools</span>
                     </a>
                 </li>
             </ul>
@@ -408,6 +414,12 @@
                         <a href="{{ route('admin.audit-logs') }}" class="flex items-center gap-3 px-3 py-2.5 rounded-lg {{ request()->routeIs('admin.audit-logs') ? 'bg-white/10 text-white font-semibold border-l-[3px] border-[#E75234]' : 'text-gray-400 hover:text-white hover:bg-white/10 font-medium' }}">
                             <i data-lucide="book-lock" class="w-5 h-5 {{ request()->routeIs('admin.audit-logs') ? 'text-white' : 'text-gray-500' }}"></i>
                             <span>Audit Logs</span>
+                        </a>
+                    </li>
+                    <li>
+                        <a href="{{ route('admin.testing-tools') }}" class="flex items-center gap-3 px-3 py-2.5 rounded-lg {{ request()->routeIs('admin.testing-tools') ? 'bg-white/10 text-white font-semibold border-l-[3px] border-[#E75234]' : 'text-gray-400 hover:text-white hover:bg-white/10 font-medium' }}">
+                            <i data-lucide="flask-conical" class="w-5 h-5 {{ request()->routeIs('admin.testing-tools') ? 'text-white' : 'text-gray-500' }}"></i>
+                            <span>Testing Tools</span>
                         </a>
                     </li>
                 </ul>
