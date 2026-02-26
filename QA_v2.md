@@ -84,3 +84,7 @@ Currently, both actions appear to function the same way.
 - Some status options not functioning.
 - Category counts not refreshing.
 - Subscription price edits not saving.
+
+## 10. Admin View Details Format (Question)
+- Should the **Admin user "View Details" page** have a different format from regular User/Breeder accounts?
+- Should there be a separate layout that shows admin-specific fields, roles, and permissions instead of using the same format?
