@@ -42,10 +42,10 @@
 
 <!-- Stats Cards -->
 <div class="grid grid-cols-1 md:grid-cols-4 gap-6 mb-6">
-    <div class="bg-white p-5 rounded-xl shadow-sm border border-gray-50 hover:shadow-md transition-all">
+    <div class="bg-white p-5 rounded-xl shadow-sm border border-gray-50 hover:shadow-md transition-all cursor-pointer group" onclick="openStatsDetail('pool_balance')">
         <div class="flex justify-between items-start mb-2">
             <span class="text-sm font-semibold text-gray-500">Total Pool Balance</span>
-            <div class="w-10 h-10 rounded-lg bg-green-100 flex items-center justify-center">
+            <div class="w-10 h-10 rounded-lg bg-green-100 flex items-center justify-center group-hover:scale-110 transition-transform">
                 <i data-lucide="wallet" class="w-5 h-5 text-green-600"></i>
             </div>
         </div>
@@ -53,10 +53,10 @@
         <span class="text-sm text-gray-500">Currently held in pool</span>
     </div>
 
-    <div class="bg-white p-5 rounded-xl shadow-sm border border-gray-50 hover:shadow-md transition-all">
+    <div class="bg-white p-5 rounded-xl shadow-sm border border-gray-50 hover:shadow-md transition-all cursor-pointer group" onclick="openStatsDetail('pool_deposited')">
         <div class="flex justify-between items-start mb-2">
             <span class="text-sm font-semibold text-gray-500">Total Deposited</span>
-            <div class="w-10 h-10 rounded-lg bg-blue-100 flex items-center justify-center">
+            <div class="w-10 h-10 rounded-lg bg-blue-100 flex items-center justify-center group-hover:scale-110 transition-transform">
                 <i data-lucide="arrow-down-circle" class="w-5 h-5 text-blue-600"></i>
             </div>
         </div>
@@ -64,10 +64,10 @@
         <span class="text-sm text-gray-500">{{ $stats['total_transactions'] ?? 0 }} total transactions</span>
     </div>
 
-    <div class="bg-white p-5 rounded-xl shadow-sm border border-gray-50 hover:shadow-md transition-all">
+    <div class="bg-white p-5 rounded-xl shadow-sm border border-gray-50 hover:shadow-md transition-all cursor-pointer group" onclick="openStatsDetail('pool_released')">
         <div class="flex justify-between items-start mb-2">
             <span class="text-sm font-semibold text-gray-500">Total Released</span>
-            <div class="w-10 h-10 rounded-lg bg-orange-100 flex items-center justify-center">
+            <div class="w-10 h-10 rounded-lg bg-orange-100 flex items-center justify-center group-hover:scale-110 transition-transform">
                 <i data-lucide="arrow-up-circle" class="w-5 h-5 text-orange-600"></i>
             </div>
         </div>
@@ -75,10 +75,10 @@
         <span class="text-sm text-gray-500">Refunded to users</span>
     </div>
 
-    <div class="bg-white p-5 rounded-xl shadow-sm border border-gray-50 hover:shadow-md transition-all">
+    <div class="bg-white p-5 rounded-xl shadow-sm border border-gray-50 hover:shadow-md transition-all cursor-pointer group" onclick="openStatsDetail('pool_frozen')">
         <div class="flex justify-between items-start mb-2">
             <span class="text-sm font-semibold text-gray-500">Frozen Funds</span>
-            <div class="w-10 h-10 rounded-lg bg-red-100 flex items-center justify-center">
+            <div class="w-10 h-10 rounded-lg bg-red-100 flex items-center justify-center group-hover:scale-110 transition-transform">
                 <i data-lucide="lock" class="w-5 h-5 text-red-600"></i>
             </div>
         </div>

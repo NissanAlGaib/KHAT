@@ -756,6 +756,278 @@
             }
         });
     </script>
+    <!-- Stats Detail Modal -->
+    <div id="statsDetailModal" class="hidden fixed inset-0 z-[60] overflow-y-auto bg-gray-900/60 backdrop-blur-sm transition-opacity duration-200">
+        <div class="flex items-center justify-center min-h-screen px-4 py-8">
+            <div class="bg-white rounded-2xl shadow-2xl max-w-3xl w-full max-h-[85vh] flex flex-col relative overflow-hidden">
+                <!-- Accent bar -->
+                <div class="h-1 bg-gradient-to-r from-[#E75234] via-orange-400 to-amber-400 flex-shrink-0"></div>
+                <!-- Header -->
+                <div class="flex items-center justify-between px-6 py-4 border-b border-gray-100 flex-shrink-0">
+                    <div class="flex items-center gap-3">
+                        <div class="w-9 h-9 rounded-lg bg-[#E75234]/10 flex items-center justify-center flex-shrink-0">
+                            <svg class="w-5 h-5 text-[#E75234]" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
+                            </svg>
+                        </div>
+                        <h2 id="statsDetailTitle" class="text-lg font-bold text-gray-900">Loading...</h2>
+                    </div>
+                    <button onclick="closeStatsDetail()" class="w-8 h-8 rounded-lg flex items-center justify-center text-gray-400 hover:text-white hover:bg-red-500 transition-all duration-150" title="Close">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" />
+                        </svg>
+                    </button>
+                </div>
+                <!-- Body -->
+                <div id="statsDetailBody" class="px-6 py-5 overflow-y-auto flex-1">
+                    <div class="flex flex-col items-center justify-center py-12 gap-3">
+                        <div class="animate-spin rounded-full h-8 w-8 border-2 border-[#E75234] border-t-transparent"></div>
+                        <p class="text-sm text-gray-400">Loading details...</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const STATS_DETAIL_URL = "{{ route('admin.stats.detail', ['type' => '__TYPE__']) }}";
+
+        function openStatsDetail(type) {
+            const modal = document.getElementById('statsDetailModal');
+            const body = document.getElementById('statsDetailBody');
+            const title = document.getElementById('statsDetailTitle');
+
+            modal.classList.remove('hidden');
+            document.body.style.overflow = 'hidden';
+            title.textContent = 'Loading...';
+            body.innerHTML = '<div class="flex flex-col items-center justify-center py-12 gap-3"><div class="animate-spin rounded-full h-8 w-8 border-2 border-[#E75234] border-t-transparent"></div><p class="text-sm text-gray-400">Loading details...</p></div>';
+
+            // Grab current date filters from URL params
+            const urlParams = new URLSearchParams(window.location.search);
+            let fetchUrl = STATS_DETAIL_URL.replace('__TYPE__', type);
+            const qp = [];
+            if (urlParams.get('start_date')) qp.push('start_date=' + urlParams.get('start_date'));
+            if (urlParams.get('end_date')) qp.push('end_date=' + urlParams.get('end_date'));
+            if (qp.length) fetchUrl += '?' + qp.join('&');
+
+            fetch(fetchUrl, {
+                    headers: {
+                        'Accept': 'application/json',
+                        'X-Requested-With': 'XMLHttpRequest'
+                    }
+                })
+                .then(r => {
+                    if (!r.ok) throw new Error('Failed to load');
+                    return r.json();
+                })
+                .then(data => renderStatsDetail(data))
+                .catch(err => {
+                    body.innerHTML = '<div class="text-center py-12"><svg class="w-12 h-12 mx-auto mb-3 text-red-300" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 9v3.75m9-.75a9 9 0 11-18 0 9 9 0 0118 0zm-9 3.75h.008v.008H12v-.008z"/></svg><p class="font-medium text-red-500">Failed to load details</p><p class="text-sm text-gray-400 mt-1">' + err.message + '</p></div>';
+                });
+        }
+
+        function renderStatsDetail(data) {
+            const title = document.getElementById('statsDetailTitle');
+            const body = document.getElementById('statsDetailBody');
+            title.textContent = data.title || 'Details';
+
+            const colorConfig = {
+                green: {
+                    bg: 'bg-green-50',
+                    border: 'border-green-200',
+                    text: 'text-green-700',
+                    badge: 'bg-green-500'
+                },
+                emerald: {
+                    bg: 'bg-emerald-50',
+                    border: 'border-emerald-200',
+                    text: 'text-emerald-700',
+                    badge: 'bg-emerald-500'
+                },
+                blue: {
+                    bg: 'bg-blue-50',
+                    border: 'border-blue-200',
+                    text: 'text-blue-700',
+                    badge: 'bg-blue-500'
+                },
+                red: {
+                    bg: 'bg-red-50',
+                    border: 'border-red-200',
+                    text: 'text-red-700',
+                    badge: 'bg-red-500'
+                },
+                yellow: {
+                    bg: 'bg-yellow-50',
+                    border: 'border-yellow-200',
+                    text: 'text-yellow-700',
+                    badge: 'bg-yellow-500'
+                },
+                amber: {
+                    bg: 'bg-amber-50',
+                    border: 'border-amber-200',
+                    text: 'text-amber-700',
+                    badge: 'bg-amber-500'
+                },
+                purple: {
+                    bg: 'bg-purple-50',
+                    border: 'border-purple-200',
+                    text: 'text-purple-700',
+                    badge: 'bg-purple-500'
+                },
+                orange: {
+                    bg: 'bg-orange-50',
+                    border: 'border-orange-200',
+                    text: 'text-orange-700',
+                    badge: 'bg-orange-500'
+                },
+                pink: {
+                    bg: 'bg-pink-50',
+                    border: 'border-pink-200',
+                    text: 'text-pink-700',
+                    badge: 'bg-pink-500'
+                },
+                sky: {
+                    bg: 'bg-sky-50',
+                    border: 'border-sky-200',
+                    text: 'text-sky-700',
+                    badge: 'bg-sky-500'
+                },
+                violet: {
+                    bg: 'bg-violet-50',
+                    border: 'border-violet-200',
+                    text: 'text-violet-700',
+                    badge: 'bg-violet-500'
+                },
+                gray: {
+                    bg: 'bg-gray-50',
+                    border: 'border-gray-200',
+                    text: 'text-gray-700',
+                    badge: 'bg-gray-500'
+                },
+            };
+
+            let html = '';
+
+            // Summary breakdown cards
+            if (data.breakdown && data.breakdown.length) {
+                const cols = Math.min(data.breakdown.length, 4);
+                html += '<div class="mb-6"><p class="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-3">Summary Breakdown</p>';
+                html += '<div class="grid grid-cols-2 sm:grid-cols-' + cols + ' gap-3">';
+                data.breakdown.forEach(b => {
+                    const c = colorConfig[b.color] || colorConfig.gray;
+                    html += '<div class="' + c.bg + ' border ' + c.border + ' rounded-xl p-4">' +
+                        '<div class="flex items-center gap-2 mb-1.5">' +
+                        '<span class="w-2 h-2 rounded-full ' + c.badge + ' flex-shrink-0"></span>' +
+                        '<p class="text-xs font-semibold ' + c.text + ' opacity-80 truncate">' + b.label + '</p>' +
+                        '</div>' +
+                        '<p class="text-xl font-bold ' + c.text + '">' + b.count + '</p>' +
+                        '</div>';
+                });
+                html += '</div></div>';
+            }
+
+            // Records table
+            if (data.columns && data.columns.length && data.records && data.records.length) {
+                const hasRowColors = data.rowColors && data.rowColors.length;
+                const pillColors = {
+                    green: 'bg-green-100 text-green-700 ring-green-600/20',
+                    emerald: 'bg-emerald-100 text-emerald-700 ring-emerald-600/20',
+                    blue: 'bg-blue-100 text-blue-700 ring-blue-600/20',
+                    red: 'bg-red-100 text-red-700 ring-red-600/20',
+                    yellow: 'bg-yellow-100 text-yellow-800 ring-yellow-600/20',
+                    amber: 'bg-amber-100 text-amber-700 ring-amber-600/20',
+                    purple: 'bg-purple-100 text-purple-700 ring-purple-600/20',
+                    orange: 'bg-orange-100 text-orange-700 ring-orange-600/20',
+                    pink: 'bg-pink-100 text-pink-700 ring-pink-600/20',
+                    sky: 'bg-sky-100 text-sky-700 ring-sky-600/20',
+                    violet: 'bg-violet-100 text-violet-700 ring-violet-600/20',
+                    gray: 'bg-gray-100 text-gray-700 ring-gray-600/20',
+                };
+                const rowBgColors = {
+                    green: 'bg-green-50/50',
+                    emerald: 'bg-emerald-50/50',
+                    blue: 'bg-blue-50/50',
+                    red: 'bg-red-50/50',
+                    yellow: 'bg-yellow-50/40',
+                    amber: 'bg-amber-50/50',
+                    purple: 'bg-purple-50/50',
+                    orange: 'bg-orange-50/50',
+                    pink: 'bg-pink-50/50',
+                    sky: 'bg-sky-50/50',
+                    violet: 'bg-violet-50/50',
+                    gray: 'bg-gray-50/50',
+                };
+                const borderColors = {
+                    green: 'border-green-400',
+                    emerald: 'border-emerald-400',
+                    blue: 'border-blue-400',
+                    red: 'border-red-400',
+                    yellow: 'border-yellow-400',
+                    amber: 'border-amber-400',
+                    purple: 'border-purple-400',
+                    orange: 'border-orange-400',
+                    pink: 'border-pink-400',
+                    sky: 'border-sky-400',
+                    violet: 'border-violet-400',
+                    gray: 'border-gray-400',
+                };
+
+                html += '<div class="mb-2"><p class="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-3">Recent Records</p>';
+                html += '<div class="border border-gray-200 rounded-xl overflow-hidden">';
+                html += '<table class="w-full text-sm">';
+                html += '<thead><tr class="bg-gray-50/80">';
+                data.columns.forEach(c => {
+                    html += '<th class="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">' + c + '</th>';
+                });
+                html += '</tr></thead><tbody>';
+                data.records.forEach((row, idx) => {
+                    const rColor = hasRowColors ? data.rowColors[idx] : null;
+                    let rowClasses = 'transition-colors';
+                    if (rColor) {
+                        rowClasses += ' border-l-4 ' + (borderColors[rColor] || 'border-gray-400') + ' ' + (rowBgColors[rColor] || 'bg-gray-50/50') + ' hover:brightness-[0.97]';
+                    } else {
+                        rowClasses += ' ' + (idx % 2 === 0 ? 'bg-white' : 'bg-gray-50/40') + ' hover:bg-blue-50/40';
+                    }
+                    html += '<tr class="' + rowClasses + '">';
+                    row.forEach((cell, i) => {
+                        const isColorCol = (data.colorColumn !== undefined && i === data.colorColumn && rColor);
+                        if (isColorCol) {
+                            const pill = pillColors[rColor] || pillColors.gray;
+                            html += '<td class="px-4 py-3"><span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold ring-1 ring-inset ' + pill + '">' + (cell ?? '—') + '</span></td>';
+                        } else {
+                            const cls = i === 0 ? 'font-semibold text-gray-900' : 'text-gray-600';
+                            html += '<td class="px-4 py-3 ' + cls + '">' + (cell ?? '<span class="text-gray-300">—</span>') + '</td>';
+                        }
+                    });
+                    html += '</tr>';
+                });
+                html += '</tbody></table></div></div>';
+            } else if (!data.records || !data.records.length) {
+                html += '<div class="text-center py-10 border border-dashed border-gray-200 rounded-xl"><svg class="w-10 h-10 mx-auto mb-2 text-gray-300" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M20.25 7.5l-.625 10.632a2.25 2.25 0 01-2.247 2.118H6.622a2.25 2.25 0 01-2.247-2.118L3.75 7.5m6 4.125l2.25 2.25m0 0l2.25-2.25M12 13.875V3.375"/></svg><p class="font-medium text-gray-400">No records found</p><p class="text-xs text-gray-300 mt-1">Try adjusting the date range</p></div>';
+            }
+
+            body.innerHTML = html;
+        }
+
+        function closeStatsDetail() {
+            const modal = document.getElementById('statsDetailModal');
+            modal.classList.add('hidden');
+            document.body.style.overflow = 'auto';
+        }
+
+        // Close on click outside
+        document.getElementById('statsDetailModal')?.addEventListener('click', function(e) {
+            if (e.target === this) closeStatsDetail();
+        });
+
+        // Close on Escape
+        document.addEventListener('keydown', function(e) {
+            if (e.key === 'Escape' && !document.getElementById('statsDetailModal').classList.contains('hidden')) {
+                closeStatsDetail();
+            }
+        });
+    </script>
+
     @stack('scripts')
 </body>
 

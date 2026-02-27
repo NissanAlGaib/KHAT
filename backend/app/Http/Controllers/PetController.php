@@ -537,6 +537,13 @@ class PetController extends Controller
                 'id' => $pet->owner->id,
                 'name' => $pet->owner->name,
                 'profile_image' => $pet->owner->profile_image,
+                'is_verified' => UserAuth::where('user_id', $pet->owner->id)
+                    ->where('auth_type', 'id')
+                    ->where('status', 'approved')
+                    ->exists(),
+                'verification_status' => UserAuth::where('user_id', $pet->owner->id)
+                    ->where('auth_type', 'id')
+                    ->value('status') ?? 'unverified',
             ],
             'photos' => $pet->photos->map(function ($photo) {
                 return [

@@ -114,6 +114,9 @@ class AdminController extends Controller
         $lastMonth = $now->copy()->subMonth();
         $lastWeek = $now->copy()->subWeek();
 
+        // Check if date filter is active
+        $hasDateFilter = $request && $request->filled('start_date') && $request->filled('end_date');
+
         // Optional date range for chart filtering
         $chartStart = $request && $request->filled('start_date')
             ? Carbon::parse($request->start_date)->startOfDay()
@@ -180,6 +183,19 @@ class AdminController extends Controller
             ->where('updated_at', '<', $lastMonth)->count();
         $premiumGrowth = $this->calculateGrowth($premiumSubscribers, $premiumLastMonth);
 
+        // Filtered counts for "in selected period" display
+        $filteredUsers = $hasDateFilter ? User::whereBetween('created_at', [$chartStart, $chartEnd])->count() : null;
+        $filteredBreeders = $hasDateFilter ? User::whereHas('userAuth', function ($q) use ($chartStart, $chartEnd) {
+            $q->where('auth_type', 'breeder_certificate')->where('status', 'approved')->whereBetween('updated_at', [$chartStart, $chartEnd]);
+        })->count() : null;
+        $filteredShooters = $hasDateFilter ? User::whereHas('userAuth', function ($q) use ($chartStart, $chartEnd) {
+            $q->where('auth_type', 'shooter_certificate')->where('status', 'approved')->whereBetween('updated_at', [$chartStart, $chartEnd]);
+        })->count() : null;
+        $filteredActivePets = $hasDateFilter ? Pet::where('status', 'active')->whereBetween('created_at', [$chartStart, $chartEnd])->count() : null;
+        $filteredDisabledPets = $hasDateFilter ? Pet::where('status', 'disabled')->whereBetween('updated_at', [$chartStart, $chartEnd])->count() : null;
+        $filteredStandard = $hasDateFilter ? User::where('subscription_tier', 'standard')->whereBetween('updated_at', [$chartStart, $chartEnd])->count() : null;
+        $filteredPremium = $hasDateFilter ? User::where('subscription_tier', 'premium')->whereBetween('updated_at', [$chartStart, $chartEnd])->count() : null;
+
         // Monthly New Users for Chart (filtered by date range)
         $monthlyUsers = User::select(
             DB::raw('DATE_FORMAT(created_at, "%Y-%m") as month'),
@@ -228,6 +244,14 @@ class AdminController extends Controller
             'standardGrowth',
             'premiumSubscribers',
             'premiumGrowth',
+            'hasDateFilter',
+            'filteredUsers',
+            'filteredBreeders',
+            'filteredShooters',
+            'filteredActivePets',
+            'filteredDisabledPets',
+            'filteredStandard',
+            'filteredPremium',
             'pendingReports',
             'monthlyUsers',
             'matchesTrend',
@@ -957,12 +981,36 @@ class AdminController extends Controller
         $acceptedMatches = MatchRequest::where('status', 'accepted')->count();
         $completedMatches = MatchRequest::where('status', 'completed')->count();
 
+        // Date filter "show both" — filtered counts for stat cards
+        $hasDateFilter = $request->filled('start_date') && $request->filled('end_date');
+        $filteredTotalMatches = null;
+        $filteredPendingMatches = null;
+        $filteredAcceptedMatches = null;
+        $filteredCompletedMatches = null;
+
+        if ($hasDateFilter) {
+            $filterStart = Carbon::parse($request->start_date)->startOfDay();
+            $filterEnd = Carbon::parse($request->end_date)->endOfDay();
+            $filteredTotalMatches = MatchRequest::whereBetween('created_at', [$filterStart, $filterEnd])->count();
+            $filteredPendingMatches = MatchRequest::where('status', 'pending')
+                ->whereBetween('created_at', [$filterStart, $filterEnd])->count();
+            $filteredAcceptedMatches = MatchRequest::where('status', 'accepted')
+                ->whereBetween('created_at', [$filterStart, $filterEnd])->count();
+            $filteredCompletedMatches = MatchRequest::where('status', 'completed')
+                ->whereBetween('created_at', [$filterStart, $filterEnd])->count();
+        }
+
         return view('admin.match-history', compact(
             'matches',
             'totalMatches',
             'pendingMatches',
             'acceptedMatches',
-            'completedMatches'
+            'completedMatches',
+            'hasDateFilter',
+            'filteredTotalMatches',
+            'filteredPendingMatches',
+            'filteredAcceptedMatches',
+            'filteredCompletedMatches'
         ));
     }
 
@@ -1061,6 +1109,36 @@ class AdminController extends Controller
             ->orderBy('month')
             ->get();
 
+        // Date filter "show both" — filtered counts for stat cards
+        $hasDateFilter = $request->filled('start_date') && $request->filled('end_date');
+        $filteredRevenue = null;
+        $filteredActiveUsers = null;
+        $filteredMatches = null;
+        $filteredConversionRate = null;
+
+        if ($hasDateFilter) {
+            $filteredMatchRevenue = \App\Models\Payment::where('payment_type', \App\Models\Payment::TYPE_MATCH_REQUEST)
+                ->where('status', \App\Models\Payment::STATUS_PAID)
+                ->whereBetween('paid_at', [$chartStart, $chartEnd])
+                ->sum('amount');
+            $filteredPremiumSubs = User::where('subscription_tier', 'premium')
+                ->whereBetween('created_at', [$chartStart, $chartEnd])->count();
+            $filteredStandardSubs = User::where('subscription_tier', 'standard')
+                ->whereBetween('created_at', [$chartStart, $chartEnd])->count();
+            $filteredRevenue = ($filteredPremiumSubs * $premiumPrice) + ($filteredStandardSubs * $standardPrice) + $filteredMatchRevenue;
+
+            $filteredActiveUsers = User::whereBetween('updated_at', [$chartStart, $chartEnd])->count();
+
+            $filteredAccepted = MatchRequest::where('status', 'accepted')
+                ->whereBetween('updated_at', [$chartStart, $chartEnd])->count();
+            $filteredMatches = $filteredAccepted;
+
+            $filteredTotalRequests = MatchRequest::whereBetween('created_at', [$chartStart, $chartEnd])->count();
+            $filteredConversionRate = $filteredTotalRequests > 0
+                ? round(($filteredAccepted / $filteredTotalRequests) * 100, 1)
+                : 0;
+        }
+
         return view('admin.analytics', compact(
             'totalRevenue',
             'revenueGrowth',
@@ -1071,7 +1149,12 @@ class AdminController extends Controller
             'conversionRate',
             'conversionGrowth',
             'monthlyData',
-            'monthlyMatches'
+            'monthlyMatches',
+            'hasDateFilter',
+            'filteredRevenue',
+            'filteredActiveUsers',
+            'filteredMatches',
+            'filteredConversionRate'
         ));
     }
 
@@ -1151,6 +1234,25 @@ class AdminController extends Controller
             ->limit(10)
             ->get(['id', 'name', 'email', 'subscription_tier', 'updated_at']);
 
+        // Date filter "show both" — filtered counts for stat cards
+        $hasDateFilter = $request->filled('start_date') && $request->filled('end_date');
+        $filteredFreeUsers = null;
+        $filteredStandardUsers = null;
+        $filteredPremiumUsers = null;
+
+        if ($hasDateFilter) {
+            $startDate = Carbon::parse($request->start_date)->startOfDay();
+            $endDate = Carbon::parse($request->end_date)->endOfDay();
+            $filteredFreeUsers = User::where(function ($q) {
+                $q->where('subscription_tier', 'free')->orWhereNull('subscription_tier');
+            })
+                ->whereBetween('created_at', [$startDate, $endDate])->count();
+            $filteredStandardUsers = User::where('subscription_tier', 'standard')
+                ->whereBetween('created_at', [$startDate, $endDate])->count();
+            $filteredPremiumUsers = User::where('subscription_tier', 'premium')
+                ->whereBetween('created_at', [$startDate, $endDate])->count();
+        }
+
         return view('admin.billing', compact(
             'freeUsers',
             'freePercentage',
@@ -1167,7 +1269,11 @@ class AdminController extends Controller
             'matchRequestGrowth',
             'standardPrice',
             'premiumPrice',
-            'matchRequestFee'
+            'matchRequestFee',
+            'hasDateFilter',
+            'filteredFreeUsers',
+            'filteredStandardUsers',
+            'filteredPremiumUsers'
         ));
     }
 
@@ -1230,12 +1336,36 @@ class AdminController extends Controller
         $resolvedReports = SafetyReport::where('status', SafetyReport::STATUS_RESOLVED)->count();
         $dismissedReports = SafetyReport::where('status', SafetyReport::STATUS_DISMISSED)->count();
 
+        // Date filter "show both" — filtered counts for stat cards
+        $hasDateFilter = $request->filled('start_date') && $request->filled('end_date');
+        $filteredTotalReports = null;
+        $filteredPendingReports = null;
+        $filteredResolvedReports = null;
+        $filteredDismissedReports = null;
+
+        if ($hasDateFilter) {
+            $filterStart = Carbon::parse($request->start_date)->startOfDay();
+            $filterEnd = Carbon::parse($request->end_date)->endOfDay();
+            $filteredTotalReports = SafetyReport::whereBetween('created_at', [$filterStart, $filterEnd])->count();
+            $filteredPendingReports = SafetyReport::where('status', SafetyReport::STATUS_PENDING)
+                ->whereBetween('created_at', [$filterStart, $filterEnd])->count();
+            $filteredResolvedReports = SafetyReport::where('status', SafetyReport::STATUS_RESOLVED)
+                ->whereBetween('created_at', [$filterStart, $filterEnd])->count();
+            $filteredDismissedReports = SafetyReport::where('status', SafetyReport::STATUS_DISMISSED)
+                ->whereBetween('created_at', [$filterStart, $filterEnd])->count();
+        }
+
         return view('admin.reports', compact(
             'reports',
             'totalReports',
             'pendingReports',
             'resolvedReports',
-            'dismissedReports'
+            'dismissedReports',
+            'hasDateFilter',
+            'filteredTotalReports',
+            'filteredPendingReports',
+            'filteredResolvedReports',
+            'filteredDismissedReports'
         ));
     }
 

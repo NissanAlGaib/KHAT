@@ -212,6 +212,83 @@ class MatchController extends Controller
     }
 
     /**
+     * Get compatibility score between two specific pets
+     */
+    public function getCompatibilityScore(Request $request, $petId, $otherPetId)
+    {
+        try {
+            $userPet = Pet::with(['partnerPreferences'])->findOrFail($petId);
+            $otherPet = Pet::with(['partnerPreferences'])->findOrFail($otherPetId);
+
+            // Verify the requesting user owns the user pet
+            if ($userPet->user_id !== $request->user()->id) {
+                return response()->json(['success' => false, 'message' => 'Unauthorized'], 403);
+            }
+
+            $result = $this->calculateCompatibilityScore($otherPet, $userPet);
+
+            // Also calculate reverse compatibility
+            $reverseResult = $this->calculateCompatibilityScore($userPet, $otherPet);
+
+            // Feature breakdown for detailed view
+            $preferences = $userPet->partnerPreferences->first();
+            $breakdown = [
+                'breed_match' => false,
+                'sex_match' => false,
+                'age_in_range' => false,
+                'behavior_matches' => [],
+                'attribute_matches' => [],
+            ];
+
+            if ($preferences) {
+                $breakdown['breed_match'] = $preferences->preferred_breed 
+                    ? $otherPet->breed === $preferences->preferred_breed 
+                    : true;
+                $breakdown['sex_match'] = $preferences->preferred_sex 
+                    ? $otherPet->sex === $preferences->preferred_sex 
+                    : true;
+                if ($preferences->min_age && $preferences->max_age && $otherPet->birthdate) {
+                    $ageMonths = $otherPet->birthdate->diffInMonths(now());
+                    $breakdown['age_in_range'] = $ageMonths >= $preferences->min_age && $ageMonths <= $preferences->max_age;
+                }
+                if ($preferences->preferred_behaviors && $otherPet->behaviors) {
+                    $prefBehaviors = is_array($preferences->preferred_behaviors) ? $preferences->preferred_behaviors : json_decode($preferences->preferred_behaviors, true) ?? [];
+                    $petBehaviors = is_array($otherPet->behaviors) ? $otherPet->behaviors : json_decode($otherPet->behaviors, true) ?? [];
+                    $breakdown['behavior_matches'] = array_values(array_intersect($prefBehaviors, $petBehaviors));
+                }
+                if ($preferences->preferred_attributes && $otherPet->attributes) {
+                    $prefAttributes = is_array($preferences->preferred_attributes) ? $preferences->preferred_attributes : json_decode($preferences->preferred_attributes, true) ?? [];
+                    $petAttributes = is_array($otherPet->attributes) ? $otherPet->attributes : json_decode($otherPet->attributes, true) ?? [];
+                    $breakdown['attribute_matches'] = array_values(array_intersect($prefAttributes, $petAttributes));
+                }
+            }
+
+            return response()->json([
+                'success' => true,
+                'data' => [
+                    'compatibility_score' => $result['score'],
+                    'match_reasons' => $result['reasons'],
+                    'reverse_score' => $reverseResult['score'],
+                    'reverse_reasons' => $reverseResult['reasons'],
+                    'breakdown' => $breakdown,
+                    'user_pet' => [
+                        'pet_id' => $userPet->pet_id,
+                        'name' => $userPet->name,
+                    ],
+                    'other_pet' => [
+                        'pet_id' => $otherPet->pet_id,
+                        'name' => $otherPet->name,
+                    ],
+                ],
+            ]);
+        } catch (\Illuminate\Database\Eloquent\ModelNotFoundException $e) {
+            return response()->json(['success' => false, 'message' => 'Pet not found'], 404);
+        } catch (\Exception $e) {
+            return response()->json(['success' => false, 'message' => 'Failed to calculate compatibility'], 500);
+        }
+    }
+
+    /**
      * Calculate compatibility score between two pets using MLP-like architecture
      *
      * This implementation mimics a multilayer perceptron with:

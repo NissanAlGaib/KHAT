@@ -18,48 +18,60 @@
 ])
 
 <div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-6 mb-6">
-    <div class="bg-white p-5 rounded-xl shadow-sm border border-gray-50 hover:shadow-md transition-all">
+    <div class="bg-white p-5 rounded-xl shadow-sm border border-gray-50 hover:shadow-md transition-all cursor-pointer group" onclick="openStatsDetail('total_revenue')">
         <div class="flex justify-between items-start mb-2">
             <span class="text-sm font-semibold text-gray-500">Total Revenue</span>
-            <div class="w-10 h-10 rounded-lg bg-green-100 flex items-center justify-center"><i data-lucide="dollar-sign" class="w-5 h-5 text-green-600"></i></div>
+            <div class="w-10 h-10 rounded-lg bg-green-100 flex items-center justify-center group-hover:scale-110 transition-transform"><i data-lucide="dollar-sign" class="w-5 h-5 text-green-600"></i></div>
         </div>
         <p class="text-3xl font-bold text-gray-900 mb-1">₱{{ number_format($totalRevenue) }}</p>
         <span class="text-sm {{ $revenueGrowth >= 0 ? 'text-green-500' : 'text-red-500' }} font-medium">
             {{ $revenueGrowth >= 0 ? '+' : '' }}{{ $revenueGrowth }}% from last month
         </span>
+        @if($hasDateFilter && $filteredRevenue !== null)
+        <p class="text-xs text-blue-500 font-semibold mt-1">₱{{ number_format($filteredRevenue) }} in selected period</p>
+        @endif
     </div>
 
-    <div class="bg-white p-5 rounded-xl shadow-sm border border-gray-50 hover:shadow-md transition-all">
+    <div class="bg-white p-5 rounded-xl shadow-sm border border-gray-50 hover:shadow-md transition-all cursor-pointer group" onclick="openStatsDetail('active_users')">
         <div class="flex justify-between items-start mb-2">
             <span class="text-sm font-semibold text-gray-500">Active Users</span>
-            <div class="w-10 h-10 rounded-lg bg-blue-100 flex items-center justify-center"><i data-lucide="users" class="w-5 h-5 text-blue-600"></i></div>
+            <div class="w-10 h-10 rounded-lg bg-blue-100 flex items-center justify-center group-hover:scale-110 transition-transform"><i data-lucide="users" class="w-5 h-5 text-blue-600"></i></div>
         </div>
         <p class="text-3xl font-bold text-gray-900 mb-1">{{ number_format($activeUsers) }}</p>
         <span class="text-sm {{ $activeUsersGrowth >= 0 ? 'text-green-500' : 'text-red-500' }} font-medium">
             {{ $activeUsersGrowth >= 0 ? '+' : '' }}{{ $activeUsersGrowth }}% from last month
         </span>
+        @if($hasDateFilter && $filteredActiveUsers !== null)
+        <p class="text-xs text-blue-500 font-semibold mt-1">{{ number_format($filteredActiveUsers) }} in selected period</p>
+        @endif
     </div>
 
-    <div class="bg-white p-5 rounded-xl shadow-sm border border-gray-50 hover:shadow-md transition-all">
+    <div class="bg-white p-5 rounded-xl shadow-sm border border-gray-50 hover:shadow-md transition-all cursor-pointer group" onclick="openStatsDetail('matches_made')">
         <div class="flex justify-between items-start mb-2">
             <span class="text-sm font-semibold text-gray-500">Matches Made</span>
-            <div class="w-10 h-10 rounded-lg bg-pink-100 flex items-center justify-center"><i data-lucide="heart" class="w-5 h-5 text-pink-600"></i></div>
+            <div class="w-10 h-10 rounded-lg bg-pink-100 flex items-center justify-center group-hover:scale-110 transition-transform"><i data-lucide="heart" class="w-5 h-5 text-pink-600"></i></div>
         </div>
         <p class="text-3xl font-bold text-gray-900 mb-1">{{ number_format($matchesMade) }}</p>
         <span class="text-sm {{ $matchesGrowth >= 0 ? 'text-green-500' : 'text-red-500' }} font-medium">
             {{ $matchesGrowth >= 0 ? '+' : '' }}{{ $matchesGrowth }}% from last week
         </span>
+        @if($hasDateFilter && $filteredMatches !== null)
+        <p class="text-xs text-blue-500 font-semibold mt-1">{{ number_format($filteredMatches) }} in selected period</p>
+        @endif
     </div>
 
-    <div class="bg-white p-5 rounded-xl shadow-sm border border-gray-50 hover:shadow-md transition-all">
+    <div class="bg-white p-5 rounded-xl shadow-sm border border-gray-50 hover:shadow-md transition-all cursor-pointer group" onclick="openStatsDetail('conversion_rate')">
         <div class="flex justify-between items-start mb-2">
             <span class="text-sm font-semibold text-gray-500">Conversion Rate</span>
-            <div class="w-10 h-10 rounded-lg bg-purple-100 flex items-center justify-center"><i data-lucide="trending-up" class="w-5 h-5 text-purple-600"></i></div>
+            <div class="w-10 h-10 rounded-lg bg-purple-100 flex items-center justify-center group-hover:scale-110 transition-transform"><i data-lucide="trending-up" class="w-5 h-5 text-purple-600"></i></div>
         </div>
         <p class="text-3xl font-bold text-gray-900 mb-1">{{ $conversionRate }}%</p>
         <span class="text-sm {{ $conversionGrowth >= 0 ? 'text-green-500' : 'text-red-500' }} font-medium">
             {{ $conversionGrowth >= 0 ? '+' : '' }}{{ $conversionGrowth }}% from last month
         </span>
+        @if($hasDateFilter && $filteredConversionRate !== null)
+        <p class="text-xs text-blue-500 font-semibold mt-1">{{ $filteredConversionRate }}% in selected period</p>
+        @endif
     </div>
 </div>
 

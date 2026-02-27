@@ -18,19 +18,22 @@
 ])
 
 <div class="grid grid-cols-1 md:grid-cols-4 gap-6 mb-6">
-    <div class="bg-white p-5 rounded-xl shadow-sm border border-gray-50 hover:shadow-md transition-all">
+    <div class="bg-white p-5 rounded-xl shadow-sm border border-gray-50 hover:shadow-md transition-all cursor-pointer group" onclick="openStatsDetail('free_users')">
         <div class="flex justify-between items-start mb-2">
             <span class="text-sm font-semibold text-gray-500">Free Tier Users</span>
-            <div class="w-10 h-10 rounded-lg bg-gray-100 flex items-center justify-center"><i data-lucide="users" class="w-5 h-5 text-gray-600"></i></div>
+            <div class="w-10 h-10 rounded-lg bg-gray-100 flex items-center justify-center group-hover:scale-110 transition-transform"><i data-lucide="users" class="w-5 h-5 text-gray-600"></i></div>
         </div>
         <p class="text-3xl font-bold text-gray-900 mb-1">{{ number_format($freeUsers) }}</p>
         <span class="text-sm text-gray-500">{{ $freePercentage }}% of total users</span>
+        @if($hasDateFilter && $filteredFreeUsers !== null)
+        <p class="text-xs text-blue-500 font-semibold mt-1">{{ number_format($filteredFreeUsers) }} in selected period</p>
+        @endif
     </div>
 
-    <div class="bg-white p-5 rounded-xl shadow-sm border border-gray-50 hover:shadow-md transition-all">
+    <div class="bg-white p-5 rounded-xl shadow-sm border border-gray-50 hover:shadow-md transition-all cursor-pointer group" onclick="openStatsDetail('match_payments')">
         <div class="flex justify-between items-start mb-2">
             <span class="text-sm font-semibold text-gray-500">Free Tier Match Payments</span>
-            <div class="w-10 h-10 rounded-lg bg-pink-100 flex items-center justify-center"><i data-lucide="heart" class="w-5 h-5 text-pink-600"></i></div>
+            <div class="w-10 h-10 rounded-lg bg-pink-100 flex items-center justify-center group-hover:scale-110 transition-transform"><i data-lucide="heart" class="w-5 h-5 text-pink-600"></i></div>
         </div>
         <p class="text-3xl font-bold text-gray-900 mb-1">{{ number_format($matchRequestPayments) }}</p>
         <span class="text-sm {{ $matchRequestGrowth >= 0 ? 'text-green-500' : 'text-red-500' }} font-medium">
@@ -38,26 +41,32 @@
         </span>
     </div>
 
-    <div class="bg-white p-5 rounded-xl shadow-sm border border-gray-50 hover:shadow-md transition-all">
+    <div class="bg-white p-5 rounded-xl shadow-sm border border-gray-50 hover:shadow-md transition-all cursor-pointer group" onclick="openStatsDetail('standard_billing')">
         <div class="flex justify-between items-start mb-2">
             <span class="text-sm font-semibold text-gray-500">Standard Subscribers</span>
-            <div class="w-10 h-10 rounded-lg bg-orange-100 flex items-center justify-center"><i data-lucide="star" class="w-5 h-5 text-orange-600"></i></div>
+            <div class="w-10 h-10 rounded-lg bg-orange-100 flex items-center justify-center group-hover:scale-110 transition-transform"><i data-lucide="star" class="w-5 h-5 text-orange-600"></i></div>
         </div>
         <p class="text-3xl font-bold text-gray-900 mb-1">{{ number_format($standardUsers) }}</p>
         <span class="text-sm {{ $standardGrowth >= 0 ? 'text-green-500' : 'text-red-500' }} font-medium">
             {{ $standardGrowth >= 0 ? '+' : '' }}{{ $standardGrowth }}% this month
         </span>
+        @if($hasDateFilter && $filteredStandardUsers !== null)
+        <p class="text-xs text-blue-500 font-semibold mt-1">{{ number_format($filteredStandardUsers) }} in selected period</p>
+        @endif
     </div>
 
-    <div class="bg-white p-5 rounded-xl shadow-sm border border-gray-50 hover:shadow-md transition-all">
+    <div class="bg-white p-5 rounded-xl shadow-sm border border-gray-50 hover:shadow-md transition-all cursor-pointer group" onclick="openStatsDetail('premium_billing')">
         <div class="flex justify-between items-start mb-2">
             <span class="text-sm font-semibold text-gray-500">Premium Subscribers</span>
-            <div class="w-10 h-10 rounded-lg bg-amber-100 flex items-center justify-center"><i data-lucide="crown" class="w-5 h-5 text-amber-600"></i></div>
+            <div class="w-10 h-10 rounded-lg bg-amber-100 flex items-center justify-center group-hover:scale-110 transition-transform"><i data-lucide="crown" class="w-5 h-5 text-amber-600"></i></div>
         </div>
         <p class="text-3xl font-bold text-gray-900 mb-1">{{ number_format($premiumUsers) }}</p>
         <span class="text-sm {{ $premiumGrowth >= 0 ? 'text-green-500' : 'text-red-500' }} font-medium">
             {{ $premiumGrowth >= 0 ? '+' : '' }}{{ $premiumGrowth }}% this month
         </span>
+        @if($hasDateFilter && $filteredPremiumUsers !== null)
+        <p class="text-xs text-blue-500 font-semibold mt-1">{{ number_format($filteredPremiumUsers) }} in selected period</p>
+        @endif
     </div>
 </div>
 

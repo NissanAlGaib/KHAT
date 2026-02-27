@@ -9,44 +9,56 @@
 <!-- Stats Cards -->
 <div class="grid grid-cols-1 md:grid-cols-4 gap-6 mb-6">
     <!-- Total -->
-    <div class="bg-white p-5 rounded-xl shadow-sm border border-gray-50 hover:shadow-md transition-all">
+    <div class="bg-white p-5 rounded-xl shadow-sm border border-gray-50 hover:shadow-md transition-all cursor-pointer group" onclick="openStatsDetail('total_reports')">
         <div class="flex items-center gap-3 mb-3">
-            <div class="w-10 h-10 rounded-lg bg-blue-100 flex items-center justify-center">
+            <div class="w-10 h-10 rounded-lg bg-blue-100 flex items-center justify-center group-hover:scale-110 transition-transform">
                 <i data-lucide="flag" class="w-5 h-5 text-blue-600"></i>
             </div>
             <span class="text-sm font-semibold text-gray-500">Total Reports</span>
         </div>
         <p class="text-2xl font-bold text-gray-900">{{ number_format($totalReports) }}</p>
+        @if($hasDateFilter && $filteredTotalReports !== null)
+        <p class="text-xs text-blue-500 font-semibold mt-1">{{ number_format($filteredTotalReports) }} in selected period</p>
+        @endif
     </div>
     <!-- Pending -->
-    <div class="bg-white p-5 rounded-xl shadow-sm border border-gray-50 hover:shadow-md transition-all">
+    <div class="bg-white p-5 rounded-xl shadow-sm border border-gray-50 hover:shadow-md transition-all cursor-pointer group" onclick="openStatsDetail('pending_reports')">
         <div class="flex items-center gap-3 mb-3">
-            <div class="w-10 h-10 rounded-lg bg-yellow-100 flex items-center justify-center">
+            <div class="w-10 h-10 rounded-lg bg-yellow-100 flex items-center justify-center group-hover:scale-110 transition-transform">
                 <i data-lucide="clock" class="w-5 h-5 text-yellow-600"></i>
             </div>
             <span class="text-sm font-semibold text-gray-500">Pending</span>
         </div>
         <p class="text-2xl font-bold text-yellow-600">{{ number_format($pendingReports) }}</p>
+        @if($hasDateFilter && $filteredPendingReports !== null)
+        <p class="text-xs text-blue-500 font-semibold mt-1">{{ number_format($filteredPendingReports) }} in selected period</p>
+        @endif
     </div>
     <!-- Resolved -->
-    <div class="bg-white p-5 rounded-xl shadow-sm border border-gray-50 hover:shadow-md transition-all">
+    <div class="bg-white p-5 rounded-xl shadow-sm border border-gray-50 hover:shadow-md transition-all cursor-pointer group" onclick="openStatsDetail('resolved_reports')">
         <div class="flex items-center gap-3 mb-3">
-            <div class="w-10 h-10 rounded-lg bg-green-100 flex items-center justify-center">
+            <div class="w-10 h-10 rounded-lg bg-green-100 flex items-center justify-center group-hover:scale-110 transition-transform">
                 <i data-lucide="check-circle" class="w-5 h-5 text-green-600"></i>
             </div>
             <span class="text-sm font-semibold text-gray-500">Resolved</span>
         </div>
         <p class="text-2xl font-bold text-green-600">{{ number_format($resolvedReports) }}</p>
+        @if($hasDateFilter && $filteredResolvedReports !== null)
+        <p class="text-xs text-blue-500 font-semibold mt-1">{{ number_format($filteredResolvedReports) }} in selected period</p>
+        @endif
     </div>
     <!-- Dismissed -->
-    <div class="bg-white p-5 rounded-xl shadow-sm border border-gray-50 hover:shadow-md transition-all">
+    <div class="bg-white p-5 rounded-xl shadow-sm border border-gray-50 hover:shadow-md transition-all cursor-pointer group" onclick="openStatsDetail('dismissed_reports')">
         <div class="flex items-center gap-3 mb-3">
-            <div class="w-10 h-10 rounded-lg bg-gray-100 flex items-center justify-center">
+            <div class="w-10 h-10 rounded-lg bg-gray-100 flex items-center justify-center group-hover:scale-110 transition-transform">
                 <i data-lucide="x-circle" class="w-5 h-5 text-gray-600"></i>
             </div>
             <span class="text-sm font-semibold text-gray-500">Dismissed</span>
         </div>
         <p class="text-2xl font-bold text-gray-600">{{ number_format($dismissedReports) }}</p>
+        @if($hasDateFilter && $filteredDismissedReports !== null)
+        <p class="text-xs text-blue-500 font-semibold mt-1">{{ number_format($filteredDismissedReports) }} in selected period</p>
+        @endif
     </div>
 </div>
 

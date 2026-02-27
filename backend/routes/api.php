@@ -86,6 +86,7 @@ Route::middleware(['auth:sanctum'])
         // Match routes
         Route::get('/matches/potential', [MatchController::class, 'getPotentialMatches']);
         Route::get('/matches/top', [MatchController::class, 'getTopMatches']);
+        Route::get('/pets/{petId}/compatibility/{otherPetId}', [MatchController::class, 'getCompatibilityScore']);
 
         // Shooter routes
         Route::get('/shooters', [ShooterController::class, 'index']);

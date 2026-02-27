@@ -8,41 +8,53 @@
 
 <!-- Stats Cards -->
 <div class="grid grid-cols-1 md:grid-cols-4 gap-6 mb-6">
-    <div class="bg-white p-5 rounded-xl shadow-sm border border-gray-50 hover:shadow-md transition-all">
+    <div class="bg-white p-5 rounded-xl shadow-sm border border-gray-50 hover:shadow-md transition-all cursor-pointer group" onclick="openStatsDetail('total_matches')">
         <div class="flex items-center gap-3 mb-3">
-            <div class="w-10 h-10 rounded-lg bg-blue-100 flex items-center justify-center">
+            <div class="w-10 h-10 rounded-lg bg-blue-100 flex items-center justify-center group-hover:scale-110 transition-transform">
                 <i data-lucide="heart-handshake" class="w-5 h-5 text-blue-600"></i>
             </div>
             <span class="text-sm font-semibold text-gray-500">Total Matches</span>
         </div>
         <p class="text-2xl font-bold text-gray-900">{{ number_format($totalMatches) }}</p>
+        @if($hasDateFilter && $filteredTotalMatches !== null)
+        <p class="text-xs text-blue-500 font-semibold mt-1">{{ number_format($filteredTotalMatches) }} in selected period</p>
+        @endif
     </div>
-    <div class="bg-white p-5 rounded-xl shadow-sm border border-gray-50 hover:shadow-md transition-all">
+    <div class="bg-white p-5 rounded-xl shadow-sm border border-gray-50 hover:shadow-md transition-all cursor-pointer group" onclick="openStatsDetail('pending_matches')">
         <div class="flex items-center gap-3 mb-3">
-            <div class="w-10 h-10 rounded-lg bg-yellow-100 flex items-center justify-center">
+            <div class="w-10 h-10 rounded-lg bg-yellow-100 flex items-center justify-center group-hover:scale-110 transition-transform">
                 <i data-lucide="clock" class="w-5 h-5 text-yellow-600"></i>
             </div>
             <span class="text-sm font-semibold text-gray-500">Pending</span>
         </div>
         <p class="text-2xl font-bold text-yellow-600">{{ number_format($pendingMatches) }}</p>
+        @if($hasDateFilter && $filteredPendingMatches !== null)
+        <p class="text-xs text-blue-500 font-semibold mt-1">{{ number_format($filteredPendingMatches) }} in selected period</p>
+        @endif
     </div>
-    <div class="bg-white p-5 rounded-xl shadow-sm border border-gray-50 hover:shadow-md transition-all">
+    <div class="bg-white p-5 rounded-xl shadow-sm border border-gray-50 hover:shadow-md transition-all cursor-pointer group" onclick="openStatsDetail('accepted_matches')">
         <div class="flex items-center gap-3 mb-3">
-            <div class="w-10 h-10 rounded-lg bg-green-100 flex items-center justify-center">
+            <div class="w-10 h-10 rounded-lg bg-green-100 flex items-center justify-center group-hover:scale-110 transition-transform">
                 <i data-lucide="check-circle" class="w-5 h-5 text-green-600"></i>
             </div>
             <span class="text-sm font-semibold text-gray-500">Accepted</span>
         </div>
         <p class="text-2xl font-bold text-green-600">{{ number_format($acceptedMatches) }}</p>
+        @if($hasDateFilter && $filteredAcceptedMatches !== null)
+        <p class="text-xs text-blue-500 font-semibold mt-1">{{ number_format($filteredAcceptedMatches) }} in selected period</p>
+        @endif
     </div>
-    <div class="bg-white p-5 rounded-xl shadow-sm border border-gray-50 hover:shadow-md transition-all">
+    <div class="bg-white p-5 rounded-xl shadow-sm border border-gray-50 hover:shadow-md transition-all cursor-pointer group" onclick="openStatsDetail('completed_matches')">
         <div class="flex items-center gap-3 mb-3">
-            <div class="w-10 h-10 rounded-lg bg-sky-100 flex items-center justify-center">
+            <div class="w-10 h-10 rounded-lg bg-sky-100 flex items-center justify-center group-hover:scale-110 transition-transform">
                 <i data-lucide="flag" class="w-5 h-5 text-sky-600"></i>
             </div>
             <span class="text-sm font-semibold text-gray-500">Completed</span>
         </div>
         <p class="text-2xl font-bold text-blue-600">{{ number_format($completedMatches) }}</p>
+        @if($hasDateFilter && $filteredCompletedMatches !== null)
+        <p class="text-xs text-blue-500 font-semibold mt-1">{{ number_format($filteredCompletedMatches) }} in selected period</p>
+        @endif
     </div>
 </div>
 

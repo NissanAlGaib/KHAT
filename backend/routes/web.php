@@ -39,6 +39,8 @@ Route::get('/payment/redirect', function (\Illuminate\Http\Request $request) {
     );
 })->name('payment.redirect');
 
+use App\Http\Controllers\Admin\StatsDetailController;
+
 // Admin Routes
 Route::prefix('admin')->group(function () {
     // Guest routes (not authenticated)
@@ -50,6 +52,7 @@ Route::prefix('admin')->group(function () {
     // Authenticated admin routes
     Route::middleware('auth')->group(function () {
         Route::get('/dashboard', [AdminController::class, 'dashboard'])->name('admin.dashboard');
+        Route::get('/stats/detail/{type}', [StatsDetailController::class, 'show'])->name('admin.stats.detail');
         Route::post('/logout', [AdminController::class, 'logout'])->name('admin.logout');
 
         // User Management
