@@ -180,7 +180,7 @@
     function openEditModal(btn) {
         const modal = document.getElementById('editCategoryModal');
         const form = document.getElementById('editCategoryForm');
-        
+
         const id = btn.getAttribute('data-id');
         const name = btn.getAttribute('data-name');
         const description = btn.getAttribute('data-description');
@@ -201,26 +201,25 @@
     function confirmDelete(e) {
         e.preventDefault();
         const form = e.target;
-        
-        if (typeof Swal !== 'undefined') {
-            Swal.fire({
-                title: 'Are you sure?',
-                text: "You won't be able to revert this!",
-                icon: 'warning',
-                showCancelButton: true,
-                confirmButtonColor: '#E75234',
-                cancelButtonColor: '#6b7280',
-                confirmButtonText: 'Yes, delete it!'
-            }).then((result) => {
-                if (result.isConfirmed) {
-                    form.submit();
-                }
-            });
-        } else {
-            if (confirm('Are you sure you want to delete this category?')) {
+
+        Swal.fire({
+            title: 'Are you sure?',
+            text: "You won't be able to revert this!",
+            icon: 'warning',
+            showCancelButton: true,
+            confirmButtonColor: '#E75234',
+            cancelButtonColor: '#6b7280',
+            confirmButtonText: 'Yes, delete it!',
+            customClass: {
+                popup: 'rounded-xl',
+                confirmButton: 'rounded-lg',
+                cancelButton: 'rounded-lg',
+            }
+        }).then((result) => {
+            if (result.isConfirmed) {
                 form.submit();
             }
-        }
+        });
         return false;
     }
 

@@ -74,7 +74,7 @@
                             <i data-lucide="fast-forward" class="w-3 h-3 inline"></i> FF
                         </button>
                     </form>
-                    <form action="{{ route('admin.testing-tools.clear-cooldown', $pet->pet_id) }}" method="POST" onsubmit="return confirm('Clear cooldown for {{ $pet->name }}?')">
+                    <form action="{{ route('admin.testing-tools.clear-cooldown', $pet->pet_id) }}" method="POST" data-confirm="Clear cooldown for {{ $pet->name }}?" data-confirm-title="Clear Cooldown" data-confirm-icon="question" data-confirm-btn="Yes, clear it">
                         @csrf
                         <button type="submit" class="px-2 py-1 bg-red-100 text-red-700 text-xs font-medium rounded hover:bg-red-200 transition" title="Clear cooldown immediately">
                             <i data-lucide="x-circle" class="w-3 h-3 inline"></i> Clear
@@ -101,7 +101,7 @@
             </div>
         </div>
 
-        <form action="{{ route('admin.testing-tools.reset-match-requests') }}" method="POST" onsubmit="return confirm('Delete ALL match requests between these two pets?')" class="space-y-3">
+        <form action="{{ route('admin.testing-tools.reset-match-requests') }}" method="POST" data-confirm="Delete ALL match requests between these two pets?" data-confirm-title="Reset Match Requests" data-confirm-icon="warning" data-confirm-btn="Yes, delete all" class="space-y-3">
             @csrf
             <div class="grid grid-cols-2 gap-3">
                 <div>
@@ -281,7 +281,7 @@
                                     <input type="number" name="days" value="7" min="1" class="w-14 text-xs border border-gray-300 rounded px-2 py-1 text-center">
                                     <button type="submit" class="px-2 py-1 bg-purple-100 text-purple-700 text-xs font-medium rounded hover:bg-purple-200 transition">FF</button>
                                 </form>
-                                <form action="{{ route('admin.testing-tools.expire-payment', $payment->id) }}" method="POST" onsubmit="return confirm('Expire this payment immediately?')">
+                                <form action="{{ route('admin.testing-tools.expire-payment', $payment->id) }}" method="POST" data-confirm="Expire this payment immediately?" data-confirm-title="Expire Payment" data-confirm-icon="warning" data-confirm-btn="Yes, expire it">
                                     @csrf
                                     <button type="submit" class="px-2 py-1 bg-red-100 text-red-700 text-xs font-medium rounded hover:bg-red-200 transition">Expire</button>
                                 </form>
@@ -345,7 +345,7 @@
     function submitPetAction(action) {
         const petId = document.getElementById('resetPetId').value;
         if (!petId) {
-            alert('Please enter a Pet ID');
+            PawAlert('Please enter a Pet ID', 'warning', 'Missing Input');
             return;
         }
 
@@ -356,27 +356,34 @@
             'reset-full': 'Full reset (cooldown + breeding history)',
         };
 
-        if (!confirm(`${actionLabels[action]} for Pet #${petId}?`)) return;
+        PawConfirm({
+            title: 'Confirm Action',
+            text: `${actionLabels[action]} for Pet #${petId}?`,
+            icon: 'warning',
+            confirmText: 'Yes, proceed',
+        }).then((result) => {
+            if (!result.isConfirmed) return;
 
-        const routeMap = {
-            'reset-breeding': '{{ url("admin/testing-tools/pets") }}/' + petId + '/reset-breeding',
-            'clear-cooldown': '{{ url("admin/testing-tools/pets") }}/' + petId + '/clear-cooldown',
-            'reset-match-requests': '{{ url("admin/testing-tools/pets") }}/' + petId + '/reset-match-requests',
-            'reset-full': '{{ url("admin/testing-tools/pets") }}/' + petId + '/reset-full',
-        };
+            const routeMap = {
+                'reset-breeding': '{{ url("admin/testing-tools/pets") }}/' + petId + '/reset-breeding',
+                'clear-cooldown': '{{ url("admin/testing-tools/pets") }}/' + petId + '/clear-cooldown',
+                'reset-match-requests': '{{ url("admin/testing-tools/pets") }}/' + petId + '/reset-match-requests',
+                'reset-full': '{{ url("admin/testing-tools/pets") }}/' + petId + '/reset-full',
+            };
 
-        const form = document.createElement('form');
-        form.method = 'POST';
-        form.action = routeMap[action];
+            const form = document.createElement('form');
+            form.method = 'POST';
+            form.action = routeMap[action];
 
-        const csrf = document.createElement('input');
-        csrf.type = 'hidden';
-        csrf.name = '_token';
-        csrf.value = '{{ csrf_token() }}';
-        form.appendChild(csrf);
+            const csrf = document.createElement('input');
+            csrf.type = 'hidden';
+            csrf.name = '_token';
+            csrf.value = '{{ csrf_token() }}';
+            form.appendChild(csrf);
 
-        document.body.appendChild(form);
-        form.submit();
+            document.body.appendChild(form);
+            form.submit();
+        });
     }
 </script>
 @endsection

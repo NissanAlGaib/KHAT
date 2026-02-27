@@ -427,7 +427,7 @@
                 location.reload();
             }
         } catch (e) {
-            alert('Error updating status');
+            PawAlert('Error updating status');
         }
     }
 

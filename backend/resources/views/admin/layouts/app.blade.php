@@ -570,6 +570,79 @@
             }
         };
 
+        // ═══════════════ SweetAlert Confirm Helper ═══════════════
+        /**
+         * Auto-intercept forms/buttons with data-confirm="message" attribute.
+         * Also provides PawConfirm(options) for programmatic use.
+         *
+         * Usage on forms:    <form data-confirm="Are you sure?" data-confirm-title="Delete?" data-confirm-icon="warning" data-confirm-btn="Yes, delete">
+         * Usage on buttons:  <button data-confirm="Are you sure?" data-confirm-action="submitMyForm()">
+         */
+        function PawConfirm({
+            title,
+            text,
+            icon,
+            confirmText,
+            cancelText
+        }) {
+            return Swal.fire({
+                title: title || 'Are you sure?',
+                text: text || '',
+                icon: icon || 'warning',
+                showCancelButton: true,
+                confirmButtonColor: '#E75234',
+                cancelButtonColor: '#6b7280',
+                confirmButtonText: confirmText || 'Yes, proceed',
+                cancelButtonText: cancelText || 'Cancel',
+                customClass: {
+                    popup: 'rounded-xl',
+                    confirmButton: 'rounded-lg',
+                    cancelButton: 'rounded-lg',
+                }
+            });
+        }
+
+        // Auto-attach to all forms with data-confirm
+        document.addEventListener('submit', function(e) {
+            const form = e.target;
+            const msg = form.getAttribute('data-confirm');
+            if (!msg) return;
+
+            // Prevent if not already confirmed
+            if (form.dataset.confirmed === 'true') {
+                form.dataset.confirmed = '';
+                return; // allow submission
+            }
+
+            e.preventDefault();
+
+            PawConfirm({
+                title: form.getAttribute('data-confirm-title') || 'Confirm Action',
+                text: msg,
+                icon: form.getAttribute('data-confirm-icon') || 'warning',
+                confirmText: form.getAttribute('data-confirm-btn') || 'Yes, proceed',
+            }).then((result) => {
+                if (result.isConfirmed) {
+                    form.dataset.confirmed = 'true';
+                    form.submit();
+                }
+            });
+        });
+
+        // Show SweetAlert error toast (replaces alert() calls)
+        function PawAlert(message, icon = 'error', title = '') {
+            Swal.fire({
+                icon: icon,
+                title: title || (icon === 'error' ? 'Error' : icon === 'success' ? 'Success' : 'Notice'),
+                text: message,
+                confirmButtonColor: '#E75234',
+                customClass: {
+                    popup: 'rounded-xl',
+                    confirmButton: 'rounded-lg',
+                }
+            });
+        }
+
         function toggleSidebarGroup(groupId) {
             const group = document.getElementById(groupId);
             const chevron = document.getElementById(groupId + '-chevron');

@@ -65,20 +65,20 @@
                         </button>
                     </form>
                     @endif
-                    <form action="{{ route('admin.testing-tools.reset-breeding', $pet->pet_id) }}" method="POST" onsubmit="return confirm('Reset breeding history for {{ $pet->name }}?')">
+                    <form action="{{ route('admin.testing-tools.reset-breeding', $pet->pet_id) }}" method="POST" data-confirm="Reset breeding history for {{ $pet->name }}?" data-confirm-title="Reset Breeding History" data-confirm-icon="warning" data-confirm-btn="Yes, reset it">
                         @csrf
                         <button type="submit" class="w-full text-left px-4 py-2 text-sm text-green-700 hover:bg-green-50 flex items-center gap-2">
                             <i data-lucide="rotate-ccw" class="w-4 h-4"></i> Reset Breeding History
                         </button>
                     </form>
-                    <form action="{{ route('admin.testing-tools.reset-pet-matches', $pet->pet_id) }}" method="POST" onsubmit="return confirm('Delete ALL match requests for {{ $pet->name }}?')">
+                    <form action="{{ route('admin.testing-tools.reset-pet-matches', $pet->pet_id) }}" method="POST" data-confirm="Delete ALL match requests for {{ $pet->name }}?" data-confirm-title="Reset Match Requests" data-confirm-icon="warning" data-confirm-btn="Yes, delete all">
                         @csrf
                         <button type="submit" class="w-full text-left px-4 py-2 text-sm text-pink-700 hover:bg-pink-50 flex items-center gap-2">
                             <i data-lucide="heart-off" class="w-4 h-4"></i> Reset Match Requests
                         </button>
                     </form>
                     <hr class="my-1 border-gray-100">
-                    <form action="{{ route('admin.testing-tools.reset-pet-full', $pet->pet_id) }}" method="POST" onsubmit="return confirm('Perform FULL RESET for {{ $pet->name }}? This clears cooldown and breeding history.')">
+                    <form action="{{ route('admin.testing-tools.reset-pet-full', $pet->pet_id) }}" method="POST" data-confirm="Perform FULL RESET for {{ $pet->name }}? This clears cooldown and breeding history." data-confirm-title="Full Reset" data-confirm-icon="warning" data-confirm-btn="Yes, full reset">
                         @csrf
                         <button type="submit" class="w-full text-left px-4 py-2 text-sm text-[#E75234] hover:bg-red-50 font-medium flex items-center gap-2">
                             <i data-lucide="refresh-cw" class="w-4 h-4"></i> Full Reset

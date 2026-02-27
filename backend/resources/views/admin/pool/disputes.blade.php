@@ -115,7 +115,7 @@
                 <div class="lg:w-80 flex-shrink-0">
                     <div class="p-4 bg-gray-50 rounded-lg border border-gray-200">
                         <h4 class="font-semibold text-gray-800 text-sm mb-3">Resolve Dispute</h4>
-                        <form method="POST" action="{{ route('admin.pool.disputes.resolve', $dispute->id) }}" id="resolve-form-{{ $dispute->id }}">
+                        <form method="POST" action="{{ route('admin.pool.disputes.resolve', $dispute->id) }}" id="resolve-form-{{ $dispute->id }}" data-confirm="Are you sure you want to resolve this dispute? This action will process financial transactions." data-confirm-title="Resolve Dispute" data-confirm-icon="warning" data-confirm-btn="Yes, resolve it">
                             @csrf
                             @method('PUT')
 
@@ -140,7 +140,7 @@
                                 <textarea name="resolution_notes" rows="2" placeholder="Describe the resolution..." class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#E75234]/20" required></textarea>
                             </div>
 
-                            <button type="submit" class="w-full px-4 py-2.5 bg-[#E75234] text-white rounded-lg text-sm font-medium hover:bg-[#d14024] transition-colors" onclick="return confirm('Are you sure you want to resolve this dispute? This action will process financial transactions.');">
+                            <button type="submit" class="w-full px-4 py-2.5 bg-[#E75234] text-white rounded-lg text-sm font-medium hover:bg-[#d14024] transition-colors">
                                 <i data-lucide="check-circle" class="w-4 h-4 inline mr-1"></i>
                                 Resolve Dispute
                             </button>

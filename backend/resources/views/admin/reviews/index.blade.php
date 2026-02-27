@@ -92,7 +92,7 @@
                         Match ID: <span class="font-mono bg-gray-100 px-1.5 py-0.5 rounded text-gray-700">#{{ $review->match_id }}</span>
                     </div>
 
-                    <form action="{{ route('admin.reviews.destroy', $review->id) }}" method="POST" onsubmit="return confirm('Are you sure you want to delete this review? This will update the user\'s average rating.');">
+                    <form action="{{ route('admin.reviews.destroy', $review->id) }}" method="POST" data-confirm="Are you sure you want to delete this review? This will update the user's average rating." data-confirm-title="Delete Review" data-confirm-icon="warning" data-confirm-btn="Yes, delete it">
                         @csrf
                         @method('DELETE')
                         <button type="submit" class="flex items-center gap-1.5 px-3 py-1.5 bg-white border border-gray-200 text-red-600 rounded-lg text-xs font-bold hover:bg-red-50 hover:border-red-200 transition-all shadow-sm">

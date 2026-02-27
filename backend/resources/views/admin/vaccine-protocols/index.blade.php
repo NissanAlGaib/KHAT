@@ -719,10 +719,13 @@
                     Swal.fire({
                         icon: 'error',
                         title: 'Error',
-                        text: 'Something went wrong. Please try again.'
+                        text: 'Something went wrong. Please try again.',
+                        confirmButtonColor: '#E75234',
+                        customClass: {
+                            popup: 'rounded-xl',
+                            confirmButton: 'rounded-lg'
+                        }
                     });
-                } else {
-                    alert('Something went wrong. Please try again.');
                 }
             })
             .finally(function() {
@@ -910,10 +913,13 @@
                     Swal.fire({
                         icon: 'error',
                         title: 'Error',
-                        text: 'Something went wrong. Please try again.'
+                        text: 'Something went wrong. Please try again.',
+                        confirmButtonColor: '#E75234',
+                        customClass: {
+                            popup: 'rounded-xl',
+                            confirmButton: 'rounded-lg'
+                        }
                     });
-                } else {
-                    alert('Something went wrong. Please try again.');
                 }
             })
             .finally(function() {

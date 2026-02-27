@@ -137,7 +137,7 @@
                     <td class="px-4 py-3">
                         <div class="flex items-center gap-1">
                             @if($txn->status === 'completed' && $txn->isCredit())
-                            <form method="POST" action="{{ route('admin.pool.transactions.freeze', $txn->id) }}" class="inline" onsubmit="return confirm('Freeze this transaction?');">
+                            <form method="POST" action="{{ route('admin.pool.transactions.freeze', $txn->id) }}" class="inline" data-confirm="Freeze this transaction?" data-confirm-title="Freeze Transaction" data-confirm-icon="question" data-confirm-btn="Yes, freeze it">
                                 @csrf
                                 <button type="submit" class="p-1.5 rounded-lg text-blue-600 hover:bg-blue-50 transition-colors" title="Freeze">
                                     <i data-lucide="lock" class="w-4 h-4"></i>
@@ -145,7 +145,7 @@
                             </form>
                             @endif
                             @if($txn->status === 'frozen')
-                            <form method="POST" action="{{ route('admin.pool.transactions.unfreeze', $txn->id) }}" class="inline" onsubmit="return confirm('Unfreeze this transaction?');">
+                            <form method="POST" action="{{ route('admin.pool.transactions.unfreeze', $txn->id) }}" class="inline" data-confirm="Unfreeze this transaction?" data-confirm-title="Unfreeze Transaction" data-confirm-icon="question" data-confirm-btn="Yes, unfreeze it">
                                 @csrf
                                 <button type="submit" class="p-1.5 rounded-lg text-green-600 hover:bg-green-50 transition-colors" title="Unfreeze">
                                     <i data-lucide="unlock" class="w-4 h-4"></i>
@@ -153,7 +153,7 @@
                             </form>
                             @endif
                             @if($txn->status === 'pending')
-                            <form method="POST" action="{{ route('admin.pool.transactions.force-release', $txn->id) }}" class="inline" onsubmit="return confirm('Force release this transaction? This will trigger a PayMongo refund.');">
+                            <form method="POST" action="{{ route('admin.pool.transactions.force-release', $txn->id) }}" class="inline" data-confirm="Force release this transaction? This will trigger a PayMongo refund." data-confirm-title="Force Release" data-confirm-icon="warning" data-confirm-btn="Yes, force release">
                                 @csrf
                                 <button type="submit" class="p-1.5 rounded-lg text-orange-600 hover:bg-orange-50 transition-colors" title="Force Release">
                                     <i data-lucide="send" class="w-4 h-4"></i>
