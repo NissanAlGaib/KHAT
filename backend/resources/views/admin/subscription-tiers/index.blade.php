@@ -108,8 +108,20 @@
         </div>
 
         <!-- Card Actions -->
+        @php
+            $tierData = json_encode([
+                'name' => $tier->name,
+                'slug' => $tier->slug,
+                'price' => $tier->price,
+                'duration_days' => $tier->duration_days,
+                'is_active' => $tier->is_active,
+                'max_pets' => $tier->max_pets,
+                'max_matches' => $tier->max_matches,
+                'max_ai_generations' => $tier->max_ai_generations,
+            ]);
+        @endphp
         <div class="flex items-center border-t border-gray-100 divide-x divide-gray-100">
-            <button onclick='openEditModal({{ $tier->id }}, @json(["name" => $tier->name, "slug" => $tier->slug, "price" => $tier->price, "duration_days" => $tier->duration_days, "is_active" => $tier->is_active, "max_pets" => $tier->max_pets, "max_matches" => $tier->max_matches, "max_ai_generations" => $tier->max_ai_generations]))'
+            <button onclick='openEditModal({{ $tier->id }}, {!! $tierData !!})'
                 class="flex-1 flex items-center justify-center gap-2 py-3 text-sm font-medium text-gray-600 hover:bg-gray-50 hover:text-[#E75234] transition-colors">
                 <i data-lucide="pencil" class="w-4 h-4"></i>
                 Edit
