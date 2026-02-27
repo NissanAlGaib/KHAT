@@ -241,11 +241,11 @@ class MatchController extends Controller
             ];
 
             if ($preferences) {
-                $breakdown['breed_match'] = $preferences->preferred_breed 
-                    ? $otherPet->breed === $preferences->preferred_breed 
+                $breakdown['breed_match'] = $preferences->preferred_breed
+                    ? $otherPet->breed === $preferences->preferred_breed
                     : true;
-                $breakdown['sex_match'] = $preferences->preferred_sex 
-                    ? $otherPet->sex === $preferences->preferred_sex 
+                $breakdown['sex_match'] = $preferences->preferred_sex
+                    ? $otherPet->sex === $preferences->preferred_sex
                     : true;
                 if ($preferences->min_age && $preferences->max_age && $otherPet->birthdate) {
                     $ageMonths = $otherPet->birthdate->diffInMonths(now());
