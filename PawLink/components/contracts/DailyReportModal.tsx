@@ -7,9 +7,10 @@ import {
   ScrollView,
   TextInput,
   ActivityIndicator,
-  Alert,
   Image,
 } from "react-native";
+import { useAlert } from "@/hooks/useAlert";
+import AlertModal from "@/components/core/AlertModal";
 import {
   X,
   Calendar,
@@ -78,6 +79,7 @@ export default function DailyReportModal({
   const [breedingSuccessful, setBreedingSuccessful] = useState<boolean | undefined>(undefined);
   const [additionalNotes, setAdditionalNotes] = useState("");
   const [selectedPhoto, setSelectedPhoto] = useState<ImagePicker.ImagePickerAsset | null>(null);
+  const { visible: alertVisible, alertOptions, showAlert, hideAlert } = useAlert();
 
   const fetchReports = useCallback(async () => {
     setIsLoading(true);
@@ -111,7 +113,7 @@ export default function DailyReportModal({
   const pickImage = async () => {
     const permissionResult = await ImagePicker.requestMediaLibraryPermissionsAsync();
     if (!permissionResult.granted) {
-      Alert.alert("Permission Required", "Please allow access to your photo library to add photos.");
+      showAlert({ title: "Permission Required", message: "Please allow access to your photo library to add photos.", type: "warning" });
       return;
     }
 
@@ -130,7 +132,7 @@ export default function DailyReportModal({
   const takePhoto = async () => {
     const permissionResult = await ImagePicker.requestCameraPermissionsAsync();
     if (!permissionResult.granted) {
-      Alert.alert("Permission Required", "Please allow access to your camera to take photos.");
+      showAlert({ title: "Permission Required", message: "Please allow access to your camera to take photos.", type: "warning" });
       return;
     }
 
@@ -147,12 +149,12 @@ export default function DailyReportModal({
 
   const handleSubmit = async () => {
     if (!progressNotes.trim()) {
-      Alert.alert("Error", "Please provide progress notes");
+      showAlert({ title: "Error", message: "Please provide progress notes", type: "error" });
       return;
     }
 
     if (breedingAttempted && breedingSuccessful === undefined) {
-      Alert.alert("Error", "Please indicate if breeding was successful");
+      showAlert({ title: "Error", message: "Please indicate if breeding was successful", type: "error" });
       return;
     }
 
@@ -174,7 +176,7 @@ export default function DailyReportModal({
       });
 
       if (result.success) {
-        Alert.alert("Success", "Daily report submitted successfully");
+        showAlert({ title: "Success", message: "Daily report submitted successfully", type: "success" });
         fetchReports();
         // Reset form
         setProgressNotes("");
@@ -186,10 +188,10 @@ export default function DailyReportModal({
         setActiveTab("history");
         onReportSubmitted?.();
       } else {
-        Alert.alert("Error", result.message);
+        showAlert({ title: "Error", message: result.message, type: "error" });
       }
     } catch (error) {
-      Alert.alert("Error", "Failed to submit daily report");
+      showAlert({ title: "Error", message: "Failed to submit daily report", type: "error" });
     } finally {
       setIsSubmitting(false);
     }
@@ -550,6 +552,7 @@ export default function DailyReportModal({
           {activeTab === "submit" ? renderSubmitTab() : renderHistoryTab()}
         </View>
       </View>
+      <AlertModal visible={alertVisible} {...alertOptions} onClose={hideAlert} />
     </Modal>
   );
 }

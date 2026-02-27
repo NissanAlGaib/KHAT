@@ -6,6 +6,28 @@
 <h1 class="text-3xl font-bold text-gray-900 mb-2">Notifications</h1>
 <p class="text-sm text-gray-500 mb-6">Stay updated on user registrations, verifications, and platform activity</p>
 
+@include('admin.partials.filter-bar', [
+    'action' => route('admin.notifications'),
+    'showSearch' => false,
+    'filters' => [
+        [
+            'name' => 'type',
+            'label' => 'Type',
+            'placeholder' => 'All Types',
+            'options' => [
+                ['value' => 'user_registered', 'label' => 'User Registered'],
+                ['value' => 'verification_pending', 'label' => 'Verification Pending'],
+                ['value' => 'match_request', 'label' => 'Match Request'],
+                ['value' => 'payment_received', 'label' => 'Payment Received'],
+                ['value' => 'safety_report', 'label' => 'Safety Report'],
+            ],
+        ],
+    ],
+    'dateFilter' => true,
+    'perPage' => false,
+    'totalResults' => $notifications->count(),
+])
+
 <div class="bg-white rounded-xl shadow-sm border border-gray-100">
     <div class="p-6 border-b border-gray-100">
         <div class="flex items-center justify-between">

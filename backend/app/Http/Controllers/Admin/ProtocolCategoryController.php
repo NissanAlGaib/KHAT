@@ -20,6 +20,14 @@ class ProtocolCategoryController extends Controller
     {
         $categories = ProtocolCategory::query();
 
+        // Search filter
+        if ($search = $request->input('search')) {
+            $categories->where(function ($q) use ($search) {
+                $q->where('name', 'like', "%{$search}%")
+                    ->orWhere('description', 'like', "%{$search}%");
+            });
+        }
+
         if ($request->has('export')) {
             $csvColumns = [
                 'Name' => 'name',
@@ -29,7 +37,7 @@ class ProtocolCategoryController extends Controller
             return $this->export($categories, $request->export, 'protocol_categories', 'admin.exports.protocol-categories-pdf', [], $csvColumns);
         }
 
-        $categories = $categories->get();
+        $categories = $categories->withCount('protocols')->get();
         return view('admin.protocol-categories.index', compact('categories'));
     }
 
@@ -74,7 +82,7 @@ class ProtocolCategoryController extends Controller
         ]);
 
         $oldValues = $category->toArray();
-        
+
         $category->update([
             'name' => $request->name,
             'slug' => Str::slug($request->name),
@@ -102,7 +110,7 @@ class ProtocolCategoryController extends Controller
     {
         $category = ProtocolCategory::findOrFail($id);
         $categoryName = $category->name;
-        
+
         // Check if there are any protocols using this category
         if ($category->protocols()->exists()) {
             return redirect()->back()->with('error', 'Cannot delete category that has protocols.');

@@ -155,6 +155,11 @@ class MatchController extends Controller
                     ->toArray();
 
                 foreach ($potentialMatches as $potentialPet) {
+                    // Skip pets of a different species (e.g. Dog should not match with Cat)
+                    if ($potentialPet->species !== $userPet->species) {
+                        continue;
+                    }
+
                     // Skip pets that already have an active match request with this user pet
                     if (in_array($potentialPet->pet_id, $excludedPetIds)) {
                         continue;
@@ -171,6 +176,7 @@ class MatchController extends Controller
                             'name' => $userPet->name,
                             'photo_url' => $primaryPhoto1?->photo_url,
                             'breed' => $userPet->breed,
+                            'species' => $userPet->species,
                             'sex' => $userPet->sex,
                             'birthdate' => $userPet->birthdate,
                         ],
@@ -179,6 +185,7 @@ class MatchController extends Controller
                             'name' => $potentialPet->name,
                             'photo_url' => $primaryPhoto2?->photo_url,
                             'breed' => $potentialPet->breed,
+                            'species' => $potentialPet->species,
                             'sex' => $potentialPet->sex,
                             'birthdate' => $potentialPet->birthdate,
                         ],

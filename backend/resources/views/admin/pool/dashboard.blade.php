@@ -29,6 +29,17 @@
     </div>
 </div>
 
+<!-- Date Range Filter -->
+@include('admin.partials.filter-bar', [
+'action' => route('admin.pool.dashboard'),
+'showSearch' => false,
+'filters' => [],
+'dateFilter' => true,
+'datePresets' => true,
+'exports' => false,
+'perPage' => false,
+])
+
 <!-- Stats Cards -->
 <div class="grid grid-cols-1 md:grid-cols-4 gap-6 mb-6">
     <div class="bg-white p-5 rounded-xl shadow-sm border border-gray-50 hover:shadow-md transition-all">

@@ -6,7 +6,6 @@ import {
   RefreshControl,
   Image,
   Text,
-  Alert,
 } from "react-native";
 import { useRouter } from "expo-router";
 import { useFocusEffect } from "@react-navigation/native";
@@ -29,6 +28,9 @@ import {
 } from "@/services/matchService";
 import { sendMatchRequest } from "@/services/matchRequestService";
 
+// Hooks
+import { useAlert } from "@/hooks/useAlert";
+
 // Constants
 import { Colors, Spacing, Shadows } from "@/constants";
 
@@ -40,6 +42,7 @@ import HorizontalShooterScroll from "@/components/home/HorizontalShooterScroll";
 import SkeletonLoader from "@/components/home/SkeletonLoader";
 import SectionContainer from "@/components/home/SectionContainer";
 import TabSwitcher from "@/components/home/TabSwitcher";
+import AlertModal from "@/components/core/AlertModal";
 import ShooterHomepage from "./shooter-index";
 
 export default function Homepage() {
@@ -48,6 +51,7 @@ export default function Homepage() {
   const { role } = useRole();
   const { selectedPet } = usePet();
   const { badgeCount, refreshBadgeCount } = useNotifications();
+  const { visible, alertOptions, showAlert, hideAlert } = useAlert();
 
   // State
   const [loading, setLoading] = useState(true);
@@ -127,10 +131,11 @@ export default function Homepage() {
     const targetPetName = isUserPet1 ? match.pet2.name : match.pet1.name;
 
     if (!selectedPet) {
-      Alert.alert(
-        "No Pet Selected",
-        "Please select a pet to send match requests.",
-      );
+      showAlert({
+        title: "No Pet Selected",
+        message: "Please select a pet to send match requests.",
+        type: "warning",
+      });
       return;
     }
 
@@ -145,37 +150,47 @@ export default function Homepage() {
       setTopMatches((prev) => prev.filter((m) => m !== match));
 
       if (result.success) {
-        Alert.alert(
-          "Match Request Sent! 💕",
-          `Your request to match with ${targetPetName} has been sent to their owner.`,
-        );
+        showAlert({
+          title: "Match Request Sent! 💕",
+          message: `Your request to match with ${targetPetName} has been sent to their owner.`,
+          type: "success",
+        });
       } else if (result.requires_verification) {
         // Handle unverified users
-        Alert.alert(
-          "Verification Required",
-          "You need to verify your ID before sending match requests. This helps keep our community safe.",
-          [
+        showAlert({
+          title: "Verification Required",
+          message: "You need to verify your ID before sending match requests. This helps keep our community safe.",
+          type: "warning",
+          buttons: [
             { text: "Later", style: "cancel" },
             {
               text: "Verify Now",
               onPress: () => router.push("/(verification)/verification-status"),
             },
           ],
-        );
+        });
       } else if (result.requires_payment) {
         // Handle free tier users who need to pay
         // TODO: Implement payment flow screen
-        Alert.alert(
-          "Upgrade Required",
-          `Free users need to pay ₱${result.payment_amount} per match request, or upgrade to a subscription for unlimited requests.`,
-          [{ text: "OK", style: "default" }],
-        );
+        showAlert({
+          title: "Upgrade Required",
+          message: `Free users need to pay ₱${result.payment_amount} per match request, or upgrade to a subscription for unlimited requests.`,
+          type: "info",
+        });
       } else {
-        Alert.alert("Request Failed", result.message);
+        showAlert({
+          title: "Request Failed",
+          message: result.message || "Something went wrong.",
+          type: "error",
+        });
       }
     } catch (error) {
       console.error("Error sending match request:", error);
-      Alert.alert("Error", "Failed to send match request. Please try again.");
+      showAlert({
+        title: "Error",
+        message: "Failed to send match request. Please try again.",
+        type: "error",
+      });
     } finally {
       setSendingRequest(false);
     }
@@ -195,10 +210,12 @@ export default function Homepage() {
       )
     : [];
 
-  // Filter pets (exclude own pets and same sex if selected)
+  // Filter pets (same species only, exclude same sex)
   const filteredPets = selectedPet
     ? allPets.filter(
-        (pet) => pet.sex?.toLowerCase() !== selectedPet.sex?.toLowerCase(),
+        (pet) =>
+          pet.species?.toLowerCase() === selectedPet.species?.toLowerCase() &&
+          pet.sex?.toLowerCase() !== selectedPet.sex?.toLowerCase(),
       )
     : allPets;
 
@@ -309,6 +326,8 @@ export default function Homepage() {
         {/* Bottom spacing for tab bar */}
         <View style={{ height: 100 }} />
       </ScrollView>
+
+      <AlertModal visible={visible} {...alertOptions} onClose={hideAlert} />
     </View>
   );
 }

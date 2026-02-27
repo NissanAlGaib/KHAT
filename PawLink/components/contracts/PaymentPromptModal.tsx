@@ -5,12 +5,13 @@ import {
   Modal,
   TouchableOpacity,
   ActivityIndicator,
-  Alert,
   Animated,
   Linking,
   AppState,
   AppStateStatus,
 } from "react-native";
+import { useAlert } from "@/hooks/useAlert";
+import AlertModal from "@/components/core/AlertModal";
 import { X, CreditCard, CheckCircle, Info } from "lucide-react-native";
 import {
   createCheckout,
@@ -47,6 +48,7 @@ export default function PaymentPromptModal({
   const scaleAnim = useRef(new Animated.Value(0)).current;
   const appState = useRef(AppState.currentState);
   const pendingRef = useRef<number | null>(null);
+  const { visible: alertVisible, alertOptions, showAlert, hideAlert } = useAlert();
 
   // Keep ref in sync so the AppState callback sees the latest value
   useEffect(() => {
@@ -105,11 +107,11 @@ export default function PaymentPromptModal({
       });
 
       if (!result.success || !result.data) {
-        Alert.alert(
-          "Payment Error",
-          result.message ||
-            "Failed to create payment session. Please try again.",
-        );
+        showAlert({
+          title: "Payment Error",
+          message: result.message || "Failed to create payment session. Please try again.",
+          type: "error",
+        });
         return;
       }
 
@@ -118,25 +120,26 @@ export default function PaymentPromptModal({
 
       const canOpen = await Linking.canOpenURL(checkout_url);
       if (!canOpen) {
-        Alert.alert("Error", "Cannot open payment page. Please try again.");
+        showAlert({ title: "Error", message: "Cannot open payment page. Please try again.", type: "error" });
         return;
       }
 
       await Linking.openURL(checkout_url);
 
-      Alert.alert(
-        "Complete Your Payment",
-        "You've been redirected to PayMongo. After completing your payment, return to the app and tap 'Verify Payment'.",
-        [
+      showAlert({
+        title: "Complete Your Payment",
+        message: "You've been redirected to PayMongo. After completing your payment, return to the app and tap 'Verify Payment'.",
+        type: "info",
+        buttons: [
           {
             text: "Verify Payment",
             onPress: () => handleVerify(payment_id),
           },
           { text: "Later", style: "cancel" },
         ],
-      );
+      });
     } catch {
-      Alert.alert("Error", "An unexpected error occurred. Please try again.");
+      showAlert({ title: "Error", message: "An unexpected error occurred. Please try again.", type: "error" });
     } finally {
       setIsLoading(false);
     }
@@ -154,14 +157,14 @@ export default function PaymentPromptModal({
           onSuccess();
         }, 2000);
       } else {
-        Alert.alert(
-          "Payment Not Yet Confirmed",
-          "Your payment hasn't been confirmed yet. Please complete the payment on PayMongo and try verifying again.",
-          [{ text: "OK" }],
-        );
+        showAlert({
+          title: "Payment Not Yet Confirmed",
+          message: "Your payment hasn't been confirmed yet. Please complete the payment on PayMongo and try verifying again.",
+          type: "warning",
+        });
       }
     } catch {
-      Alert.alert("Error", "Failed to verify payment. Please try again.");
+      showAlert({ title: "Error", message: "Failed to verify payment. Please try again.", type: "error" });
     } finally {
       setIsVerifying(false);
     }
@@ -296,6 +299,7 @@ export default function PaymentPromptModal({
           )}
         </Animated.View>
       </View>
+      <AlertModal visible={alertVisible} {...alertOptions} onClose={hideAlert} />
     </Modal>
   );
 }

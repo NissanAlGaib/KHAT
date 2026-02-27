@@ -22,6 +22,7 @@
 $action = $action ?? url()->current();
 $searchName = $searchName ?? 'search';
 $searchPlaceholder = $searchPlaceholder ?? 'Search...';
+$showSearch = $showSearch ?? true;
 $filters = $filters ?? [];
 $dateFilter = $dateFilter ?? false;
 $datePresets = $datePresets ?? true;
@@ -66,7 +67,7 @@ $activeTags[] = ['label' => 'To', 'displayValue' => \Carbon\Carbon::parse(reques
 }
 
 // Search
-$hasSearch = request($searchName) ? true : false;
+$hasSearch = $showSearch && request($searchName) ? true : false;
 if ($hasSearch) $activeFilterCount++;
 
 // Panel should be open if filters are active
@@ -83,6 +84,7 @@ $panelOpen = $activeFilterCount > ($hasSearch ? 1 : 0); // open if non-search fi
         {{-- ═══════════════ HEADER ROW ═══════════════ --}}
         <div class="px-4 sm:px-5 py-3.5 flex items-center gap-2.5 flex-wrap">
             {{-- Search Input --}}
+            @if($showSearch)
             <div class="relative flex-1 min-w-[180px]">
                 <i data-lucide="search" class="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 pointer-events-none"></i>
                 <input type="text"
@@ -91,6 +93,7 @@ $panelOpen = $activeFilterCount > ($hasSearch ? 1 : 0); // open if non-search fi
                     placeholder="{{ $searchPlaceholder }}"
                     class="w-full pl-10 pr-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-sm text-gray-700 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-[#E75234]/20 focus:border-[#E75234]/30 focus:bg-white transition-all">
             </div>
+            @endif
 
             {{-- Filters Toggle --}}
             @if(count($filters) > 0 || $dateFilter)

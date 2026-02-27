@@ -6,6 +6,17 @@
 <h1 class="text-3xl font-bold text-gray-900 mb-2">Subscription & Billing</h1>
 <p class="text-sm text-gray-500 mb-6">Monitor subscription plans, revenue estimates, and billing activity</p>
 
+<!-- Date Range Filter -->
+@include('admin.partials.filter-bar', [
+'action' => route('admin.billing'),
+'showSearch' => false,
+'filters' => [],
+'dateFilter' => true,
+'datePresets' => true,
+'exports' => false,
+'perPage' => false,
+])
+
 <div class="grid grid-cols-1 md:grid-cols-4 gap-6 mb-6">
     <div class="bg-white p-5 rounded-xl shadow-sm border border-gray-50 hover:shadow-md transition-all">
         <div class="flex justify-between items-start mb-2">
@@ -137,11 +148,11 @@
                     <td class="px-4 py-3 text-sm text-gray-600">{{ $subscription->email }}</td>
                     <td class="px-4 py-3">
                         @php
-                            $tierColors = [
-                                'standard' => 'bg-orange-100 text-orange-700',
-                                'premium' => 'bg-yellow-100 text-yellow-700',
-                            ];
-                            $tierColor = $tierColors[$subscription->subscription_tier] ?? 'bg-gray-100 text-gray-700';
+                        $tierColors = [
+                        'standard' => 'bg-orange-100 text-orange-700',
+                        'premium' => 'bg-yellow-100 text-yellow-700',
+                        ];
+                        $tierColor = $tierColors[$subscription->subscription_tier] ?? 'bg-gray-100 text-gray-700';
                         @endphp
                         <span class="inline-flex items-center px-2.5 py-1 rounded-md text-xs font-semibold {{ $tierColor }}">
                             {{ ucfirst($subscription->subscription_tier) }}
@@ -174,7 +185,19 @@
             data: {
                 labels: ['Free', 'Standard', 'Premium'],
                 datasets: [{
-                    data: [{{ $freeUsers }}, {{ $standardUsers }}, {{ $premiumUsers }}],
+                    data: [{
+                        {
+                            $freeUsers
+                        }
+                    }, {
+                        {
+                            $standardUsers
+                        }
+                    }, {
+                        {
+                            $premiumUsers
+                        }
+                    }],
                     backgroundColor: ['#9CA3AF', '#E75234', '#F59E0B'],
                     borderWidth: 0
                 }]
@@ -183,7 +206,9 @@
                 responsive: true,
                 maintainAspectRatio: false,
                 plugins: {
-                    legend: { display: false }
+                    legend: {
+                        display: false
+                    }
                 },
                 cutout: '70%'
             }

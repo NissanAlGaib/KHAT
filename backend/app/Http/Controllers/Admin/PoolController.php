@@ -24,15 +24,25 @@ class PoolController extends Controller
     /**
      * Pool dashboard page.
      */
-    public function dashboard()
+    public function dashboard(Request $request)
     {
-        $stats = $this->poolService->getPoolStatistics();
-        $revenueByType = $this->poolService->getRevenueByType();
-        $monthlyFlow = $this->poolService->getMonthlyPoolFlow(12);
-        $recentTransactions = PoolTransaction::with(['user:id,name,email', 'contract:id,status'])
-            ->orderBy('created_at', 'desc')
-            ->limit(10)
-            ->get();
+        $startDate = $request->filled('start_date') ? $request->start_date : null;
+        $endDate = $request->filled('end_date') ? $request->end_date : null;
+
+        $stats = $this->poolService->getPoolStatistics($startDate, $endDate);
+        $revenueByType = $this->poolService->getRevenueByType($startDate, $endDate);
+        $monthlyFlow = $this->poolService->getMonthlyPoolFlow(12, $startDate, $endDate);
+        $recentQuery = PoolTransaction::with(['user:id,name,email', 'contract:id,status'])
+            ->orderBy('created_at', 'desc');
+
+        if ($startDate) {
+            $recentQuery->where('created_at', '>=', $startDate);
+        }
+        if ($endDate) {
+            $recentQuery->where('created_at', '<=', $endDate . ' 23:59:59');
+        }
+
+        $recentTransactions = $recentQuery->limit(10)->get();
 
         $openDisputesCount = Dispute::active()->count();
 
@@ -59,24 +69,25 @@ class PoolController extends Controller
         if ($request->filled('status')) {
             $query->where('status', $request->status);
         }
-        if ($request->filled('from')) {
-            $query->where('created_at', '>=', $request->from);
+        if ($request->filled('start_date')) {
+            $query->where('created_at', '>=', $request->start_date);
         }
-        if ($request->filled('to')) {
-            $query->where('created_at', '<=', $request->to . ' 23:59:59');
+        if ($request->filled('end_date')) {
+            $query->where('created_at', '<=', $request->end_date . ' 23:59:59');
         }
-        if ($request->filled('user_search')) {
-            $search = $request->user_search;
-            $query->whereHas('user', function ($q) use ($search) {
-                $q->where('name', 'like', "%{$search}%")
-                    ->orWhere('email', 'like', "%{$search}%");
+        if ($request->filled('search')) {
+            $search = $request->search;
+            $query->where(function ($q) use ($search) {
+                $q->whereHas('user', function ($q2) use ($search) {
+                    $q2->where('name', 'like', "%{$search}%")
+                        ->orWhere('email', 'like', "%{$search}%");
+                })->orWhere('id', 'like', "%{$search}%")
+                    ->orWhere('contract_id', 'like', "%{$search}%");
             });
         }
-        if ($request->filled('contract_id')) {
-            $query->where('contract_id', $request->contract_id);
-        }
 
-        $transactions = $query->orderBy('created_at', 'desc')->paginate(25);
+        $perPage = $request->input('per_page', 25);
+        $transactions = $query->orderBy('created_at', 'desc')->paginate($perPage);
 
         return view('admin.pool.transactions', compact('transactions'));
     }
@@ -121,14 +132,25 @@ class PoolController extends Controller
         if ($request->filled('status')) {
             $query->where('status', $request->status);
         }
-        if ($request->filled('from')) {
-            $query->where('created_at', '>=', $request->from);
+        if ($request->filled('start_date')) {
+            $query->where('created_at', '>=', $request->start_date);
         }
-        if ($request->filled('to')) {
-            $query->where('created_at', '<=', $request->to . ' 23:59:59');
+        if ($request->filled('end_date')) {
+            $query->where('created_at', '<=', $request->end_date . ' 23:59:59');
+        }
+        if ($request->filled('search')) {
+            $search = $request->search;
+            $query->where(function ($q) use ($search) {
+                $q->where('reason', 'like', "%{$search}%")
+                    ->orWhere('contract_id', 'like', "%{$search}%")
+                    ->orWhereHas('raisedBy', function ($q2) use ($search) {
+                        $q2->where('name', 'like', "%{$search}%");
+                    });
+            });
         }
 
-        $disputes = $query->orderBy('created_at', 'desc')->paginate(25);
+        $perPage = $request->input('per_page', 25);
+        $disputes = $query->orderBy('created_at', 'desc')->paginate($perPage);
 
         return view('admin.pool.disputes', compact('disputes'));
     }

@@ -36,16 +36,30 @@
             <i data-lucide="plus" class="w-4 h-4"></i>
             New Tier
         </button>
-        <a href="{{ request()->fullUrlWithQuery(['export' => 'csv']) }}" class="flex items-center gap-2 px-4 py-2.5 bg-green-600 text-white text-sm font-semibold rounded-lg hover:bg-green-700 transition-all shadow-sm" title="Export to CSV">
-            <i data-lucide="file-spreadsheet" class="w-4 h-4"></i>
-            <span class="hidden sm:inline">CSV</span>
-        </a>
-        <a href="{{ request()->fullUrlWithQuery(['export' => 'pdf']) }}" class="flex items-center gap-2 px-4 py-2.5 bg-red-600 text-white text-sm font-semibold rounded-lg hover:bg-red-700 transition-all shadow-sm" title="Export to PDF">
-            <i data-lucide="file-text" class="w-4 h-4"></i>
-            <span class="hidden sm:inline">PDF</span>
-        </a>
     </div>
 </div>
+
+@include('admin.partials.filter-bar', [
+    'action' => route('admin.subscription-tiers.index'),
+    'searchPlaceholder' => 'Search by name or slug...',
+    'filters' => [
+        [
+            'name' => 'status',
+            'label' => 'Status',
+            'placeholder' => 'All Statuses',
+            'options' => [
+                ['value' => 'active', 'label' => 'Active'],
+                ['value' => 'inactive', 'label' => 'Inactive'],
+            ],
+        ],
+    ],
+    'exports' => [
+        ['label' => 'CSV', 'icon' => 'file-spreadsheet', 'params' => ['export' => 'csv'], 'color' => 'green'],
+        ['label' => 'PDF', 'icon' => 'file-text', 'params' => ['export' => 'pdf'], 'color' => 'red'],
+    ],
+    'perPage' => false,
+    'totalResults' => $tiers->count(),
+])
 
 <!-- Tiers Grid -->
 <div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">

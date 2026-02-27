@@ -7,6 +7,17 @@
 <h1 class="text-3xl font-bold text-gray-900 mb-2">Dashboard Overview</h1>
 <p class="text-sm text-gray-500 mb-6">Overview of your platform's key metrics and growth trends</p>
 
+<!-- Date Range Filter -->
+@include('admin.partials.filter-bar', [
+'action' => route('admin.dashboard'),
+'showSearch' => false,
+'filters' => [],
+'dateFilter' => true,
+'datePresets' => true,
+'exports' => false,
+'perPage' => false,
+])
+
 <!-- Stats Cards (Row 1) -->
 <div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-6 mb-6">
     <!-- Card 1: Total Users -->
@@ -214,7 +225,7 @@
                             <div class="flex text-amber-400">
                                 @for($i = 1; $i <= 5; $i++)
                                     <i data-lucide="star" class="w-3.5 h-3.5 {{ $i <= round($user->average_rating) ? 'fill-current' : 'text-gray-200' }}"></i>
-                                @endfor
+                                    @endfor
                             </div>
                             <span class="text-xs font-bold text-gray-700">{{ number_format($user->average_rating, 1) }}</span>
                             <span class="text-[10px] text-gray-400">({{ $user->review_count }} reviews)</span>
@@ -242,9 +253,21 @@
     // Chart Data from Backend
     const monthlyUsersData = @json($monthlyUsers);
     const matchesTrendData = @json($matchesTrend);
-    const freeUsers = {{ $totalUsers - $standardSubscribers - $premiumSubscribers }};
-    const standardUsers = {{ $standardSubscribers }};
-    const premiumUsers = {{ $premiumSubscribers }};
+    const freeUsers = {
+        {
+            $totalUsers - $standardSubscribers - $premiumSubscribers
+        }
+    };
+    const standardUsers = {
+        {
+            $standardSubscribers
+        }
+    };
+    const premiumUsers = {
+        {
+            $premiumSubscribers
+        }
+    };
 
     // Monthly Users Chart
     const monthlyUsersCtx = document.getElementById('monthlyUsersChart');
@@ -265,8 +288,16 @@
             options: {
                 responsive: true,
                 maintainAspectRatio: false,
-                plugins: { legend: { display: false } },
-                scales: { y: { beginAtZero: true } }
+                plugins: {
+                    legend: {
+                        display: false
+                    }
+                },
+                scales: {
+                    y: {
+                        beginAtZero: true
+                    }
+                }
             }
         });
     }
@@ -288,8 +319,16 @@
             options: {
                 responsive: true,
                 maintainAspectRatio: false,
-                plugins: { legend: { display: false } },
-                scales: { y: { beginAtZero: true } }
+                plugins: {
+                    legend: {
+                        display: false
+                    }
+                },
+                scales: {
+                    y: {
+                        beginAtZero: true
+                    }
+                }
             }
         });
     }
@@ -311,7 +350,12 @@
                 responsive: true,
                 maintainAspectRatio: false,
                 plugins: {
-                    legend: { position: 'bottom', labels: { boxWidth: 12 } }
+                    legend: {
+                        position: 'bottom',
+                        labels: {
+                            boxWidth: 12
+                        }
+                    }
                 }
             }
         });

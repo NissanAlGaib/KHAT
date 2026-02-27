@@ -99,20 +99,28 @@ class AdminController extends Controller
     /**
      * Display the admin dashboard.
      */
-    public function dashboard()
+    public function dashboard(Request $request)
     {
-        $stats = $this->getDashboardStats();
+        $stats = $this->getDashboardStats($request);
         return view('admin.dashboard', $stats);
     }
 
     /**
      * Get dashboard statistics
      */
-    private function getDashboardStats()
+    private function getDashboardStats(Request $request = null)
     {
         $now = Carbon::now();
         $lastMonth = $now->copy()->subMonth();
         $lastWeek = $now->copy()->subWeek();
+
+        // Optional date range for chart filtering
+        $chartStart = $request && $request->filled('start_date')
+            ? Carbon::parse($request->start_date)->startOfDay()
+            : $now->copy()->subYear();
+        $chartEnd = $request && $request->filled('end_date')
+            ? Carbon::parse($request->end_date)->endOfDay()
+            : $now->copy()->endOfDay();
 
         // Total Users
         $totalUsers = User::count();
@@ -172,12 +180,12 @@ class AdminController extends Controller
             ->where('updated_at', '<', $lastMonth)->count();
         $premiumGrowth = $this->calculateGrowth($premiumSubscribers, $premiumLastMonth);
 
-        // Monthly New Users for Chart (last 12 months)
+        // Monthly New Users for Chart (filtered by date range)
         $monthlyUsers = User::select(
             DB::raw('DATE_FORMAT(created_at, "%Y-%m") as month'),
             DB::raw('COUNT(*) as count')
         )
-            ->where('created_at', '>=', $now->copy()->subYear())
+            ->whereBetween('created_at', [$chartStart, $chartEnd])
             ->groupBy('month')
             ->orderBy('month')
             ->get();
@@ -185,12 +193,12 @@ class AdminController extends Controller
         // Pending Safety Reports
         $pendingReports = SafetyReport::where('status', SafetyReport::STATUS_PENDING)->count();
 
-        // Breeding Matches Trend (last 6 months)
+        // Breeding Matches Trend (filtered by date range)
         $matchesTrend = MatchRequest::select(
             DB::raw('DATE_FORMAT(created_at, "%Y-%m") as month'),
             DB::raw('COUNT(*) as count')
         )
-            ->where('created_at', '>=', $now->copy()->subMonths(6))
+            ->whereBetween('created_at', [$chartStart, $chartEnd])
             ->groupBy('month')
             ->orderBy('month')
             ->get();
@@ -361,6 +369,15 @@ class AdminController extends Controller
             $q->where('role_type', 'admin');
         })->with('roles');
 
+        // Search filter
+        if ($request->filled('search')) {
+            $search = $request->search;
+            $query->where(function ($q) use ($search) {
+                $q->where('name', 'like', "%{$search}%")
+                    ->orWhere('email', 'like', "%{$search}%");
+            });
+        }
+
         if ($request->has('export')) {
             $csvColumns = [
                 'ID' => 'id',
@@ -373,7 +390,8 @@ class AdminController extends Controller
             return $this->export($query, $request->export, 'admins_export', 'admin.exports.admins-pdf', [], $csvColumns);
         }
 
-        $admins = $query->paginate(15);
+        $perPage = $request->input('per_page', 15);
+        $admins = $query->paginate($perPage);
 
         return view('admin.admins.index', compact('admins'));
     }
@@ -951,11 +969,19 @@ class AdminController extends Controller
     /**
      * Display analytics page.
      */
-    public function analytics()
+    public function analytics(Request $request)
     {
         $now = Carbon::now();
         $lastMonth = $now->copy()->subMonth();
         $twoMonthsAgo = $now->copy()->subMonths(2);
+
+        // Optional date range for chart filtering
+        $chartStart = $request->filled('start_date')
+            ? Carbon::parse($request->start_date)->startOfDay()
+            : $now->copy()->subYear();
+        $chartEnd = $request->filled('end_date')
+            ? Carbon::parse($request->end_date)->endOfDay()
+            : $now->copy()->endOfDay();
 
         // Pricing constants (matching SubscriptionController)
         $standardPrice = 199;
@@ -1015,12 +1041,12 @@ class AdminController extends Controller
             : 0;
         $conversionGrowth = round($conversionRate - $conversionRateLastMonth, 1);
 
-        // Monthly data for charts
+        // Monthly data for charts (filtered by date range)
         $monthlyData = User::select(
             DB::raw('DATE_FORMAT(created_at, "%Y-%m") as month'),
             DB::raw('COUNT(*) as users')
         )
-            ->where('created_at', '>=', $now->copy()->subYear())
+            ->whereBetween('created_at', [$chartStart, $chartEnd])
             ->groupBy('month')
             ->orderBy('month')
             ->get();
@@ -1030,7 +1056,7 @@ class AdminController extends Controller
             DB::raw('COUNT(*) as matches'),
             DB::raw('SUM(CASE WHEN status = "accepted" THEN 1 ELSE 0 END) as accepted')
         )
-            ->where('created_at', '>=', $now->copy()->subYear())
+            ->whereBetween('created_at', [$chartStart, $chartEnd])
             ->groupBy('month')
             ->orderBy('month')
             ->get();
@@ -1052,7 +1078,7 @@ class AdminController extends Controller
     /**
      * Display billing page.
      */
-    public function billing()
+    public function billing(Request $request)
     {
         // Subscription pricing constants (matching SubscriptionController)
         $standardPrice = 199;
@@ -1083,12 +1109,19 @@ class AdminController extends Controller
         $premiumGrowth = $this->calculateGrowth($premiumUsers, $premiumLastMonth);
 
         // Match request payment statistics for free tier users
-        $matchRequestPayments = \App\Models\Payment::where('payment_type', \App\Models\Payment::TYPE_MATCH_REQUEST)
-            ->where('status', \App\Models\Payment::STATUS_PAID)
-            ->count();
-        $matchRequestRevenue = \App\Models\Payment::where('payment_type', \App\Models\Payment::TYPE_MATCH_REQUEST)
-            ->where('status', \App\Models\Payment::STATUS_PAID)
-            ->sum('amount');
+        $matchPaymentQuery = \App\Models\Payment::where('payment_type', \App\Models\Payment::TYPE_MATCH_REQUEST)
+            ->where('status', \App\Models\Payment::STATUS_PAID);
+
+        // Apply date range filters
+        if ($request->filled('start_date')) {
+            $matchPaymentQuery->where('paid_at', '>=', Carbon::parse($request->start_date)->startOfDay());
+        }
+        if ($request->filled('end_date')) {
+            $matchPaymentQuery->where('paid_at', '<=', Carbon::parse($request->end_date)->endOfDay());
+        }
+
+        $matchRequestPayments = (clone $matchPaymentQuery)->count();
+        $matchRequestRevenue = (clone $matchPaymentQuery)->sum('amount');
 
         // Growth calculations for match request payments (this month vs last month)
         $startOfThisMonth = Carbon::now()->startOfMonth();
@@ -1106,9 +1139,15 @@ class AdminController extends Controller
         $matchRequestGrowth = $this->calculateGrowth($matchRequestPaymentsThisMonth, $matchRequestPaymentsLastMonth);
 
         // Recent subscription changes
-        $recentSubscriptions = User::whereNotNull('subscription_tier')
-            ->where('subscription_tier', '!=', 'free')
-            ->orderBy('updated_at', 'desc')
+        $recentSubQuery = User::whereNotNull('subscription_tier')
+            ->where('subscription_tier', '!=', 'free');
+        if ($request->filled('start_date')) {
+            $recentSubQuery->where('updated_at', '>=', Carbon::parse($request->start_date)->startOfDay());
+        }
+        if ($request->filled('end_date')) {
+            $recentSubQuery->where('updated_at', '<=', Carbon::parse($request->end_date)->endOfDay());
+        }
+        $recentSubscriptions = $recentSubQuery->orderBy('updated_at', 'desc')
             ->limit(10)
             ->get(['id', 'name', 'email', 'subscription_tier', 'updated_at']);
 
@@ -1459,42 +1498,59 @@ class AdminController extends Controller
     /**
      * Display notifications page.
      */
-    public function notifications()
+    public function notifications(Request $request)
     {
-        // Get recent user registrations (last 7 days)
-        $newUsers = User::where('created_at', '>=', Carbon::now()->subDays(7))
+        // Date range: default to last 7 days
+        $startDate = $request->input('start_date') ? Carbon::parse($request->input('start_date'))->startOfDay() : Carbon::now()->subDays(7);
+        $endDate = $request->input('end_date') ? Carbon::parse($request->input('end_date'))->endOfDay() : Carbon::now();
+        $typeFilter = $request->input('type');
+
+        // Get recent user registrations
+        $newUsers = (!$typeFilter || $typeFilter === 'user_registered')
+            ? User::whereBetween('created_at', [$startDate, $endDate])
             ->orderBy('created_at', 'desc')
-            ->limit(10)
-            ->get(['id', 'name', 'email', 'created_at']);
+            ->limit(20)
+            ->get(['id', 'name', 'email', 'created_at'])
+            : collect();
 
         // Get pending verifications
-        $pendingVerifications = UserAuth::where('status', 'pending')
+        $pendingVerifications = (!$typeFilter || $typeFilter === 'verification_pending')
+            ? UserAuth::where('status', 'pending')
+            ->whereBetween('created_at', [$startDate, $endDate])
             ->with('user:id,name,email')
             ->orderBy('created_at', 'desc')
-            ->limit(10)
-            ->get();
+            ->limit(20)
+            ->get()
+            : collect();
 
-        // Get recent match requests (last 7 days)
-        $recentMatches = MatchRequest::where('created_at', '>=', Carbon::now()->subDays(7))
+        // Get recent match requests
+        $recentMatches = (!$typeFilter || $typeFilter === 'match_request')
+            ? MatchRequest::whereBetween('created_at', [$startDate, $endDate])
             ->with(['requesterPet:pet_id,name', 'targetPet:pet_id,name'])
             ->orderBy('created_at', 'desc')
-            ->limit(10)
-            ->get();
+            ->limit(20)
+            ->get()
+            : collect();
 
-        // Get recent payments (last 7 days)
-        $recentPayments = \App\Models\Payment::where('status', \App\Models\Payment::STATUS_PAID)
-            ->where('paid_at', '>=', Carbon::now()->subDays(7))
+        // Get recent payments
+        $recentPayments = (!$typeFilter || $typeFilter === 'payment_received')
+            ? \App\Models\Payment::where('status', \App\Models\Payment::STATUS_PAID)
+            ->whereBetween('paid_at', [$startDate, $endDate])
             ->with('user:id,name')
             ->orderBy('paid_at', 'desc')
-            ->limit(10)
-            ->get();
+            ->limit(20)
+            ->get()
+            : collect();
 
         // Get pending safety reports
-        $pendingReports = SafetyReport::where('status', SafetyReport::STATUS_PENDING)
+        $pendingReports = (!$typeFilter || $typeFilter === 'safety_report')
+            ? SafetyReport::where('status', SafetyReport::STATUS_PENDING)
+            ->whereBetween('created_at', [$startDate, $endDate])
             ->with(['reporter:id,name', 'reported:id,name'])
             ->orderBy('created_at', 'desc')
-            ->limit(10)
-            ->get();
+            ->limit(20)
+            ->get()
+            : collect();
 
         // Build notifications array
         $notifications = collect();

@@ -389,7 +389,7 @@ class PoolService
     /**
      * Get pool statistics for admin dashboard.
      */
-    public function getPoolStatistics(): array
+    public function getPoolStatistics(?string $startDate = null, ?string $endDate = null): array
     {
         $now = now();
         $startOfMonth = $now->copy()->startOfMonth();
@@ -398,34 +398,57 @@ class PoolService
 
         $totalBalance = $this->getPoolBalance();
 
-        // Current month stats
-        $depositsThisMonth = PoolTransaction::deposits()->completed()
-            ->where('created_at', '>=', $startOfMonth)->sum('amount');
-        $releasesThisMonth = PoolTransaction::releases()->completed()
-            ->where('created_at', '>=', $startOfMonth)->sum('amount');
-        $depositsCountThisMonth = PoolTransaction::deposits()->completed()
-            ->where('created_at', '>=', $startOfMonth)->count();
-        $releasesCountThisMonth = PoolTransaction::releases()->completed()
-            ->where('created_at', '>=', $startOfMonth)->count();
+        // Build date scope helper
+        $dateScope = function ($query) use ($startDate, $endDate) {
+            if ($startDate) $query->where('created_at', '>=', $startDate);
+            if ($endDate) $query->where('created_at', '<=', $endDate . ' 23:59:59');
+            return $query;
+        };
 
-        // Last month stats for growth calculation
-        $depositsLastMonth = PoolTransaction::deposits()->completed()
-            ->whereBetween('created_at', [$startOfLastMonth, $endOfLastMonth])->sum('amount');
-        $releasesLastMonth = PoolTransaction::releases()->completed()
-            ->whereBetween('created_at', [$startOfLastMonth, $endOfLastMonth])->sum('amount');
+        // If date range provided, use it; otherwise use current month
+        if ($startDate || $endDate) {
+            $depositsThisMonth = $dateScope(PoolTransaction::deposits()->completed())->sum('amount');
+            $releasesThisMonth = $dateScope(PoolTransaction::releases()->completed())->sum('amount');
+            $depositsCountThisMonth = $dateScope(PoolTransaction::deposits()->completed())->count();
+            $releasesCountThisMonth = $dateScope(PoolTransaction::releases()->completed())->count();
+            $totalDeposited = $dateScope(PoolTransaction::deposits()->completed())->sum('amount');
+            $totalReleased = $dateScope(PoolTransaction::releases()->completed())->sum('amount');
+            $totalTransactions = $dateScope(PoolTransaction::query())->count();
+            $depositsGrowth = 0;
+            $releasesGrowth = 0;
+        } else {
+            // Current month stats
+            $depositsThisMonth = PoolTransaction::deposits()->completed()
+                ->where('created_at', '>=', $startOfMonth)->sum('amount');
+            $releasesThisMonth = PoolTransaction::releases()->completed()
+                ->where('created_at', '>=', $startOfMonth)->sum('amount');
+            $depositsCountThisMonth = PoolTransaction::deposits()->completed()
+                ->where('created_at', '>=', $startOfMonth)->count();
+            $releasesCountThisMonth = PoolTransaction::releases()->completed()
+                ->where('created_at', '>=', $startOfMonth)->count();
+
+            // Last month stats for growth calculation
+            $depositsLastMonth = PoolTransaction::deposits()->completed()
+                ->whereBetween('created_at', [$startOfLastMonth, $endOfLastMonth])->sum('amount');
+            $releasesLastMonth = PoolTransaction::releases()->completed()
+                ->whereBetween('created_at', [$startOfLastMonth, $endOfLastMonth])->sum('amount');
+
+            $depositsGrowth = $depositsLastMonth > 0
+                ? round((($depositsThisMonth - $depositsLastMonth) / $depositsLastMonth) * 100, 1)
+                : ($depositsThisMonth > 0 ? 100 : 0);
+            $releasesGrowth = $releasesLastMonth > 0
+                ? round((($releasesThisMonth - $releasesLastMonth) / $releasesLastMonth) * 100, 1)
+                : ($releasesThisMonth > 0 ? 100 : 0);
+
+            $totalDeposited = (float) PoolTransaction::deposits()->completed()->sum('amount');
+            $totalReleased = (float) PoolTransaction::releases()->completed()->sum('amount');
+            $totalTransactions = PoolTransaction::count();
+        }
 
         // Frozen
         $frozenAmount = PoolTransaction::frozen()
             ->whereIn('type', [PoolTransaction::TYPE_DEPOSIT, PoolTransaction::TYPE_HOLD])
             ->sum('amount');
-
-        // Growth percentages
-        $depositsGrowth = $depositsLastMonth > 0
-            ? round((($depositsThisMonth - $depositsLastMonth) / $depositsLastMonth) * 100, 1)
-            : ($depositsThisMonth > 0 ? 100 : 0);
-        $releasesGrowth = $releasesLastMonth > 0
-            ? round((($releasesThisMonth - $releasesLastMonth) / $releasesLastMonth) * 100, 1)
-            : ($releasesThisMonth > 0 ? 100 : 0);
 
         return [
             'total_balance' => $totalBalance,
@@ -437,16 +460,16 @@ class PoolService
             'releases_this_month' => (float) $releasesThisMonth,
             'releases_count_this_month' => $releasesCountThisMonth,
             'releases_growth' => $releasesGrowth,
-            'total_deposited' => (float) PoolTransaction::deposits()->completed()->sum('amount'),
-            'total_released' => (float) PoolTransaction::releases()->completed()->sum('amount'),
-            'total_transactions' => PoolTransaction::count(),
+            'total_deposited' => (float) $totalDeposited,
+            'total_released' => (float) $totalReleased,
+            'total_transactions' => $totalTransactions,
         ];
     }
 
     /**
      * Get revenue breakdown by payment type (for pie chart).
      */
-    public function getRevenueByType(): array
+    public function getRevenueByType(?string $startDate = null, ?string $endDate = null): array
     {
         $colorMap = [
             'collateral' => '#22C55E',
@@ -462,10 +485,14 @@ class PoolService
             'shooter_collateral' => 'Shooter Collateral',
         ];
 
-        $raw = PoolTransaction::deposits()
+        $query = PoolTransaction::deposits()
             ->completed()
-            ->whereNotNull('metadata')
-            ->selectRaw("JSON_UNQUOTE(JSON_EXTRACT(metadata, '$.payment_type')) as payment_type, SUM(amount) as total")
+            ->whereNotNull('metadata');
+
+        if ($startDate) $query->where('created_at', '>=', $startDate);
+        if ($endDate) $query->where('created_at', '<=', $endDate . ' 23:59:59');
+
+        $raw = $query->selectRaw("JSON_UNQUOTE(JSON_EXTRACT(metadata, '$.payment_type')) as payment_type, SUM(amount) as total")
             ->groupBy('payment_type')
             ->pluck('total', 'payment_type')
             ->toArray();
@@ -488,15 +515,19 @@ class PoolService
     /**
      * Get monthly pool flow data for line chart (last 12 months).
      */
-    public function getMonthlyPoolFlow(int $months = 12): array
+    public function getMonthlyPoolFlow(int $months = 12, ?string $startDate = null, ?string $endDate = null): array
     {
         $data = [];
         $now = now();
 
-        for ($i = $months - 1; $i >= 0; $i--) {
-            $month = $now->copy()->subMonths($i);
-            $start = $month->copy()->startOfMonth();
-            $end = $month->copy()->endOfMonth();
+        // If date range is provided, calculate months from that range
+        $rangeStart = $startDate ? \Carbon\Carbon::parse($startDate)->startOfMonth() : $now->copy()->subMonths($months - 1)->startOfMonth();
+        $rangeEnd = $endDate ? \Carbon\Carbon::parse($endDate)->endOfMonth() : $now->copy()->endOfMonth();
+
+        $current = $rangeStart->copy();
+        while ($current->lte($rangeEnd)) {
+            $start = $current->copy()->startOfMonth();
+            $end = $current->copy()->endOfMonth();
 
             $deposits = PoolTransaction::deposits()
                 ->whereIn('status', [PoolTransaction::STATUS_COMPLETED, PoolTransaction::STATUS_FROZEN])
@@ -509,10 +540,12 @@ class PoolService
                 ->sum('amount');
 
             $data[] = [
-                'month' => $month->format('M Y'),
+                'month' => $current->format('M Y'),
                 'deposits' => (float) $deposits,
                 'releases' => (float) $releases,
             ];
+
+            $current->addMonth();
         }
 
         return $data;

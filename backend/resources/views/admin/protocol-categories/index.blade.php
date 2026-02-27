@@ -23,6 +23,17 @@
     </button>
 </div>
 
+@include('admin.partials.filter-bar', [
+'action' => route('admin.protocol-categories.index'),
+'searchPlaceholder' => 'Search by name or description...',
+'exports' => [
+['label' => 'CSV', 'icon' => 'file-spreadsheet', 'params' => ['export' => 'csv'], 'color' => 'green'],
+['label' => 'PDF', 'icon' => 'file-text', 'params' => ['export' => 'pdf'], 'color' => 'red'],
+],
+'perPage' => false,
+'totalResults' => $categories->count(),
+])
+
 <!-- Categories Table -->
 <div class="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
     <div class="overflow-x-auto">

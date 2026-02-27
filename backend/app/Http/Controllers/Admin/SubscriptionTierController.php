@@ -19,6 +19,19 @@ class SubscriptionTierController extends Controller
     {
         $tiers = SubscriptionTier::query();
 
+        // Search filter
+        if ($search = $request->input('search')) {
+            $tiers->where(function ($q) use ($search) {
+                $q->where('name', 'like', "%{$search}%")
+                    ->orWhere('slug', 'like', "%{$search}%");
+            });
+        }
+
+        // Status filter
+        if ($request->filled('status')) {
+            $tiers->where('is_active', $request->status === 'active');
+        }
+
         if ($request->has('export')) {
             $csvColumns = [
                 'Name' => 'name',

@@ -5,8 +5,9 @@ import {
   TouchableOpacity,
   TextInput,
   ActivityIndicator,
-  Alert,
 } from "react-native";
+import { useAlert } from "@/hooks/useAlert";
+import AlertModal from "@/components/core/AlertModal";
 import { Feather } from "@expo/vector-icons";
 import {
   createDispute,
@@ -36,6 +37,7 @@ export default function DisputeButton({
   const [showForm, setShowForm] = useState(false);
   const [reason, setReason] = useState("");
   const [submitting, setSubmitting] = useState(false);
+  const { visible: alertVisible, alertOptions, showAlert, hideAlert } = useAlert();
 
   // Can only file dispute on accepted contracts without existing active disputes
   const canFileDispute =
@@ -44,14 +46,15 @@ export default function DisputeButton({
 
   const handleSubmit = async () => {
     if (!reason.trim()) {
-      Alert.alert("Error", "Please provide a reason for the dispute.");
+      showAlert({ title: "Error", message: "Please provide a reason for the dispute.", type: "error" });
       return;
     }
 
-    Alert.alert(
-      "File Dispute",
-      "Are you sure you want to file a dispute? This will freeze all funds in the contract pool until the dispute is resolved.",
-      [
+    showAlert({
+      title: "File Dispute",
+      message: "Are you sure you want to file a dispute? This will freeze all funds in the contract pool until the dispute is resolved.",
+      type: "warning",
+      buttons: [
         { text: "Cancel", style: "cancel" },
         {
           text: "File Dispute",
@@ -67,18 +70,19 @@ export default function DisputeButton({
             if (result.success && result.data) {
               setShowForm(false);
               setReason("");
-              Alert.alert(
-                "Dispute Filed",
-                "Your dispute has been filed and contract funds have been frozen. An admin will review your case.",
-              );
+              showAlert({
+                title: "Dispute Filed",
+                message: "Your dispute has been filed and contract funds have been frozen. An admin will review your case.",
+                type: "success",
+              });
               onDisputeFiled?.(result.data);
             } else {
-              Alert.alert("Error", result.message);
+              showAlert({ title: "Error", message: result.message, type: "error" });
             }
           },
         },
       ],
-    );
+    });
   };
 
   // Show existing active dispute status
@@ -142,6 +146,7 @@ export default function DisputeButton({
   // File dispute form
   if (showForm) {
     return (
+      <>
       <View className="bg-white rounded-xl p-4 border border-gray-200">
         <View className="flex-row items-center justify-between mb-3">
           <Text className="text-sm font-bold text-gray-900">
@@ -188,11 +193,14 @@ export default function DisputeButton({
           )}
         </TouchableOpacity>
       </View>
+      <AlertModal visible={alertVisible} {...alertOptions} onClose={hideAlert} />
+      </>
     );
   }
 
   // File dispute button
   return (
+    <>
     <TouchableOpacity
       onPress={() => setShowForm(true)}
       className="flex-row items-center justify-center gap-2 py-3 bg-gray-100 rounded-xl"
@@ -201,5 +209,7 @@ export default function DisputeButton({
       <Feather name="alert-triangle" size={16} color="#6B7280" />
       <Text className="text-sm font-medium text-gray-600">File a Dispute</Text>
     </TouchableOpacity>
+    <AlertModal visible={alertVisible} {...alertOptions} onClose={hideAlert} />
+    </>
   );
 }

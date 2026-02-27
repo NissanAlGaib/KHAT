@@ -318,7 +318,8 @@ class VaccineProtocolController extends Controller
             });
         }
 
-        $pendingShots = $query->paginate(10)->appends($request->query());
+        $perPage = $request->input('per_page', 10);
+        $pendingShots = $query->paginate($perPage)->appends($request->query());
 
         return view('admin.vaccine-protocols.pending-shots', compact('pendingShots'));
     }

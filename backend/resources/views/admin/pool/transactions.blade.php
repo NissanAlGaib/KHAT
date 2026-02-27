@@ -21,46 +21,40 @@
 </div>
 
 <!-- Filters -->
-<div class="bg-white p-4 rounded-xl shadow-sm border border-gray-100 mb-6">
-    <form method="GET" action="{{ route('admin.pool.transactions') }}" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
-        <div>
-            <label class="text-xs font-semibold text-gray-500 uppercase mb-1 block">Type</label>
-            <select name="type" class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#E75234]/20">
-                <option value="">All Types</option>
-                <option value="deposit" {{ request('type') == 'deposit' ? 'selected' : '' }}>Deposit</option>
-                <option value="hold" {{ request('type') == 'hold' ? 'selected' : '' }}>Hold</option>
-                <option value="release" {{ request('type') == 'release' ? 'selected' : '' }}>Release</option>
-                <option value="refund" {{ request('type') == 'refund' ? 'selected' : '' }}>Refund</option>
-                <option value="fee_deduction" {{ request('type') == 'fee_deduction' ? 'selected' : '' }}>Fee Deduction</option>
-                <option value="cancellation_penalty" {{ request('type') == 'cancellation_penalty' ? 'selected' : '' }}>Cancellation Penalty</option>
-            </select>
-        </div>
-        <div>
-            <label class="text-xs font-semibold text-gray-500 uppercase mb-1 block">Status</label>
-            <select name="status" class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#E75234]/20">
-                <option value="">All Statuses</option>
-                <option value="completed" {{ request('status') == 'completed' ? 'selected' : '' }}>Completed</option>
-                <option value="pending" {{ request('status') == 'pending' ? 'selected' : '' }}>Pending</option>
-                <option value="frozen" {{ request('status') == 'frozen' ? 'selected' : '' }}>Frozen</option>
-                <option value="cancelled" {{ request('status') == 'cancelled' ? 'selected' : '' }}>Cancelled</option>
-            </select>
-        </div>
-        <div>
-            <label class="text-xs font-semibold text-gray-500 uppercase mb-1 block">From Date</label>
-            <input type="date" name="date_from" value="{{ request('date_from') }}" class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#E75234]/20">
-        </div>
-        <div>
-            <label class="text-xs font-semibold text-gray-500 uppercase mb-1 block">To Date</label>
-            <input type="date" name="date_to" value="{{ request('date_to') }}" class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#E75234]/20">
-        </div>
-        <div class="flex items-end gap-2">
-            <button type="submit" class="flex-1 px-4 py-2 bg-gray-900 text-white rounded-lg text-sm font-medium hover:bg-gray-800 transition-colors">
-                <i data-lucide="search" class="w-4 h-4 inline mr-1"></i> Filter
-            </button>
-            <a href="{{ route('admin.pool.transactions') }}" class="px-4 py-2 bg-gray-100 text-gray-600 rounded-lg text-sm font-medium hover:bg-gray-200 transition-colors">Clear</a>
-        </div>
-    </form>
-</div>
+@include('admin.partials.filter-bar', [
+'action' => route('admin.pool.transactions'),
+'searchPlaceholder' => 'Search user, ID, contract...',
+'filters' => [
+[
+'name' => 'type',
+'label' => 'Type',
+'options' => [
+['value' => 'deposit', 'label' => 'Deposit'],
+['value' => 'hold', 'label' => 'Hold'],
+['value' => 'release', 'label' => 'Release'],
+['value' => 'refund', 'label' => 'Refund'],
+['value' => 'fee_deduction', 'label' => 'Fee Deduction'],
+['value' => 'cancellation_penalty', 'label' => 'Cancellation Penalty'],
+],
+],
+[
+'name' => 'status',
+'label' => 'Status',
+'options' => [
+['value' => 'completed', 'label' => 'Completed'],
+['value' => 'pending', 'label' => 'Pending'],
+['value' => 'frozen', 'label' => 'Frozen'],
+['value' => 'cancelled', 'label' => 'Cancelled'],
+],
+],
+],
+'dateFilter' => true,
+'datePresets' => true,
+'exports' => false,
+'perPage' => true,
+'defaultPerPage' => 25,
+'totalResults' => $transactions->total(),
+])
 
 <!-- Transactions Table -->
 <div class="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">

@@ -4,9 +4,10 @@ import {
   Text,
   TouchableOpacity,
   ActivityIndicator,
-  Alert,
   TextInput,
 } from "react-native";
+import { useAlert } from "@/hooks/useAlert";
+import AlertModal from "@/components/core/AlertModal";
 import { useSession } from "@/context/AuthContext";
 import {
   getContractPayments,
@@ -153,6 +154,7 @@ export default function ContractCard({
   const [allocationSummary, setAllocationSummary] =
     useState<AllocationSummaryData | null>(null);
   const [showDailyReportModal, setShowDailyReportModal] = useState(false);
+  const { visible: alertVisible, alertOptions, showAlert, hideAlert } = useAlert();
 
   // Payment state
   const [contractPayments, setContractPayments] = useState<Payment[]>([]);
@@ -373,14 +375,12 @@ export default function ContractCard({
     const status = hasOffspring ? "completed" : "failed";
     const statusText = hasOffspring ? "successful" : "failed";
 
-    Alert.alert(
-      `Mark Breeding as ${hasOffspring ? "Complete" : "Failed"}`,
-      `Are you sure the breeding was ${statusText}${hasOffspring ? " with offspring" : ""}?`,
-      [
-        {
-          text: "Cancel",
-          style: "cancel",
-        },
+    showAlert({
+      title: `Mark Breeding as ${hasOffspring ? "Complete" : "Failed"}`,
+      message: `Are you sure the breeding was ${statusText}${hasOffspring ? " with offspring" : ""}?`,
+      type: "warning",
+      buttons: [
+        { text: "Cancel", style: "cancel" },
         {
           text: "Confirm",
           onPress: async () => {
@@ -398,27 +398,29 @@ export default function ContractCard({
                 setShowBreedingNotes(false);
 
                 if (hasOffspring) {
-                  Alert.alert(
-                    "Success",
-                    "Breeding marked as complete! You can now input offspring details.",
-                  );
+                  showAlert({
+                    title: "Success",
+                    message: "Breeding marked as complete! You can now input offspring details.",
+                    type: "success",
+                  });
                 }
               } else {
-                Alert.alert(
-                  "Error",
-                  result.message || "Failed to update breeding status",
-                );
+                showAlert({
+                  title: "Error",
+                  message: result.message || "Failed to update breeding status",
+                  type: "error",
+                });
               }
             } catch (error) {
               console.error("Error marking breeding complete:", error);
-              Alert.alert("Error", "Failed to mark breeding complete");
+              showAlert({ title: "Error", message: "Failed to mark breeding complete", type: "error" });
             } finally {
               setIsMarkingComplete(false);
             }
           },
         },
       ],
-    );
+    });
   };
 
   const collateralPerOwner = contract.collateral_total / 2;
@@ -1534,6 +1536,8 @@ export default function ContractCard({
           onDismiss={closePaymentModal}
         />
       )}
+
+      <AlertModal visible={alertVisible} {...alertOptions} onClose={hideAlert} />
     </View>
   );
 }

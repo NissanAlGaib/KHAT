@@ -74,6 +74,7 @@ export interface TopMatch {
     name: string;
     photo_url?: string;
     breed?: string;
+    species?: string;
     sex?: string;
     birthdate?: string;
   };
@@ -82,6 +83,7 @@ export interface TopMatch {
     name: string;
     photo_url?: string;
     breed?: string;
+    species?: string;
     sex?: string;
     birthdate?: string;
   };

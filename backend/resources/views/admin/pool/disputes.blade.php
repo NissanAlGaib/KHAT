@@ -17,34 +17,28 @@
 </div>
 
 <!-- Filters -->
-<div class="bg-white p-4 rounded-xl shadow-sm border border-gray-100 mb-6">
-    <form method="GET" action="{{ route('admin.pool.disputes') }}" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        <div>
-            <label class="text-xs font-semibold text-gray-500 uppercase mb-1 block">Status</label>
-            <select name="status" class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#E75234]/20">
-                <option value="">All Statuses</option>
-                <option value="open" {{ request('status') == 'open' ? 'selected' : '' }}>Open</option>
-                <option value="under_review" {{ request('status') == 'under_review' ? 'selected' : '' }}>Under Review</option>
-                <option value="resolved" {{ request('status') == 'resolved' ? 'selected' : '' }}>Resolved</option>
-                <option value="dismissed" {{ request('status') == 'dismissed' ? 'selected' : '' }}>Dismissed</option>
-            </select>
-        </div>
-        <div>
-            <label class="text-xs font-semibold text-gray-500 uppercase mb-1 block">Contract ID</label>
-            <input type="number" name="contract_id" value="{{ request('contract_id') }}" placeholder="e.g. 42" class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#E75234]/20">
-        </div>
-        <div>
-            <label class="text-xs font-semibold text-gray-500 uppercase mb-1 block">Search Reason</label>
-            <input type="text" name="search" value="{{ request('search') }}" placeholder="Search reason..." class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#E75234]/20">
-        </div>
-        <div class="flex items-end gap-2">
-            <button type="submit" class="flex-1 px-4 py-2 bg-gray-900 text-white rounded-lg text-sm font-medium hover:bg-gray-800 transition-colors">
-                <i data-lucide="search" class="w-4 h-4 inline mr-1"></i> Filter
-            </button>
-            <a href="{{ route('admin.pool.disputes') }}" class="px-4 py-2 bg-gray-100 text-gray-600 rounded-lg text-sm font-medium hover:bg-gray-200 transition-colors">Clear</a>
-        </div>
-    </form>
-</div>
+@include('admin.partials.filter-bar', [
+'action' => route('admin.pool.disputes'),
+'searchPlaceholder' => 'Search reason, contract, user...',
+'filters' => [
+[
+'name' => 'status',
+'label' => 'Status',
+'options' => [
+['value' => 'open', 'label' => 'Open'],
+['value' => 'under_review', 'label' => 'Under Review'],
+['value' => 'resolved', 'label' => 'Resolved'],
+['value' => 'dismissed', 'label' => 'Dismissed'],
+],
+],
+],
+'dateFilter' => true,
+'datePresets' => true,
+'exports' => false,
+'perPage' => true,
+'defaultPerPage' => 25,
+'totalResults' => $disputes->total(),
+])
 
 <!-- Disputes List -->
 <div class="space-y-4">

@@ -9,14 +9,6 @@
         <p class="text-sm text-gray-500">Manage administrative accounts and access levels</p>
     </div>
     <div class="flex gap-3">
-        <a href="{{ request()->fullUrlWithQuery(['export' => 'csv']) }}" class="inline-flex items-center gap-2 px-4 py-2.5 bg-green-600 text-white text-sm font-semibold rounded-lg shadow-sm hover:bg-green-700 transition-all" title="Export to CSV">
-            <i data-lucide="file-spreadsheet" class="w-4 h-4"></i>
-            <span class="hidden sm:inline">CSV</span>
-        </a>
-        <a href="{{ request()->fullUrlWithQuery(['export' => 'pdf']) }}" class="inline-flex items-center gap-2 px-4 py-2.5 bg-red-600 text-white text-sm font-semibold rounded-lg shadow-sm hover:bg-red-700 transition-all" title="Export to PDF">
-            <i data-lucide="file-text" class="w-4 h-4"></i>
-            <span class="hidden sm:inline">PDF</span>
-        </a>
         <button onclick="openAddAdminModal()" class="inline-flex items-center gap-2 px-6 py-2.5 bg-[#E75234] text-white text-sm font-semibold rounded-lg shadow-sm hover:bg-[#d14024] transition-all hover:shadow-md">
             <i data-lucide="user-plus" class="w-4 h-4"></i>
             Add New Admin
@@ -37,6 +29,19 @@
     <span class="text-sm font-medium">{{ session('error') }}</span>
 </div>
 @endif
+
+@include('admin.partials.filter-bar', [
+'action' => route('admin.admins.index'),
+'searchPlaceholder' => 'Search by name or email...',
+'exports' => [
+['label' => 'CSV', 'icon' => 'file-spreadsheet', 'params' => ['export' => 'csv'], 'color' => 'green'],
+['label' => 'PDF', 'icon' => 'file-text', 'params' => ['export' => 'pdf'], 'color' => 'red'],
+],
+'perPage' => true,
+'defaultPerPage' => 15,
+'perPageOptions' => [10, 15, 25, 50],
+'totalResults' => $admins->total(),
+])
 
 <!-- Admins Table -->
 <div class="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
@@ -76,12 +81,12 @@
                             <span class="text-sm font-medium text-gray-900">{{ $admin->created_at->format('M d, Y') }}</span>
                             <span class="text-xs text-gray-500">{{ $admin->created_at->format('h:i A') }}</span>
                             @if($admin->updated_at && $admin->created_at && $admin->updated_at->gt($admin->created_at))
-                                <span class="text-[10px] text-gray-400 mt-1 italic" title="Updated {{ $admin->updated_at->format('M d, Y h:i A') }}">
-                                    Updated {{ $admin->updated_at->diffForHumans() }}
-                                    @if($admin->updater)
-                                        by {{ $admin->updater->name }}
-                                    @endif
-                                </span>
+                            <span class="text-[10px] text-gray-400 mt-1 italic" title="Updated {{ $admin->updated_at->format('M d, Y h:i A') }}">
+                                Updated {{ $admin->updated_at->diffForHumans() }}
+                                @if($admin->updater)
+                                by {{ $admin->updater->name }}
+                                @endif
+                            </span>
                             @endif
                         </div>
                     </td>
@@ -113,7 +118,7 @@
 
 <!-- Pagination -->
 <div class="mt-6">
-    {{ $admins->links() }}
+    {{ $admins->appends(request()->query())->links() }}
 </div>
 
 <!-- Add Admin Modal -->

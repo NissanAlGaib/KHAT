@@ -6,6 +6,17 @@
 <h1 class="text-3xl font-bold text-gray-900 mb-2">Analytics</h1>
 <p class="text-sm text-gray-500 mb-6">Revenue insights, user engagement, and platform performance metrics</p>
 
+<!-- Date Range Filter -->
+@include('admin.partials.filter-bar', [
+'action' => route('admin.analytics'),
+'showSearch' => false,
+'filters' => [],
+'dateFilter' => true,
+'datePresets' => true,
+'exports' => false,
+'perPage' => false,
+])
+
 <div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-6 mb-6">
     <div class="bg-white p-5 rounded-xl shadow-sm border border-gray-50 hover:shadow-md transition-all">
         <div class="flex justify-between items-start mb-2">
@@ -75,8 +86,8 @@
     <h3 class="font-semibold text-gray-800 mb-4">Monthly Summary</h3>
     <div class="overflow-x-auto">
         @php
-            // Create a lookup array for O(1) access
-            $monthlyUserLookup = $monthlyData->keyBy('month');
+        // Create a lookup array for O(1) access
+        $monthlyUserLookup = $monthlyData->keyBy('month');
         @endphp
         <table class="w-full text-left">
             <thead>
@@ -99,7 +110,7 @@
                     <td class="px-4 py-3 text-sm text-gray-600">{{ $data->accepted }}</td>
                     <td class="px-4 py-3 text-sm">
                         @php
-                            $rate = $data->matches > 0 ? round(($data->accepted / $data->matches) * 100, 1) : 0;
+                        $rate = $data->matches > 0 ? round(($data->accepted / $data->matches) * 100, 1) : 0;
                         @endphp
                         <span class="inline-flex items-center px-2 py-1 rounded-md text-xs font-semibold {{ $rate >= 50 ? 'bg-green-100 text-green-700' : 'bg-yellow-100 text-yellow-700' }}">
                             {{ $rate }}%
@@ -141,10 +152,14 @@
                 responsive: true,
                 maintainAspectRatio: false,
                 plugins: {
-                    legend: { display: false }
+                    legend: {
+                        display: false
+                    }
                 },
                 scales: {
-                    y: { beginAtZero: true }
+                    y: {
+                        beginAtZero: true
+                    }
                 }
             }
         });
@@ -158,8 +173,7 @@
             type: 'bar',
             data: {
                 labels: monthlyMatches.map(item => item.month),
-                datasets: [
-                    {
+                datasets: [{
                         label: 'Total Matches',
                         data: monthlyMatches.map(item => item.matches),
                         backgroundColor: 'rgba(231, 82, 52, 0.3)',
@@ -178,7 +192,9 @@
                 responsive: true,
                 maintainAspectRatio: false,
                 scales: {
-                    y: { beginAtZero: true }
+                    y: {
+                        beginAtZero: true
+                    }
                 }
             }
         });

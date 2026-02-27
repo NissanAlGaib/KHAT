@@ -7,9 +7,10 @@ import {
   TextInput,
   ScrollView,
   ActivityIndicator,
-  Alert,
   Image,
 } from "react-native";
+import { useAlert } from "@/hooks/useAlert";
+import AlertModal from "@/components/core/AlertModal";
 import {
   X,
   Plus,
@@ -59,6 +60,7 @@ export default function OffspringInputModal({
   ]);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [expandedIndex, setExpandedIndex] = useState<number | null>(0);
+  const { visible: alertVisible, alertOptions, showAlert, hideAlert } = useAlert();
 
   const addOffspring = () => {
     const newIndex = offspring.length;
@@ -88,10 +90,7 @@ export default function OffspringInputModal({
   const pickImage = async (index: number) => {
     const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
     if (status !== "granted") {
-      Alert.alert(
-        "Permission Needed",
-        "Please grant photo library access to upload images."
-      );
+      showAlert({ title: "Permission Needed", message: "Please grant photo library access to upload images.", type: "warning" });
       return;
     }
 
@@ -110,10 +109,7 @@ export default function OffspringInputModal({
   const takePhoto = async (index: number) => {
     const { status } = await ImagePicker.requestCameraPermissionsAsync();
     if (status !== "granted") {
-      Alert.alert(
-        "Permission Needed",
-        "Please grant camera access to take photos."
-      );
+      showAlert({ title: "Permission Needed", message: "Please grant camera access to take photos.", type: "warning" });
       return;
     }
 
@@ -134,7 +130,7 @@ export default function OffspringInputModal({
 
   const handleSubmit = async () => {
     if (offspring.length === 0) {
-      Alert.alert("Error", "Please add at least one offspring");
+      showAlert({ title: "Error", message: "Please add at least one offspring", type: "error" });
       return;
     }
 
@@ -173,19 +169,28 @@ export default function OffspringInputModal({
       });
 
       if (result.success && result.data) {
-        Alert.alert("Success", "Offspring recorded successfully!");
-        onSuccess(result.data.contract);
-        onClose();
-        setBirthDate(new Date());
-        setLitterNotes("");
-        setOffspring([{ sex: "male", status: "alive" }]);
-        setExpandedIndex(0);
+        showAlert({
+          title: "Success",
+          message: "Offspring recorded successfully!",
+          type: "success",
+          buttons: [{
+            text: "OK",
+            onPress: () => {
+              onSuccess(result.data.contract);
+              onClose();
+              setBirthDate(new Date());
+              setLitterNotes("");
+              setOffspring([{ sex: "male", status: "alive" }]);
+              setExpandedIndex(0);
+            },
+          }],
+        });
       } else {
-        Alert.alert("Error", result.message || "Failed to record offspring");
+        showAlert({ title: "Error", message: result.message || "Failed to record offspring", type: "error" });
       }
     } catch (error) {
       console.error("Error recording offspring:", error);
-      Alert.alert("Error", "Failed to record offspring");
+      showAlert({ title: "Error", message: "Failed to record offspring", type: "error" });
     } finally {
       setIsSubmitting(false);
     }
@@ -359,6 +364,7 @@ export default function OffspringInputModal({
         onCancel={() => setShowDatePicker(false)}
         maximumDate={new Date()}
       />
+      <AlertModal visible={alertVisible} {...alertOptions} onClose={hideAlert} />
     </Modal>
   );
 }
