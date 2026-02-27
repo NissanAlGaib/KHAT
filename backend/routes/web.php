@@ -98,7 +98,7 @@ Route::prefix('admin')->group(function () {
         Route::post('/vaccination-shots/{shotId}/reject', [VaccineProtocolController::class, 'rejectShot'])->name('admin.vaccination-shots.reject');
 
         // Subscription Tier Management
-        Route::resource('subscription-tiers', SubscriptionTierController::class)->only(['index', 'update'])->names('admin.subscription-tiers');
+        Route::resource('subscription-tiers', SubscriptionTierController::class)->only(['index', 'store', 'update', 'destroy'])->names('admin.subscription-tiers');
 
         // Protocol Category Management
         Route::resource('protocol-categories', ProtocolCategoryController::class)->except(['create', 'edit', 'show'])->names('admin.protocol-categories');

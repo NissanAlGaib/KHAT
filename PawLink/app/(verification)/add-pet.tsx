@@ -1073,7 +1073,7 @@ export default function AddPetScreen() {
 
       {/* Form Content */}
       <KeyboardAvoidingView
-        behavior={Platform.OS === "ios" ? "padding" : "height"}
+        behavior={Platform.OS === "ios" ? "padding" : undefined}
         style={{ flex: 1 }}
       >
         <ScrollView
@@ -1085,10 +1085,9 @@ export default function AddPetScreen() {
         >
           {renderStep()}
         </ScrollView>
-      </KeyboardAvoidingView>
 
-      {/* Footer Buttons */}
-      <View style={styles.footer}>
+        {/* Footer Buttons */}
+        <View style={styles.footer}>
         {currentStep > 1 && (
           <TouchableOpacity
             style={styles.backBtn}
@@ -1120,6 +1119,7 @@ export default function AddPetScreen() {
           )}
         </TouchableOpacity>
       </View>
+      </KeyboardAvoidingView>
 
       {/* Breed Search Modal */}
       <StyledModal

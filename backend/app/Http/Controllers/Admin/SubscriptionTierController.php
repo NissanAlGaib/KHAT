@@ -25,13 +25,57 @@ class SubscriptionTierController extends Controller
                 'Slug' => 'slug',
                 'Price' => 'price',
                 'Duration' => 'duration_days',
-                'Active' => function($row) { return $row->is_active ? 'Yes' : 'No'; }
+                'Active' => function ($row) {
+                    return $row->is_active ? 'Yes' : 'No';
+                }
             ];
             return $this->export($tiers, $request->export, 'subscription_tiers', 'admin.exports.subscription-tiers-pdf', [], $csvColumns);
         }
 
         $tiers = $tiers->get();
         return view('admin.subscription-tiers.index', compact('tiers'));
+    }
+
+    /**
+     * Store a newly created subscription tier.
+     */
+    public function store(Request $request)
+    {
+        $request->validate([
+            'name' => 'required|string|max:255',
+            'slug' => 'required|string|max:255|unique:subscription_tiers,slug',
+            'price' => 'required|numeric|min:0',
+            'duration_days' => 'required|integer|min:1',
+            'max_pets' => 'nullable|integer|min:1',
+            'max_matches' => 'nullable|integer|min:1',
+            'max_ai_generations' => 'nullable|integer|min:1',
+        ]);
+
+        $tier = SubscriptionTier::create([
+            'name' => $request->name,
+            'slug' => $request->slug,
+            'price' => $request->price,
+            'duration_days' => $request->duration_days,
+            'is_active' => true,
+            'features' => [
+                'max_pets' => $request->max_pets ? (int) $request->max_pets : null,
+                'max_matches_per_month' => $request->max_matches ? (int) $request->max_matches : null,
+                'max_ai_generations_per_day' => $request->max_ai_generations ? (int) $request->max_ai_generations : null,
+            ],
+        ]);
+
+        AuditLog::log(
+            'subscription_tier.created',
+            AuditLog::TYPE_CREATE,
+            "Subscription tier '{$tier->name}' created",
+            SubscriptionTier::class,
+            $tier->id,
+            [],
+            $tier->toArray()
+        );
+
+        return redirect()->route('admin.subscription-tiers.index')
+            ->with('success', 'Subscription tier created successfully.');
     }
 
     /**
@@ -45,12 +89,27 @@ class SubscriptionTierController extends Controller
             'name' => 'required|string|max:255',
             'price' => 'required|numeric|min:0',
             'duration_days' => 'required|integer|min:1',
-            'is_active' => 'required|boolean',
-            'features' => 'nullable|array',
+            'max_pets' => 'nullable|integer|min:1',
+            'max_matches' => 'nullable|integer|min:1',
+            'max_ai_generations' => 'nullable|integer|min:1',
         ]);
 
         $oldValues = $tier->toArray();
-        $tier->update($request->all());
+
+        // Determine is_active: if explicitly sent (toggle form), use it; otherwise keep current
+        $isActive = $request->has('is_active') ? (bool) $request->input('is_active') : $tier->is_active;
+
+        $tier->update([
+            'name' => $request->name,
+            'price' => $request->price,
+            'duration_days' => $request->duration_days,
+            'is_active' => $isActive,
+            'features' => [
+                'max_pets' => $request->max_pets ? (int) $request->max_pets : null,
+                'max_matches_per_month' => $request->max_matches ? (int) $request->max_matches : null,
+                'max_ai_generations_per_day' => $request->max_ai_generations ? (int) $request->max_ai_generations : null,
+            ],
+        ]);
 
         AuditLog::log(
             'subscription_tier.updated',
@@ -64,5 +123,29 @@ class SubscriptionTierController extends Controller
 
         return redirect()->route('admin.subscription-tiers.index')
             ->with('success', 'Subscription tier updated successfully.');
+    }
+
+    /**
+     * Remove (soft-disable) or permanently delete a subscription tier.
+     */
+    public function destroy($id)
+    {
+        $tier = SubscriptionTier::findOrFail($id);
+        $tierName = $tier->name;
+
+        AuditLog::log(
+            'subscription_tier.deleted',
+            AuditLog::TYPE_DELETE,
+            "Subscription tier '{$tierName}' deleted",
+            SubscriptionTier::class,
+            $tier->id,
+            $tier->toArray(),
+            []
+        );
+
+        $tier->delete();
+
+        return redirect()->route('admin.subscription-tiers.index')
+            ->with('success', "Subscription tier '{$tierName}' deleted successfully.");
     }
 }
