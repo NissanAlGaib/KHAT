@@ -473,7 +473,14 @@
     let currentUserId = null;
 
     function closeAllDropdowns() {
-        document.querySelectorAll('[id^="dropdown-"]').forEach(d => d.classList.add('hidden'));
+        document.querySelectorAll('[id^="dropdown-"]').forEach(d => {
+            d.classList.add('hidden');
+            // Move back to original parent if portaled to body
+            const origParent = d._originalParent;
+            if (origParent && d.parentElement === document.body) {
+                origParent.appendChild(d);
+            }
+        });
     }
 
     function toggleDropdown(event, dropdownId) {
@@ -485,9 +492,18 @@
         closeAllDropdowns();
 
         if (wasHidden) {
+            // Store original parent so we can move it back later
+            if (!dropdown._originalParent) {
+                dropdown._originalParent = dropdown.parentElement;
+            }
+            // Portal to body to escape overflow-hidden ancestors
+            document.body.appendChild(dropdown);
+
             const rect = button.getBoundingClientRect();
             const dropdownWidth = 208; // w-52 = 13rem = 208px
-            const dropdownHeight = dropdown.scrollHeight || 160;
+
+            dropdown.classList.remove('hidden');
+            const dropdownHeight = dropdown.offsetHeight || 160;
 
             let top = rect.bottom + 4;
             let left = rect.right - dropdownWidth;
@@ -503,7 +519,7 @@
 
             dropdown.style.top = top + 'px';
             dropdown.style.left = left + 'px';
-            dropdown.classList.remove('hidden');
+            lucide.createIcons();
         }
     }
 
@@ -824,28 +840,18 @@
                     };
                     const s = statusMap[doc.status] || statusMap.pending;
 
-                    return ` <
-            div class = "relative" >
-            <
-            div class = "absolute -left-[calc(0.75rem+1.5px)] top-1 w-5 h-5 rounded-full bg-${s.color}-100 border-2 border-${s.color}-400 flex items-center justify-center" >
-            <
-            i data - lucide = "${s.icon}"
-        class = "w-2.5 h-2.5 text-${s.color}-600" > < /i> <
-        /div> <
-        div class = "ml-4" >
-        <
-        p class = "text-sm font-semibold text-gray-900" > $ {
-            s.label
-        } < /p> <
-        p class = "text-xs text-gray-600 capitalize" > $ {
-            doc.auth_type.replace(/_/g, ' ')
-        } < /p> <
-        p class = "text-[11px] text-gray-400 mt-0.5" > $ {
-            doc.date_created
-        } < /p> <
-        /div> <
-        /div>
-        `;
+                    return `
+                        <div class="relative">
+                            <div class="absolute -left-[calc(0.75rem+1.5px)] top-1 w-5 h-5 rounded-full bg-${s.color}-100 border-2 border-${s.color}-400 flex items-center justify-center">
+                                <i data-lucide="${s.icon}" class="w-2.5 h-2.5 text-${s.color}-600"></i>
+                            </div>
+                            <div class="ml-4">
+                                <p class="text-sm font-semibold text-gray-900">${s.label}</p>
+                                <p class="text-xs text-gray-600 capitalize">${doc.auth_type.replace(/_/g, ' ')}</p>
+                                <p class="text-[11px] text-gray-400 mt-0.5">${doc.date_created}</p>
+                            </div>
+                        </div>
+                    `;
                 }).join('')}
             </div>
         `;
@@ -874,11 +880,7 @@
                         progressColor = 'bg-gray-300';
                     } else if (daysRemaining < 0) {
                         statusBadge = 'bg-red-50 border-red-200 text-red-700';
-                        statusText = `
-        Expired $ {
-            Math.abs(daysRemaining)
-        }
-        d ago`;
+                        statusText = 'Expired ' + Math.abs(daysRemaining) + 'd ago';
                         statusIcon = 'alert-triangle';
                         progressColor = 'bg-red-500';
                     } else if (daysRemaining === 0) {
@@ -888,57 +890,36 @@
                         progressColor = 'bg-red-500';
                     } else if (daysRemaining <= 30) {
                         statusBadge = 'bg-orange-50 border-orange-200 text-orange-700';
-                        statusText = `
-        $ {
-            daysRemaining
-        }
-        d remaining`;
+                        statusText = daysRemaining + 'd remaining';
                         statusIcon = 'clock';
                         progressColor = 'bg-orange-500';
                     } else {
                         statusBadge = 'bg-green-50 border-green-200 text-green-700';
-                        statusText = `
-        $ {
-            daysRemaining
-        }
-        d remaining`;
+                        statusText = daysRemaining + 'd remaining';
                         statusIcon = 'shield-check';
                         progressColor = 'bg-green-500';
                     }
                     
-                    return ` <
-        div class = "rounded-xl border ${statusBadge} p-4" >
-        <
-        div class = "flex items-start justify-between mb-2" >
-        <
-        div >
-            <
-            p class = "text-sm font-semibold capitalize text-gray-900" > $ {
-                doc.auth_type.replace(/_/g, ' ')
-            } < /p>
-        $ {
-            doc.document_name ? `<p class="text-xs text-gray-500 mt-0.5">${doc.document_name}</p>` : ''
-        } <
-        /div> <
-        i data - lucide = "${statusIcon}"
-        class = "w-5 h-5 flex-shrink-0" > < /i> <
-        /div>
-        $ {
-            expiryDate ? `<p class="text-xs text-gray-500 mb-2">Expires: ${expiryDate}</p>` : ''
-        } <
-        div class = "flex items-center gap-2" >
-        <
-        div class = "h-1.5 flex-1 bg-gray-200 rounded-full overflow-hidden" >
-        <
-        div class = "h-full ${progressColor} rounded-full"
-        style = "width: ${doc.days_remaining === null ? 100 : Math.max(0, Math.min(100, (daysRemaining / 365) * 100))}%" > < /div> <
-            /div> <
-            span class = "text-xs font-semibold whitespace-nowrap" > $ {
-                statusText
-            } < /span> <
-            /div> <
-            /div>
-        `;
+                    const progressWidth = doc.days_remaining === null ? 100 : Math.max(0, Math.min(100, (daysRemaining / 365) * 100));
+
+                    return `
+                        <div class="rounded-xl border ${statusBadge} p-4">
+                            <div class="flex items-start justify-between mb-2">
+                                <div>
+                                    <p class="text-sm font-semibold capitalize text-gray-900">${doc.auth_type.replace(/_/g, ' ')}</p>
+                                    ${doc.document_name ? '<p class="text-xs text-gray-500 mt-0.5">' + doc.document_name + '</p>' : ''}
+                                </div>
+                                <i data-lucide="${statusIcon}" class="w-5 h-5 flex-shrink-0"></i>
+                            </div>
+                            ${expiryDate ? '<p class="text-xs text-gray-500 mb-2">Expires: ' + expiryDate + '</p>' : ''}
+                            <div class="flex items-center gap-2">
+                                <div class="h-1.5 flex-1 bg-gray-200 rounded-full overflow-hidden">
+                                    <div class="h-full ${progressColor} rounded-full" style="width: ${progressWidth}%"></div>
+                                </div>
+                                <span class="text-xs font-semibold whitespace-nowrap">${statusText}</span>
+                            </div>
+                        </div>
+                    `;
                 }).join('')}
             </div>
         `;

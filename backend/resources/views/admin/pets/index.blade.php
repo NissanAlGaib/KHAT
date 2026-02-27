@@ -232,7 +232,13 @@
 @push('scripts')
 <script>
     function closeAllDropdowns() {
-        document.querySelectorAll('[id^="dropdown-"]').forEach(d => d.classList.add('hidden'));
+        document.querySelectorAll('[id^="dropdown-"]').forEach(d => {
+            d.classList.add('hidden');
+            const origParent = d._originalParent;
+            if (origParent && d.parentElement === document.body) {
+                origParent.appendChild(d);
+            }
+        });
     }
 
     function toggleDropdown(event, dropdownId) {
@@ -244,9 +250,16 @@
         closeAllDropdowns();
 
         if (wasHidden) {
+            if (!dropdown._originalParent) {
+                dropdown._originalParent = dropdown.parentElement;
+            }
+            document.body.appendChild(dropdown);
+
             const rect = button.getBoundingClientRect();
             const dropdownWidth = 192; // w-48 = 12rem = 192px
-            const dropdownHeight = dropdown.scrollHeight || 160;
+
+            dropdown.classList.remove('hidden');
+            const dropdownHeight = dropdown.offsetHeight || 160;
 
             let top = rect.bottom + 4;
             let left = rect.right - dropdownWidth;
@@ -260,7 +273,7 @@
 
             dropdown.style.top = top + 'px';
             dropdown.style.left = left + 'px';
-            dropdown.classList.remove('hidden');
+            lucide.createIcons();
         }
     }
 
