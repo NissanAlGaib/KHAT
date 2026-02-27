@@ -6,137 +6,38 @@
 <h1 class="text-3xl font-bold text-gray-900 mb-2">Pet Management</h1>
 <p class="text-sm text-gray-500 mb-6">View and manage all registered pets, their verification and activity status</p>
 
-<!-- Search and Filters Section -->
-<div class="bg-white p-6 rounded-xl shadow-sm border border-gray-100 mb-6">
-    <form action="{{ route('admin.pets.index') }}" method="GET">
-        <h3 class="text-sm font-semibold text-gray-700 mb-4 flex items-center gap-2"><i data-lucide="filter" class="w-4 h-4 text-[#E75234]"></i>Search & Filters</h3>
-        <!-- Search by Name or ID -->
-        <div class="mb-6">
-            <label class="block text-sm font-semibold text-gray-700 mb-2">Search by Name or ID</label>
-            <div class="relative">
-                <input
-                    type="text"
-                    name="search"
-                    value="{{ request('search') }}"
-                    placeholder="Enter Pet Name, Owner Name, or Microchip ID"
-                    class="w-full bg-white border border-gray-300 text-gray-700 py-2.5 px-4 pl-10 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#E75234] focus:border-transparent">
-                <div class="pointer-events-none absolute inset-y-0 left-0 flex items-center px-3 text-gray-400">
-                    <i data-lucide="search" class="w-4 h-4"></i>
-                </div>
-            </div>
-        </div>
-
-        <!-- Filter Row -->
-        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4 mb-6">
-            <!-- Pet Type/Species -->
-            <div class="space-y-1.5">
-                <label class="text-xs font-semibold text-gray-700">Pet Type/Species</label>
-                <div class="relative">
-                    <select name="pet_type" class="w-full appearance-none bg-white border border-gray-300 text-gray-700 py-2.5 px-4 pr-8 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#E75234] focus:border-transparent">
-                        <option value="">All Types</option>
-                        <option value="dog" {{ request('pet_type') == 'dog' ? 'selected' : '' }}>Dog</option>
-                        <option value="cat" {{ request('pet_type') == 'cat' ? 'selected' : '' }}>Cat</option>
-                    </select>
-                    <div class="pointer-events-none absolute inset-y-0 right-0 flex items-center px-2 text-gray-500">
-                        <i data-lucide="chevron-down" class="w-4 h-4"></i>
-                    </div>
-                </div>
-            </div>
-
-            <!-- Breed -->
-            <div class="space-y-1.5">
-                <label class="text-xs font-semibold text-gray-700">Breed</label>
-                <div class="relative">
-                    <select name="breed" class="w-full appearance-none bg-white border border-gray-300 text-gray-700 py-2.5 px-4 pr-8 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#E75234] focus:border-transparent">
-                        <option value="">All Breeds</option>
-                        <option value="Beagle" {{ request('breed') == 'Beagle' ? 'selected' : '' }}>Beagle</option>
-                        <option value="Retriever" {{ request('breed') == 'Retriever' ? 'selected' : '' }}>Retriever</option>
-                        <option value="Labrador Retriever" {{ request('breed') == 'Labrador Retriever' ? 'selected' : '' }}>Labrador Retriever</option>
-                        <option value="Shih Tzu" {{ request('breed') == 'Shih Tzu' ? 'selected' : '' }}>Shih Tzu</option>
-                        <option value="Bengal Cat" {{ request('breed') == 'Bengal Cat' ? 'selected' : '' }}>Bengal Cat</option>
-                        <option value="Persian" {{ request('breed') == 'Persian' ? 'selected' : '' }}>Persian</option>
-                        <option value="Sphynx" {{ request('breed') == 'Sphynx' ? 'selected' : '' }}>Sphynx</option>
-                        <option value="Belgian Malinois" {{ request('breed') == 'Belgian Malinois' ? 'selected' : '' }}>Belgian Malinois</option>
-                    </select>
-                    <div class="pointer-events-none absolute inset-y-0 right-0 flex items-center px-2 text-gray-500">
-                        <i data-lucide="chevron-down" class="w-4 h-4"></i>
-                    </div>
-                </div>
-            </div>
-
-            <!-- Sex -->
-            <div class="space-y-1.5">
-                <label class="text-xs font-semibold text-gray-700">Sex</label>
-                <div class="relative">
-                    <select name="sex" class="w-full appearance-none bg-white border border-gray-300 text-gray-700 py-2.5 px-4 pr-8 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#E75234] focus:border-transparent">
-                        <option value="">All</option>
-                        <option value="male" {{ request('sex') == 'male' ? 'selected' : '' }}>Male</option>
-                        <option value="female" {{ request('sex') == 'female' ? 'selected' : '' }}>Female</option>
-                    </select>
-                    <div class="pointer-events-none absolute inset-y-0 right-0 flex items-center px-2 text-gray-500">
-                        <i data-lucide="chevron-down" class="w-4 h-4"></i>
-                    </div>
-                </div>
-            </div>
-
-            <!-- Owner Verification -->
-            <div class="space-y-1.5">
-                <label class="text-xs font-semibold text-gray-700">Owner Verification</label>
-                <div class="relative">
-                    <select name="verification_status" class="w-full appearance-none bg-white border border-gray-300 text-gray-700 py-2.5 px-4 pr-8 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#E75234] focus:border-transparent">
-                        <option value="">All Statuses</option>
-                        <option value="approved" {{ request('verification_status') == 'approved' ? 'selected' : '' }}>Verified</option>
-                        <option value="pending" {{ request('verification_status') == 'pending' ? 'selected' : '' }}>Pending</option>
-                        <option value="rejected" {{ request('verification_status') == 'rejected' ? 'selected' : '' }}>Rejected</option>
-                    </select>
-                    <div class="pointer-events-none absolute inset-y-0 right-0 flex items-center px-2 text-gray-500">
-                        <i data-lucide="chevron-down" class="w-4 h-4"></i>
-                    </div>
-                </div>
-            </div>
-
-            <!-- Activity Status -->
-            <div class="space-y-1.5">
-                <label class="text-xs font-semibold text-gray-700">Status</label>
-                <div class="relative">
-                    <select name="activity_status" class="w-full appearance-none bg-white border border-gray-300 text-gray-700 py-2.5 px-4 pr-8 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#E75234] focus:border-transparent">
-                        <option value="">All Statuses</option>
-                        <option value="active" {{ request('activity_status') == 'active' ? 'selected' : '' }}>Active</option>
-                        <option value="disabled" {{ request('activity_status') == 'disabled' ? 'selected' : '' }}>Disabled</option>
-                        <option value="cooldown" {{ request('activity_status') == 'cooldown' ? 'selected' : '' }}>Cooldown</option>
-                        <option value="banned" {{ request('activity_status') == 'banned' ? 'selected' : '' }}>Banned</option>
-                    </select>
-                    <div class="pointer-events-none absolute inset-y-0 right-0 flex items-center px-2 text-gray-500">
-                        <i data-lucide="chevron-down" class="w-4 h-4"></i>
-                    </div>
-                </div>
-            </div>
-        </div>
-
-        <!-- Action Buttons -->
-        <div class="flex gap-3">
-            <button type="submit" class="px-6 py-2.5 bg-[#E75234] text-white text-sm font-medium rounded-lg shadow-md hover:bg-[#d14024] transition">
-                Apply Filters
-            </button>
-            <a href="{{ route('admin.pets.index') }}" class="px-6 py-2.5 bg-white text-gray-700 text-sm font-medium rounded-lg border border-gray-300 hover:bg-gray-50 transition">
-                Reset Filters
-            </a>
-
-            <div class="border-l border-gray-300 mx-1"></div>
-
-            <a href="{{ request()->fullUrlWithQuery(['export' => 'csv']) }}" class="flex items-center gap-2 px-4 py-2.5 bg-green-600 text-white text-sm font-semibold rounded-lg hover:bg-green-700 transition-all shadow-sm" title="Export to CSV">
-                <i data-lucide="file-spreadsheet" class="w-4 h-4"></i>
-                <span class="hidden sm:inline">CSV</span>
-            </a>
-            <a href="{{ request()->fullUrlWithQuery(['export' => 'pdf']) }}" class="flex items-center gap-2 px-4 py-2.5 bg-red-600 text-white text-sm font-semibold rounded-lg hover:bg-red-700 transition-all shadow-sm" title="Export to PDF">
-                <i data-lucide="file-text" class="w-4 h-4"></i>
-                <span class="hidden sm:inline">PDF</span>
-            </a>
-        </div>
-    </form>
-</div>
-
-@include('admin.partials.date-filter')
+@include('admin.partials.filter-bar', [
+'action' => route('admin.pets.index'),
+'searchPlaceholder' => 'Search by pet name, owner name, or microchip ID...',
+'filters' => [
+['name' => 'pet_type', 'label' => 'Species', 'id' => 'petSpeciesFilter', 'onchange' => 'PawFilter.loadBreeds(this.value)', 'options' => [
+['value' => 'dog', 'label' => 'Dog'],
+['value' => 'cat', 'label' => 'Cat'],
+]],
+['name' => 'breed', 'label' => 'Breed', 'type' => 'text', 'placeholder' => 'Type breed name...', 'id' => 'petBreedFilter'],
+['name' => 'sex', 'label' => 'Sex', 'options' => [
+['value' => 'male', 'label' => 'Male'],
+['value' => 'female', 'label' => 'Female'],
+]],
+['name' => 'verification_status', 'label' => 'Owner Verification', 'options' => [
+['value' => 'approved', 'label' => 'Verified'],
+['value' => 'pending', 'label' => 'Pending'],
+['value' => 'rejected', 'label' => 'Rejected'],
+]],
+['name' => 'activity_status', 'label' => 'Activity Status', 'options' => [
+['value' => 'active', 'label' => 'Active'],
+['value' => 'disabled', 'label' => 'Disabled'],
+['value' => 'cooldown', 'label' => 'Cooldown'],
+['value' => 'banned', 'label' => 'Banned'],
+]],
+],
+'dateFilter' => true,
+'datePresets' => true,
+'exports' => true,
+'perPage' => true,
+'defaultPerPage' => 10,
+'totalResults' => $pets->total(),
+])
 
 <!-- Suspend Pet Modal -->
 <div id="suspendModal" class="hidden fixed inset-0 z-[60] overflow-y-auto bg-gray-900/60 backdrop-blur-sm">
@@ -151,7 +52,7 @@
                     <p class="text-sm text-gray-500" id="suspendPetName">Pet Name</p>
                 </div>
             </div>
-            
+
             <form id="suspendForm" method="POST">
                 @csrf
                 <input type="hidden" name="status" value="disabled">
@@ -238,15 +139,15 @@
                             $userAuthRecord = $pet->owner->userAuth->first();
                             $verificationStatus = $userAuthRecord->status ?? 'unknown';
                             @endphp
-                            
+
                             @if($verificationStatus === 'approved')
-                                <span class="inline-flex items-center gap-1 text-xs text-green-600 mt-0.5">
-                                    <i data-lucide="badge-check" class="w-3 h-3"></i> Verified Owner
-                                </span>
+                            <span class="inline-flex items-center gap-1 text-xs text-green-600 mt-0.5">
+                                <i data-lucide="badge-check" class="w-3 h-3"></i> Verified Owner
+                            </span>
                             @elseif($verificationStatus === 'pending')
-                                <span class="inline-flex items-center gap-1 text-xs text-yellow-600 mt-0.5">
-                                    <i data-lucide="clock" class="w-3 h-3"></i> Verification Pending
-                                </span>
+                            <span class="inline-flex items-center gap-1 text-xs text-yellow-600 mt-0.5">
+                                <i data-lucide="clock" class="w-3 h-3"></i> Verification Pending
+                            </span>
                             @endif
                         </div>
                     </td>
@@ -255,12 +156,12 @@
                             <span class="text-sm font-medium text-gray-900">{{ $pet->created_at->format('M d, Y') }}</span>
                             <span class="text-xs text-gray-500">{{ $pet->created_at->format('h:i A') }}</span>
                             @if($pet->updated_at && $pet->created_at && $pet->updated_at->gt($pet->created_at))
-                                <span class="text-[10px] text-gray-400 mt-1 italic" title="Updated {{ $pet->updated_at->format('M d, Y h:i A') }}">
-                                    Updated {{ $pet->updated_at->diffForHumans() }}
-                                    @if($pet->updater)
-                                        by {{ $pet->updater->name }}
-                                    @endif
-                                </span>
+                            <span class="text-[10px] text-gray-400 mt-1 italic" title="Updated {{ $pet->updated_at->format('M d, Y h:i A') }}">
+                                Updated {{ $pet->updated_at->diffForHumans() }}
+                                @if($pet->updater)
+                                by {{ $pet->updater->name }}
+                                @endif
+                            </span>
                             @endif
                         </div>
                     </td>
@@ -367,10 +268,10 @@
         const modal = document.getElementById('suspendModal');
         const nameEl = document.getElementById('suspendPetName');
         const form = document.getElementById('suspendForm');
-        
+
         nameEl.textContent = petName;
         form.action = `/admin/pets/${petId}/status`;
-        
+
         modal.classList.remove('hidden');
     }
 
@@ -404,6 +305,11 @@
 
     document.addEventListener('DOMContentLoaded', function() {
         lucide.createIcons();
+        // Load breeds if species is pre-selected
+        const speciesFilter = document.getElementById('petSpeciesFilter');
+        if (speciesFilter && speciesFilter.value) {
+            PawFilter.loadBreeds(speciesFilter.value);
+        }
     });
 </script>
 @endpush

@@ -16,29 +16,17 @@
     </a>
 </div>
 
-<!-- Search -->
-<div class="bg-white p-6 rounded-xl shadow-sm border border-gray-100 mb-6">
-    <form action="{{ route('admin.blocks') }}" method="GET" class="flex gap-4">
-        <div class="relative flex-1">
-            <input type="text" name="search" value="{{ request('search') }}" placeholder="Search by user name..." class="w-full bg-white border border-gray-300 text-gray-700 py-2.5 px-4 pl-10 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#E75234]">
-            <div class="pointer-events-none absolute inset-y-0 left-0 flex items-center px-3 text-gray-400">
-                <i data-lucide="search" class="w-4 h-4"></i>
-            </div>
-        </div>
-        <button type="submit" class="px-6 py-2.5 bg-[#E75234] text-white rounded-lg text-sm font-semibold hover:bg-[#d14024]">
-            Search
-        </button>
-
-        <div class="border-l border-gray-300 mx-1"></div>
-
-        <a href="{{ request()->fullUrlWithQuery(['export' => 'csv']) }}" class="flex items-center gap-2 px-4 py-2.5 bg-green-600 text-white text-sm font-semibold rounded-lg hover:bg-green-700 transition-all shadow-sm" title="Export to CSV">
-            <i data-lucide="file-spreadsheet" class="w-4 h-4"></i>
-        </a>
-        <a href="{{ request()->fullUrlWithQuery(['export' => 'pdf']) }}" class="flex items-center gap-2 px-4 py-2.5 bg-red-600 text-white text-sm font-semibold rounded-lg hover:bg-red-700 transition-all shadow-sm" title="Export to PDF">
-            <i data-lucide="file-text" class="w-4 h-4"></i>
-        </a>
-    </form>
-</div>
+@include('admin.partials.filter-bar', [
+'action' => route('admin.blocks'),
+'searchPlaceholder' => 'Search by user name...',
+'filters' => [],
+'dateFilter' => true,
+'datePresets' => true,
+'exports' => true,
+'perPage' => true,
+'defaultPerPage' => 15,
+'totalResults' => $blocks->total(),
+])
 
 <!-- Most Blocked Users -->
 @if($mostBlocked->count() > 0)
@@ -100,12 +88,12 @@
                             <span class="text-sm font-medium text-gray-900">{{ $block->created_at->format('M d, Y') }}</span>
                             <span class="text-xs text-gray-500">{{ $block->created_at->format('h:i A') }}</span>
                             @if($block->updated_at && $block->created_at && $block->updated_at->gt($block->created_at))
-                                <span class="text-[10px] text-gray-400 mt-1 italic" title="Updated {{ $block->updated_at->format('M d, Y h:i A') }}">
-                                    Updated {{ $block->updated_at->diffForHumans() }}
-                                    @if($block->updater)
-                                        by {{ $block->updater->name }}
-                                    @endif
-                                </span>
+                            <span class="text-[10px] text-gray-400 mt-1 italic" title="Updated {{ $block->updated_at->format('M d, Y h:i A') }}">
+                                Updated {{ $block->updated_at->diffForHumans() }}
+                                @if($block->updater)
+                                by {{ $block->updater->name }}
+                                @endif
+                            </span>
                             @endif
                         </div>
                     </td>
@@ -119,7 +107,7 @@
             </tbody>
         </table>
     </div>
-    
+
     <!-- Pagination -->
     <div class="px-6 py-4 border-t border-gray-100">
         {{ $blocks->links() }}
@@ -146,36 +134,36 @@
         }).then((result) => {
             if (result.isConfirmed) {
                 fetch(`/admin/blocks/${id}`, {
-                    method: 'DELETE',
-                    headers: {
-                        'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content,
-                        'Accept': 'application/json'
-                    }
-                })
-                .then(response => response.json())
-                .then(data => {
-                    if(data.success) {
-                        Swal.fire(
-                            'Removed!',
-                            'The block has been removed.',
-                            'success'
-                        ).then(() => window.location.reload());
-                    } else {
+                        method: 'DELETE',
+                        headers: {
+                            'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content,
+                            'Accept': 'application/json'
+                        }
+                    })
+                    .then(response => response.json())
+                    .then(data => {
+                        if (data.success) {
+                            Swal.fire(
+                                'Removed!',
+                                'The block has been removed.',
+                                'success'
+                            ).then(() => window.location.reload());
+                        } else {
+                            Swal.fire(
+                                'Error!',
+                                'Failed to remove block.',
+                                'error'
+                            );
+                        }
+                    })
+                    .catch(err => {
+                        console.error(err);
                         Swal.fire(
                             'Error!',
-                            'Failed to remove block.',
+                            'An unexpected error occurred.',
                             'error'
                         );
-                    }
-                })
-                .catch(err => {
-                    console.error(err);
-                    Swal.fire(
-                        'Error!',
-                        'An unexpected error occurred.',
-                        'error'
-                    );
-                });
+                    });
             }
         })
     }

@@ -71,78 +71,30 @@
     </div>
 </div>
 
-<!-- Filter Section -->
-<div class="bg-white rounded-xl shadow-sm border border-gray-100 p-6 mb-6">
-    <form action="{{ route('admin.vaccine-protocols.index') }}" method="GET">
-        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-4">
-            <!-- Species Filter -->
-            <div>
-                <label class="block text-sm font-semibold text-gray-700 mb-2">Species</label>
-                <div class="relative">
-                    <select name="species" class="w-full appearance-none bg-white border border-gray-300 text-gray-700 py-2.5 px-4 pr-10 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#E75234] focus:border-transparent transition">
-                        <option value="">All Species</option>
-                        <option value="dog" {{ request('species') == 'dog' ? 'selected' : '' }}>Dog</option>
-                        <option value="cat" {{ request('species') == 'cat' ? 'selected' : '' }}>Cat</option>
-                    </select>
-                    <div class="pointer-events-none absolute inset-y-0 right-0 flex items-center px-3 text-gray-500">
-                        <i data-lucide="chevron-down" class="w-4 h-4"></i>
-                    </div>
-                </div>
-            </div>
-
-            <!-- Status Filter -->
-            <div>
-                <label class="block text-sm font-semibold text-gray-700 mb-2">Status</label>
-                <div class="relative">
-                    <select name="status" class="w-full appearance-none bg-white border border-gray-300 text-gray-700 py-2.5 px-4 pr-10 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#E75234] focus:border-transparent transition">
-                        <option value="">All Statuses</option>
-                        <option value="required" {{ request('status') == 'required' ? 'selected' : '' }}>Required</option>
-                        <option value="optional" {{ request('status') == 'optional' ? 'selected' : '' }}>Optional</option>
-                    </select>
-                    <div class="pointer-events-none absolute inset-y-0 right-0 flex items-center px-3 text-gray-500">
-                        <i data-lucide="chevron-down" class="w-4 h-4"></i>
-                    </div>
-                </div>
-            </div>
-
-            <!-- Active Filter -->
-            <div>
-                <label class="block text-sm font-semibold text-gray-700 mb-2">Active</label>
-                <div class="relative">
-                    <select name="active" class="w-full appearance-none bg-white border border-gray-300 text-gray-700 py-2.5 px-4 pr-10 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#E75234] focus:border-transparent transition">
-                        <option value="">All</option>
-                        <option value="1" {{ request('active') === '1' ? 'selected' : '' }}>Active</option>
-                        <option value="0" {{ request('active') === '0' ? 'selected' : '' }}>Inactive</option>
-                    </select>
-                    <div class="pointer-events-none absolute inset-y-0 right-0 flex items-center px-3 text-gray-500">
-                        <i data-lucide="chevron-down" class="w-4 h-4"></i>
-                    </div>
-                </div>
-            </div>
-
-            <!-- Search -->
-            <div>
-                <label class="block text-sm font-semibold text-gray-700 mb-2">Search</label>
-                <div class="relative">
-                    <input type="text" name="search" value="{{ request('search') }}" placeholder="Search protocols..." class="w-full bg-white border border-gray-300 text-gray-700 py-2.5 px-4 pl-10 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#E75234] focus:border-transparent transition">
-                    <div class="pointer-events-none absolute inset-y-0 left-0 flex items-center px-3 text-gray-400">
-                        <i data-lucide="search" class="w-4 h-4"></i>
-                    </div>
-                </div>
-            </div>
-        </div>
-
-        <!-- Action Buttons -->
-        <div class="flex gap-3">
-            <button type="submit" class="px-6 py-2.5 bg-[#E75234] text-white text-sm font-semibold rounded-lg shadow-sm hover:bg-[#d14024] transition-all hover:shadow-md">
-                Apply Filters
-            </button>
-            <a href="{{ route('admin.vaccine-protocols.index') }}" class="px-6 py-2.5 bg-white text-gray-700 text-sm font-semibold rounded-lg border border-gray-300 hover:bg-gray-50 transition-all shadow-sm">
-                Reset Filters
-            </a>
-        </div>
-    </form>
-</div>
+@include('admin.partials.filter-bar', [
+'action' => route('admin.vaccine-protocols.index'),
+'searchPlaceholder' => 'Search protocols by name...',
+'filters' => [
+['name' => 'species', 'label' => 'Species', 'options' => [
+['value' => 'dog', 'label' => 'Dog'],
+['value' => 'cat', 'label' => 'Cat'],
+]],
+['name' => 'status', 'label' => 'Requirement', 'options' => [
+['value' => 'required', 'label' => 'Required'],
+['value' => 'optional', 'label' => 'Optional'],
+]],
+['name' => 'active', 'label' => 'Active Status', 'options' => [
+['value' => '1', 'label' => 'Active'],
+['value' => '0', 'label' => 'Inactive'],
+]],
+['name' => 'category', 'label' => 'Category', 'options' => collect($categories ?? [])->map(fn($c) => ['value' => $c->id, 'label' => $c->name])->toArray()],
+],
+'dateFilter' => false,
+'exports' => false,
+'perPage' => true,
+'defaultPerPage' => 15,
+'totalResults' => $protocols->total(),
+])
 
 <!-- Results Count -->
 <p class="text-sm text-gray-600 mb-4 font-medium">
@@ -170,51 +122,51 @@
             <tbody class="divide-y divide-gray-100 text-sm">
                 @forelse($protocols as $protocol)
                 @php
-                    $protocolType = 'recurring';
-                    if ($protocol->series_doses > 0 && $protocol->booster_interval_days > 0) {
-                        $protocolType = 'series_with_booster';
-                    } elseif ($protocol->series_doses > 0) {
-                        $protocolType = 'series_only';
-                    }
+                $protocolType = 'recurring';
+                if ($protocol->series_doses > 0 && $protocol->booster_interval_days > 0) {
+                $protocolType = 'series_with_booster';
+                } elseif ($protocol->series_doses > 0) {
+                $protocolType = 'series_only';
+                }
                 @endphp
                 <tr class="hover:bg-orange-50/50 transition-colors">
                     <td class="px-6 py-4 font-medium text-gray-900">{{ $protocol->name }}</td>
                     <td class="px-6 py-4">
                         @if($protocol->category)
-                            <span class="inline-block rounded-full px-2.5 py-0.5 text-xs font-medium bg-blue-100 text-blue-800">{{ $protocol->category->name }}</span>
+                        <span class="inline-block rounded-full px-2.5 py-0.5 text-xs font-medium bg-blue-100 text-blue-800">{{ $protocol->category->name }}</span>
                         @else
-                            <span class="text-gray-400 text-xs italic">None</span>
+                        <span class="text-gray-400 text-xs italic">None</span>
                         @endif
                     </td>
                     <td class="px-6 py-4">
                         @if($protocol->species === 'dog')
-                            <span class="inline-block rounded-full px-2.5 py-0.5 text-xs font-medium bg-amber-100 text-amber-800">Dog</span>
+                        <span class="inline-block rounded-full px-2.5 py-0.5 text-xs font-medium bg-amber-100 text-amber-800">Dog</span>
                         @elseif($protocol->species === 'cat')
-                            <span class="inline-block rounded-full px-2.5 py-0.5 text-xs font-medium bg-purple-100 text-purple-800">Cat</span>
+                        <span class="inline-block rounded-full px-2.5 py-0.5 text-xs font-medium bg-purple-100 text-purple-800">Cat</span>
                         @else
-                            <span class="inline-block rounded-full px-2.5 py-0.5 text-xs font-medium bg-gray-100 text-gray-800">All</span>
+                        <span class="inline-block rounded-full px-2.5 py-0.5 text-xs font-medium bg-gray-100 text-gray-800">All</span>
                         @endif
                     </td>
                     <td class="px-6 py-4">
                         @if($protocol->series_doses > 0 && $protocol->booster_interval_days > 0)
-                            <span class="text-gray-700">Series + Booster</span>
+                        <span class="text-gray-700">Series + Booster</span>
                         @elseif($protocol->series_doses > 0)
-                            <span class="text-gray-700">Fixed Series</span>
+                        <span class="text-gray-700">Fixed Series</span>
                         @else
-                            <span class="text-gray-700">Recurring</span>
+                        <span class="text-gray-700">Recurring</span>
                         @endif
                     </td>
                     <td class="px-6 py-4">
                         @if($protocol->is_required)
-                            <span class="inline-block rounded-full px-2.5 py-0.5 text-xs font-medium bg-red-100 text-red-800">Yes</span>
+                        <span class="inline-block rounded-full px-2.5 py-0.5 text-xs font-medium bg-red-100 text-red-800">Yes</span>
                         @else
-                            <span class="inline-block rounded-full px-2.5 py-0.5 text-xs font-medium bg-blue-100 text-blue-800">No</span>
+                        <span class="inline-block rounded-full px-2.5 py-0.5 text-xs font-medium bg-blue-100 text-blue-800">No</span>
                         @endif
                     </td>
                     <td class="px-6 py-4 text-gray-700">
                         {{ $protocol->series_doses > 0 ? $protocol->series_doses . ' doses' : '—' }}
                         @if($protocol->series_interval_days > 0)
-                            <span class="text-gray-400 text-xs">(every {{ $protocol->series_interval_days }}d)</span>
+                        <span class="text-gray-400 text-xs">(every {{ $protocol->series_interval_days }}d)</span>
                         @endif
                     </td>
                     <td class="px-6 py-4 text-gray-700">
@@ -222,9 +174,9 @@
                     </td>
                     <td class="px-6 py-4 text-center">
                         @if($protocol->is_active)
-                            <span class="inline-block rounded-full px-2.5 py-0.5 text-xs font-medium bg-green-100 text-green-800">Active</span>
+                        <span class="inline-block rounded-full px-2.5 py-0.5 text-xs font-medium bg-green-100 text-green-800">Active</span>
                         @else
-                            <span class="inline-block rounded-full px-2.5 py-0.5 text-xs font-medium bg-gray-100 text-gray-800">Inactive</span>
+                        <span class="inline-block rounded-full px-2.5 py-0.5 text-xs font-medium bg-gray-100 text-gray-800">Inactive</span>
                         @endif
                     </td>
                     <td class="px-6 py-4" title="{{ $protocol->created_at->format('M d, Y h:i A') }} ({{ $protocol->created_at->diffForHumans() }})">
@@ -232,12 +184,12 @@
                             <span class="text-sm font-medium text-gray-900">{{ $protocol->created_at->format('M d, Y') }}</span>
                             <span class="text-xs text-gray-500">{{ $protocol->created_at->format('h:i A') }}</span>
                             @if($protocol->updated_at && $protocol->created_at && $protocol->updated_at->gt($protocol->created_at))
-                                <span class="text-[10px] text-gray-400 mt-1 italic" title="Updated {{ $protocol->updated_at->format('M d, Y h:i A') }}">
-                                    Updated {{ $protocol->updated_at->diffForHumans() }}
-                                    @if($protocol->updater)
-                                        by {{ $protocol->updater->name }}
-                                    @endif
-                                </span>
+                            <span class="text-[10px] text-gray-400 mt-1 italic" title="Updated {{ $protocol->updated_at->format('M d, Y h:i A') }}">
+                                Updated {{ $protocol->updated_at->diffForHumans() }}
+                                @if($protocol->updater)
+                                by {{ $protocol->updater->name }}
+                                @endif
+                            </span>
                             @endif
                         </div>
                     </td>
@@ -263,15 +215,15 @@
                                 @csrf
                                 @method('PATCH')
                                 @if($protocol->is_active)
-                                    <button type="submit" class="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-red-700 bg-red-50 border border-red-200 rounded-lg hover:bg-red-100 transition-colors">
-                                        <i data-lucide="x-circle" class="w-3.5 h-3.5"></i>
-                                        Deactivate
-                                    </button>
+                                <button type="submit" class="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-red-700 bg-red-50 border border-red-200 rounded-lg hover:bg-red-100 transition-colors">
+                                    <i data-lucide="x-circle" class="w-3.5 h-3.5"></i>
+                                    Deactivate
+                                </button>
                                 @else
-                                    <button type="submit" class="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-green-700 bg-green-50 border border-green-200 rounded-lg hover:bg-green-100 transition-colors">
-                                        <i data-lucide="check-circle" class="w-3.5 h-3.5"></i>
-                                        Activate
-                                    </button>
+                                <button type="submit" class="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-green-700 bg-green-50 border border-green-200 rounded-lg hover:bg-green-100 transition-colors">
+                                    <i data-lucide="check-circle" class="w-3.5 h-3.5"></i>
+                                    Activate
+                                </button>
                                 @endif
                             </form>
                         </div>
@@ -339,7 +291,7 @@
                             <select name="protocol_category_id" id="create_category" class="w-full appearance-none bg-white border border-gray-300 text-gray-700 py-2.5 px-4 pr-10 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#E75234] focus:border-transparent transition">
                                 <option value="">Select category (optional)</option>
                                 @foreach($categories as $category)
-                                    <option value="{{ $category->id }}">{{ $category->name }}</option>
+                                <option value="{{ $category->id }}">{{ $category->name }}</option>
                                 @endforeach
                             </select>
                             <div class="pointer-events-none absolute inset-y-0 right-0 flex items-center px-3 text-gray-500">
@@ -484,7 +436,7 @@
                 <form id="editProtocolForm" onsubmit="event.preventDefault();">
                     @method('PUT')
                     <input type="hidden" name="id" id="edit_protocol_id">
-                    
+
                     <!-- Validation Errors Container -->
                     <div id="editFormErrors" class="hidden mb-4 bg-red-50 border border-red-200 rounded-lg p-4">
                         <div class="flex items-center gap-2 mb-2">
@@ -507,7 +459,7 @@
                             <select name="protocol_category_id" id="edit_category" class="w-full appearance-none bg-white border border-gray-300 text-gray-700 py-2.5 px-4 pr-10 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#E75234] focus:border-transparent transition">
                                 <option value="">Select category (optional)</option>
                                 @foreach($categories as $category)
-                                    <option value="{{ $category->id }}">{{ $category->name }}</option>
+                                <option value="{{ $category->id }}">{{ $category->name }}</option>
                                 @endforeach
                             </select>
                             <div class="pointer-events-none absolute inset-y-0 right-0 flex items-center px-3 text-gray-500">
@@ -683,7 +635,9 @@
         document.getElementById('createFormErrors').classList.add('hidden');
 
         // Re-init icons for modal
-        setTimeout(function() { lucide.createIcons(); }, 50);
+        setTimeout(function() {
+            lucide.createIcons();
+        }, 50);
     }
 
     function closeCreateModal() {
@@ -709,66 +663,73 @@
         }
 
         fetch("{{ route('admin.vaccine-protocols.store') }}", {
-            method: 'POST',
-            headers: {
-                'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content'),
-                'Accept': 'application/json',
-                'X-Requested-With': 'XMLHttpRequest'
-            },
-            body: formData
-        })
-        .then(function(response) {
-            if (response.ok) {
-                return response.json().then(function(data) {
-                    closeCreateModal();
-                    // Show SweetAlert success, then reload
-                    if (typeof Swal !== 'undefined') {
-                        Swal.fire({
-                            icon: 'success',
-                            title: 'Protocol Created',
-                            text: data.message || 'Protocol created successfully.',
-                            timer: 1500,
-                            showConfirmButton: false
-                        }).then(function() {
+                method: 'POST',
+                headers: {
+                    'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content'),
+                    'Accept': 'application/json',
+                    'X-Requested-With': 'XMLHttpRequest'
+                },
+                body: formData
+            })
+            .then(function(response) {
+                if (response.ok) {
+                    return response.json().then(function(data) {
+                        closeCreateModal();
+                        // Show SweetAlert success, then reload
+                        if (typeof Swal !== 'undefined') {
+                            Swal.fire({
+                                icon: 'success',
+                                title: 'Protocol Created',
+                                text: data.message || 'Protocol created successfully.',
+                                timer: 1500,
+                                showConfirmButton: false
+                            }).then(function() {
+                                window.location.reload();
+                            });
+                        } else {
                             window.location.reload();
+                        }
+                    });
+                } else if (response.status === 422) {
+                    return response.json().then(function(data) {
+                        // Show validation errors
+                        errorList.innerHTML = '';
+                        errorsContainer.classList.remove('hidden');
+                        const errors = data.errors || {};
+                        Object.keys(errors).forEach(function(field) {
+                            errors[field].forEach(function(msg) {
+                                const li = document.createElement('li');
+                                li.textContent = msg;
+                                errorList.appendChild(li);
+                            });
                         });
-                    } else {
-                        window.location.reload();
-                    }
-                });
-            } else if (response.status === 422) {
-                return response.json().then(function(data) {
-                    // Show validation errors
-                    errorList.innerHTML = '';
-                    errorsContainer.classList.remove('hidden');
-                    const errors = data.errors || {};
-                    Object.keys(errors).forEach(function(field) {
-                        errors[field].forEach(function(msg) {
-                            const li = document.createElement('li');
-                            li.textContent = msg;
-                            errorList.appendChild(li);
+                        // Scroll to errors
+                        errorsContainer.scrollIntoView({
+                            behavior: 'smooth',
+                            block: 'nearest'
                         });
                     });
-                    // Scroll to errors
-                    errorsContainer.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
-                });
-            } else {
-                throw new Error('Server error');
-            }
-        })
-        .catch(function(error) {
-            console.error('Error:', error);
-            if (typeof Swal !== 'undefined') {
-                Swal.fire({ icon: 'error', title: 'Error', text: 'Something went wrong. Please try again.' });
-            } else {
-                alert('Something went wrong. Please try again.');
-            }
-        })
-        .finally(function() {
-            submitBtn.disabled = false;
-            submitBtn.innerHTML = '<i data-lucide="plus" class="w-4 h-4"></i> Create Protocol';
-            lucide.createIcons();
-        });
+                } else {
+                    throw new Error('Server error');
+                }
+            })
+            .catch(function(error) {
+                console.error('Error:', error);
+                if (typeof Swal !== 'undefined') {
+                    Swal.fire({
+                        icon: 'error',
+                        title: 'Error',
+                        text: 'Something went wrong. Please try again.'
+                    });
+                } else {
+                    alert('Something went wrong. Please try again.');
+                }
+            })
+            .finally(function() {
+                submitBtn.disabled = false;
+                submitBtn.innerHTML = '<i data-lucide="plus" class="w-4 h-4"></i> Create Protocol';
+                lucide.createIcons();
+            });
     }
 
     // Close modal on Escape key
@@ -848,14 +809,16 @@
             // Default/Fallback
             document.getElementById('edit_type_recurring').checked = true;
         }
-        
+
         updateEditFieldVisibility();
 
         // Hide errors
         document.getElementById('editFormErrors').classList.add('hidden');
 
         // Re-init icons
-        setTimeout(function() { lucide.createIcons(); }, 50);
+        setTimeout(function() {
+            lucide.createIcons();
+        }, 50);
     }
 
     function closeEditModal() {
@@ -885,72 +848,79 @@
         const url = "{{ route('admin.vaccine-protocols.update', ':id') }}".replace(':id', id);
 
         fetch(url, {
-            method: 'POST', // Laravel handles PUT via _method
-            headers: {
-                'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content'),
-                'Accept': 'application/json',
-                'X-Requested-With': 'XMLHttpRequest'
-            },
-            body: formData
-        })
-        .then(function(response) {
-            if (response.ok || response.status === 200) {
-                // Check if the response is JSON
-                const contentType = response.headers.get('content-type');
-                if (contentType && contentType.includes('application/json')) {
-                    return response.json().then(function(data) {
-                        closeEditModal();
-                        if (typeof Swal !== 'undefined') {
-                            Swal.fire({
-                                icon: 'success',
-                                title: 'Protocol Updated',
-                                text: data.message || 'Protocol updated successfully.',
-                                timer: 1500,
-                                showConfirmButton: false
-                            }).then(function() {
+                method: 'POST', // Laravel handles PUT via _method
+                headers: {
+                    'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content'),
+                    'Accept': 'application/json',
+                    'X-Requested-With': 'XMLHttpRequest'
+                },
+                body: formData
+            })
+            .then(function(response) {
+                if (response.ok || response.status === 200) {
+                    // Check if the response is JSON
+                    const contentType = response.headers.get('content-type');
+                    if (contentType && contentType.includes('application/json')) {
+                        return response.json().then(function(data) {
+                            closeEditModal();
+                            if (typeof Swal !== 'undefined') {
+                                Swal.fire({
+                                    icon: 'success',
+                                    title: 'Protocol Updated',
+                                    text: data.message || 'Protocol updated successfully.',
+                                    timer: 1500,
+                                    showConfirmButton: false
+                                }).then(function() {
+                                    window.location.reload();
+                                });
+                            } else {
                                 window.location.reload();
+                            }
+                        });
+                    } else {
+                        // Fallback for non-JSON success (e.g. redirect)
+                        window.location.reload();
+                    }
+                } else if (response.status === 422) {
+                    return response.json().then(function(data) {
+                        // Show validation errors
+                        errorList.innerHTML = '';
+                        errorsContainer.classList.remove('hidden');
+                        const errors = data.errors || {};
+                        Object.keys(errors).forEach(function(field) {
+                            errors[field].forEach(function(msg) {
+                                const li = document.createElement('li');
+                                li.textContent = msg;
+                                errorList.appendChild(li);
                             });
-                        } else {
-                            window.location.reload();
-                        }
-                    });
-                } else {
-                    // Fallback for non-JSON success (e.g. redirect)
-                    window.location.reload();
-                }
-            } else if (response.status === 422) {
-                return response.json().then(function(data) {
-                    // Show validation errors
-                    errorList.innerHTML = '';
-                    errorsContainer.classList.remove('hidden');
-                    const errors = data.errors || {};
-                    Object.keys(errors).forEach(function(field) {
-                        errors[field].forEach(function(msg) {
-                            const li = document.createElement('li');
-                            li.textContent = msg;
-                            errorList.appendChild(li);
+                        });
+                        // Scroll to errors
+                        errorsContainer.scrollIntoView({
+                            behavior: 'smooth',
+                            block: 'nearest'
                         });
                     });
-                    // Scroll to errors
-                    errorsContainer.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
-                });
-            } else {
-                throw new Error('Server error');
-            }
-        })
-        .catch(function(error) {
-            console.error('Error:', error);
-            if (typeof Swal !== 'undefined') {
-                Swal.fire({ icon: 'error', title: 'Error', text: 'Something went wrong. Please try again.' });
-            } else {
-                alert('Something went wrong. Please try again.');
-            }
-        })
-        .finally(function() {
-            submitBtn.disabled = false;
-            submitBtn.innerHTML = '<i data-lucide="save" class="w-4 h-4"></i> Update Protocol';
-            lucide.createIcons();
-        });
+                } else {
+                    throw new Error('Server error');
+                }
+            })
+            .catch(function(error) {
+                console.error('Error:', error);
+                if (typeof Swal !== 'undefined') {
+                    Swal.fire({
+                        icon: 'error',
+                        title: 'Error',
+                        text: 'Something went wrong. Please try again.'
+                    });
+                } else {
+                    alert('Something went wrong. Please try again.');
+                }
+            })
+            .finally(function() {
+                submitBtn.disabled = false;
+                submitBtn.innerHTML = '<i data-lucide="save" class="w-4 h-4"></i> Update Protocol';
+                lucide.createIcons();
+            });
     }
 
     // Close modal on Escape key (Edit)

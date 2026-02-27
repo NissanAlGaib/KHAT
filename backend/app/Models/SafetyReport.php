@@ -2,13 +2,14 @@
 
 namespace App\Models;
 
+use App\Traits\FiltersByDate;
 use App\Traits\TracksUpdates;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 class SafetyReport extends Model
 {
-    use TracksUpdates;
+    use FiltersByDate, TracksUpdates;
 
     public const REASON_HARASSMENT = 'harassment';
     public const REASON_SCAM = 'scam';

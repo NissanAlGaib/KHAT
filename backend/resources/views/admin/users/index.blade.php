@@ -26,97 +26,34 @@
     </a>
 </div>
 
-<!-- Filter Section -->
-<div class="bg-white rounded-xl shadow-sm border border-gray-100 p-6 mb-6">
-    <form action="{{ route('admin.users.index') }}" method="GET">
-        <h3 class="text-sm font-semibold text-gray-700 mb-4 flex items-center gap-2"><i data-lucide="filter" class="w-4 h-4 text-[#E75234]"></i>Filters</h3>
-        <input type="hidden" name="status" value="{{ $status }}">
-
-        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-4">
-            <!-- User Type Filter -->
-            <div>
-                <label class="block text-sm font-semibold text-gray-700 mb-2">User Type</label>
-                <div class="relative">
-                    <select name="user_type" class="w-full appearance-none bg-white border border-gray-300 text-gray-700 py-2.5 px-4 pr-10 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#E75234] focus:border-transparent transition">
-                        <option value="">All Types</option>
-                        <option value="breeder" {{ request('user_type') == 'breeder' ? 'selected' : '' }}>Breeder</option>
-                        <option value="shooter" {{ request('user_type') == 'shooter' ? 'selected' : '' }}>Shooter</option>
-                        <option value="admin" {{ request('user_type') == 'admin' ? 'selected' : '' }}>Admin</option>
-                    </select>
-                    <div class="pointer-events-none absolute inset-y-0 right-0 flex items-center px-3 text-gray-500">
-                        <i data-lucide="chevron-down" class="w-4 h-4"></i>
-                    </div>
-                </div>
-            </div>
-
-            <!-- Document Status Filter -->
-            <div>
-                <label class="block text-sm font-semibold text-gray-700 mb-2">Document Status</label>
-                <div class="relative">
-                    <select name="doc_status" class="w-full appearance-none bg-white border border-gray-300 text-gray-700 py-2.5 px-4 pr-10 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#E75234] focus:border-transparent transition">
-                        <option value="">All Statuses</option>
-                        <option value="valid" {{ request('doc_status') == 'valid' ? 'selected' : '' }}>Valid</option>
-                        <option value="expired" {{ request('doc_status') == 'expired' ? 'selected' : '' }}>Expired</option>
-                        <option value="missing" {{ request('doc_status') == 'missing' ? 'selected' : '' }}>Missing</option>
-                    </select>
-                    <div class="pointer-events-none absolute inset-y-0 right-0 flex items-center px-3 text-gray-500">
-                        <i data-lucide="chevron-down" class="w-4 h-4"></i>
-                    </div>
-                </div>
-            </div>
-
-            <!-- Subscription Tier Filter -->
-            <div>
-                <label class="block text-sm font-semibold text-gray-700 mb-2">Subscription Tier</label>
-                <div class="relative">
-                    <select name="subscription" class="w-full appearance-none bg-white border border-gray-300 text-gray-700 py-2.5 px-4 pr-10 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#E75234] focus:border-transparent transition">
-                        <option value="">All Tiers</option>
-                        <option value="free" {{ request('subscription') == 'free' ? 'selected' : '' }}>Free</option>
-                        <option value="standard" {{ request('subscription') == 'standard' ? 'selected' : '' }}>Standard</option>
-                        <option value="premium" {{ request('subscription') == 'premium' ? 'selected' : '' }}>Premium</option>
-                    </select>
-                    <div class="pointer-events-none absolute inset-y-0 right-0 flex items-center px-3 text-gray-500">
-                        <i data-lucide="chevron-down" class="w-4 h-4"></i>
-                    </div>
-                </div>
-            </div>
-
-            <!-- Search Input -->
-            <div>
-                <label class="block text-sm font-semibold text-gray-700 mb-2">Search by Name or ID</label>
-                <div class="relative">
-                    <input type="text" name="search" value="{{ request('search') }}" placeholder="Search users" class="w-full bg-white border border-gray-300 text-gray-700 py-2.5 px-4 pl-10 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#E75234] focus:border-transparent transition">
-                    <div class="pointer-events-none absolute inset-y-0 left-0 flex items-center px-3 text-gray-400">
-                        <i data-lucide="search" class="w-4 h-4"></i>
-                    </div>
-                </div>
-            </div>
-        </div>
-
-        <!-- Action Buttons -->
-        <div class="flex gap-3">
-            <button type="submit" class="px-6 py-2.5 bg-[#E75234] text-white text-sm font-semibold rounded-lg shadow-sm hover:bg-[#d14024] transition-all hover:shadow-md">
-                Apply Filters
-            </button>
-            <a href="{{ route('admin.users.index', ['status' => $status]) }}" class="px-6 py-2.5 bg-white text-gray-700 text-sm font-semibold rounded-lg border border-gray-300 hover:bg-gray-50 transition-all shadow-sm">
-                Reset Filters
-            </a>
-            
-            <div class="border-l border-gray-300 mx-1"></div>
-
-            <a href="{{ request()->fullUrlWithQuery(['export' => 'csv']) }}" class="flex items-center gap-2 px-4 py-2.5 bg-green-600 text-white text-sm font-semibold rounded-lg hover:bg-green-700 transition-all shadow-sm" title="Export to CSV">
-                <i data-lucide="file-spreadsheet" class="w-4 h-4"></i>
-                <span class="hidden sm:inline">CSV</span>
-            </a>
-            <a href="{{ request()->fullUrlWithQuery(['export' => 'pdf']) }}" class="flex items-center gap-2 px-4 py-2.5 bg-red-600 text-white text-sm font-semibold rounded-lg hover:bg-red-700 transition-all shadow-sm" title="Export to PDF">
-                <i data-lucide="file-text" class="w-4 h-4"></i>
-                <span class="hidden sm:inline">PDF</span>
-            </a>
-        </div>
-    </form>
-</div>
-
-@include('admin.partials.date-filter')
+@include('admin.partials.filter-bar', [
+'action' => route('admin.users.index'),
+'searchPlaceholder' => 'Search by name, email, or ID...',
+'filters' => [
+['name' => 'user_type', 'label' => 'User Type', 'options' => [
+['value' => 'breeder', 'label' => 'Breeder'],
+['value' => 'shooter', 'label' => 'Shooter'],
+['value' => 'admin', 'label' => 'Admin'],
+]],
+['name' => 'doc_status', 'label' => 'Document Status', 'options' => [
+['value' => 'valid', 'label' => 'Valid'],
+['value' => 'expired', 'label' => 'Expired'],
+['value' => 'missing', 'label' => 'Missing'],
+]],
+['name' => 'subscription', 'label' => 'Subscription Tier', 'options' => [
+['value' => 'free', 'label' => 'Free'],
+['value' => 'standard', 'label' => 'Standard'],
+['value' => 'premium', 'label' => 'Premium'],
+]],
+],
+'dateFilter' => true,
+'datePresets' => true,
+'exports' => true,
+'perPage' => true,
+'defaultPerPage' => 15,
+'hiddenParams' => ['status' => $status],
+'totalResults' => $users->total(),
+])
 
 <!-- Suspend User Modal -->
 <div id="suspendModal" class="hidden fixed inset-0 z-[60] overflow-y-auto bg-gray-900/60 backdrop-blur-sm">
@@ -131,7 +68,7 @@
                     <p class="text-sm text-gray-500" id="suspendUserName">User Name</p>
                 </div>
             </div>
-            
+
             <form id="suspendForm" method="POST">
                 @csrf
                 <input type="hidden" name="status" value="suspended">
@@ -253,15 +190,15 @@
                         $isExpired = false;
 
                         if ($hasDocuments) {
-                            foreach ($userAuthRecords as $auth) {
-                                if ($auth->expiry_date) {
-                                    $hasExpiry = true;
-                                    if (\Carbon\Carbon::parse($auth->expiry_date)->isPast()) {
-                                        $isExpired = true;
-                                        break;
-                                    }
-                                }
-                            }
+                        foreach ($userAuthRecords as $auth) {
+                        if ($auth->expiry_date) {
+                        $hasExpiry = true;
+                        if (\Carbon\Carbon::parse($auth->expiry_date)->isPast()) {
+                        $isExpired = true;
+                        break;
+                        }
+                        }
+                        }
                         }
                         @endphp
 
@@ -300,12 +237,12 @@
                             <span class="text-sm font-medium text-gray-900">{{ $user->created_at->format('M d, Y') }}</span>
                             <span class="text-xs text-gray-500">{{ $user->created_at->format('h:i A') }}</span>
                             @if($user->updated_at && $user->created_at && $user->updated_at->gt($user->created_at))
-                                <span class="text-[10px] text-gray-400 mt-1 italic" title="Updated {{ $user->updated_at->format('M d, Y h:i A') }}">
-                                    Updated {{ $user->updated_at->diffForHumans() }}
-                                    @if($user->updater)
-                                        by {{ $user->updater->name }}
-                                    @endif
-                                </span>
+                            <span class="text-[10px] text-gray-400 mt-1 italic" title="Updated {{ $user->updated_at->format('M d, Y h:i A') }}">
+                                Updated {{ $user->updated_at->diffForHumans() }}
+                                @if($user->updater)
+                                by {{ $user->updater->name }}
+                                @endif
+                            </span>
                             @endif
                         </div>
                     </td>
@@ -473,7 +410,7 @@
                 </div>
                 <h3 class="text-lg font-bold text-gray-900">Issue Official Warning</h3>
             </div>
-            
+
             <form id="warnForm" onsubmit="submitWarning(event)">
                 <div class="space-y-4">
                     <div>
@@ -613,9 +550,9 @@
     function loadWarnings(warnings, count) {
         const container = document.getElementById('warningsContainer');
         const badge = document.getElementById('warningCountBadge');
-        
+
         badge.textContent = count || '0';
-        
+
         if (!warnings || warnings.length === 0) {
             container.innerHTML = `
                 <div class="text-center py-6 bg-gray-50 rounded-xl border border-dashed border-gray-200">
@@ -667,10 +604,10 @@
         const modal = document.getElementById('suspendModal');
         const nameEl = document.getElementById('suspendUserName');
         const form = document.getElementById('suspendForm');
-        
+
         nameEl.textContent = userName;
         form.action = `/admin/users/${userId}/status`;
-        
+
         modal.classList.remove('hidden');
     }
 
@@ -683,7 +620,7 @@
         e.preventDefault();
         const form = e.target;
         const formData = new FormData(form);
-        
+
         try {
             const response = await fetch(`/admin/users/${currentUserId}/warn`, {
                 method: 'POST',
@@ -739,9 +676,21 @@
 
         container.innerHTML = documents.map(doc => {
             const statusMap = {
-                approved: { color: 'green', icon: 'check-circle', label: 'Approved' },
-                rejected: { color: 'red', icon: 'x-circle', label: 'Rejected' },
-                pending: { color: 'yellow', icon: 'clock', label: 'Pending' }
+                approved: {
+                    color: 'green',
+                    icon: 'check-circle',
+                    label: 'Approved'
+                },
+                rejected: {
+                    color: 'red',
+                    icon: 'x-circle',
+                    label: 'Rejected'
+                },
+                pending: {
+                    color: 'yellow',
+                    icon: 'clock',
+                    label: 'Pending'
+                }
             };
             const s = statusMap[doc.status] || statusMap.pending;
 
@@ -765,12 +714,26 @@
             }
 
             // Details grid
-            const fields = [
-                { label: 'Name on Doc', value: doc.document_name },
-                { label: 'Doc Number', value: doc.document_number },
-                { label: 'Authority', value: doc.issuing_authority },
-                { label: 'Issued', value: doc.issue_date },
-                { label: 'Expires', value: doc.expiry_date }
+            const fields = [{
+                    label: 'Name on Doc',
+                    value: doc.document_name
+                },
+                {
+                    label: 'Doc Number',
+                    value: doc.document_number
+                },
+                {
+                    label: 'Authority',
+                    value: doc.issuing_authority
+                },
+                {
+                    label: 'Issued',
+                    value: doc.issue_date
+                },
+                {
+                    label: 'Expires',
+                    value: doc.expiry_date
+                }
             ].filter(f => f.value);
 
             let detailsGrid = '';
@@ -861,18 +824,28 @@
                     };
                     const s = statusMap[doc.status] || statusMap.pending;
 
-                    return `
-                        <div class="relative">
-                            <div class="absolute -left-[calc(0.75rem+1.5px)] top-1 w-5 h-5 rounded-full bg-${s.color}-100 border-2 border-${s.color}-400 flex items-center justify-center">
-                                <i data-lucide="${s.icon}" class="w-2.5 h-2.5 text-${s.color}-600"></i>
-                            </div>
-                            <div class="ml-4">
-                                <p class="text-sm font-semibold text-gray-900">${s.label}</p>
-                                <p class="text-xs text-gray-600 capitalize">${doc.auth_type.replace(/_/g, ' ')}</p>
-                                <p class="text-[11px] text-gray-400 mt-0.5">${doc.date_created}</p>
-                            </div>
-                        </div>
-                    `;
+                    return ` <
+            div class = "relative" >
+            <
+            div class = "absolute -left-[calc(0.75rem+1.5px)] top-1 w-5 h-5 rounded-full bg-${s.color}-100 border-2 border-${s.color}-400 flex items-center justify-center" >
+            <
+            i data - lucide = "${s.icon}"
+        class = "w-2.5 h-2.5 text-${s.color}-600" > < /i> <
+        /div> <
+        div class = "ml-4" >
+        <
+        p class = "text-sm font-semibold text-gray-900" > $ {
+            s.label
+        } < /p> <
+        p class = "text-xs text-gray-600 capitalize" > $ {
+            doc.auth_type.replace(/_/g, ' ')
+        } < /p> <
+        p class = "text-[11px] text-gray-400 mt-0.5" > $ {
+            doc.date_created
+        } < /p> <
+        /div> <
+        /div>
+        `;
                 }).join('')}
             </div>
         `;
@@ -901,7 +874,11 @@
                         progressColor = 'bg-gray-300';
                     } else if (daysRemaining < 0) {
                         statusBadge = 'bg-red-50 border-red-200 text-red-700';
-                        statusText = `Expired ${Math.abs(daysRemaining)}d ago`;
+                        statusText = `
+        Expired $ {
+            Math.abs(daysRemaining)
+        }
+        d ago`;
                         statusIcon = 'alert-triangle';
                         progressColor = 'bg-red-500';
                     } else if (daysRemaining === 0) {
@@ -911,34 +888,57 @@
                         progressColor = 'bg-red-500';
                     } else if (daysRemaining <= 30) {
                         statusBadge = 'bg-orange-50 border-orange-200 text-orange-700';
-                        statusText = `${daysRemaining}d remaining`;
+                        statusText = `
+        $ {
+            daysRemaining
+        }
+        d remaining`;
                         statusIcon = 'clock';
                         progressColor = 'bg-orange-500';
                     } else {
                         statusBadge = 'bg-green-50 border-green-200 text-green-700';
-                        statusText = `${daysRemaining}d remaining`;
+                        statusText = `
+        $ {
+            daysRemaining
+        }
+        d remaining`;
                         statusIcon = 'shield-check';
                         progressColor = 'bg-green-500';
                     }
                     
-                    return `
-                        <div class="rounded-xl border ${statusBadge} p-4">
-                            <div class="flex items-start justify-between mb-2">
-                                <div>
-                                    <p class="text-sm font-semibold capitalize text-gray-900">${doc.auth_type.replace(/_/g, ' ')}</p>
-                                    ${doc.document_name ? `<p class="text-xs text-gray-500 mt-0.5">${doc.document_name}</p>` : ''}
-                                </div>
-                                <i data-lucide="${statusIcon}" class="w-5 h-5 flex-shrink-0"></i>
-                            </div>
-                            ${expiryDate ? `<p class="text-xs text-gray-500 mb-2">Expires: ${expiryDate}</p>` : ''}
-                            <div class="flex items-center gap-2">
-                                <div class="h-1.5 flex-1 bg-gray-200 rounded-full overflow-hidden">
-                                    <div class="h-full ${progressColor} rounded-full" style="width: ${doc.days_remaining === null ? 100 : Math.max(0, Math.min(100, (daysRemaining / 365) * 100))}%"></div>
-                                </div>
-                                <span class="text-xs font-semibold whitespace-nowrap">${statusText}</span>
-                            </div>
-                        </div>
-                    `;
+                    return ` <
+        div class = "rounded-xl border ${statusBadge} p-4" >
+        <
+        div class = "flex items-start justify-between mb-2" >
+        <
+        div >
+            <
+            p class = "text-sm font-semibold capitalize text-gray-900" > $ {
+                doc.auth_type.replace(/_/g, ' ')
+            } < /p>
+        $ {
+            doc.document_name ? `<p class="text-xs text-gray-500 mt-0.5">${doc.document_name}</p>` : ''
+        } <
+        /div> <
+        i data - lucide = "${statusIcon}"
+        class = "w-5 h-5 flex-shrink-0" > < /i> <
+        /div>
+        $ {
+            expiryDate ? `<p class="text-xs text-gray-500 mb-2">Expires: ${expiryDate}</p>` : ''
+        } <
+        div class = "flex items-center gap-2" >
+        <
+        div class = "h-1.5 flex-1 bg-gray-200 rounded-full overflow-hidden" >
+        <
+        div class = "h-full ${progressColor} rounded-full"
+        style = "width: ${doc.days_remaining === null ? 100 : Math.max(0, Math.min(100, (daysRemaining / 365) * 100))}%" > < /div> <
+            /div> <
+            span class = "text-xs font-semibold whitespace-nowrap" > $ {
+                statusText
+            } < /span> <
+            /div> <
+            /div>
+        `;
                 }).join('')}
             </div>
         `;

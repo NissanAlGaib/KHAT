@@ -468,6 +468,108 @@
     <script>
         lucide.createIcons();
 
+        // ═══════════════ PawFilter: Unified Filter Bar System ═══════════════
+        const PawFilter = {
+            toggle() {
+                const panel = document.getElementById('filterPanel');
+                const btn = document.getElementById('filterToggleBtn');
+                if (!panel) return;
+
+                const isCollapsed = panel.style.maxHeight === '0px' || panel.style.opacity === '0';
+
+                if (isCollapsed) {
+                    // Expand
+                    panel.style.maxHeight = panel.scrollHeight + 'px';
+                    panel.style.opacity = '1';
+                    setTimeout(() => {
+                        panel.style.maxHeight = 'none';
+                    }, 300);
+                    btn?.classList.add('bg-[#FFF5F2]', 'border-[#E75234]/20', 'text-[#E75234]');
+                    btn?.classList.remove('bg-gray-50', 'border-gray-200', 'text-gray-600');
+                } else {
+                    // Collapse
+                    panel.style.maxHeight = panel.scrollHeight + 'px';
+                    requestAnimationFrame(() => {
+                        panel.style.maxHeight = '0px';
+                        panel.style.opacity = '0';
+                    });
+                    btn?.classList.remove('bg-[#FFF5F2]', 'border-[#E75234]/20', 'text-[#E75234]');
+                    btn?.classList.add('bg-gray-50', 'border-gray-200', 'text-gray-600');
+                }
+            },
+
+            setDatePreset(preset) {
+                const startInput = document.getElementById('filterStartDate');
+                const endInput = document.getElementById('filterEndDate');
+                if (!startInput || !endInput) return;
+
+                const now = new Date();
+                const todayStr = now.toISOString().split('T')[0];
+
+                if (preset === 'today') {
+                    startInput.value = todayStr;
+                    endInput.value = todayStr;
+                } else if (preset === 'all') {
+                    startInput.value = '';
+                    endInput.value = '';
+                } else {
+                    const days = parseInt(preset);
+                    const start = new Date(now);
+                    start.setDate(start.getDate() - days);
+                    startInput.value = start.toISOString().split('T')[0];
+                    endInput.value = todayStr;
+                }
+
+                // Update preset button states
+                document.querySelectorAll('.paw-date-preset').forEach(btn => {
+                    const btnPreset = btn.getAttribute('data-preset');
+                    if (btnPreset === preset) {
+                        btn.classList.add('bg-[#E75234]', 'text-white', 'border-[#E75234]', 'shadow-sm');
+                        btn.classList.remove('bg-white', 'text-gray-500', 'border-gray-200');
+                    } else {
+                        btn.classList.remove('bg-[#E75234]', 'text-white', 'border-[#E75234]', 'shadow-sm');
+                        btn.classList.add('bg-white', 'text-gray-500', 'border-gray-200');
+                    }
+                });
+            },
+
+            clearPresets() {
+                document.querySelectorAll('.paw-date-preset').forEach(btn => {
+                    btn.classList.remove('bg-[#E75234]', 'text-white', 'border-[#E75234]', 'shadow-sm');
+                    btn.classList.add('bg-white', 'text-gray-500', 'border-gray-200');
+                });
+            },
+
+            loadBreeds(species) {
+                const breedInput = document.querySelector('input[name="breed"]');
+                if (!breedInput) return;
+
+                // Remove existing datalist if any
+                let datalist = document.getElementById('breedSuggestions');
+                if (!datalist) {
+                    datalist = document.createElement('datalist');
+                    datalist.id = 'breedSuggestions';
+                    breedInput.parentNode.appendChild(datalist);
+                    breedInput.setAttribute('list', 'breedSuggestions');
+                }
+
+                datalist.innerHTML = '';
+
+                if (!species) return;
+
+                fetch(`{{ route('admin.pets.breeds') }}?species=${encodeURIComponent(species)}`)
+                    .then(res => res.json())
+                    .then(breeds => {
+                        breeds.forEach(breed => {
+                            const option = document.createElement('option');
+                            option.value = breed;
+                            datalist.appendChild(option);
+                        });
+                    })
+                    .catch(err => console.error('Failed to load breeds:', err));
+            }
+        };
+
         function toggleSidebarGroup(groupId) {
             const group = document.getElementById(groupId);
             const chevron = document.getElementById(groupId + '-chevron');

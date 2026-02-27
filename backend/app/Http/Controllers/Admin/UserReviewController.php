@@ -28,9 +28,9 @@ class UserReviewController extends Controller
                 $q->whereHas('reviewer', function ($q2) use ($search) {
                     $q2->where('name', 'like', "%{$search}%");
                 })
-                ->orWhereHas('subject', function ($q2) use ($search) {
-                    $q2->where('name', 'like', "%{$search}%");
-                });
+                    ->orWhereHas('subject', function ($q2) use ($search) {
+                        $q2->where('name', 'like', "%{$search}%");
+                    });
             });
         }
 
@@ -42,7 +42,8 @@ class UserReviewController extends Controller
             $query->whereDate('created_at', '<=', $request->end_date);
         }
 
-        $reviews = $query->orderBy('created_at', 'desc')->paginate(15)->appends($request->query());
+        $perPage = $request->input('per_page', 15);
+        $reviews = $query->orderBy('created_at', 'desc')->paginate($perPage)->appends($request->query());
 
         return view('admin.reviews.index', compact('reviews'));
     }

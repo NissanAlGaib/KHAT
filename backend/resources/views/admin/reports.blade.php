@@ -60,55 +60,32 @@
     </a>
 </div>
 
-<!-- Filters -->
-<div class="bg-white p-6 rounded-xl shadow-sm border border-gray-100 mb-6">
-    <form action="{{ route('admin.reports') }}" method="GET">
-        <div class="grid grid-cols-1 md:grid-cols-4 gap-4 mb-4">
-            <div class="relative">
-                <input type="text" name="search" value="{{ request('search') }}" placeholder="Search by reporter or reported user..." class="w-full bg-white border border-gray-300 text-gray-700 py-2.5 px-4 pl-10 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#E75234]">
-                <div class="pointer-events-none absolute inset-y-0 left-0 flex items-center px-3 text-gray-400">
-                    <i data-lucide="search" class="w-4 h-4"></i>
-                </div>
-            </div>
-            <select name="status" class="w-full bg-white border border-gray-300 text-gray-700 py-2.5 px-4 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#E75234]">
-                <option value="">All Statuses</option>
-                <option value="pending" {{ request('status') == 'pending' ? 'selected' : '' }}>Pending</option>
-                <option value="reviewed" {{ request('status') == 'reviewed' ? 'selected' : '' }}>Reviewed</option>
-                <option value="resolved" {{ request('status') == 'resolved' ? 'selected' : '' }}>Resolved</option>
-                <option value="dismissed" {{ request('status') == 'dismissed' ? 'selected' : '' }}>Dismissed</option>
-            </select>
-            <select name="reason" class="w-full bg-white border border-gray-300 text-gray-700 py-2.5 px-4 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#E75234]">
-                <option value="">All Reasons</option>
-                @foreach(config('safety.report_reasons') as $value => $label)
-                <option value="{{ $value }}" {{ request('reason') == $value ? 'selected' : '' }}>{{ $label }}</option>
-                @endforeach
-            </select>
-            <select name="date_range" class="w-full bg-white border border-gray-300 text-gray-700 py-2.5 px-4 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#E75234]">
-                <option value="">All Time</option>
-                <option value="7" {{ request('date_range') == '7' ? 'selected' : '' }}>Last 7 Days</option>
-                <option value="30" {{ request('date_range') == '30' ? 'selected' : '' }}>Last 30 Days</option>
-                <option value="90" {{ request('date_range') == '90' ? 'selected' : '' }}>Last 90 Days</option>
-            </select>
-        </div>
-        <div class="flex gap-2">
-            <button type="submit" class="px-4 py-2.5 bg-[#E75234] text-white rounded-lg text-sm font-semibold hover:bg-[#d14024]">
-                Apply
-            </button>
-            <a href="{{ route('admin.reports') }}" class="px-4 py-2.5 bg-gray-100 text-gray-700 rounded-lg text-sm font-semibold hover:bg-gray-200">
-                Reset
-            </a>
+@php
+$reportReasons = [];
+foreach(config('safety.report_reasons', []) as $value => $label) {
+$reportReasons[] = ['value' => $value, 'label' => $label];
+}
+@endphp
 
-            <div class="border-l border-gray-300 mx-1"></div>
-
-            <a href="{{ request()->fullUrlWithQuery(['export' => 'csv']) }}" class="px-4 py-2.5 bg-green-600 text-white rounded-lg text-sm font-semibold hover:bg-green-700 transition-all shadow-sm" title="Export to CSV">
-                CSV
-            </a>
-            <a href="{{ request()->fullUrlWithQuery(['export' => 'pdf']) }}" class="px-4 py-2.5 bg-red-600 text-white rounded-lg text-sm font-semibold hover:bg-red-700 transition-all shadow-sm" title="Export to PDF">
-                PDF
-            </a>
-        </div>
-    </form>
-</div>
+@include('admin.partials.filter-bar', [
+'action' => route('admin.reports'),
+'searchPlaceholder' => 'Search by reporter or reported user...',
+'filters' => [
+['name' => 'status', 'label' => 'Status', 'options' => [
+['value' => 'pending', 'label' => 'Pending'],
+['value' => 'reviewed', 'label' => 'Reviewed'],
+['value' => 'resolved', 'label' => 'Resolved'],
+['value' => 'dismissed', 'label' => 'Dismissed'],
+]],
+['name' => 'reason', 'label' => 'Reason', 'options' => $reportReasons],
+],
+'dateFilter' => true,
+'datePresets' => true,
+'exports' => true,
+'perPage' => true,
+'defaultPerPage' => 15,
+'totalResults' => $reports->total(),
+])
 
 <!-- Reports Table -->
 <div class="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
@@ -151,12 +128,12 @@
                     </td>
                     <td class="px-6 py-4">
                         @php
-                            $statusColors = [
-                                'pending' => 'bg-yellow-100 text-yellow-700',
-                                'reviewed' => 'bg-blue-100 text-blue-700',
-                                'resolved' => 'bg-green-100 text-green-700',
-                                'dismissed' => 'bg-gray-100 text-gray-700',
-                            ];
+                        $statusColors = [
+                        'pending' => 'bg-yellow-100 text-yellow-700',
+                        'reviewed' => 'bg-blue-100 text-blue-700',
+                        'resolved' => 'bg-green-100 text-green-700',
+                        'dismissed' => 'bg-gray-100 text-gray-700',
+                        ];
                         @endphp
                         <span class="inline-flex items-center px-2.5 py-1 rounded-md text-xs font-semibold {{ $statusColors[$report->status] ?? 'bg-gray-100 text-gray-700' }}">
                             {{ ucfirst($report->status) }}
@@ -167,12 +144,12 @@
                             <span class="text-sm font-medium text-gray-900">{{ $report->created_at->format('M d, Y') }}</span>
                             <span class="text-xs text-gray-500">{{ $report->created_at->format('h:i A') }}</span>
                             @if($report->updated_at && $report->created_at && $report->updated_at->gt($report->created_at))
-                                <span class="text-[10px] text-gray-400 mt-1 italic" title="Updated {{ $report->updated_at->format('M d, Y h:i A') }}">
-                                    Updated {{ $report->updated_at->diffForHumans() }}
-                                    @if($report->updater)
-                                        by {{ $report->updater->name }}
-                                    @endif
-                                </span>
+                            <span class="text-[10px] text-gray-400 mt-1 italic" title="Updated {{ $report->updated_at->format('M d, Y h:i A') }}">
+                                Updated {{ $report->updated_at->diffForHumans() }}
+                                @if($report->updater)
+                                by {{ $report->updater->name }}
+                                @endif
+                            </span>
                             @endif
                         </div>
                     </td>
@@ -186,7 +163,7 @@
             </tbody>
         </table>
     </div>
-    
+
     <!-- Pagination -->
     <div class="px-6 py-4 border-t border-gray-100">
         {{ $reports->links() }}
@@ -210,7 +187,7 @@
                     <i data-lucide="x" class="w-6 h-6"></i>
                 </button>
             </div>
-            
+
             <div class="p-6" id="modalContent">
                 <!-- Content loaded via JS -->
                 <div class="flex justify-center py-8">
@@ -231,15 +208,15 @@
         const modal = document.getElementById('reportModal');
         const content = document.getElementById('modalContent');
         const title = document.getElementById('modalTitle');
-        
+
         title.textContent = `Review Report #RPT-${String(id).padStart(5, '0')}`;
         modal.classList.remove('hidden');
-        
+
         // Fetch details
         fetch(`/admin/reports/${id}/details`)
             .then(response => response.json())
             .then(data => {
-                if(data.success) {
+                if (data.success) {
                     renderModalContent(data.report, data.repeat_offender);
                 } else {
                     content.innerHTML = '<p class="text-red-500 text-center">Failed to load report details.</p>';
@@ -258,10 +235,10 @@
 
     function renderModalContent(report, stats) {
         const content = document.getElementById('modalContent');
-        
+
         // Helper for initials
         const getInitials = (name) => name ? name.substring(0, 2).toUpperCase() : '??';
-        
+
         let repeatOffenderHtml = '';
         if (stats.total_reports > 1) {
             let otherReportsHtml = '';
@@ -380,7 +357,7 @@
                 </div>
             </form>
         `;
-        
+
         lucide.createIcons();
     }
 
@@ -388,44 +365,44 @@
         e.preventDefault();
         const form = e.target;
         const formData = new FormData(form);
-        
+
         fetch(`/admin/reports/${currentReportId}/review`, {
-            method: 'PUT',
-            headers: {
-                'Content-Type': 'application/json',
-                'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content,
-                'Accept': 'application/json'
-            },
-            body: JSON.stringify(Object.fromEntries(formData))
-        })
-        .then(response => response.json())
-        .then(data => {
-            if(data.success) {
-                closeReportModal();
-                Swal.fire({
-                    icon: 'success',
-                    title: 'Report Updated',
-                    text: 'The report has been successfully reviewed.',
-                    confirmButtonColor: '#E75234'
-                }).then(() => window.location.reload());
-            } else {
+                method: 'PUT',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content,
+                    'Accept': 'application/json'
+                },
+                body: JSON.stringify(Object.fromEntries(formData))
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    closeReportModal();
+                    Swal.fire({
+                        icon: 'success',
+                        title: 'Report Updated',
+                        text: 'The report has been successfully reviewed.',
+                        confirmButtonColor: '#E75234'
+                    }).then(() => window.location.reload());
+                } else {
+                    Swal.fire({
+                        icon: 'error',
+                        title: 'Error',
+                        text: data.message || 'Failed to update report',
+                        confirmButtonColor: '#E75234'
+                    });
+                }
+            })
+            .catch(err => {
+                console.error(err);
                 Swal.fire({
                     icon: 'error',
                     title: 'Error',
-                    text: data.message || 'Failed to update report',
+                    text: 'An unexpected error occurred',
                     confirmButtonColor: '#E75234'
                 });
-            }
-        })
-        .catch(err => {
-            console.error(err);
-            Swal.fire({
-                icon: 'error',
-                title: 'Error',
-                text: 'An unexpected error occurred',
-                confirmButtonColor: '#E75234'
             });
-        });
     }
 </script>
 @endpush

@@ -3,58 +3,40 @@
 @section('title', 'Audit Logs - KHAT Admin')
 
 @section('content')
-<div class="flex justify-between items-center mb-2">
-    <h1 class="text-3xl font-bold text-gray-900">Audit Logs</h1>
-    <div class="flex gap-2">
-        <a href="{{ request()->fullUrlWithQuery(['export' => 'csv']) }}" class="inline-flex items-center gap-2 px-4 py-2 bg-green-600 text-white text-sm font-semibold rounded-lg hover:bg-green-700 transition-all shadow-sm" title="Export to CSV">
-            <i data-lucide="file-spreadsheet" class="w-4 h-4"></i>
-            <span class="hidden sm:inline">CSV</span>
-        </a>
-        <a href="{{ request()->fullUrlWithQuery(['export' => 'pdf']) }}" class="inline-flex items-center gap-2 px-4 py-2 bg-red-600 text-white text-sm font-semibold rounded-lg hover:bg-red-700 transition-all shadow-sm" title="Export to PDF">
-            <i data-lucide="file-text" class="w-4 h-4"></i>
-            <span class="hidden sm:inline">PDF</span>
-        </a>
-    </div>
-</div>
+<h1 class="text-3xl font-bold text-gray-900 mb-2">Audit Logs</h1>
 <p class="text-sm text-gray-500 mb-6">Track all admin actions and system events</p>
 
-<div class="bg-white p-6 rounded-xl shadow-sm border border-gray-100 mb-6">
-    <form method="GET" action="{{ route('admin.audit-logs') }}" class="grid grid-cols-1 md:grid-cols-2 gap-4">
-        <div>
-            <label class="block text-sm font-semibold text-gray-700 mb-2">Action Type</label>
-            <select name="action_type" class="w-full bg-white border border-gray-300 text-gray-700 py-2.5 px-4 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#E75234]">
-                <option value="">All Actions</option>
-                <option value="login" {{ request('action_type') == 'login' ? 'selected' : '' }}>Login</option>
-                <option value="logout" {{ request('action_type') == 'logout' ? 'selected' : '' }}>Logout</option>
-                <option value="create" {{ request('action_type') == 'create' ? 'selected' : '' }}>Create</option>
-                <option value="update" {{ request('action_type') == 'update' ? 'selected' : '' }}>Update</option>
-                <option value="delete" {{ request('action_type') == 'delete' ? 'selected' : '' }}>Delete</option>
-                <option value="verify" {{ request('action_type') == 'verify' ? 'selected' : '' }}>Verify</option>
-                <option value="reject" {{ request('action_type') == 'reject' ? 'selected' : '' }}>Reject</option>
-            </select>
-        </div>
-        <div>
-            <label class="block text-sm font-semibold text-gray-700 mb-2">User Type</label>
-            <div class="flex gap-2">
-                <select name="user_type" class="flex-1 bg-white border border-gray-300 text-gray-700 py-2.5 px-4 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#E75234]">
-                    <option value="">All Users</option>
-                    <option value="admins" {{ request('user_type') == 'admins' ? 'selected' : '' }}>Admins Only</option>
-                </select>
-                <button type="submit" class="px-4 py-2.5 bg-[#E75234] text-white rounded-lg text-sm font-medium hover:bg-[#d14024] transition-colors shadow-sm">
-                    <i data-lucide="search" class="w-4 h-4"></i>
-                </button>
-            </div>
-        </div>
-    </form>
-</div>
-
-@include('admin.partials.date-filter')
+@include('admin.partials.filter-bar', [
+'action' => route('admin.audit-logs'),
+'searchPlaceholder' => 'Search by user name or description...',
+'searchName' => 'search',
+'filters' => [
+['name' => 'action_type', 'label' => 'Action Type', 'options' => [
+['value' => 'login', 'label' => 'Login'],
+['value' => 'logout', 'label' => 'Logout'],
+['value' => 'create', 'label' => 'Create'],
+['value' => 'update', 'label' => 'Update'],
+['value' => 'delete', 'label' => 'Delete'],
+['value' => 'verify', 'label' => 'Verify'],
+['value' => 'reject', 'label' => 'Reject'],
+]],
+['name' => 'user_type', 'label' => 'User Type', 'options' => [
+['value' => 'admins', 'label' => 'Admins Only'],
+]],
+],
+'dateFilter' => true,
+'datePresets' => true,
+'exports' => true,
+'perPage' => true,
+'defaultPerPage' => 20,
+'totalResults' => $logs->total(),
+])
 
 <div class="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
     <div class="p-6 border-b border-gray-100">
         <h3 class="font-semibold text-gray-800">Activity Log</h3>
     </div>
-    
+
     @if($logs->count() > 0)
     <div class="overflow-x-auto">
         <table class="w-full text-left">
@@ -87,16 +69,16 @@
                     </td>
                     <td class="px-6 py-4">
                         @php
-                            $actionColors = [
-                                'login' => 'bg-blue-100 text-blue-700',
-                                'logout' => 'bg-gray-100 text-gray-700',
-                                'create' => 'bg-green-100 text-green-700',
-                                'update' => 'bg-yellow-100 text-yellow-700',
-                                'delete' => 'bg-red-100 text-red-700',
-                                'verify' => 'bg-emerald-100 text-emerald-700',
-                                'reject' => 'bg-rose-100 text-rose-700',
-                            ];
-                            $actionColor = $actionColors[$log->action_type] ?? 'bg-gray-100 text-gray-700';
+                        $actionColors = [
+                        'login' => 'bg-blue-100 text-blue-700',
+                        'logout' => 'bg-gray-100 text-gray-700',
+                        'create' => 'bg-green-100 text-green-700',
+                        'update' => 'bg-yellow-100 text-yellow-700',
+                        'delete' => 'bg-red-100 text-red-700',
+                        'verify' => 'bg-emerald-100 text-emerald-700',
+                        'reject' => 'bg-rose-100 text-rose-700',
+                        ];
+                        $actionColor = $actionColors[$log->action_type] ?? 'bg-gray-100 text-gray-700';
                         @endphp
                         <span class="inline-flex items-center px-2.5 py-1 rounded-md text-xs font-semibold {{ $actionColor }}">
                             {{ ucfirst($log->action_type) }}
@@ -113,7 +95,7 @@
             </tbody>
         </table>
     </div>
-    
+
     <div class="p-4 border-t border-gray-100">
         {{ $logs->links() }}
     </div>

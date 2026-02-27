@@ -71,7 +71,7 @@ class AdminController extends Controller
             // Check if user has admin role
             if ($user->roles()->where('role_type', 'admin')->exists()) {
                 $request->session()->regenerate();
-                
+
                 // Log admin login
                 AuditLog::log(
                     'admin.login',
@@ -80,7 +80,7 @@ class AdminController extends Controller
                     User::class,
                     $user->id
                 );
-                
+
                 return redirect()->intended('/admin/dashboard');
             }
 
@@ -122,24 +122,24 @@ class AdminController extends Controller
         // Verified Breeders (users with breeder_certificate approved)
         $verifiedBreeders = User::whereHas('userAuth', function ($q) {
             $q->where('auth_type', 'breeder_certificate')
-              ->where('status', 'approved');
+                ->where('status', 'approved');
         })->count();
         $breedersLastMonth = User::whereHas('userAuth', function ($q) use ($lastMonth) {
             $q->where('auth_type', 'breeder_certificate')
-              ->where('status', 'approved')
-              ->where('updated_at', '<', $lastMonth);
+                ->where('status', 'approved')
+                ->where('updated_at', '<', $lastMonth);
         })->count();
         $breedersGrowth = $this->calculateGrowth($verifiedBreeders, $breedersLastMonth);
 
         // Verified Shooters (users with shooter_certificate approved)
         $verifiedShooters = User::whereHas('userAuth', function ($q) {
             $q->where('auth_type', 'shooter_certificate')
-              ->where('status', 'approved');
+                ->where('status', 'approved');
         })->count();
         $shootersLastWeek = User::whereHas('userAuth', function ($q) use ($lastWeek) {
             $q->where('auth_type', 'shooter_certificate')
-              ->where('status', 'approved')
-              ->where('updated_at', '<', $lastWeek);
+                ->where('status', 'approved')
+                ->where('updated_at', '<', $lastWeek);
         })->count();
         $shootersGrowth = $this->calculateGrowth($verifiedShooters, $shootersLastWeek);
 
@@ -204,16 +204,25 @@ class AdminController extends Controller
             ->get();
 
         return compact(
-            'totalUsers', 'usersGrowth',
-            'verifiedBreeders', 'breedersGrowth',
-            'verifiedShooters', 'shootersGrowth',
-            'activePets', 'activePetsGrowth',
-            'disabledPets', 'disabledPetsGrowth',
-            'cooldownPets', 'cooldownPetsGrowth',
-            'standardSubscribers', 'standardGrowth',
-            'premiumSubscribers', 'premiumGrowth',
+            'totalUsers',
+            'usersGrowth',
+            'verifiedBreeders',
+            'breedersGrowth',
+            'verifiedShooters',
+            'shootersGrowth',
+            'activePets',
+            'activePetsGrowth',
+            'disabledPets',
+            'disabledPetsGrowth',
+            'cooldownPets',
+            'cooldownPetsGrowth',
+            'standardSubscribers',
+            'standardGrowth',
+            'premiumSubscribers',
+            'premiumGrowth',
             'pendingReports',
-            'monthlyUsers', 'matchesTrend',
+            'monthlyUsers',
+            'matchesTrend',
             'topUsers'
         );
     }
@@ -224,7 +233,7 @@ class AdminController extends Controller
     public function logout(Request $request)
     {
         $user = Auth::user();
-        
+
         // Log admin logout before actually logging out
         if ($user) {
             AuditLog::log(
@@ -235,7 +244,7 @@ class AdminController extends Controller
                 $user->id
             );
         }
-        
+
         Auth::logout();
 
         $request->session()->invalidate();
@@ -289,13 +298,13 @@ class AdminController extends Controller
             } elseif ($docStatus === 'expired') {
                 $query->whereHas('userAuth', function ($q) {
                     $q->whereNotNull('expiry_date')
-                      ->where('expiry_date', '<', Carbon::now());
+                        ->where('expiry_date', '<', Carbon::now());
                 });
             } elseif ($docStatus === 'valid') {
                 $query->whereHas('userAuth')
                     ->whereDoesntHave('userAuth', function ($q) {
                         $q->whereNotNull('expiry_date')
-                          ->where('expiry_date', '<', Carbon::now());
+                            ->where('expiry_date', '<', Carbon::now());
                     });
             }
         }
@@ -316,20 +325,20 @@ class AdminController extends Controller
                 'ID' => 'id',
                 'Name' => 'name',
                 'Email' => 'email',
-                'Roles' => function($user) {
+                'Roles' => function ($user) {
                     return $user->roles->pluck('role_type')->implode(', ');
                 },
-                'Status' => function($user) {
+                'Status' => function ($user) {
                     return $user->status ?? 'active';
                 },
-                'Document Status' => function($user) {
+                'Document Status' => function ($user) {
                     $auth = $user->userAuth->first();
                     return $auth ? $auth->status : 'missing';
                 },
-                'Subscription' => function($user) {
+                'Subscription' => function ($user) {
                     return $user->subscription_tier ?? 'free';
                 },
-                'Joined' => function($user) {
+                'Joined' => function ($user) {
                     return $user->created_at->format('Y-m-d H:i');
                 }
             ];
@@ -337,7 +346,8 @@ class AdminController extends Controller
             return $this->export($query->filterByDate($request), $request->export, 'users_export', 'admin.exports.users-pdf', $viewData, $csvColumns);
         }
 
-        $users = $query->filterByDate($request)->paginate(15)->appends($request->all());
+        $perPage = $request->input('per_page', 15);
+        $users = $query->filterByDate($request)->paginate($perPage)->appends($request->all());
 
         return view('admin.users.index', compact('users', 'status'));
     }
@@ -356,7 +366,9 @@ class AdminController extends Controller
                 'ID' => 'id',
                 'Name' => 'name',
                 'Email' => 'email',
-                'Joined' => function($row) { return $row->created_at->format('Y-m-d H:i'); }
+                'Joined' => function ($row) {
+                    return $row->created_at->format('Y-m-d H:i');
+                }
             ];
             return $this->export($query, $request->export, 'admins_export', 'admin.exports.admins-pdf', [], $csvColumns);
         }
@@ -393,7 +405,7 @@ class AdminController extends Controller
         }
 
         $adminRole = Role::firstOrCreate(['role_type' => 'admin']);
-        
+
         if (!$user->roles()->where('roles.role_id', $adminRole->role_id)->exists()) {
             $user->roles()->attach($adminRole->role_id);
         }
@@ -423,7 +435,7 @@ class AdminController extends Controller
 
         if ($adminRole) {
             $user->roles()->detach($adminRole->role_id);
-            
+
             AuditLog::log(
                 'admin.revoke',
                 AuditLog::TYPE_DELETE,
@@ -485,16 +497,40 @@ class AdminController extends Controller
                 'Name' => 'name',
                 'Type' => 'species',
                 'Breed' => 'breed',
-                'Owner' => function($row) { return $row->owner->name ?? 'Unknown'; },
+                'Owner' => function ($row) {
+                    return $row->owner->name ?? 'Unknown';
+                },
                 'Sex' => 'sex',
                 'Status' => 'status'
             ];
             return $this->export($query->filterByDate($request), $request->export, 'pets_export', 'admin.exports.pets-pdf', [], $csvColumns);
         }
 
-        $pets = $query->filterByDate($request)->paginate(10)->appends($request->query());
+        $perPage = $request->input('per_page', 10);
+        $pets = $query->filterByDate($request)->paginate($perPage)->appends($request->query());
 
         return view('admin.pets.index', compact('pets'));
+    }
+
+    /**
+     * Get distinct breeds from database, optionally filtered by species.
+     * Returns JSON for AJAX breed dropdown on pets page.
+     */
+    public function getBreeds(Request $request)
+    {
+        $query = Pet::select('breed')
+            ->whereNotNull('breed')
+            ->where('breed', '!=', '');
+
+        if ($request->filled('species')) {
+            $query->where('species', $request->species);
+        }
+
+        $breeds = $query->distinct()
+            ->orderBy('breed')
+            ->pluck('breed');
+
+        return response()->json($breeds);
     }
 
     /**
@@ -563,7 +599,7 @@ class AdminController extends Controller
 
         $user = User::findOrFail($userId);
         $oldTier = $user->subscription_tier;
-        
+
         $user->subscription_tier = $request->tier_slug;
         $user->save();
 
@@ -593,23 +629,23 @@ class AdminController extends Controller
 
         $user = User::findOrFail($userId);
         $oldStatus = $user->status ?? 'active';
-        
+
         $user->status = $request->status;
-        
+
         if (in_array($request->status, ['suspended', 'banned'])) {
             $user->suspension_reason = $request->suspension_reason;
             $user->suspended_at = now();
-            
+
             // Handle duration
             if ($request->suspension_duration && $request->suspension_duration !== 'indefinite') {
-                $days = match($request->suspension_duration) {
+                $days = match ($request->suspension_duration) {
                     '1_day' => 1,
                     '3_days' => 3,
                     '7_days' => 7,
                     '30_days' => 30,
                     default => null
                 };
-                
+
                 if ($days) {
                     $user->suspension_end_date = now()->addDays($days);
                 } else {
@@ -631,7 +667,6 @@ class AdminController extends Controller
                 // Log error but don't fail the request
                 \Illuminate\Support\Facades\Log::error("Failed to send suspension notification to User {$user->id}: " . $e->getMessage());
             }
-
         } else {
             // If reactivating from suspended/banned
             if (in_array($oldStatus, ['suspended', 'banned']) && $request->status === 'active') {
@@ -641,12 +676,12 @@ class AdminController extends Controller
                     \Illuminate\Support\Facades\Log::error("Failed to send reactivation notification to User {$user->id}: " . $e->getMessage());
                 }
             }
-            
+
             $user->suspension_reason = null;
             $user->suspended_at = null;
             $user->suspension_end_date = null;
         }
-        
+
         $user->save();
 
         AuditLog::log(
@@ -675,23 +710,23 @@ class AdminController extends Controller
 
         $pet = Pet::findOrFail($petId);
         $oldStatus = $pet->status;
-        
+
         $pet->status = $request->status;
-        
+
         if (in_array($request->status, ['disabled', 'banned'])) {
             $pet->suspension_reason = $request->suspension_reason;
             $pet->suspended_at = now();
-            
+
             // Handle duration
             if ($request->suspension_duration && $request->suspension_duration !== 'indefinite') {
-                $days = match($request->suspension_duration) {
+                $days = match ($request->suspension_duration) {
                     '1_day' => 1,
                     '3_days' => 3,
                     '7_days' => 7,
                     '30_days' => 30,
                     default => null
                 };
-                
+
                 if ($days) {
                     $pet->suspension_end_date = now()->addDays($days);
                 } else {
@@ -707,7 +742,7 @@ class AdminController extends Controller
             $pet->suspended_at = null;
             $pet->suspension_end_date = null;
         }
-        
+
         $pet->save();
 
         // Log pet status update
@@ -854,21 +889,6 @@ class AdminController extends Controller
             $query->where('status', $request->status);
         }
 
-        // Filter by date range
-        if ($request->filled('date_range')) {
-            switch ($request->date_range) {
-                case '7':
-                    $query->where('created_at', '>=', Carbon::now()->subDays(7));
-                    break;
-                case '30':
-                    $query->where('created_at', '>=', Carbon::now()->subDays(30));
-                    break;
-                case '90':
-                    $query->where('created_at', '>=', Carbon::now()->subDays(90));
-                    break;
-            }
-        }
-
         // Search by pet name or owner name
         if ($request->filled('search')) {
             $search = $request->search;
@@ -876,31 +896,42 @@ class AdminController extends Controller
                 $q->whereHas('requesterPet', function ($q2) use ($search) {
                     $q2->where('name', 'like', "%{$search}%");
                 })
-                ->orWhereHas('targetPet', function ($q2) use ($search) {
-                    $q2->where('name', 'like', "%{$search}%");
-                })
-                ->orWhereHas('requesterPet.owner', function ($q2) use ($search) {
-                    $q2->where('name', 'like', "%{$search}%");
-                })
-                ->orWhereHas('targetPet.owner', function ($q2) use ($search) {
-                    $q2->where('name', 'like', "%{$search}%");
-                });
+                    ->orWhereHas('targetPet', function ($q2) use ($search) {
+                        $q2->where('name', 'like', "%{$search}%");
+                    })
+                    ->orWhereHas('requesterPet.owner', function ($q2) use ($search) {
+                        $q2->where('name', 'like', "%{$search}%");
+                    })
+                    ->orWhereHas('targetPet.owner', function ($q2) use ($search) {
+                        $q2->where('name', 'like', "%{$search}%");
+                    });
             });
         }
 
         if ($request->has('export')) {
-             $csvColumns = [
-                'Date' => function($row) { return $row->created_at->format('Y-m-d'); },
-                'Requester Pet' => function($row) { return $row->requesterPet->name ?? 'Unknown'; },
-                'Requester Owner' => function($row) { return $row->requesterPet->owner->name ?? 'Unknown'; },
-                'Target Pet' => function($row) { return $row->targetPet->name ?? 'Unknown'; },
-                'Target Owner' => function($row) { return $row->targetPet->owner->name ?? 'Unknown'; },
+            $csvColumns = [
+                'Date' => function ($row) {
+                    return $row->created_at->format('Y-m-d');
+                },
+                'Requester Pet' => function ($row) {
+                    return $row->requesterPet->name ?? 'Unknown';
+                },
+                'Requester Owner' => function ($row) {
+                    return $row->requesterPet->owner->name ?? 'Unknown';
+                },
+                'Target Pet' => function ($row) {
+                    return $row->targetPet->name ?? 'Unknown';
+                },
+                'Target Owner' => function ($row) {
+                    return $row->targetPet->owner->name ?? 'Unknown';
+                },
                 'Status' => 'status'
             ];
             return $this->export($query->filterByDate($request), $request->export, 'matches_export', 'admin.exports.matches-pdf', [], $csvColumns);
         }
 
-        $matches = $query->filterByDate($request)->orderBy('created_at', 'desc')->paginate(15)->appends($request->query());
+        $perPage = $request->input('per_page', 15);
+        $matches = $query->filterByDate($request)->orderBy('created_at', 'desc')->paginate($perPage)->appends($request->query());
 
         // Get statistics
         $totalMatches = MatchRequest::count();
@@ -954,7 +985,7 @@ class AdminController extends Controller
             ->where('updated_at', '<', $lastMonth)->count();
         $subscriptionRevenueLastMonth = ($premiumLastMonth * $premiumPrice) + ($standardLastMonth * $standardPrice);
         $revenueLastMonth = $subscriptionRevenueLastMonth + $matchRequestRevenueLastMonth;
-        $revenueGrowth = $revenueLastMonth > 0 
+        $revenueGrowth = $revenueLastMonth > 0
             ? $this->calculateGrowth($totalRevenue, $revenueLastMonth)
             : ($totalRevenue > 0 ? 100 : 0);
 
@@ -971,15 +1002,15 @@ class AdminController extends Controller
 
         // Conversion Rate (accepted matches / total match requests)
         $totalRequests = MatchRequest::count();
-        $conversionRate = $totalRequests > 0 
+        $conversionRate = $totalRequests > 0
             ? round(($matchesMade / $totalRequests) * 100, 1)
             : 0;
-        
+
         // Calculate last month's conversion rate
         $totalRequestsLastMonth = MatchRequest::where('created_at', '<', $lastMonth)->count();
         $acceptedLastMonth = MatchRequest::where('status', 'accepted')
             ->where('created_at', '<', $lastMonth)->count();
-        $conversionRateLastMonth = $totalRequestsLastMonth > 0 
+        $conversionRateLastMonth = $totalRequestsLastMonth > 0
             ? round(($acceptedLastMonth / $totalRequestsLastMonth) * 100, 1)
             : 0;
         $conversionGrowth = round($conversionRate - $conversionRateLastMonth, 1);
@@ -1005,11 +1036,16 @@ class AdminController extends Controller
             ->get();
 
         return view('admin.analytics', compact(
-            'totalRevenue', 'revenueGrowth',
-            'activeUsers', 'activeUsersGrowth',
-            'matchesMade', 'matchesGrowth',
-            'conversionRate', 'conversionGrowth',
-            'monthlyData', 'monthlyMatches'
+            'totalRevenue',
+            'revenueGrowth',
+            'activeUsers',
+            'activeUsersGrowth',
+            'matchesMade',
+            'matchesGrowth',
+            'conversionRate',
+            'conversionGrowth',
+            'monthlyData',
+            'monthlyMatches'
         ));
     }
 
@@ -1058,7 +1094,7 @@ class AdminController extends Controller
         $startOfThisMonth = Carbon::now()->startOfMonth();
         $startOfLastMonth = Carbon::now()->subMonth()->startOfMonth();
         $endOfLastMonth = Carbon::now()->subMonth()->endOfMonth();
-        
+
         $matchRequestPaymentsThisMonth = \App\Models\Payment::where('payment_type', \App\Models\Payment::TYPE_MATCH_REQUEST)
             ->where('status', \App\Models\Payment::STATUS_PAID)
             ->where('paid_at', '>=', $startOfThisMonth)
@@ -1077,12 +1113,22 @@ class AdminController extends Controller
             ->get(['id', 'name', 'email', 'subscription_tier', 'updated_at']);
 
         return view('admin.billing', compact(
-            'freeUsers', 'freePercentage',
-            'standardUsers', 'standardPercentage', 'standardGrowth',
-            'premiumUsers', 'premiumPercentage', 'premiumGrowth',
-            'totalUsers', 'recentSubscriptions',
-            'matchRequestPayments', 'matchRequestRevenue', 'matchRequestGrowth',
-            'standardPrice', 'premiumPrice', 'matchRequestFee'
+            'freeUsers',
+            'freePercentage',
+            'standardUsers',
+            'standardPercentage',
+            'standardGrowth',
+            'premiumUsers',
+            'premiumPercentage',
+            'premiumGrowth',
+            'totalUsers',
+            'recentSubscriptions',
+            'matchRequestPayments',
+            'matchRequestRevenue',
+            'matchRequestGrowth',
+            'standardPrice',
+            'premiumPrice',
+            'matchRequestFee'
         ));
     }
 
@@ -1103,49 +1149,41 @@ class AdminController extends Controller
             $query->where('reason', $request->reason);
         }
 
-        // Filter by date range
-        if ($request->filled('date_range')) {
-            switch ($request->date_range) {
-                case '7':
-                    $query->where('created_at', '>=', Carbon::now()->subDays(7));
-                    break;
-                case '30':
-                    $query->where('created_at', '>=', Carbon::now()->subDays(30));
-                    break;
-                case '90':
-                    $query->where('created_at', '>=', Carbon::now()->subDays(90));
-                    break;
-            }
-        }
-
         // Search by reporter or reported user name/email
         if ($request->filled('search')) {
             $search = $request->search;
             $query->where(function ($q) use ($search) {
                 $q->whereHas('reporter', function ($q2) use ($search) {
                     $q2->where('name', 'like', "%{$search}%")
-                       ->orWhere('email', 'like', "%{$search}%");
+                        ->orWhere('email', 'like', "%{$search}%");
                 })
-                ->orWhereHas('reported', function ($q2) use ($search) {
-                    $q2->where('name', 'like', "%{$search}%")
-                       ->orWhere('email', 'like', "%{$search}%");
-                });
+                    ->orWhereHas('reported', function ($q2) use ($search) {
+                        $q2->where('name', 'like', "%{$search}%")
+                            ->orWhere('email', 'like', "%{$search}%");
+                    });
             });
         }
 
         if ($request->has('export')) {
             $csvColumns = [
                 'ID' => 'id',
-                'Reporter' => function($row) { return $row->reporter->name ?? 'Unknown'; },
-                'Reported User' => function($row) { return $row->reported->name ?? 'Unknown'; },
+                'Reporter' => function ($row) {
+                    return $row->reporter->name ?? 'Unknown';
+                },
+                'Reported User' => function ($row) {
+                    return $row->reported->name ?? 'Unknown';
+                },
                 'Reason' => 'reason',
                 'Status' => 'status',
-                'Date' => function($row) { return $row->created_at->format('Y-m-d H:i'); }
+                'Date' => function ($row) {
+                    return $row->created_at->format('Y-m-d H:i');
+                }
             ];
-            return $this->export($query, $request->export, 'reports_export', 'admin.exports.reports-pdf', [], $csvColumns);
+            return $this->export($query->filterByDate($request), $request->export, 'reports_export', 'admin.exports.reports-pdf', [], $csvColumns);
         }
 
-        $reports = $query->orderBy('created_at', 'desc')->paginate(15)->appends($request->query());
+        $perPage = $request->input('per_page', 15);
+        $reports = $query->filterByDate($request)->orderBy('created_at', 'desc')->paginate($perPage)->appends($request->query());
 
         // Statistics
         $totalReports = SafetyReport::count();
@@ -1295,22 +1333,29 @@ class AdminController extends Controller
                 $q->whereHas('blocker', function ($q2) use ($search) {
                     $q2->where('name', 'like', "%{$search}%");
                 })
-                ->orWhereHas('blocked', function ($q2) use ($search) {
-                    $q2->where('name', 'like', "%{$search}%");
-                });
+                    ->orWhereHas('blocked', function ($q2) use ($search) {
+                        $q2->where('name', 'like', "%{$search}%");
+                    });
             });
         }
 
         if ($request->has('export')) {
             $csvColumns = [
-                'Date' => function($row) { return $row->created_at->format('Y-m-d'); },
-                'Blocker' => function($row) { return $row->blocker->name ?? 'Unknown'; },
-                'Blocked User' => function($row) { return $row->blocked->name ?? 'Unknown'; }
+                'Date' => function ($row) {
+                    return $row->created_at->format('Y-m-d');
+                },
+                'Blocker' => function ($row) {
+                    return $row->blocker->name ?? 'Unknown';
+                },
+                'Blocked User' => function ($row) {
+                    return $row->blocked->name ?? 'Unknown';
+                }
             ];
-            return $this->export($query, $request->export, 'blocks_export', 'admin.exports.blocks-pdf', [], $csvColumns);
+            return $this->export($query->filterByDate($request), $request->export, 'blocks_export', 'admin.exports.blocks-pdf', [], $csvColumns);
         }
 
-        $blocks = $query->orderBy('created_at', 'desc')->paginate(15)->appends($request->query());
+        $perPage = $request->input('per_page', 15);
+        $blocks = $query->filterByDate($request)->orderBy('created_at', 'desc')->paginate($perPage)->appends($request->query());
         $totalBlocks = UserBlock::count();
 
         // Most blocked users (users blocked by the most people)
@@ -1368,18 +1413,27 @@ class AdminController extends Controller
             });
         }
 
-        // Filter by date range (legacy - replaced by trait but keeping for compatibility if needed)
-        if ($request->filled('date_from')) {
-            $query->whereDate('created_at', '>=', $request->date_from);
-        }
-        if ($request->filled('date_to')) {
-            $query->whereDate('created_at', '<=', $request->date_to);
+        // Search by user name, email, or description
+        if ($request->filled('search')) {
+            $search = $request->search;
+            $query->where(function ($q) use ($search) {
+                $q->where('description', 'like', "%{$search}%")
+                    ->orWhere('action', 'like', "%{$search}%")
+                    ->orWhereHas('user', function ($q2) use ($search) {
+                        $q2->where('name', 'like', "%{$search}%")
+                            ->orWhere('email', 'like', "%{$search}%");
+                    });
+            });
         }
 
         if ($request->has('export')) {
             $csvColumns = [
-                'Date' => function($row) { return $row->created_at->format('Y-m-d H:i:s'); },
-                'User' => function($row) { return $row->user->name ?? 'System'; },
+                'Date' => function ($row) {
+                    return $row->created_at->format('Y-m-d H:i:s');
+                },
+                'User' => function ($row) {
+                    return $row->user->name ?? 'System';
+                },
                 'Action' => 'action',
                 'Description' => 'description',
                 'Target Type' => 'target_type',
@@ -1388,7 +1442,8 @@ class AdminController extends Controller
             return $this->export($query, $request->export, 'audit_logs_export', 'admin.exports.audit-logs-pdf', [], $csvColumns);
         }
 
-        $logs = $query->paginate(20)->appends($request->query());
+        $perPage = $request->input('per_page', 20);
+        $logs = $query->paginate($perPage)->appends($request->query());
 
         return view('admin.audit-logs', compact('logs'));
     }

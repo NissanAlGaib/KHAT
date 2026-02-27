@@ -46,8 +46,8 @@ class VaccineProtocolController extends Controller
             $search = $request->search;
             $query->where(function ($q) use ($search) {
                 $q->where('name', 'like', "%{$search}%")
-                  ->orWhere('slug', 'like', "%{$search}%")
-                  ->orWhere('description', 'like', "%{$search}%");
+                    ->orWhere('slug', 'like', "%{$search}%")
+                    ->orWhere('description', 'like', "%{$search}%");
             });
         }
 
@@ -55,11 +55,17 @@ class VaccineProtocolController extends Controller
             $csvColumns = [
                 'Name' => 'name',
                 'Slug' => 'slug',
-                'Category' => function($row) { return $row->category->name ?? 'None'; },
+                'Category' => function ($row) {
+                    return $row->category->name ?? 'None';
+                },
                 'Species' => 'species',
-                'Required' => function($row) { return $row->is_required ? 'Yes' : 'No'; },
+                'Required' => function ($row) {
+                    return $row->is_required ? 'Yes' : 'No';
+                },
                 'Type' => 'protocol_type',
-                'Status' => function($row) { return $row->is_active ? 'Active' : 'Inactive'; }
+                'Status' => function ($row) {
+                    return $row->is_active ? 'Active' : 'Inactive';
+                }
             ];
             return $this->export($query, $request->export, 'vaccine_protocols', 'admin.exports.vaccine-protocols-pdf', [], $csvColumns);
         }
@@ -70,7 +76,8 @@ class VaccineProtocolController extends Controller
         $dogProtocols = VaccineProtocol::where('species', 'dog')->count();
         $catProtocols = VaccineProtocol::where('species', 'cat')->count();
 
-        $protocols = $query->ordered()->paginate(15)->appends($request->query());
+        $perPage = $request->input('per_page', 15);
+        $protocols = $query->ordered()->paginate($perPage)->appends($request->query());
         $categories = ProtocolCategory::all();
 
         return view('admin.vaccine-protocols.index', compact(
@@ -255,7 +262,6 @@ class VaccineProtocolController extends Controller
 
         return redirect()->route('admin.vaccine-protocols.index')
             ->with('success', "Protocol \"{$protocol->name}\" updated successfully.");
-
     }
 
     /**
