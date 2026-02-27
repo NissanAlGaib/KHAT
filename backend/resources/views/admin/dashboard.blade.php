@@ -274,21 +274,9 @@
     // Chart Data from Backend
     const monthlyUsersData = @json($monthlyUsers);
     const matchesTrendData = @json($matchesTrend);
-    const freeUsers = {
-        {
-            $totalUsers - $standardSubscribers - $premiumSubscribers
-        }
-    };
-    const standardUsers = {
-        {
-            $standardSubscribers
-        }
-    };
-    const premiumUsers = {
-        {
-            $premiumSubscribers
-        }
-    };
+    const freeUsers = {{ $totalUsers - $standardSubscribers - $premiumSubscribers }};
+    const standardUsers = {{ $standardSubscribers }};
+    const premiumUsers = {{ $premiumSubscribers }};
 
     // Monthly Users Chart
     const monthlyUsersCtx = document.getElementById('monthlyUsersChart');
