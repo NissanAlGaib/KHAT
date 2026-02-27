@@ -159,7 +159,8 @@ export default function Homepage() {
         // Handle unverified users
         showAlert({
           title: "Verification Required",
-          message: "You need to verify your ID before sending match requests. This helps keep our community safe.",
+          message:
+            "You need to verify your ID before sending match requests. This helps keep our community safe.",
           type: "warning",
           buttons: [
             { text: "Later", style: "cancel" },

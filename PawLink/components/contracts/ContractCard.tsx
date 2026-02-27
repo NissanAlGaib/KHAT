@@ -154,7 +154,12 @@ export default function ContractCard({
   const [allocationSummary, setAllocationSummary] =
     useState<AllocationSummaryData | null>(null);
   const [showDailyReportModal, setShowDailyReportModal] = useState(false);
-  const { visible: alertVisible, alertOptions, showAlert, hideAlert } = useAlert();
+  const {
+    visible: alertVisible,
+    alertOptions,
+    showAlert,
+    hideAlert,
+  } = useAlert();
 
   // Payment state
   const [contractPayments, setContractPayments] = useState<Payment[]>([]);
@@ -400,7 +405,8 @@ export default function ContractCard({
                 if (hasOffspring) {
                   showAlert({
                     title: "Success",
-                    message: "Breeding marked as complete! You can now input offspring details.",
+                    message:
+                      "Breeding marked as complete! You can now input offspring details.",
                     type: "success",
                   });
                 }
@@ -413,7 +419,11 @@ export default function ContractCard({
               }
             } catch (error) {
               console.error("Error marking breeding complete:", error);
-              showAlert({ title: "Error", message: "Failed to mark breeding complete", type: "error" });
+              showAlert({
+                title: "Error",
+                message: "Failed to mark breeding complete",
+                type: "error",
+              });
             } finally {
               setIsMarkingComplete(false);
             }
@@ -1537,7 +1547,11 @@ export default function ContractCard({
         />
       )}
 
-      <AlertModal visible={alertVisible} {...alertOptions} onClose={hideAlert} />
+      <AlertModal
+        visible={alertVisible}
+        {...alertOptions}
+        onClose={hideAlert}
+      />
     </View>
   );
 }

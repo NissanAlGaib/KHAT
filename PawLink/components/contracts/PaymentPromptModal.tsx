@@ -48,7 +48,12 @@ export default function PaymentPromptModal({
   const scaleAnim = useRef(new Animated.Value(0)).current;
   const appState = useRef(AppState.currentState);
   const pendingRef = useRef<number | null>(null);
-  const { visible: alertVisible, alertOptions, showAlert, hideAlert } = useAlert();
+  const {
+    visible: alertVisible,
+    alertOptions,
+    showAlert,
+    hideAlert,
+  } = useAlert();
 
   // Keep ref in sync so the AppState callback sees the latest value
   useEffect(() => {
@@ -109,7 +114,9 @@ export default function PaymentPromptModal({
       if (!result.success || !result.data) {
         showAlert({
           title: "Payment Error",
-          message: result.message || "Failed to create payment session. Please try again.",
+          message:
+            result.message ||
+            "Failed to create payment session. Please try again.",
           type: "error",
         });
         return;
@@ -120,7 +127,11 @@ export default function PaymentPromptModal({
 
       const canOpen = await Linking.canOpenURL(checkout_url);
       if (!canOpen) {
-        showAlert({ title: "Error", message: "Cannot open payment page. Please try again.", type: "error" });
+        showAlert({
+          title: "Error",
+          message: "Cannot open payment page. Please try again.",
+          type: "error",
+        });
         return;
       }
 
@@ -128,7 +139,8 @@ export default function PaymentPromptModal({
 
       showAlert({
         title: "Complete Your Payment",
-        message: "You've been redirected to PayMongo. After completing your payment, return to the app and tap 'Verify Payment'.",
+        message:
+          "You've been redirected to PayMongo. After completing your payment, return to the app and tap 'Verify Payment'.",
         type: "info",
         buttons: [
           {
@@ -139,7 +151,11 @@ export default function PaymentPromptModal({
         ],
       });
     } catch {
-      showAlert({ title: "Error", message: "An unexpected error occurred. Please try again.", type: "error" });
+      showAlert({
+        title: "Error",
+        message: "An unexpected error occurred. Please try again.",
+        type: "error",
+      });
     } finally {
       setIsLoading(false);
     }
@@ -159,12 +175,17 @@ export default function PaymentPromptModal({
       } else {
         showAlert({
           title: "Payment Not Yet Confirmed",
-          message: "Your payment hasn't been confirmed yet. Please complete the payment on PayMongo and try verifying again.",
+          message:
+            "Your payment hasn't been confirmed yet. Please complete the payment on PayMongo and try verifying again.",
           type: "warning",
         });
       }
     } catch {
-      showAlert({ title: "Error", message: "Failed to verify payment. Please try again.", type: "error" });
+      showAlert({
+        title: "Error",
+        message: "Failed to verify payment. Please try again.",
+        type: "error",
+      });
     } finally {
       setIsVerifying(false);
     }
@@ -299,7 +320,11 @@ export default function PaymentPromptModal({
           )}
         </Animated.View>
       </View>
-      <AlertModal visible={alertVisible} {...alertOptions} onClose={hideAlert} />
+      <AlertModal
+        visible={alertVisible}
+        {...alertOptions}
+        onClose={hideAlert}
+      />
     </Modal>
   );
 }

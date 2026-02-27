@@ -54,7 +54,12 @@ export default function OffspringAllocationModal({
   const [isAllocating, setIsAllocating] = useState(false);
   const [isAutoAllocating, setIsAutoAllocating] = useState(false);
   const [isCompletingMatch, setIsCompletingMatch] = useState(false);
-  const { visible: alertVisible, alertOptions, showAlert, hideAlert } = useAlert();
+  const {
+    visible: alertVisible,
+    alertOptions,
+    showAlert,
+    hideAlert,
+  } = useAlert();
 
   const fetchAllocationData = useCallback(async () => {
     setLoading(true);
@@ -101,7 +106,9 @@ export default function OffspringAllocationModal({
 
     // Filter only alive offspring that have been allocated
     allocationData.offspring
-      .filter((o) => o.status === "alive" && selectedAllocations[o.offspring_id])
+      .filter(
+        (o) => o.status === "alive" && selectedAllocations[o.offspring_id],
+      )
       .forEach((offspring) => {
         const assignedTo = selectedAllocations[offspring.offspring_id];
         if (assignedTo) {
@@ -114,7 +121,11 @@ export default function OffspringAllocationModal({
       });
 
     if (allocations.length === 0) {
-      showAlert({ title: "Error", message: "Please select an owner for at least one offspring", type: "error" });
+      showAlert({
+        title: "Error",
+        message: "Please select an owner for at least one offspring",
+        type: "error",
+      });
       return;
     }
 
@@ -122,14 +133,26 @@ export default function OffspringAllocationModal({
     try {
       const result = await allocateOffspring(contract.id, allocations);
       if (result.success) {
-        showAlert({ title: "Success", message: "Offspring allocated successfully!", type: "success" });
+        showAlert({
+          title: "Success",
+          message: "Offspring allocated successfully!",
+          type: "success",
+        });
         fetchAllocationData();
       } else {
-        showAlert({ title: "Error", message: result.message || "Failed to allocate offspring", type: "error" });
+        showAlert({
+          title: "Error",
+          message: result.message || "Failed to allocate offspring",
+          type: "error",
+        });
       }
     } catch (error) {
       console.error("Error allocating offspring:", error);
-      showAlert({ title: "Error", message: "Failed to allocate offspring", type: "error" });
+      showAlert({
+        title: "Error",
+        message: "Failed to allocate offspring",
+        type: "error",
+      });
     } finally {
       setIsAllocating(false);
     }
@@ -138,9 +161,10 @@ export default function OffspringAllocationModal({
   const handleAutoAllocate = async () => {
     showAlert({
       title: "Auto-Allocate Offspring",
-      message: allocationData?.allocation_method.selection_method === "randomized"
-        ? "This will randomly assign offspring to each owner based on the contract split."
-        : "This will allocate offspring using the first-pick method where the dam (female pet) owner picks first.",
+      message:
+        allocationData?.allocation_method.selection_method === "randomized"
+          ? "This will randomly assign offspring to each owner based on the contract split."
+          : "This will allocate offspring using the first-pick method where the dam (female pet) owner picks first.",
       type: "info",
       buttons: [
         { text: "Cancel", style: "cancel" },
@@ -158,11 +182,20 @@ export default function OffspringAllocationModal({
                 });
                 fetchAllocationData();
               } else {
-                showAlert({ title: "Error", message: result.message || "Failed to auto-allocate offspring", type: "error" });
+                showAlert({
+                  title: "Error",
+                  message:
+                    result.message || "Failed to auto-allocate offspring",
+                  type: "error",
+                });
               }
             } catch (error) {
               console.error("Error auto-allocating:", error);
-              showAlert({ title: "Error", message: "Failed to auto-allocate offspring", type: "error" });
+              showAlert({
+                title: "Error",
+                message: "Failed to auto-allocate offspring",
+                type: "error",
+              });
             } finally {
               setIsAutoAllocating(false);
             }
@@ -175,7 +208,8 @@ export default function OffspringAllocationModal({
   const handleCompleteMatch = async () => {
     showAlert({
       title: "Complete Match",
-      message: "This will mark the breeding contract as fulfilled and archive the conversation. This action cannot be undone.",
+      message:
+        "This will mark the breeding contract as fulfilled and archive the conversation. This action cannot be undone.",
       type: "warning",
       buttons: [
         { text: "Cancel", style: "cancel" },
@@ -189,7 +223,8 @@ export default function OffspringAllocationModal({
               if (result.success) {
                 showAlert({
                   title: "Match Completed!",
-                  message: "The breeding match has been successfully completed and the conversation has been archived.",
+                  message:
+                    "The breeding match has been successfully completed and the conversation has been archived.",
                   type: "success",
                   buttons: [
                     {
@@ -202,11 +237,19 @@ export default function OffspringAllocationModal({
                   ],
                 });
               } else {
-                showAlert({ title: "Error", message: result.message || "Failed to complete match", type: "error" });
+                showAlert({
+                  title: "Error",
+                  message: result.message || "Failed to complete match",
+                  type: "error",
+                });
               }
             } catch (error) {
               console.error("Error completing match:", error);
-              showAlert({ title: "Error", message: "Failed to complete match", type: "error" });
+              showAlert({
+                title: "Error",
+                message: "Failed to complete match",
+                type: "error",
+              });
             } finally {
               setIsCompletingMatch(false);
             }
@@ -229,8 +272,8 @@ export default function OffspringAllocationModal({
           offspring.status === "died"
             ? "border-gray-300 bg-gray-50"
             : offspring.status === "adopted"
-            ? "border-purple-300 bg-purple-50"
-            : "border-gray-200 bg-white"
+              ? "border-purple-300 bg-purple-50"
+              : "border-gray-200 bg-white"
         }`}
       >
         <View className="flex-row items-center mb-2">
@@ -283,8 +326,8 @@ export default function OffspringAllocationModal({
               offspring.status === "alive"
                 ? "bg-green-100"
                 : offspring.status === "adopted"
-                ? "bg-purple-100"
-                : "bg-gray-200"
+                  ? "bg-purple-100"
+                  : "bg-gray-200"
             }`}
           >
             <Text
@@ -292,8 +335,8 @@ export default function OffspringAllocationModal({
                 offspring.status === "alive"
                   ? "text-green-700"
                   : offspring.status === "adopted"
-                  ? "text-purple-700"
-                  : "text-gray-600"
+                    ? "text-purple-700"
+                    : "text-gray-600"
               }`}
             >
               {offspring.status.charAt(0).toUpperCase() +
@@ -331,7 +374,7 @@ export default function OffspringAllocationModal({
                   numberOfLines={1}
                 >
                   {allocationData?.expected_allocation.dam_owner.name?.split(
-                    " "
+                    " ",
                   )[0] || "Dam Owner"}
                 </Text>
               </TouchableOpacity>
@@ -360,7 +403,7 @@ export default function OffspringAllocationModal({
                   numberOfLines={1}
                 >
                   {allocationData?.expected_allocation.sire_owner.name?.split(
-                    " "
+                    " ",
                   )[0] || "Sire Owner"}
                 </Text>
               </TouchableOpacity>
@@ -369,19 +412,20 @@ export default function OffspringAllocationModal({
         )}
 
         {/* Allocation Status for already assigned */}
-        {offspring.allocation_status === "assigned" && offspring.assigned_to && (
-          <View className="mt-2 bg-green-50 rounded-lg p-2 flex-row items-center">
-            <Check size={14} color="#10b981" />
-            <Text className="text-green-700 text-sm ml-1">
-              Assigned to {offspring.assigned_to.name}
-            </Text>
-            {offspring.selection_order && (
-              <Text className="text-green-600 text-xs ml-auto">
-                Pick #{offspring.selection_order}
+        {offspring.allocation_status === "assigned" &&
+          offspring.assigned_to && (
+            <View className="mt-2 bg-green-50 rounded-lg p-2 flex-row items-center">
+              <Check size={14} color="#10b981" />
+              <Text className="text-green-700 text-sm ml-1">
+                Assigned to {offspring.assigned_to.name}
               </Text>
-            )}
-          </View>
-        )}
+              {offspring.selection_order && (
+                <Text className="text-green-600 text-xs ml-auto">
+                  Pick #{offspring.selection_order}
+                </Text>
+              )}
+            </View>
+          )}
       </View>
     );
   };
@@ -393,7 +437,11 @@ export default function OffspringAllocationModal({
           <ActivityIndicator size="large" color="#FF6B6B" />
           <Text className="text-gray-500 mt-4">Loading allocation data...</Text>
         </View>
-        <AlertModal visible={alertVisible} {...alertOptions} onClose={hideAlert} />
+        <AlertModal
+          visible={alertVisible}
+          {...alertOptions}
+          onClose={hideAlert}
+        />
       </Modal>
     );
   }
@@ -485,8 +533,15 @@ export default function OffspringAllocationModal({
                   </View>
                   <View className="items-end">
                     <Text className="text-pink-600 font-bold text-lg">
-                      {allocationData.expected_allocation.dam_owner.current_count}{" "}
-                      / {allocationData.expected_allocation.dam_owner.expected_count}
+                      {
+                        allocationData.expected_allocation.dam_owner
+                          .current_count
+                      }{" "}
+                      /{" "}
+                      {
+                        allocationData.expected_allocation.dam_owner
+                          .expected_count
+                      }
                     </Text>
                     <Text className="text-gray-500 text-xs">assigned</Text>
                   </View>
@@ -509,8 +564,15 @@ export default function OffspringAllocationModal({
                   </View>
                   <View className="items-end">
                     <Text className="text-blue-600 font-bold text-lg">
-                      {allocationData.expected_allocation.sire_owner.current_count}{" "}
-                      / {allocationData.expected_allocation.sire_owner.expected_count}
+                      {
+                        allocationData.expected_allocation.sire_owner
+                          .current_count
+                      }{" "}
+                      /{" "}
+                      {
+                        allocationData.expected_allocation.sire_owner
+                          .expected_count
+                      }
                     </Text>
                     <Text className="text-gray-500 text-xs">assigned</Text>
                   </View>
@@ -625,7 +687,11 @@ export default function OffspringAllocationModal({
             </View>
           )}
         </ScrollView>
-        <AlertModal visible={alertVisible} {...alertOptions} onClose={hideAlert} />
+        <AlertModal
+          visible={alertVisible}
+          {...alertOptions}
+          onClose={hideAlert}
+        />
       </View>
     </Modal>
   );

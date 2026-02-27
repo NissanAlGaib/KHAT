@@ -37,7 +37,12 @@ export default function DisputeButton({
   const [showForm, setShowForm] = useState(false);
   const [reason, setReason] = useState("");
   const [submitting, setSubmitting] = useState(false);
-  const { visible: alertVisible, alertOptions, showAlert, hideAlert } = useAlert();
+  const {
+    visible: alertVisible,
+    alertOptions,
+    showAlert,
+    hideAlert,
+  } = useAlert();
 
   // Can only file dispute on accepted contracts without existing active disputes
   const canFileDispute =
@@ -46,13 +51,18 @@ export default function DisputeButton({
 
   const handleSubmit = async () => {
     if (!reason.trim()) {
-      showAlert({ title: "Error", message: "Please provide a reason for the dispute.", type: "error" });
+      showAlert({
+        title: "Error",
+        message: "Please provide a reason for the dispute.",
+        type: "error",
+      });
       return;
     }
 
     showAlert({
       title: "File Dispute",
-      message: "Are you sure you want to file a dispute? This will freeze all funds in the contract pool until the dispute is resolved.",
+      message:
+        "Are you sure you want to file a dispute? This will freeze all funds in the contract pool until the dispute is resolved.",
       type: "warning",
       buttons: [
         { text: "Cancel", style: "cancel" },
@@ -72,12 +82,17 @@ export default function DisputeButton({
               setReason("");
               showAlert({
                 title: "Dispute Filed",
-                message: "Your dispute has been filed and contract funds have been frozen. An admin will review your case.",
+                message:
+                  "Your dispute has been filed and contract funds have been frozen. An admin will review your case.",
                 type: "success",
               });
               onDisputeFiled?.(result.data);
             } else {
-              showAlert({ title: "Error", message: result.message, type: "error" });
+              showAlert({
+                title: "Error",
+                message: result.message,
+                type: "error",
+              });
             }
           },
         },
@@ -147,53 +162,57 @@ export default function DisputeButton({
   if (showForm) {
     return (
       <>
-      <View className="bg-white rounded-xl p-4 border border-gray-200">
-        <View className="flex-row items-center justify-between mb-3">
-          <Text className="text-sm font-bold text-gray-900">
-            File a Dispute
+        <View className="bg-white rounded-xl p-4 border border-gray-200">
+          <View className="flex-row items-center justify-between mb-3">
+            <Text className="text-sm font-bold text-gray-900">
+              File a Dispute
+            </Text>
+            <TouchableOpacity onPress={() => setShowForm(false)}>
+              <Feather name="x" size={20} color="#9CA3AF" />
+            </TouchableOpacity>
+          </View>
+
+          <Text className="text-xs text-gray-500 mb-2">
+            Filing a dispute will freeze all funds in the contract pool until an
+            admin resolves it.
           </Text>
-          <TouchableOpacity onPress={() => setShowForm(false)}>
-            <Feather name="x" size={20} color="#9CA3AF" />
+
+          <TextInput
+            value={reason}
+            onChangeText={setReason}
+            placeholder="Describe the issue in detail..."
+            multiline
+            numberOfLines={4}
+            textAlignVertical="top"
+            className="bg-gray-50 border border-gray-200 rounded-lg p-3 text-sm text-gray-800 mb-3 min-h-[100px]"
+            editable={!submitting}
+          />
+
+          <TouchableOpacity
+            onPress={handleSubmit}
+            disabled={submitting || !reason.trim()}
+            className={`py-3 rounded-lg items-center ${
+              submitting || !reason.trim() ? "bg-gray-200" : "bg-red-500"
+            }`}
+          >
+            {submitting ? (
+              <ActivityIndicator size="small" color="#FFFFFF" />
+            ) : (
+              <Text
+                className={`text-sm font-semibold ${
+                  !reason.trim() ? "text-gray-400" : "text-white"
+                }`}
+              >
+                Submit Dispute
+              </Text>
+            )}
           </TouchableOpacity>
         </View>
-
-        <Text className="text-xs text-gray-500 mb-2">
-          Filing a dispute will freeze all funds in the contract pool until an
-          admin resolves it.
-        </Text>
-
-        <TextInput
-          value={reason}
-          onChangeText={setReason}
-          placeholder="Describe the issue in detail..."
-          multiline
-          numberOfLines={4}
-          textAlignVertical="top"
-          className="bg-gray-50 border border-gray-200 rounded-lg p-3 text-sm text-gray-800 mb-3 min-h-[100px]"
-          editable={!submitting}
+        <AlertModal
+          visible={alertVisible}
+          {...alertOptions}
+          onClose={hideAlert}
         />
-
-        <TouchableOpacity
-          onPress={handleSubmit}
-          disabled={submitting || !reason.trim()}
-          className={`py-3 rounded-lg items-center ${
-            submitting || !reason.trim() ? "bg-gray-200" : "bg-red-500"
-          }`}
-        >
-          {submitting ? (
-            <ActivityIndicator size="small" color="#FFFFFF" />
-          ) : (
-            <Text
-              className={`text-sm font-semibold ${
-                !reason.trim() ? "text-gray-400" : "text-white"
-              }`}
-            >
-              Submit Dispute
-            </Text>
-          )}
-        </TouchableOpacity>
-      </View>
-      <AlertModal visible={alertVisible} {...alertOptions} onClose={hideAlert} />
       </>
     );
   }
@@ -201,15 +220,21 @@ export default function DisputeButton({
   // File dispute button
   return (
     <>
-    <TouchableOpacity
-      onPress={() => setShowForm(true)}
-      className="flex-row items-center justify-center gap-2 py-3 bg-gray-100 rounded-xl"
-      activeOpacity={0.7}
-    >
-      <Feather name="alert-triangle" size={16} color="#6B7280" />
-      <Text className="text-sm font-medium text-gray-600">File a Dispute</Text>
-    </TouchableOpacity>
-    <AlertModal visible={alertVisible} {...alertOptions} onClose={hideAlert} />
+      <TouchableOpacity
+        onPress={() => setShowForm(true)}
+        className="flex-row items-center justify-center gap-2 py-3 bg-gray-100 rounded-xl"
+        activeOpacity={0.7}
+      >
+        <Feather name="alert-triangle" size={16} color="#6B7280" />
+        <Text className="text-sm font-medium text-gray-600">
+          File a Dispute
+        </Text>
+      </TouchableOpacity>
+      <AlertModal
+        visible={alertVisible}
+        {...alertOptions}
+        onClose={hideAlert}
+      />
     </>
   );
 }
