@@ -194,19 +194,7 @@
             data: {
                 labels: ['Free', 'Standard', 'Premium'],
                 datasets: [{
-                    data: [{
-                        {
-                            $freeUsers
-                        }
-                    }, {
-                        {
-                            $standardUsers
-                        }
-                    }, {
-                        {
-                            $premiumUsers
-                        }
-                    }],
+                    data: [{{ $freeUsers }}, {{ $standardUsers }}, {{ $premiumUsers }}],
                     backgroundColor: ['#9CA3AF', '#E75234', '#F59E0B'],
                     borderWidth: 0
                 }]

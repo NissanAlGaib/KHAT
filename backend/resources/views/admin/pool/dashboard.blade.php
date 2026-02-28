@@ -204,16 +204,10 @@
         new Chart(revenueCtx.getContext('2d'), {
             type: 'doughnut',
             data: {
-                labels: {
-                    !!json_encode(collect($revenueByType) - > pluck('label')) !!
-                },
+                labels: {!! json_encode(collect($revenueByType)->pluck('label')) !!},
                 datasets: [{
-                    data: {
-                        !!json_encode(collect($revenueByType) - > pluck('amount')) !!
-                    },
-                    backgroundColor: {
-                        !!json_encode(collect($revenueByType) - > pluck('color')) !!
-                    },
+                    data: {!! json_encode(collect($revenueByType)->pluck('amount')) !!},
+                    backgroundColor: {!! json_encode(collect($revenueByType)->pluck('color')) !!},
                     borderWidth: 0
                 }]
             },
@@ -236,14 +230,10 @@
         new Chart(flowCtx.getContext('2d'), {
             type: 'line',
             data: {
-                labels: {
-                    !!json_encode(collect($monthlyFlow) - > pluck('month')) !!
-                },
+                labels: {!! json_encode(collect($monthlyFlow)->pluck('month')) !!},
                 datasets: [{
                         label: 'Deposits',
-                        data: {
-                            !!json_encode(collect($monthlyFlow) - > pluck('deposits')) !!
-                        },
+                        data: {!! json_encode(collect($monthlyFlow)->pluck('deposits')) !!},
                         borderColor: '#22C55E',
                         backgroundColor: 'rgba(34, 197, 94, 0.1)',
                         fill: true,
@@ -251,9 +241,7 @@
                     },
                     {
                         label: 'Releases',
-                        data: {
-                            !!json_encode(collect($monthlyFlow) - > pluck('releases')) !!
-                        },
+                        data: {!! json_encode(collect($monthlyFlow)->pluck('releases')) !!},
                         borderColor: '#E75234',
                         backgroundColor: 'rgba(231, 82, 52, 0.1)',
                         fill: true,
