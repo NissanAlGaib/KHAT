@@ -126,6 +126,14 @@ class MatchRequestController extends Controller
             ], 400);
         }
 
+        // Prevent same-sex match requests (breeding requires male + female)
+        if ($requesterPet->sex === $targetPet->sex) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Match requests can only be sent between opposite-sex pets (breeding requires a male and female pair)',
+            ], 400);
+        }
+
         // Check if an active (pending/accepted) match request already exists between these pets
         // Completed or declined match requests should NOT block re-matching
         $existingRequest = MatchRequest::where(function ($query) use ($validated) {

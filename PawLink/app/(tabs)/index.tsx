@@ -203,12 +203,16 @@ export default function Homepage() {
   };
 
   // Filter matches for selected pet — show nothing if no pet is selected
+  // Also filter out same-sex matches (safety layer, backend already filters)
   const filteredMatches = selectedPet
-    ? topMatches.filter(
-        (match) =>
-          match.pet1.pet_id === selectedPet.pet_id ||
-          match.pet2.pet_id === selectedPet.pet_id,
-      )
+    ? topMatches.filter((match) => {
+        const isUserPet1 = match.pet1.pet_id === selectedPet.pet_id;
+        const isUserPet2 = match.pet2.pet_id === selectedPet.pet_id;
+        if (!isUserPet1 && !isUserPet2) return false;
+        // Ensure opposite sex
+        const otherPet = isUserPet1 ? match.pet2 : match.pet1;
+        return otherPet.sex?.toLowerCase() !== selectedPet.sex?.toLowerCase();
+      })
     : [];
 
   // Filter pets (same species only, exclude same sex)

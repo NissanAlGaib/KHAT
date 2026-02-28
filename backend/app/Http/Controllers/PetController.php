@@ -594,10 +594,24 @@ class PetController extends Controller
     {
         $user = $request->user();
 
-        $pets = Pet::where('user_id', '!=', $user->id)
+        // Get user's pets to determine sex for opposite-sex filtering
+        $userPetSexes = Pet::where('user_id', $user->id)
+            ->availableForMatching()
+            ->pluck('sex')
+            ->unique()
+            ->toArray();
+
+        $query = Pet::where('user_id', '!=', $user->id)
             ->availableForMatching() // Uses scope to exclude pets on cooldown
-            ->with(['owner:id,name,profile_image', 'photos'])
-            ->get();
+            ->with(['owner:id,name,profile_image', 'photos']);
+
+        // Filter to opposite sex only (breeding requires male + female)
+        if (count($userPetSexes) === 1) {
+            $oppositeSex = $userPetSexes[0] === 'Male' ? 'Female' : 'Male';
+            $query->where('sex', $oppositeSex);
+        }
+
+        $pets = $query->get();
 
         $formattedPets = $pets->map(function ($pet) {
             return [

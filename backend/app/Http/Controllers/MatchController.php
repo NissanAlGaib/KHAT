@@ -35,9 +35,17 @@ class MatchController extends Controller
             }
 
             // Get all other pets available for matching (not owned by the user, not on cooldown, not owned by blocked users)
+            // Only show opposite-sex pets (breeding requires male + female)
+            $userPetSexes = $userPets->pluck('sex')->unique()->toArray();
             $query = Pet::where('user_id', '!=', $user->id)
                 ->availableForMatching()
                 ->with(['owner:id,name,profile_image', 'photos']);
+
+            // Filter to opposite sex only (if user has only male pets, show only female, and vice versa)
+            if (count($userPetSexes) === 1) {
+                $oppositeSex = $userPetSexes[0] === 'Male' ? 'Female' : 'Male';
+                $query->where('sex', $oppositeSex);
+            }
 
             // Only add whereNotIn if there are blocked users
             if (!empty($blockedUserIds)) {
@@ -157,6 +165,11 @@ class MatchController extends Controller
                 foreach ($potentialMatches as $potentialPet) {
                     // Skip pets of a different species (e.g. Dog should not match with Cat)
                     if ($potentialPet->species !== $userPet->species) {
+                        continue;
+                    }
+
+                    // Skip same-sex pets (breeding requires male + female)
+                    if ($potentialPet->sex === $userPet->sex) {
                         continue;
                     }
 

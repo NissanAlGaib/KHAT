@@ -339,6 +339,16 @@ export interface LitterOffspring {
   color?: string;
   photo_url?: string;
   status: string;
+  death_date?: string;
+  notes?: string;
+  is_registered?: boolean;
+  allocation_status?: "unassigned" | "assigned" | "transferred";
+  selection_order?: number;
+  assigned_to?: {
+    id: number;
+    name: string;
+    profile_image?: string;
+  } | null;
 }
 
 export interface LitterParent {
@@ -350,6 +360,38 @@ export interface LitterParent {
     name: string;
     profile_image?: string;
   };
+}
+
+export interface ParentHealthVaccination {
+  vaccine_name: string;
+  is_required: boolean;
+  status: string;
+  completed_shots: number;
+  total_shots: number;
+  is_complete: boolean;
+}
+
+export interface ParentHealthSummary {
+  vaccinations: ParentHealthVaccination[];
+  total_vaccines: number;
+  completed_vaccines: number;
+  required_vaccines: number;
+  completed_required: number;
+  health_score: number;
+}
+
+export interface LitterMilestone {
+  key: string;
+  label: string;
+  date: string | null;
+  description: string;
+  completed: boolean;
+}
+
+export interface LitterDetailParent extends LitterParent {
+  breed: string;
+  species?: string;
+  health?: ParentHealthSummary;
 }
 
 export interface Litter {
@@ -376,19 +418,26 @@ export interface LitterDetail {
   litter_id: number;
   title: string;
   birth_date: string;
+  birth_date_full?: string;
   age_in_months: number;
+  age_in_weeks?: number;
   status: string;
   notes?: string;
+  has_contract?: boolean;
+  milestones?: LitterMilestone[];
   statistics: {
     total_offspring: number;
     alive_offspring: number;
     died_offspring: number;
     male_count: number;
     female_count: number;
+    assigned_count?: number;
+    transferred_count?: number;
+    unassigned_count?: number;
   };
   parents: {
-    sire: LitterParent & { breed: string };
-    dam: LitterParent & { breed: string };
+    sire: LitterDetailParent;
+    dam: LitterDetailParent;
   };
   offspring: LitterOffspring[];
 }
