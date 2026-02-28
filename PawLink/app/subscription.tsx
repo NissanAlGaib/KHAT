@@ -14,6 +14,7 @@ import { Feather } from "@expo/vector-icons";
 import { useAlert } from "@/hooks/useAlert";
 import AlertModal from "@/components/core/AlertModal";
 import axiosInstance from "@/config/axiosConfig";
+import { API_BASE_URL } from "@/config/env";
 import { useSession } from "@/context/AuthContext";
 import {
   SettingsLayout,
@@ -199,8 +200,8 @@ export default function SubscriptionScreen() {
       const amount =
         billingCycle === "monthly" ? plan.monthlyPrice : plan.yearlyPrice;
 
-      const successUrl = "https://pawlink.app/payment/success";
-      const cancelUrl = "https://pawlink.app/payment/cancel";
+      const successUrl = `${API_BASE_URL}/payment/redirect?status=success`;
+      const cancelUrl = `${API_BASE_URL}/payment/redirect?status=cancel`;
 
       const response = await axiosInstance.post("/api/subscriptions/checkout", {
         plan_id: plan.id,

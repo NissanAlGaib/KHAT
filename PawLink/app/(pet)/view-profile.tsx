@@ -29,6 +29,7 @@ import {
   createMatchPayment,
 } from "@/services/matchRequestService";
 import { verifyPayment } from "@/services/paymentService";
+import { API_BASE_URL } from "@/config/env";
 import { usePet } from "@/context/PetContext";
 import { getStorageUrl } from "@/utils/imageUrl";
 import { ReadOnlyVaccinationCard } from "@/components/pet";
@@ -178,8 +179,8 @@ export default function ViewPetProfileScreen() {
     targetPetId: number,
   ) => {
     try {
-      const successUrl = "https://pawlink.app/match/payment/success";
-      const cancelUrl = "https://pawlink.app/match/payment/cancel";
+      const successUrl = `${API_BASE_URL}/payment/redirect?status=success`;
+      const cancelUrl = `${API_BASE_URL}/payment/redirect?status=cancel`;
 
       const paymentResult = await createMatchPayment(
         requesterPetId,

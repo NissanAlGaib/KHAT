@@ -76,6 +76,7 @@ function RootNavigator() {
         <Stack.Screen name="edit-profile" />
         <Stack.Screen name="privacy-security" />
         <Stack.Screen name="my-payments" />
+        <Stack.Screen name="payment" />
         <Stack.Screen name="banned" options={{ gestureEnabled: false }} />
       </Stack>
     </>

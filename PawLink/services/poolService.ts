@@ -40,11 +40,15 @@ export interface PoolTransaction {
 }
 
 export interface PoolBalance {
-  total_held: number;
-  total_frozen: number;
-  total_pending: number;
-  available_balance: number;
+  /** Net funds currently held (deposited minus released) */
+  held: number;
+  /** Funds currently frozen (under dispute, etc.) */
+  frozen: number;
+  /** Deposits awaiting payment confirmation */
+  pending_deposits: number;
+  /** Lifetime total deposited */
   total_deposited: number;
+  /** Lifetime total released/refunded */
   total_released: number;
 }
 
@@ -158,13 +162,18 @@ export const getPoolBalance = async (): Promise<ApiResponse<PoolBalance>> => {
 // ============================================================================
 
 /**
- * Format amount as Philippine Peso
+ * Format amount as Philippine Peso.
+ * Handles string, number, null, and undefined inputs safely.
  */
-export const formatPoolAmount = (amount: number): string => {
+export const formatPoolAmount = (
+  amount: number | string | null | undefined,
+): string => {
+  const num = typeof amount === "string" ? parseFloat(amount) : amount;
+  if (num == null || isNaN(num)) return "₱0.00";
   return new Intl.NumberFormat("en-PH", {
     style: "currency",
     currency: "PHP",
-  }).format(amount);
+  }).format(num);
 };
 
 /**
@@ -215,8 +224,41 @@ export const getTransactionTypeColor = (
 };
 
 /**
- * Check if a transaction type is a credit (money in)
+ * Check if a transaction type is a credit (money coming into the pool).
+ * Deposits and holds represent money paid into the system.
+ * Releases and refunds represent money paid out to the user.
  */
 export const isCredit = (type: PoolTransactionType): boolean => {
   return ["deposit", "hold"].includes(type);
+};
+
+/**
+ * Check if a transaction type is money being paid out to the user (earned/returned).
+ */
+export const isEarned = (type: PoolTransactionType): boolean => {
+  return ["release", "refund"].includes(type);
+};
+
+/**
+ * Get a user-friendly direction label that clarifies the money flow.
+ */
+export const getTransactionDirectionLabel = (
+  type: PoolTransactionType,
+): { label: string; icon: string } => {
+  switch (type) {
+    case "deposit":
+      return { label: "You paid", icon: "arrow-up-right" };
+    case "hold":
+      return { label: "Held from you", icon: "lock" };
+    case "release":
+      return { label: "Earned", icon: "arrow-down-left" };
+    case "refund":
+      return { label: "Refunded to you", icon: "arrow-down-left" };
+    case "fee_deduction":
+      return { label: "Platform fee", icon: "arrow-up-right" };
+    case "cancellation_penalty":
+      return { label: "Penalty charged", icon: "arrow-up-right" };
+    default:
+      return { label: "Transaction", icon: "repeat" };
+  }
 };

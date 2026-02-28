@@ -1,4 +1,4 @@
-import React, { useState, useCallback } from "react";
+import React, { useState, useCallback, useRef } from "react";
 import {
   View,
   StyleSheet,
@@ -26,7 +26,17 @@ import {
   type TopMatch,
   type ShooterProfile,
 } from "@/services/matchService";
-import { sendMatchRequest } from "@/services/matchRequestService";
+import {
+  sendMatchRequest,
+  getOutgoingRequests,
+  getIncomingRequests,
+} from "@/services/matchRequestService";
+
+// Utils
+import {
+  addPassedPet,
+  getPassedPetIdsForPet,
+} from "@/utils/passedPetsStorage";
 
 // Hooks
 import { useAlert } from "@/hooks/useAlert";
@@ -61,15 +71,31 @@ export default function Homepage() {
   const [topMatches, setTopMatches] = useState<TopMatch[]>([]);
   const [shooters, setShooters] = useState<ShooterProfile[]>([]);
   const [selectedTab, setSelectedTab] = useState<string>("pets");
+  // Track pet IDs that already have active match requests (for dupe guard)
+  const activeRequestPetIdsRef = useRef<Set<number>>(new Set());
+  // Track pet IDs that were passed (persisted in AsyncStorage)
+  const passedPetIdsRef = useRef<Set<number>>(new Set());
 
   // Fetch Data
   const fetchData = useCallback(async () => {
     try {
-      const [pets, tops, shootersList] = await Promise.all([
+      const [pets, tops, shootersList, outgoing, incoming] = await Promise.all([
         getAllAvailablePets(),
         getTopMatches(),
         getShooters(),
+        getOutgoingRequests(),
+        getIncomingRequests(),
       ]);
+
+      // Build set of pet IDs with active (pending/accepted) requests
+      const activeIds = new Set<number>();
+      [...outgoing, ...incoming].forEach((req) => {
+        if (req.status === "pending" || req.status === "accepted") {
+          activeIds.add(req.target_pet.pet_id);
+          activeIds.add(req.requester_pet.pet_id);
+        }
+      });
+      activeRequestPetIdsRef.current = activeIds;
 
       setAllPets(pets);
       setTopMatches(tops);
@@ -86,13 +112,20 @@ export default function Homepage() {
     }
   }, [user?.id]);
 
-  // Initial Load & Focus Effect
+  // Load passed pets from AsyncStorage when selected pet changes
   useFocusEffect(
     useCallback(() => {
       setLoading(true);
       fetchData();
       refreshBadgeCount();
-    }, [fetchData, refreshBadgeCount]),
+
+      // Load passed pet IDs for the currently selected pet
+      if (selectedPet?.pet_id) {
+        getPassedPetIdsForPet(selectedPet.pet_id).then((ids) => {
+          passedPetIdsRef.current = ids;
+        });
+      }
+    }, [fetchData, refreshBadgeCount, selectedPet?.pet_id]),
   );
 
   const onRefresh = useCallback(() => {
@@ -117,9 +150,17 @@ export default function Homepage() {
   };
 
   const handlePass = (match: TopMatch) => {
-    // TODO: Implement pass logic
-    console.log("Passed match:", match);
-    // Optimistic update: remove from list
+    // Determine which pet is the target (not the user's pet)
+    const isUserPet1 = match.pet1.pet_id === selectedPet?.pet_id;
+    const targetPetId = isUserPet1 ? match.pet2.pet_id : match.pet1.pet_id;
+
+    // Persist the pass to AsyncStorage so it survives reloads
+    if (selectedPet?.pet_id) {
+      addPassedPet(selectedPet.pet_id, targetPetId);
+      passedPetIdsRef.current.add(targetPetId);
+    }
+
+    // Remove from list immediately
     setTopMatches((prev) => prev.filter((m) => m !== match));
   };
 
@@ -146,10 +187,11 @@ export default function Homepage() {
     try {
       const result = await sendMatchRequest(requesterPetId, targetPetId);
 
-      // Optimistic update: remove from list regardless of result
-      setTopMatches((prev) => prev.filter((m) => m !== match));
-
       if (result.success) {
+        // Only remove from list on confirmed success
+        setTopMatches((prev) => prev.filter((m) => m !== match));
+        // Track in active requests set
+        activeRequestPetIdsRef.current.add(targetPetId);
         showAlert({
           title: "Match Request Sent! 💕",
           message: `Your request to match with ${targetPetName} has been sent to their owner.`,
@@ -203,7 +245,7 @@ export default function Homepage() {
   };
 
   // Filter matches for selected pet — show nothing if no pet is selected
-  // Also filter out same-sex matches (safety layer, backend already filters)
+  // Also filter out same-sex matches, passed pets, and pets with active requests
   const filteredMatches = selectedPet
     ? topMatches.filter((match) => {
         const isUserPet1 = match.pet1.pet_id === selectedPet.pet_id;
@@ -211,7 +253,12 @@ export default function Homepage() {
         if (!isUserPet1 && !isUserPet2) return false;
         // Ensure opposite sex
         const otherPet = isUserPet1 ? match.pet2 : match.pet1;
-        return otherPet.sex?.toLowerCase() !== selectedPet.sex?.toLowerCase();
+        if (otherPet.sex?.toLowerCase() === selectedPet.sex?.toLowerCase()) return false;
+        // Filter out pets that were passed (stored in AsyncStorage)
+        if (passedPetIdsRef.current.has(otherPet.pet_id)) return false;
+        // Filter out pets that already have an active match request (dupe guard)
+        if (activeRequestPetIdsRef.current.has(otherPet.pet_id)) return false;
+        return true;
       })
     : [];
 

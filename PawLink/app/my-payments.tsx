@@ -17,7 +17,9 @@ import {
   getTransactionTypeLabel,
   getTransactionTypeColor,
   getPoolStatusColor,
+  getTransactionDirectionLabel,
   isCredit,
+  isEarned,
   PoolTransaction,
   PoolBalance,
   PoolTransactionType,
@@ -126,19 +128,19 @@ export default function MyPaymentsScreen() {
           Pool Balance
         </Text>
         <Text className="text-white text-3xl font-bold mb-4">
-          {formatPoolAmount(balance.total_held)}
+          {formatPoolAmount(balance.held)}
         </Text>
         <View className="flex-row justify-between">
           <View>
             <Text className="text-gray-500 text-xs">Frozen</Text>
             <Text className="text-blue-400 text-sm font-semibold">
-              {formatPoolAmount(balance.total_frozen)}
+              {formatPoolAmount(balance.frozen)}
             </Text>
           </View>
           <View>
             <Text className="text-gray-500 text-xs">Pending</Text>
             <Text className="text-yellow-400 text-sm font-semibold">
-              {formatPoolAmount(balance.total_pending)}
+              {formatPoolAmount(balance.pending_deposits)}
             </Text>
           </View>
           <View>
@@ -156,34 +158,53 @@ export default function MyPaymentsScreen() {
     const typeColor = getTransactionTypeColor(item.type);
     const statusColor = getPoolStatusColor(item.status);
     const credit = isCredit(item.type);
+    const earned = isEarned(item.type);
+    const direction = getTransactionDirectionLabel(item.type);
     const date = new Date(item.created_at);
+
+    // Determine amount color: green for money coming to user, red for money going out
+    const amountColor = earned
+      ? "text-green-600"
+      : credit
+        ? "text-orange-600"
+        : "text-red-600";
+    const amountPrefix = earned ? "+" : credit ? "" : "-";
 
     return (
       <TouchableOpacity
         className="mx-4 mb-3 bg-white rounded-xl p-4 shadow-sm border border-gray-100"
         activeOpacity={0.7}
       >
+        {/* Direction label + Amount */}
         <View className="flex-row items-center justify-between mb-2">
           <View className="flex-row items-center gap-2">
-            <View className={`px-2 py-1 rounded-md ${typeColor.bg}`}>
-              <Text className={`text-xs font-semibold ${typeColor.text}`}>
-                {getTransactionTypeLabel(item.type)}
-              </Text>
-            </View>
-            <View className={`px-2 py-1 rounded-md ${statusColor.bg}`}>
-              <Text className={`text-xs font-semibold ${statusColor.text}`}>
-                {item.status.charAt(0).toUpperCase() + item.status.slice(1)}
-              </Text>
-            </View>
+            <Feather
+              name={direction.icon as any}
+              size={14}
+              color={earned ? "#16A34A" : credit ? "#EA580C" : "#DC2626"}
+            />
+            <Text className="text-gray-600 text-xs font-medium">
+              {direction.label}
+            </Text>
           </View>
-          <Text
-            className={`text-base font-bold ${
-              credit ? "text-green-600" : "text-red-600"
-            }`}
-          >
-            {credit ? "+" : "-"}
+          <Text className={`text-lg font-bold ${amountColor}`}>
+            {amountPrefix}
             {formatPoolAmount(item.amount)}
           </Text>
+        </View>
+
+        {/* Type badge + Status badge */}
+        <View className="flex-row items-center gap-2 mb-2">
+          <View className={`px-2 py-1 rounded-md ${typeColor.bg}`}>
+            <Text className={`text-xs font-semibold ${typeColor.text}`}>
+              {getTransactionTypeLabel(item.type)}
+            </Text>
+          </View>
+          <View className={`px-2 py-1 rounded-md ${statusColor.bg}`}>
+            <Text className={`text-xs font-semibold ${statusColor.text}`}>
+              {item.status.charAt(0).toUpperCase() + item.status.slice(1)}
+            </Text>
+          </View>
         </View>
 
         {item.description && (
