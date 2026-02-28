@@ -661,6 +661,135 @@ class MatchRequestController extends Controller
     }
 
     /**
+     * Cancel an outgoing match request (requester withdraws)
+     */
+    public function cancel(Request $request, $id)
+    {
+        $user = $request->user();
+
+        // Get the match request
+        $matchRequest = MatchRequest::findOrFail($id);
+
+        // Verify the user owns the requester pet
+        $requesterPet = Pet::where('pet_id', $matchRequest->requester_pet_id)
+            ->where('user_id', $user->id)
+            ->first();
+
+        if (! $requesterPet) {
+            return response()->json([
+                'success' => false,
+                'message' => 'You can only cancel your own match requests',
+            ], 403);
+        }
+
+        if ($matchRequest->status !== 'pending') {
+            return response()->json([
+                'success' => false,
+                'message' => 'Only pending requests can be cancelled',
+            ], 400);
+        }
+
+        try {
+            $matchRequest->update(['status' => 'cancelled']);
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Match request cancelled',
+                'data' => $matchRequest,
+            ]);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to cancel match request',
+                'error' => $e->getMessage(),
+            ], 500);
+        }
+    }
+
+    /**
+     * Get match request history (declined, cancelled, expired)
+     */
+    public function history(Request $request)
+    {
+        $user = $request->user();
+
+        // Get all pet IDs owned by the user
+        $userPetIds = Pet::where('user_id', $user->id)->pluck('pet_id');
+
+        // Build query for terminal statuses
+        $query = MatchRequest::where(function ($q) use ($userPetIds) {
+            $q->whereIn('requester_pet_id', $userPetIds)
+                ->orWhereIn('target_pet_id', $userPetIds);
+        })->whereIn('status', ['declined', 'cancelled']);
+
+        // Optional status filter
+        if ($request->has('status') && in_array($request->status, ['declined', 'cancelled'])) {
+            $query->where('status', $request->status);
+        }
+
+        // Optional date filter
+        if ($request->has('from_date')) {
+            $query->where('created_at', '>=', $request->from_date);
+        }
+        if ($request->has('to_date')) {
+            $query->where('created_at', '<=', $request->to_date);
+        }
+
+        $requests = $query->with([
+            'requesterPet' => function ($q) {
+                $q->with(['owner:id,name,profile_image', 'photos']);
+            },
+            'targetPet' => function ($q) {
+                $q->with(['owner:id,name,profile_image', 'photos']);
+            },
+        ])
+            ->orderBy('updated_at', 'desc')
+            ->paginate(20);
+
+        $formattedRequests = $requests->getCollection()->map(function ($matchRequest) use ($userPetIds) {
+            $isOutgoing = $userPetIds->contains($matchRequest->requester_pet_id);
+            $otherPet = $isOutgoing ? $matchRequest->targetPet : $matchRequest->requesterPet;
+            $userPet = $isOutgoing ? $matchRequest->requesterPet : $matchRequest->targetPet;
+
+            $primaryPhoto = $otherPet->photos->firstWhere('is_primary', true)
+                ?? $otherPet->photos->first();
+
+            return [
+                'id' => $matchRequest->id,
+                'direction' => $isOutgoing ? 'outgoing' : 'incoming',
+                'user_pet' => [
+                    'pet_id' => $userPet->pet_id,
+                    'name' => $userPet->name,
+                ],
+                'other_pet' => [
+                    'pet_id' => $otherPet->pet_id,
+                    'name' => $otherPet->name,
+                    'breed' => $otherPet->breed,
+                    'photo_url' => $primaryPhoto?->photo_url,
+                ],
+                'owner' => [
+                    'id' => $otherPet->owner->id,
+                    'name' => $otherPet->owner->name,
+                    'profile_image' => $otherPet->owner->profile_image,
+                ],
+                'status' => $matchRequest->status,
+                'created_at' => $matchRequest->created_at,
+                'updated_at' => $matchRequest->updated_at,
+            ];
+        });
+
+        return response()->json([
+            'success' => true,
+            'data' => $formattedRequests,
+            'meta' => [
+                'current_page' => $requests->currentPage(),
+                'last_page' => $requests->lastPage(),
+                'total' => $requests->total(),
+            ],
+        ]);
+    }
+
+    /**
      * Get user's conversations
      */
     public function getConversations(Request $request)

@@ -66,14 +66,14 @@ export default function CurvedTabBar({
 
   type TabRoute =
     | "/(tabs)"
-    | "/(tabs)/favorites"
+    | "/(tabs)/matches"
     | "/(tabs)/match"
     | "/(tabs)/chat"
     | "/(tabs)/profile";
 
   const icons: { icon: any; route: TabRoute }[] = [
     { icon: Home, route: "/(tabs)" },
-    { icon: Heart, route: "/(tabs)/favorites" },
+    { icon: Heart, route: "/(tabs)/matches" },
     { icon: PawPrint, route: "/(tabs)/match" },
     { icon: MessageCircle, route: "/(tabs)/chat" },
     { icon: User, route: "/(tabs)/profile" },
@@ -209,7 +209,7 @@ export default function CurvedTabBar({
             const Icon = item.icon;
             const isActive = current === index;
 
-            // Show badge on favorites tab (index 1) if there are pending shooter requests
+            // Show badge on matches tab (index 1) if there are pending shooter requests
             const showBadge =
               index === 1 && pendingShooterRequestsCount > 0 && !isShooterMode;
 

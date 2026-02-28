@@ -157,7 +157,7 @@ export interface MatchPaymentResult {
  */
 export const sendMatchRequest = async (
   requesterPetId: number,
-  targetPetId: number
+  targetPetId: number,
 ): Promise<MatchRequestResult> => {
   try {
     const response = await axiosInstance.post("/api/match-requests", {
@@ -167,7 +167,10 @@ export const sendMatchRequest = async (
     return response.data;
   } catch (error: any) {
     // Check if this is a payment required response (402)
-    if (error.response?.status === 402 && error.response?.data?.requires_payment) {
+    if (
+      error.response?.status === 402 &&
+      error.response?.data?.requires_payment
+    ) {
       return {
         success: false,
         message: error.response.data.message,
@@ -177,16 +180,19 @@ export const sendMatchRequest = async (
         requester_pet_id: error.response.data.requester_pet_id,
       };
     }
-    
+
     // Check if this is a verification required response (403)
-    if (error.response?.status === 403 && error.response?.data?.requires_verification) {
+    if (
+      error.response?.status === 403 &&
+      error.response?.data?.requires_verification
+    ) {
       return {
         success: false,
         message: error.response.data.message,
         requires_verification: true,
       };
     }
-    
+
     const errorMessage =
       error.response?.data?.message || "Failed to send match request";
     return { success: false, message: errorMessage };
@@ -200,7 +206,7 @@ export const createMatchPayment = async (
   requesterPetId: number,
   targetPetId: number,
   successUrl: string,
-  cancelUrl: string
+  cancelUrl: string,
 ): Promise<MatchPaymentResult> => {
   try {
     const response = await axiosInstance.post("/api/match-requests/payment", {
@@ -227,7 +233,7 @@ export const getIncomingRequests = async (): Promise<MatchRequest[]> => {
   } catch (error: any) {
     console.error(
       "Error getting incoming requests:",
-      error.response?.data || error.message
+      error.response?.data || error.message,
     );
     return [];
   }
@@ -243,7 +249,7 @@ export const getOutgoingRequests = async (): Promise<MatchRequest[]> => {
   } catch (error: any) {
     console.error(
       "Error getting outgoing requests:",
-      error.response?.data || error.message
+      error.response?.data || error.message,
     );
     return [];
   }
@@ -259,7 +265,7 @@ export const getAcceptedMatches = async (): Promise<AcceptedMatch[]> => {
   } catch (error: any) {
     console.error(
       "Error getting accepted matches:",
-      error.response?.data || error.message
+      error.response?.data || error.message,
     );
     return [];
   }
@@ -269,11 +275,11 @@ export const getAcceptedMatches = async (): Promise<AcceptedMatch[]> => {
  * Accept a match request
  */
 export const acceptMatchRequest = async (
-  requestId: number
+  requestId: number,
 ): Promise<{ success: boolean; message: string; conversation_id?: number }> => {
   try {
     const response = await axiosInstance.put(
-      `/api/match-requests/${requestId}/accept`
+      `/api/match-requests/${requestId}/accept`,
     );
     return {
       success: true,
@@ -291,17 +297,78 @@ export const acceptMatchRequest = async (
  * Decline a match request
  */
 export const declineMatchRequest = async (
-  requestId: number
+  requestId: number,
 ): Promise<{ success: boolean; message: string }> => {
   try {
     const response = await axiosInstance.put(
-      `/api/match-requests/${requestId}/decline`
+      `/api/match-requests/${requestId}/decline`,
     );
     return { success: true, message: response.data.message };
   } catch (error: any) {
     const errorMessage =
       error.response?.data?.message || "Failed to decline match request";
     return { success: false, message: errorMessage };
+  }
+};
+
+/**
+ * Cancel an outgoing match request
+ */
+export const cancelMatchRequest = async (
+  requestId: number,
+): Promise<{ success: boolean; message: string }> => {
+  try {
+    const response = await axiosInstance.put(
+      `/api/match-requests/${requestId}/cancel`,
+    );
+    return { success: true, message: response.data.message };
+  } catch (error: any) {
+    const errorMessage =
+      error.response?.data?.message || "Failed to cancel match request";
+    return { success: false, message: errorMessage };
+  }
+};
+
+export interface HistoryItem {
+  id: number;
+  direction: "incoming" | "outgoing";
+  user_pet: MatchRequestPet;
+  other_pet: MatchRequestPet;
+  owner: MatchRequestOwner;
+  status: "declined" | "cancelled";
+  created_at: string;
+  updated_at: string;
+}
+
+export interface HistoryResponse {
+  data: HistoryItem[];
+  meta: {
+    current_page: number;
+    last_page: number;
+    total: number;
+  };
+}
+
+/**
+ * Get match request history (declined, cancelled)
+ */
+export const getMatchHistory = async (
+  page: number = 1,
+  status?: "declined" | "cancelled",
+): Promise<HistoryResponse> => {
+  try {
+    const params: Record<string, any> = { page };
+    if (status) params.status = status;
+    const response = await axiosInstance.get("/api/match-requests/history", {
+      params,
+    });
+    return response.data;
+  } catch (error: any) {
+    console.error(
+      "Error getting match history:",
+      error.response?.data || error.message,
+    );
+    return { data: [], meta: { current_page: 1, last_page: 1, total: 0 } };
   }
 };
 
@@ -315,7 +382,7 @@ export const getConversations = async (): Promise<ConversationPreview[]> => {
   } catch (error: any) {
     console.error(
       "Error getting conversations:",
-      error.response?.data || error.message
+      error.response?.data || error.message,
     );
     return [];
   }
@@ -325,17 +392,17 @@ export const getConversations = async (): Promise<ConversationPreview[]> => {
  * Get messages for a conversation
  */
 export const getConversationMessages = async (
-  conversationId: number
+  conversationId: number,
 ): Promise<ConversationDetail | null> => {
   try {
     const response = await axiosInstance.get(
-      `/api/conversations/${conversationId}/messages`
+      `/api/conversations/${conversationId}/messages`,
     );
     return response.data.data;
   } catch (error: any) {
     console.error(
       "Error getting messages:",
-      error.response?.data || error.message
+      error.response?.data || error.message,
     );
     return null;
   }
@@ -346,12 +413,12 @@ export const getConversationMessages = async (
  */
 export const sendMessage = async (
   conversationId: number,
-  content: string
+  content: string,
 ): Promise<{ success: boolean; message: string; data?: Message }> => {
   try {
     const response = await axiosInstance.post(
       `/api/conversations/${conversationId}/messages`,
-      { content }
+      { content },
     );
     return {
       success: true,
