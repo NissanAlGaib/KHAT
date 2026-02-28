@@ -91,7 +91,7 @@ class PoolService
 
         $results = [];
         foreach ($collateralPayments as $payment) {
-            $results[] = $this->releasePayment($payment, 'Contract fulfilled - collateral return');
+            $results[] = $this->releasePayment($payment, 'Contract fulfilled - collateral return', isRelease: true);
         }
 
         return [
@@ -164,7 +164,7 @@ class PoolService
             ->get();
 
         foreach ($shooterCollateralPayments as $payment) {
-            $results[] = $this->releasePayment($payment, 'Shooter collateral return - breeding completed');
+            $results[] = $this->releasePayment($payment, 'Shooter collateral return - breeding completed', isRelease: true);
         }
 
         return [
@@ -557,12 +557,15 @@ class PoolService
 
     /**
      * Release a single payment from the pool via PayMongo refund.
+     *
+     * @param bool $isRelease When true, marks as "released" (match completion);
+     *                        when false, marks as "refunded" (cancellation/dispute).
      */
-    private function releasePayment(Payment $payment, string $description): array
+    private function releasePayment(Payment $payment, string $description, bool $isRelease = false): array
     {
         if (! $payment->paymongo_payment_id) {
             Log::warning('Cannot refund payment without PayMongo payment ID', ['payment_id' => $payment->id]);
-            return $this->markReleaseWithoutRefund($payment, $description, 'No PayMongo payment ID - manual action required');
+            return $this->markReleaseWithoutRefund($payment, $description, 'No PayMongo payment ID - manual action required', $isRelease);
         }
 
         $amountInCentavos = (int) round((float) $payment->amount * 100);
@@ -580,17 +583,20 @@ class PoolService
             ]);
 
             // Mark transaction as pending so admin can retry
-            return $this->markReleasePending($payment, $description, $refundResult['error']);
+            return $this->markReleasePending($payment, $description, $refundResult['error'], $isRelease);
         }
 
-        return DB::transaction(function () use ($payment, $description, $refundResult) {
+        $transactionType = $isRelease ? PoolTransaction::TYPE_RELEASE : PoolTransaction::TYPE_REFUND;
+        $poolStatus = $isRelease ? Payment::POOL_RELEASED : Payment::POOL_REFUNDED;
+
+        return DB::transaction(function () use ($payment, $description, $refundResult, $transactionType, $poolStatus) {
             $currentBalance = $this->getPoolBalance();
 
             $transaction = PoolTransaction::create([
                 'payment_id' => $payment->id,
                 'contract_id' => $payment->contract_id,
                 'user_id' => $payment->user_id,
-                'type' => PoolTransaction::TYPE_REFUND,
+                'type' => $transactionType,
                 'amount' => $payment->amount,
                 'currency' => $payment->currency ?? 'PHP',
                 'balance_after' => $currentBalance - (float) $payment->amount,
@@ -604,7 +610,7 @@ class PoolService
             ]);
 
             $payment->update([
-                'pool_status' => Payment::POOL_REFUNDED,
+                'pool_status' => $poolStatus,
                 'paymongo_refund_id' => $refundResult['refund_id'],
             ]);
 
@@ -665,15 +671,17 @@ class PoolService
      * Mark a release as completed without actual PayMongo refund.
      * Used when PayMongo payment ID is missing (e.g., shooter payout).
      */
-    private function markReleaseWithoutRefund(Payment $payment, string $description, string $note): array
+    private function markReleaseWithoutRefund(Payment $payment, string $description, string $note, bool $isRelease = false): array
     {
+        $transactionType = $isRelease ? PoolTransaction::TYPE_RELEASE : PoolTransaction::TYPE_REFUND;
+        $poolStatus = $isRelease ? Payment::POOL_RELEASED : Payment::POOL_REFUNDED;
         $currentBalance = $this->getPoolBalance();
 
         $transaction = PoolTransaction::create([
             'payment_id' => $payment->id,
             'contract_id' => $payment->contract_id,
             'user_id' => $payment->user_id,
-            'type' => PoolTransaction::TYPE_RELEASE,
+            'type' => $transactionType,
             'amount' => $payment->amount,
             'currency' => $payment->currency ?? 'PHP',
             'balance_after' => $currentBalance - (float) $payment->amount,
@@ -682,7 +690,7 @@ class PoolService
             'processed_at' => now(),
         ]);
 
-        $payment->update(['pool_status' => Payment::POOL_RELEASED]);
+        $payment->update(['pool_status' => $poolStatus]);
 
         return ['success' => true, 'transaction_id' => $transaction->id, 'note' => $note];
     }
@@ -690,20 +698,21 @@ class PoolService
     /**
      * Mark a release as pending (refund failed, needs manual retry).
      */
-    private function markReleasePending(Payment $payment, string $description, string $error): array
+    private function markReleasePending(Payment $payment, string $description, string $error, bool $isRelease = false): array
     {
+        $transactionType = $isRelease ? PoolTransaction::TYPE_RELEASE : PoolTransaction::TYPE_REFUND;
         $currentBalance = $this->getPoolBalance();
 
         $transaction = PoolTransaction::create([
             'payment_id' => $payment->id,
             'contract_id' => $payment->contract_id,
             'user_id' => $payment->user_id,
-            'type' => PoolTransaction::TYPE_REFUND,
+            'type' => $transactionType,
             'amount' => $payment->amount,
             'currency' => $payment->currency ?? 'PHP',
             'balance_after' => $currentBalance,
             'status' => PoolTransaction::STATUS_PENDING,
-            'description' => "{$description} - PENDING (refund failed: {$error})",
+            'description' => "{$description} - PENDING (" . ($isRelease ? 'release' : 'refund') . " failed: {$error})",
             'metadata' => ['error' => $error],
             'processed_at' => now(),
         ]);
