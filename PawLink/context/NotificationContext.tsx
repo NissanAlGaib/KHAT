@@ -12,17 +12,20 @@ import {
   NotificationSummary,
   NotificationCountResponse,
 } from "@/services/notificationService";
+import { getActivityUnreadCount } from "@/services/activityService";
 import { useSession } from "@/context/AuthContext";
 
 interface NotificationContextType {
   notifications: NotificationItem[];
   summary: NotificationSummary | null;
   badgeCount: number;
+  activityBadgeCount: number;
   hasRejected: boolean;
   isLoading: boolean;
   error: string | null;
   refreshNotifications: () => Promise<void>;
   refreshBadgeCount: () => Promise<void>;
+  refreshActivityBadgeCount: () => Promise<void>;
 }
 
 const NotificationContext = createContext<NotificationContextType | undefined>(
@@ -37,6 +40,7 @@ export function NotificationProvider({
   const [notifications, setNotifications] = useState<NotificationItem[]>([]);
   const [summary, setSummary] = useState<NotificationSummary | null>(null);
   const [badgeCount, setBadgeCount] = useState(0);
+  const [activityBadgeCount, setActivityBadgeCount] = useState(0);
   const [hasRejected, setHasRejected] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -74,18 +78,31 @@ export function NotificationProvider({
     }
   }, [session]);
 
+  const refreshActivityBadgeCount = useCallback(async () => {
+    if (!session) return;
+
+    try {
+      const count = await getActivityUnreadCount();
+      setActivityBadgeCount(count);
+    } catch (err: any) {
+      console.error("Error refreshing activity badge count:", err);
+    }
+  }, [session]);
+
   // Load badge count on mount and when session changes
   useEffect(() => {
     if (session) {
       refreshBadgeCount();
+      refreshActivityBadgeCount();
     } else {
       // Reset state when user logs out
       setNotifications([]);
       setSummary(null);
       setBadgeCount(0);
+      setActivityBadgeCount(0);
       setHasRejected(false);
     }
-  }, [session, refreshBadgeCount]);
+  }, [session, refreshBadgeCount, refreshActivityBadgeCount]);
 
   return (
     <NotificationContext.Provider
@@ -93,11 +110,13 @@ export function NotificationProvider({
         notifications,
         summary,
         badgeCount,
+        activityBadgeCount,
         hasRejected,
         isLoading,
         error,
         refreshNotifications,
         refreshBadgeCount,
+        refreshActivityBadgeCount,
       }}
     >
       {children}

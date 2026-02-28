@@ -7,8 +7,6 @@ import { LinearGradient } from "expo-linear-gradient";
 import { Colors } from "@/constants";
 
 interface MinimalHeaderProps {
-  badgeCount?: number;
-  onNotificationPress?: () => void;
   onSettingsPress?: () => void;
 }
 
@@ -17,20 +15,10 @@ interface MinimalHeaderProps {
  * Height: 56px (plus safe area)
  */
 export default function MinimalHeader({
-  badgeCount = 0,
-  onNotificationPress,
   onSettingsPress,
 }: MinimalHeaderProps) {
   const insets = useSafeAreaInsets();
   const router = useRouter();
-
-  const handleNotificationPress = () => {
-    if (onNotificationPress) {
-      onNotificationPress();
-    } else {
-      router.push("/notifications");
-    }
-  };
 
   const handleSettingsPress = () => {
     if (onSettingsPress) {
@@ -56,22 +44,6 @@ export default function MinimalHeader({
 
         {/* Right Icons */}
         <View style={styles.iconContainer}>
-          {/* Notification Bell */}
-          <TouchableOpacity
-            style={styles.iconButton}
-            onPress={handleNotificationPress}
-            activeOpacity={0.7}
-          >
-            <Feather name="bell" size={22} color={Colors.textSecondary} />
-            {badgeCount > 0 && (
-              <View style={styles.badge}>
-                <Text style={styles.badgeText}>
-                  {badgeCount > 9 ? "9+" : badgeCount}
-                </Text>
-              </View>
-            )}
-          </TouchableOpacity>
-
           {/* Settings */}
           <TouchableOpacity
             style={styles.iconButton}
@@ -132,23 +104,5 @@ const styles = StyleSheet.create({
     backgroundColor: Colors.bgTertiary,
     alignItems: "center",
     justifyContent: "center",
-  },
-  badge: {
-    position: "absolute",
-    top: 0,
-    right: 0,
-    backgroundColor: Colors.error,
-    borderRadius: 10,
-    minWidth: 18,
-    height: 18,
-    alignItems: "center",
-    justifyContent: "center",
-    borderWidth: 2,
-    borderColor: Colors.bgPrimary,
-  },
-  badgeText: {
-    color: Colors.white,
-    fontSize: 10,
-    fontWeight: "bold",
   },
 });

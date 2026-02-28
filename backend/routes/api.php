@@ -8,6 +8,7 @@ use App\Http\Controllers\LitterController;
 use App\Http\Controllers\MatchController;
 use App\Http\Controllers\MatchRequestController;
 use App\Http\Controllers\NotificationController;
+use App\Http\Controllers\ActivityNotificationController;
 use App\Http\Controllers\PaymentController;
 use App\Http\Controllers\PetController;
 use App\Http\Controllers\PoolController;
@@ -108,9 +109,15 @@ Route::middleware(['auth:sanctum'])
         Route::put('/verification/{authId}/status', [VerificationController::class, 'updateVerificationStatus']);
         Route::post('/verification/{authId}/resubmit', [VerificationController::class, 'resubmitVerification']);
 
-        // Notifications
+        // Notifications (verification/admin - legacy)
         Route::get('/notifications', [NotificationController::class, 'getNotifications']);
         Route::get('/notifications/count', [NotificationController::class, 'getNotificationCount']);
+
+        // Activity Notifications (activity feed)
+        Route::get('/activity-notifications', [ActivityNotificationController::class, 'index']);
+        Route::get('/activity-notifications/unread-count', [ActivityNotificationController::class, 'unreadCount']);
+        Route::put('/activity-notifications/{id}/read', [ActivityNotificationController::class, 'markAsRead']);
+        Route::put('/activity-notifications/read-all', [ActivityNotificationController::class, 'markAllAsRead']);
 
         // User Status & Warnings
         Route::put('/user/warnings/{id}/acknowledge', [\App\Http\Controllers\Api\UserWarningController::class, 'acknowledge']);

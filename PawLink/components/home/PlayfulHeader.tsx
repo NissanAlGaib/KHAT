@@ -11,8 +11,6 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Colors, Shadows } from "@/constants";
 
 interface PlayfulHeaderProps {
-  badgeCount?: number;
-  onNotificationPress?: () => void;
   onSearchPress?: () => void;
   onSubscriptionPress?: () => void;
 }
@@ -21,11 +19,9 @@ interface PlayfulHeaderProps {
  * Instagram-style header with:
  * - Search icon on the left
  * - Centered app name "PAWLINK"
- * - Subscription (crown) and notification icons on the right
+ * - Subscription (crown) icon on the right
  */
 export default function PlayfulHeader({
-  badgeCount = 0,
-  onNotificationPress,
   onSearchPress,
   onSubscriptionPress,
 }: PlayfulHeaderProps) {
@@ -53,7 +49,7 @@ export default function PlayfulHeader({
           <Text style={styles.title}>PAWLINK</Text>
         </View>
 
-        {/* Right Side - Subscription & Notification Icons */}
+        {/* Right Side - Subscription Icon */}
         <View style={styles.rightContainer}>
           <TouchableOpacity
             style={styles.iconButton}
@@ -64,24 +60,6 @@ export default function PlayfulHeader({
               source={require("@/assets/images/Subscription_Icon.png")}
               style={styles.iconImage}
             />
-          </TouchableOpacity>
-
-          <TouchableOpacity
-            style={styles.iconButton}
-            onPress={onNotificationPress}
-            activeOpacity={0.7}
-          >
-            <Image
-              source={require("@/assets/images/Notif_Icon.png")}
-              style={styles.iconImage}
-            />
-            {badgeCount > 0 && (
-              <View style={styles.badge}>
-                <Text style={styles.badgeText}>
-                  {badgeCount > 9 ? "9+" : badgeCount}
-                </Text>
-              </View>
-            )}
           </TouchableOpacity>
         </View>
       </View>
@@ -152,24 +130,5 @@ const styles = StyleSheet.create({
     width: 26,
     height: 26,
     resizeMode: "contain",
-  },
-  badge: {
-    position: "absolute",
-    top: 2,
-    right: 2,
-    backgroundColor: Colors.error,
-    minWidth: 18,
-    height: 18,
-    borderRadius: 9,
-    justifyContent: "center",
-    alignItems: "center",
-    borderWidth: 2,
-    borderColor: Colors.white,
-  },
-  badgeText: {
-    color: Colors.white,
-    fontSize: 10,
-    fontWeight: "bold",
-    paddingHorizontal: 2,
   },
 });

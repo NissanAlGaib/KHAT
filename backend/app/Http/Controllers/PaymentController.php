@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\BreedingContract;
 use App\Models\Payment;
 use App\Models\Pet;
+use App\Services\ActivityNotificationService;
 use App\Services\PayMongoService;
 use App\Services\PoolService;
 use Illuminate\Http\Request;
@@ -227,6 +228,14 @@ class PaymentController extends Controller
 
                     // Update contract or subscription based on payment type
                     $this->updatePaymentRelatedData($payment);
+
+                    // Notify user about successful payment
+                    ActivityNotificationService::paymentEvent(
+                        $payment->user_id,
+                        'Payment Successful',
+                        'Your payment of ₱' . number_format($payment->amount, 2) . ' has been confirmed.',
+                        ['payment_id' => $payment->id, 'payment_type' => $payment->payment_type]
+                    );
 
                     return response()->json([
                         'success' => true,
@@ -461,6 +470,15 @@ class PaymentController extends Controller
 
         // Update user's subscription tier
         $user->update(['subscription_tier' => $planId]);
+
+        // Notify user about subscription activation
+        $planLabel = ucfirst($planId);
+        ActivityNotificationService::subscriptionUpdate(
+            $user->id,
+            $planLabel,
+            "Your {$planLabel} subscription is now active. Enjoy your upgraded benefits!",
+            ['plan_id' => $planId, 'payment_id' => $payment->id]
+        );
 
         Log::info('User subscription tier updated', [
             'user_id' => $user->id,

@@ -8,6 +8,7 @@ use App\Models\User;
 use App\Models\Role;
 use App\Models\BreedingContract;
 use App\Models\Pet;
+use App\Services\ActivityNotificationService;
 use Carbon\Carbon;
 
 class ShooterController extends Controller
@@ -392,6 +393,26 @@ class ShooterController extends Controller
                 'shooter_status' => 'accepted_by_shooter',
                 'shooter_accepted_at' => now(),
             ]);
+
+            // Notify both pet owners that a shooter accepted
+            $contract->load(['conversation.matchRequest.requesterPet', 'conversation.matchRequest.targetPet']);
+            $matchRequest = $contract->conversation->matchRequest ?? null;
+            if ($matchRequest) {
+                $pet1Name = $matchRequest->requesterPet->name ?? 'Pet 1';
+                $pet2Name = $matchRequest->targetPet->name ?? 'Pet 2';
+                $ownerIds = collect([
+                    $matchRequest->requesterPet->user_id ?? null,
+                    $matchRequest->targetPet->user_id ?? null,
+                ])->filter()->unique();
+
+                foreach ($ownerIds as $ownerId) {
+                    ActivityNotificationService::shooterAccepted(
+                        $ownerId,
+                        $user->name ?? 'A shooter',
+                        ['contract_id' => $contract->id]
+                    );
+                }
+            }
 
             return response()->json([
                 'success' => true,

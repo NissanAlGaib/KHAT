@@ -6,7 +6,7 @@ import {
   Home,
   Heart,
   PawPrint,
-  MessageCircle,
+  Bell,
   User,
 } from "lucide-react-native";
 import { BottomTabBarProps } from "@react-navigation/bottom-tabs";
@@ -14,6 +14,7 @@ import PetSelectionModal from "./PetSelectionModal";
 import { useRole } from "@/context/RoleContext";
 import { usePet } from "@/context/PetContext";
 import { getPendingShooterRequestsCount } from "@/services/contractService";
+import { getActivityUnreadCount } from "@/services/activityService";
 import { getStorageUrl } from "@/utils/imageUrl";
 
 const { width } = Dimensions.get("window");
@@ -34,6 +35,7 @@ export default function CurvedTabBar({
   const { selectedPet } = usePet();
   const [pendingShooterRequestsCount, setPendingShooterRequestsCount] =
     useState(0);
+  const [activityUnreadCount, setActivityUnreadCount] = useState(0);
 
   // Check if user is in Shooter mode
   const isShooterMode = role === "Shooter";
@@ -64,18 +66,30 @@ export default function CurvedTabBar({
     return () => clearInterval(interval);
   }, [isShooterMode]);
 
+  // Fetch activity notification unread count
+  useEffect(() => {
+    const fetchUnreadCount = async () => {
+      const count = await getActivityUnreadCount();
+      setActivityUnreadCount(count);
+    };
+
+    fetchUnreadCount();
+    const interval = setInterval(fetchUnreadCount, 30000);
+    return () => clearInterval(interval);
+  }, []);
+
   type TabRoute =
     | "/(tabs)"
     | "/(tabs)/matches"
     | "/(tabs)/match"
-    | "/(tabs)/chat"
+    | "/(tabs)/activity"
     | "/(tabs)/profile";
 
   const icons: { icon: any; route: TabRoute }[] = [
     { icon: Home, route: "/(tabs)" },
     { icon: Heart, route: "/(tabs)/matches" },
     { icon: PawPrint, route: "/(tabs)/match" },
-    { icon: MessageCircle, route: "/(tabs)/chat" },
+    { icon: Bell, route: "/(tabs)/activity" },
     { icon: User, route: "/(tabs)/profile" },
   ];
 
@@ -210,8 +224,18 @@ export default function CurvedTabBar({
             const isActive = current === index;
 
             // Show badge on matches tab (index 1) if there are pending shooter requests
-            const showBadge =
+            const showMatchesBadge =
               index === 1 && pendingShooterRequestsCount > 0 && !isShooterMode;
+
+            // Show badge on activity tab (index 3) if there are unread notifications
+            const showActivityBadge = index === 3 && activityUnreadCount > 0;
+
+            const badgeCount = showMatchesBadge
+              ? pendingShooterRequestsCount
+              : showActivityBadge
+                ? activityUnreadCount
+                : 0;
+            const showBadge = showMatchesBadge || showActivityBadge;
 
             return (
               <TouchableOpacity
@@ -255,9 +279,9 @@ export default function CurvedTabBar({
                           fontWeight: "bold",
                         }}
                       >
-                        {pendingShooterRequestsCount > 9
+                        {badgeCount > 9
                           ? "9+"
-                          : pendingShooterRequestsCount}
+                          : badgeCount}
                       </Text>
                     </View>
                   )}

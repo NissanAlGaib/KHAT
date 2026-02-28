@@ -15,7 +15,6 @@ import dayjs from "dayjs";
 import { useSession } from "@/context/AuthContext";
 import { usePet } from "@/context/PetContext";
 import { useRole } from "@/context/RoleContext";
-import { useNotifications } from "@/context/NotificationContext";
 
 // Services
 import {
@@ -60,7 +59,6 @@ export default function Homepage() {
   const { user } = useSession();
   const { role } = useRole();
   const { selectedPet } = usePet();
-  const { badgeCount, refreshBadgeCount } = useNotifications();
   const { visible, alertOptions, showAlert, hideAlert } = useAlert();
 
   // State
@@ -117,7 +115,6 @@ export default function Homepage() {
     useCallback(() => {
       setLoading(true);
       fetchData();
-      refreshBadgeCount();
 
       // Load passed pet IDs for the currently selected pet
       if (selectedPet?.pet_id) {
@@ -125,7 +122,7 @@ export default function Homepage() {
           passedPetIdsRef.current = ids;
         });
       }
-    }, [fetchData, refreshBadgeCount, selectedPet?.pet_id]),
+    }, [fetchData, selectedPet?.pet_id]),
   );
 
   const onRefresh = useCallback(() => {
@@ -279,10 +276,8 @@ export default function Homepage() {
   return (
     <View style={styles.container}>
       <PlayfulHeader
-        badgeCount={badgeCount}
-        onNotificationPress={() => router.navigate("/notifications")}
         onSearchPress={() => router.navigate("/search")}
-        onSubscriptionPress={() => console.log("Subscription pressed")}
+        onSubscriptionPress={() => router.push("/subscription")}
       />
 
       <ScrollView

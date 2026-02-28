@@ -25,10 +25,10 @@ export default function SettingsScreen() {
           onPress={() => router.push("/edit-profile")}
         />
         <SettingsItem
-          icon="bell"
+          icon="shield"
           iconColor="#F59E0B"
-          label="Notifications"
-          onPress={() => router.push("/notifications")}
+          label="Verification Status"
+          onPress={() => router.push("/(tabs)/activity")}
         />
         <SettingsItem
           icon="shield"
@@ -46,8 +46,8 @@ export default function SettingsScreen() {
           onPress={() => router.push("/my-payments")}
         />
         <SettingsItem
-          icon="star"
-          iconColor="#F59E0B"
+          icon="award"
+          iconColor="#A855F7"
           label="Subscription"
           onPress={() => router.push("/subscription")}
         />

@@ -7,6 +7,7 @@ use App\Models\Conversation;
 use App\Models\Litter;
 use App\Models\LitterOffspring;
 use App\Models\Pet;
+use App\Services\ActivityNotificationService;
 use App\Services\PoolService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -440,6 +441,16 @@ class BreedingContractController extends Controller
                 // Add shooter to the conversation
                 $conversation = $contract->conversation;
                 $conversation->update(['shooter_user_id' => $contract->shooter_user_id]);
+
+                // Notify the shooter they have been confirmed
+                $pet1Name = $matchRequest->requesterPet->name ?? 'Pet 1';
+                $pet2Name = $matchRequest->targetPet->name ?? 'Pet 2';
+                ActivityNotificationService::shooterRequest(
+                    $contract->shooter_user_id,
+                    $pet1Name,
+                    $pet2Name,
+                    ['contract_id' => $contract->id]
+                );
             }
 
             return response()->json([
@@ -1001,6 +1012,30 @@ class BreedingContractController extends Controller
                 $pets = $contract->getSireAndDam();
                 if (isset($pets['dam'])) {
                     $pets['dam']->startCooldown(Pet::FAILED_BREEDING_COOLDOWN_DAYS);
+                }
+            }
+
+            // Notify all participants about the breeding status
+            $contract->load(['conversation.matchRequest.requesterPet', 'conversation.matchRequest.targetPet']);
+            $matchRequest = $contract->conversation->matchRequest ?? null;
+            if ($matchRequest) {
+                $statusLabel = $validated['breeding_status'] === 'completed' ? 'completed successfully' : 'marked as failed';
+                $petName = $matchRequest->requesterPet->name ?? 'the pet';
+                $participantIds = collect([
+                    $matchRequest->requesterPet->user_id ?? null,
+                    $matchRequest->targetPet->user_id ?? null,
+                    $contract->shooter_user_id,
+                ])->filter()->unique();
+
+                foreach ($participantIds as $participantId) {
+                    ActivityNotificationService::contractCompleted(
+                        $participantId,
+                        $petName,
+                        [
+                            'contract_id' => $contract->id,
+                            'breeding_status' => $validated['breeding_status'],
+                        ]
+                    );
                 }
             }
 
@@ -1658,6 +1693,29 @@ class BreedingContractController extends Controller
 
             // Refresh to get updated timestamps
             $conversation->refresh();
+
+            // Notify all participants about contract completion
+            $matchRequest = $conversation->matchRequest;
+            if ($matchRequest) {
+                $matchRequest->load(['requesterPet', 'targetPet']);
+                $petName = $matchRequest->requesterPet->name ?? 'your pet';
+                $participantIds = collect([
+                    $matchRequest->requesterPet->user_id ?? null,
+                    $matchRequest->targetPet->user_id ?? null,
+                    $contract->shooter_user_id,
+                ])->filter()->unique();
+
+                foreach ($participantIds as $participantId) {
+                    ActivityNotificationService::contractCompleted(
+                        $participantId,
+                        $petName,
+                        [
+                            'contract_id' => $contract->id,
+                            'conversation_id' => $conversation->id,
+                        ]
+                    );
+                }
+            }
 
             return response()->json([
                 'success' => true,

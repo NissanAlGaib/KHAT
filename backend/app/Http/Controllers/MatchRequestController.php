@@ -7,6 +7,7 @@ use App\Models\MatchRequest;
 use App\Models\Message;
 use App\Models\Payment;
 use App\Models\Pet;
+use App\Services\ActivityNotificationService;
 use App\Services\PayMongoService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -186,10 +187,20 @@ class MatchRequestController extends Controller
                 'status' => 'pending',
             ]);
 
+            // Notify the target pet's owner about the new match request
+            $matchRequest->load(['requesterPet', 'targetPet']);
+            $targetOwner = $matchRequest->targetPet->user_id;
+            ActivityNotificationService::matchRequestReceived(
+                $targetOwner,
+                $matchRequest->requesterPet->name ?? 'A pet',
+                $matchRequest->targetPet->name ?? 'your pet',
+                ['match_request_id' => $matchRequest->id]
+            );
+
             return response()->json([
                 'success' => true,
                 'message' => 'Match request sent successfully',
-                'data' => $matchRequest->load(['requesterPet', 'targetPet']),
+                'data' => $matchRequest,
             ], 201);
         } catch (\Exception $e) {
             return response()->json([
@@ -595,6 +606,18 @@ class MatchRequestController extends Controller
 
             DB::commit();
 
+            // Notify the requester pet's owner about the accepted match
+            $matchRequest->load(['requesterPet', 'targetPet']);
+            $requesterOwner = $matchRequest->requesterPet->user_id;
+            ActivityNotificationService::matchAccepted(
+                $requesterOwner,
+                $targetPet->name ?? 'A pet',
+                [
+                    'match_request_id' => $matchRequest->id,
+                    'conversation_id' => $conversation->id,
+                ]
+            );
+
             return response()->json([
                 'success' => true,
                 'message' => 'Match request accepted',
@@ -645,6 +668,15 @@ class MatchRequestController extends Controller
 
         try {
             $matchRequest->update(['status' => 'declined']);
+
+            // Notify the requester pet's owner about the declined match
+            $matchRequest->load(['requesterPet', 'targetPet']);
+            $requesterOwner = $matchRequest->requesterPet->user_id;
+            ActivityNotificationService::matchDeclined(
+                $requesterOwner,
+                $targetPet->name ?? 'A pet',
+                ['match_request_id' => $matchRequest->id]
+            );
 
             return response()->json([
                 'success' => true,
@@ -1113,6 +1145,36 @@ class MatchRequestController extends Controller
                 'sender_id' => $user->id,
                 'content' => $validated['content'],
             ]);
+
+            // Notify other participants about the new message
+            $matchRequest = $conversation->matchRequest;
+            if ($matchRequest) {
+                $recipientUserIds = collect();
+
+                // Add requester pet owner
+                $requesterPet = Pet::find($matchRequest->requester_pet_id);
+                if ($requesterPet && $requesterPet->user_id !== $user->id) {
+                    $recipientUserIds->push($requesterPet->user_id);
+                }
+                // Add target pet owner
+                $targetPet = Pet::find($matchRequest->target_pet_id);
+                if ($targetPet && $targetPet->user_id !== $user->id) {
+                    $recipientUserIds->push($targetPet->user_id);
+                }
+                // Add shooter if present
+                if ($conversation->shooter_user_id && $conversation->shooter_user_id !== $user->id) {
+                    $recipientUserIds->push($conversation->shooter_user_id);
+                }
+
+                foreach ($recipientUserIds->unique() as $recipientId) {
+                    ActivityNotificationService::newMessage(
+                        $recipientId,
+                        $user->name ?? 'Someone',
+                        $validated['content'],
+                        ['conversation_id' => (int) $id]
+                    );
+                }
+            }
 
             return response()->json([
                 'success' => true,
