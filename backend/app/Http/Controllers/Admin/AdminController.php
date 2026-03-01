@@ -381,7 +381,9 @@ class AdminController extends Controller
         $perPage = $request->input('per_page', 15);
         $users = $query->filterByDate($request)->paginate($perPage)->appends($request->all());
 
-        return view('admin.users.index', compact('users', 'status'));
+        $subscriptionTiers = SubscriptionTier::where('is_active', true)->orderBy('price')->get();
+
+        return view('admin.users.index', compact('users', 'status', 'subscriptionTiers'));
     }
 
     /**
@@ -476,7 +478,11 @@ class AdminController extends Controller
         $adminRole = Role::where('role_type', 'admin')->first();
 
         if ($adminRole) {
-            $user->roles()->detach($adminRole->role_id);
+            // Explicitly delete from pivot to ensure it works
+            DB::table('user_roles')
+                ->where('user_id', $user->id)
+                ->where('role_id', $adminRole->role_id)
+                ->delete();
 
             AuditLog::log(
                 'admin.revoke',
@@ -660,14 +666,23 @@ class AdminController extends Controller
 
     /**
      * Update user status (suspend/ban).
+     * 
+     * Suspend = Temporary restriction (requires duration or custom end date).
+     * Ban = Permanent restriction (indefinite unless manually lifted).
      */
     public function updateUserStatus(Request $request, $userId)
     {
         $request->validate([
             'status' => 'required|in:active,suspended,banned',
             'suspension_reason' => 'required_if:status,suspended,banned|nullable|string|max:500',
-            'suspension_duration' => 'nullable|string|in:1_day,3_days,7_days,30_days,indefinite',
+            'suspension_duration' => 'nullable|string|in:1_day,3_days,7_days,30_days,90_days,indefinite,custom',
+            'custom_end_date' => 'nullable|date|after:today',
         ]);
+
+        // Enforce reason is truly provided for suspend/ban
+        if (in_array($request->status, ['suspended', 'banned']) && empty(trim($request->suspension_reason ?? ''))) {
+            return redirect()->back()->with('error', 'Reason is required when suspending or banning a user.');
+        }
 
         $user = User::findOrFail($userId);
         $oldStatus = $user->status ?? 'active';
@@ -678,13 +693,20 @@ class AdminController extends Controller
             $user->suspension_reason = $request->suspension_reason;
             $user->suspended_at = now();
 
-            // Handle duration
-            if ($request->suspension_duration && $request->suspension_duration !== 'indefinite') {
+            if ($request->status === 'banned') {
+                // Ban = permanent by default (no end date)
+                $user->suspension_end_date = null;
+            } elseif ($request->suspension_duration === 'custom' && $request->custom_end_date) {
+                // Custom date selected
+                $user->suspension_end_date = Carbon::parse($request->custom_end_date)->endOfDay();
+            } elseif ($request->suspension_duration && $request->suspension_duration !== 'indefinite') {
+                // Predefined duration
                 $days = match ($request->suspension_duration) {
                     '1_day' => 1,
                     '3_days' => 3,
                     '7_days' => 7,
                     '30_days' => 30,
+                    '90_days' => 90,
                     default => null
                 };
 

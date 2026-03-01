@@ -851,18 +851,49 @@
 <div id="statusModal" class="hidden fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center">
     <div class="bg-white rounded-xl shadow-xl max-w-md w-full mx-4 p-6">
         <h3 class="text-xl font-bold text-gray-900 mb-4">Change Pet Status</h3>
-        <form action="{{ route('admin.pets.status.update', $pet->pet_id) }}" method="POST">
+
+        @if(session('error'))
+        <div class="mb-4 bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg text-sm">
+            {{ session('error') }}
+        </div>
+        @endif
+
+        <form action="{{ route('admin.pets.status.update', $pet->pet_id) }}" method="POST" id="petStatusForm" onsubmit="return validatePetStatusForm()">
             @csrf
-            <div class="mb-6">
-                <label class="block text-sm font-semibold text-gray-700 mb-2">Select New Status</label>
-                <select name="status" class="w-full appearance-none bg-white border border-gray-300 text-gray-700 py-2.5 px-4 pr-8 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#E75234] focus:border-transparent">
-                    <option value="active" {{ $pet->status === 'active' ? 'selected' : '' }}>Active</option>
-                    <option value="disabled" {{ $pet->status === 'disabled' ? 'selected' : '' }}>Disabled</option>
-                    <option value="cooldown" {{ $pet->status === 'cooldown' ? 'selected' : '' }}>Cooldown</option>
-                    <option value="banned" {{ $pet->status === 'banned' ? 'selected' : '' }}>Banned</option>
-                </select>
+            <div class="space-y-4">
+                <div>
+                    <label class="block text-sm font-semibold text-gray-700 mb-2">Select New Status</label>
+                    <select name="status" id="petStatusSelect" class="w-full appearance-none bg-white border border-gray-300 text-gray-700 py-2.5 px-4 pr-8 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#E75234] focus:border-transparent" onchange="togglePetStatusFields()">
+                        <option value="active" {{ $pet->status === 'active' ? 'selected' : '' }}>Active</option>
+                        <option value="disabled" {{ $pet->status === 'disabled' ? 'selected' : '' }}>Disabled</option>
+                        <option value="cooldown" {{ $pet->status === 'cooldown' ? 'selected' : '' }}>Cooldown</option>
+                        <option value="banned" {{ $pet->status === 'banned' ? 'selected' : '' }}>Banned</option>
+                    </select>
+                </div>
+
+                <!-- Reason and Duration fields (shown for disabled/banned) -->
+                <div id="petReasonFields" class="{{ in_array($pet->status, ['disabled', 'banned']) ? '' : 'hidden' }} space-y-4">
+                    <div>
+                        <label class="block text-sm font-semibold text-gray-700 mb-1.5">Duration</label>
+                        <select name="suspension_duration" id="petDurationSelect" class="w-full bg-white border border-gray-300 text-gray-700 py-2.5 px-4 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#E75234] focus:border-transparent" onchange="togglePetCustomDate()">
+                            <option value="1_day">24 Hours</option>
+                            <option value="3_days">3 Days</option>
+                            <option value="7_days" selected>7 Days</option>
+                            <option value="30_days">30 Days</option>
+                            <option value="indefinite">Indefinite</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-sm font-semibold text-gray-700 mb-1.5">
+                            Reason <span class="text-red-500">*</span>
+                        </label>
+                        <textarea name="suspension_reason" id="petSuspensionReason" rows="3" class="w-full bg-white border border-gray-300 text-gray-700 py-2.5 px-4 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#E75234] focus:border-transparent" placeholder="Explain why this pet's status is being changed...">{{ $pet->suspension_reason }}</textarea>
+                        <p id="petReasonError" class="mt-1 text-xs text-red-600 hidden">Reason is required.</p>
+                    </div>
+                </div>
             </div>
-            <div class="flex gap-3">
+
+            <div class="flex gap-3 mt-6">
                 <button type="submit" class="flex-1 px-4 py-2.5 bg-[#E75234] text-white text-sm font-medium rounded-lg hover:bg-[#d14024] transition">
                     Update Status
                 </button>
@@ -1015,10 +1046,46 @@
 
     function openStatusModal() {
         document.getElementById('statusModal').classList.remove('hidden');
+        togglePetStatusFields();
     }
 
     function closeStatusModal() {
         document.getElementById('statusModal').classList.add('hidden');
+    }
+
+    function togglePetStatusFields() {
+        const status = document.getElementById('petStatusSelect').value;
+        const reasonFields = document.getElementById('petReasonFields');
+        const reasonError = document.getElementById('petReasonError');
+
+        if (reasonError) reasonError.classList.add('hidden');
+
+        if (status === 'disabled' || status === 'banned') {
+            reasonFields.classList.remove('hidden');
+        } else {
+            reasonFields.classList.add('hidden');
+        }
+    }
+
+    function togglePetCustomDate() {
+        // Reserved for future custom date support
+    }
+
+    function validatePetStatusForm() {
+        const status = document.getElementById('petStatusSelect').value;
+        const reason = document.getElementById('petSuspensionReason').value.trim();
+        const reasonError = document.getElementById('petReasonError');
+
+        if ((status === 'disabled' || status === 'banned') && reason === '') {
+            reasonError.classList.remove('hidden');
+            document.getElementById('petSuspensionReason').focus();
+            document.getElementById('petSuspensionReason').classList.add('border-red-500');
+            return false;
+        }
+
+        if (reasonError) reasonError.classList.add('hidden');
+        document.getElementById('petSuspensionReason').classList.remove('border-red-500');
+        return true;
     }
 
     function confirmDeletePet() {

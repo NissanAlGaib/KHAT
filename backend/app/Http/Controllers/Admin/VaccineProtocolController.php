@@ -41,6 +41,11 @@ class VaccineProtocolController extends Controller
             $query->where('is_active', (bool) $request->active);
         }
 
+        // Filter by category
+        if ($request->filled('category')) {
+            $query->where('protocol_category_id', $request->category);
+        }
+
         // Search
         if ($request->filled('search')) {
             $search = $request->search;

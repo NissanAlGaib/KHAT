@@ -6,6 +6,34 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ---
+
+## [1.5.9] - 2026-03-01
+
+### Admin Panel Bug Fixes
+#### User Management
+
+- **Fixed**: Suspend button in user table dropdown now correctly shows "Lift Suspension" or "Lift Ban" when a user is already suspended/banned, instead of always showing "Suspend Account"
+- **Fixed**: Error when granting 199/Basic subscription — root cause was a database ENUM mismatch (`basic` not in the allowed values). Added migration to include `basic` in the `subscription_tier` ENUM and migrated existing `standard` records to `basic`
+- **Fixed**: Ban and Suspend now have distinct behaviors — **Banned** is permanent (no end date), **Suspended** is temporary (requires duration). Hint text explains the difference in the status change modal
+- **Added**: Date picker for custom suspension end dates (in addition to preset 7/30/90-day durations)
+- **Added**: Front-end and server-side validation for the reason field when changing user status — empty reason now shows an alert and blocks submission
+- **Added**: Success and error flash message banners on the user management index and detail pages
+
+#### Admin Management
+
+- **Fixed**: Admin role revoke not working — `Role` model was missing `$primaryKey = 'role_id'` and `$fillable` declarations; `revokeAdmin()` now uses explicit `DB::table()` delete for reliability
+
+#### Pet Management
+
+- **Fixed**: Pet status change (Disabled/Banned) failing silently — the pet detail modal was missing the required `reason` and `duration` fields. Added reason textarea, duration selector, custom date picker, and front-end validation
+
+#### Protocol Categories
+
+- **Verified**: Protocol category count code (`withCount('protocols')`) is correct. If counts show 0, it means protocols were created without selecting a category
+- **Fixed**: Added missing `category` filter handling in `VaccineProtocolController` — the filter dropdown existed in the UI but the controller wasn't processing it
+
+---
+
 ## [1.5.0] - 2026-02-18
 
 ### Payment & Transaction Pooling

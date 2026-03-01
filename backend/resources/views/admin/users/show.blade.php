@@ -13,6 +13,16 @@
 </div>
 @endif
 
+<!-- Error Message -->
+@if(session('error'))
+<div class="mb-6 bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded-lg relative" role="alert">
+    <span class="block sm:inline">{{ session('error') }}</span>
+    <button type="button" class="absolute top-0 bottom-0 right-0 px-4 py-3" onclick="this.parentElement.style.display='none';">
+        <i data-lucide="x" class="w-4 h-4"></i>
+    </button>
+</div>
+@endif
+
 <div class="mb-6">
     <div class="flex items-center gap-2 text-sm text-gray-500 mb-4">
         <a href="{{ route('admin.users.index') }}" class="hover:text-[#E75234] transition">
@@ -322,31 +332,55 @@
 <div id="statusModal" class="hidden fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4">
     <div class="bg-white rounded-xl shadow-xl max-w-md w-full p-6">
         <h3 class="text-xl font-bold text-gray-900 mb-4">Change User Status</h3>
-        <form action="{{ route('admin.users.status', $user->id) }}" method="POST">
+
+        <!-- Error message area -->
+        @if(session('error'))
+        <div class="mb-4 bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg text-sm">
+            {{ session('error') }}
+        </div>
+        @endif
+
+        <form id="statusForm" action="{{ route('admin.users.status', $user->id) }}" method="POST" onsubmit="return validateStatusForm()">
             @csrf
             <div class="mb-4">
                 <label class="block text-sm font-semibold text-gray-700 mb-2">New Status</label>
-                <select name="status" id="statusSelect" class="w-full bg-white border border-gray-300 text-gray-700 py-2.5 px-4 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#E75234]" onchange="toggleReasonField()">
+                <select name="status" id="statusSelect" class="w-full bg-white border border-gray-300 text-gray-700 py-2.5 px-4 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#E75234]" onchange="toggleStatusFields()">
                     <option value="active" {{ $user->status === 'active' ? 'selected' : '' }}>Active</option>
-                    <option value="suspended" {{ $user->status === 'suspended' ? 'selected' : '' }}>Suspended</option>
-                    <option value="banned" {{ $user->status === 'banned' ? 'selected' : '' }}>Banned</option>
+                    <option value="suspended" {{ $user->status === 'suspended' ? 'selected' : '' }}>Suspended (Temporary)</option>
+                    <option value="banned" {{ $user->status === 'banned' ? 'selected' : '' }}>Banned (Permanent)</option>
                 </select>
+                <p id="statusHint" class="mt-1.5 text-xs text-gray-500 italic"></p>
             </div>
 
             <div id="reasonField" class="space-y-4 {{ in_array($user->status, ['suspended', 'banned']) ? '' : 'hidden' }}">
-                <div>
+                <!-- Duration (only for Suspended) -->
+                <div id="durationField">
                     <label class="block text-sm font-semibold text-gray-700 mb-1.5">Suspension Duration</label>
-                    <select name="suspension_duration" class="w-full bg-white border border-gray-300 text-gray-700 py-2.5 px-4 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#E75234]">
-                        <option value="indefinite">Indefinite (Until manually lifted)</option>
+                    <select name="suspension_duration" id="suspensionDurationSelect" class="w-full bg-white border border-gray-300 text-gray-700 py-2.5 px-4 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#E75234]" onchange="toggleCustomDateField()">
                         <option value="1_day">24 Hours</option>
                         <option value="3_days">3 Days</option>
-                        <option value="7_days">7 Days</option>
+                        <option value="7_days" selected>7 Days</option>
                         <option value="30_days">30 Days</option>
+                        <option value="90_days">90 Days</option>
+                        <option value="custom">Custom Date</option>
+                        <option value="indefinite">Indefinite (Until manually lifted)</option>
                     </select>
                 </div>
+
+                <!-- Custom Date Picker (shown when 'custom' duration is selected) -->
+                <div id="customDateField" class="hidden">
+                    <label class="block text-sm font-semibold text-gray-700 mb-1.5">Suspension End Date</label>
+                    <input type="date" name="custom_end_date" id="customEndDate" min="{{ now()->addDay()->format('Y-m-d') }}" class="w-full bg-white border border-gray-300 text-gray-700 py-2.5 px-4 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#E75234]">
+                    <p class="mt-1 text-xs text-gray-500">Suspension will be automatically lifted on this date.</p>
+                </div>
+
+                <!-- Reason -->
                 <div>
-                    <label class="block text-sm font-semibold text-gray-700 mb-2">Reason</label>
-                    <textarea name="suspension_reason" rows="3" class="w-full bg-white border border-gray-300 text-gray-700 py-2.5 px-4 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#E75234]" placeholder="Please provide a reason...">{{ $user->suspension_reason }}</textarea>
+                    <label class="block text-sm font-semibold text-gray-700 mb-2">
+                        Reason <span class="text-red-500">*</span>
+                    </label>
+                    <textarea name="suspension_reason" id="suspensionReason" rows="3" class="w-full bg-white border border-gray-300 text-gray-700 py-2.5 px-4 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#E75234]" placeholder="Please provide a reason...">{{ $user->suspension_reason }}</textarea>
+                    <p id="reasonError" class="mt-1 text-xs text-red-600 hidden">Reason is required.</p>
                 </div>
             </div>
 
@@ -376,20 +410,79 @@
 
     function openStatusModal() {
         document.getElementById('statusModal').classList.remove('hidden');
+        toggleStatusFields();
     }
 
     function closeStatusModal() {
         document.getElementById('statusModal').classList.add('hidden');
     }
 
-    function toggleReasonField() {
+    function toggleStatusFields() {
         const status = document.getElementById('statusSelect').value;
         const reasonField = document.getElementById('reasonField');
-        if (status === 'suspended' || status === 'banned') {
+        const durationField = document.getElementById('durationField');
+        const statusHint = document.getElementById('statusHint');
+        const reasonError = document.getElementById('reasonError');
+
+        // Hide reason error when toggling
+        reasonError.classList.add('hidden');
+
+        if (status === 'suspended') {
             reasonField.classList.remove('hidden');
+            durationField.classList.remove('hidden');
+            statusHint.textContent = 'Suspended: Temporary restriction. User can be reactivated after the duration expires.';
+        } else if (status === 'banned') {
+            reasonField.classList.remove('hidden');
+            durationField.classList.add('hidden');
+            statusHint.textContent = 'Banned: Permanent restriction. User cannot access the system unless manually lifted by an admin.';
         } else {
             reasonField.classList.add('hidden');
+            statusHint.textContent = '';
         }
+    }
+
+    function toggleCustomDateField() {
+        const duration = document.getElementById('suspensionDurationSelect').value;
+        const customDateField = document.getElementById('customDateField');
+        if (duration === 'custom') {
+            customDateField.classList.remove('hidden');
+        } else {
+            customDateField.classList.add('hidden');
+        }
+    }
+
+    function validateStatusForm() {
+        const status = document.getElementById('statusSelect').value;
+        const reason = document.getElementById('suspensionReason').value.trim();
+        const reasonError = document.getElementById('reasonError');
+
+        if ((status === 'suspended' || status === 'banned') && reason === '') {
+            reasonError.classList.remove('hidden');
+            document.getElementById('suspensionReason').focus();
+            document.getElementById('suspensionReason').classList.add('border-red-500');
+            return false;
+        }
+
+        // Validate custom date if selected
+        if (status === 'suspended') {
+            const duration = document.getElementById('suspensionDurationSelect').value;
+            if (duration === 'custom') {
+                const customDate = document.getElementById('customEndDate').value;
+                if (!customDate) {
+                    Swal.fire({
+                        title: 'Date Required',
+                        text: 'Please select a suspension end date.',
+                        icon: 'warning',
+                        confirmButtonColor: '#E75234'
+                    });
+                    return false;
+                }
+            }
+        }
+
+        reasonError.classList.add('hidden');
+        document.getElementById('suspensionReason').classList.remove('border-red-500');
+        return true;
     }
 
     function deleteUser(id) {

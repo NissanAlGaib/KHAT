@@ -3,6 +3,26 @@
 @section('title', 'User Management - KHAT Admin')
 
 @section('content')
+<!-- Success Message -->
+@if(session('success'))
+<div class="mb-6 bg-green-100 border border-green-400 text-green-700 px-4 py-3 rounded-lg relative" role="alert">
+    <span class="block sm:inline">{{ session('success') }}</span>
+    <button type="button" class="absolute top-0 bottom-0 right-0 px-4 py-3" onclick="this.parentElement.style.display='none';">
+        <i data-lucide="x" class="w-4 h-4"></i>
+    </button>
+</div>
+@endif
+
+<!-- Error Message -->
+@if(session('error'))
+<div class="mb-6 bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded-lg relative" role="alert">
+    <span class="block sm:inline">{{ session('error') }}</span>
+    <button type="button" class="absolute top-0 bottom-0 right-0 px-4 py-3" onclick="this.parentElement.style.display='none';">
+        <i data-lucide="x" class="w-4 h-4"></i>
+    </button>
+</div>
+@endif
+
 <h1 class="text-3xl font-bold text-gray-900 mb-2">User Management</h1>
 <p class="text-sm text-gray-500 mb-6">Manage user accounts, verification status, and subscriptions</p>
 
@@ -40,11 +60,9 @@
 ['value' => 'expired', 'label' => 'Expired'],
 ['value' => 'missing', 'label' => 'Missing'],
 ]],
-['name' => 'subscription', 'label' => 'Subscription Tier', 'options' => [
-['value' => 'free', 'label' => 'Free'],
-['value' => 'standard', 'label' => 'Standard'],
-['value' => 'premium', 'label' => 'Premium'],
-]],
+['name' => 'subscription', 'label' => 'Subscription Tier', 'options' =>
+collect($subscriptionTiers)->map(fn($tier) => ['value' => $tier->slug, 'label' => $tier->name])->toArray()
+],
 ],
 'dateFilter' => true,
 'datePresets' => true,
@@ -69,23 +87,32 @@
                 </div>
             </div>
 
-            <form id="suspendForm" method="POST">
+            <form id="suspendForm" method="POST" onsubmit="return validateSuspendForm()">
                 @csrf
                 <input type="hidden" name="status" value="suspended">
                 <div class="space-y-4">
                     <div>
                         <label class="block text-sm font-semibold text-gray-700 mb-1.5">Suspension Duration</label>
-                        <select name="suspension_duration" class="w-full bg-white border border-gray-300 text-gray-700 py-2 px-3 rounded-lg text-sm focus:ring-2 focus:ring-orange-500 focus:border-transparent outline-none">
-                            <option value="indefinite">Indefinite (Until manually lifted)</option>
+                        <select name="suspension_duration" id="suspendDurationSelect" class="w-full bg-white border border-gray-300 text-gray-700 py-2 px-3 rounded-lg text-sm focus:ring-2 focus:ring-orange-500 focus:border-transparent outline-none" onchange="toggleSuspendCustomDate()">
                             <option value="1_day">24 Hours</option>
                             <option value="3_days">3 Days</option>
-                            <option value="7_days">7 Days</option>
+                            <option value="7_days" selected>7 Days</option>
                             <option value="30_days">30 Days</option>
+                            <option value="90_days">90 Days</option>
+                            <option value="custom">Custom Date</option>
+                            <option value="indefinite">Indefinite (Until manually lifted)</option>
                         </select>
                     </div>
+                    <div id="suspendCustomDateField" class="hidden">
+                        <label class="block text-sm font-semibold text-gray-700 mb-1.5">Suspension End Date</label>
+                        <input type="date" name="custom_end_date" id="suspendCustomEndDate" min="{{ now()->addDay()->format('Y-m-d') }}" class="w-full bg-white border border-gray-300 text-gray-700 py-2 px-3 rounded-lg text-sm focus:ring-2 focus:ring-orange-500 focus:border-transparent outline-none">
+                    </div>
                     <div>
-                        <label class="block text-sm font-semibold text-gray-700 mb-1.5">Reason for Suspension</label>
-                        <textarea name="suspension_reason" required rows="4" class="w-full bg-white border border-gray-300 text-gray-700 py-2 px-3 rounded-lg text-sm focus:ring-2 focus:ring-orange-500 focus:border-transparent outline-none" placeholder="Explain why this user is being suspended..."></textarea>
+                        <label class="block text-sm font-semibold text-gray-700 mb-1.5">
+                            Reason for Suspension <span class="text-red-500">*</span>
+                        </label>
+                        <textarea name="suspension_reason" id="suspendReasonText" rows="4" class="w-full bg-white border border-gray-300 text-gray-700 py-2 px-3 rounded-lg text-sm focus:ring-2 focus:ring-orange-500 focus:border-transparent outline-none" placeholder="Explain why this user is being suspended..."></textarea>
+                        <p id="suspendReasonError" class="mt-1 text-xs text-red-600 hidden">Reason is required.</p>
                     </div>
                 </div>
 
@@ -100,6 +127,9 @@
             </form>
         </div>
     </div>
+</div>
+</div>
+</div>
 </div>
 
 <!-- Results Count -->
@@ -224,11 +254,11 @@
                         $tier = $user->subscription_tier ?? 'free';
                         $tierColors = [
                         'free' => 'bg-pink-100 text-pink-700',
-                        'standard' => 'bg-purple-100 text-purple-700',
-                        'premium' => 'bg-orange-100 text-orange-700'
+                        'basic' => 'bg-blue-100 text-blue-700',
+                        'premium' => 'bg-orange-100 text-orange-700',
                         ];
                         @endphp
-                        <span class="inline-block px-3 py-1.5 rounded-lg text-xs font-semibold {{ $tierColors[$tier] }}">
+                        <span class="inline-block px-3 py-1.5 rounded-lg text-xs font-semibold {{ $tierColors[$tier] ?? 'bg-gray-100 text-gray-700' }}">
                             {{ ucfirst($tier) }}
                         </span>
                     </td>
@@ -266,10 +296,21 @@
                                     <i data-lucide="eye" class="w-4 h-4 text-gray-500"></i>
                                     View Details
                                 </a>
+                                @if(in_array($user->status, ['suspended', 'banned']))
+                                <form action="{{ route('admin.users.status', $user->id) }}" method="POST" class="w-full">
+                                    @csrf
+                                    <input type="hidden" name="status" value="active">
+                                    <button type="submit" class="w-full flex items-center gap-3 px-4 py-3 text-sm font-medium text-green-700 hover:bg-green-50 transition-colors text-left">
+                                        <i data-lucide="play-circle" class="w-4 h-4 text-green-600"></i>
+                                        {{ $user->status === 'banned' ? 'Lift Ban' : 'Lift Suspension' }}
+                                    </button>
+                                </form>
+                                @else
                                 <button onclick="openSuspendModal({{ $user->id }}, '{{ $user->name ?? $user->email }}')" class="w-full flex items-center gap-3 px-4 py-3 text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors text-left">
                                     <i data-lucide="pause-circle" class="w-4 h-4 text-gray-500"></i>
                                     Suspend Account
                                 </button>
+                                @endif
                                 <div class="border-t border-gray-100"></div>
                                 <button type="button" onclick="deleteUser({{ $user->id }})" class="w-full flex items-center gap-3 px-4 py-3 text-sm font-medium text-red-600 hover:bg-red-50 transition-colors">
                                     <i data-lucide="trash-2" class="w-4 h-4"></i>
@@ -630,6 +671,49 @@
     function closeSuspendModal() {
         document.getElementById('suspendModal').classList.add('hidden');
         document.getElementById('suspendForm').reset();
+        document.getElementById('suspendReasonError').classList.add('hidden');
+        document.getElementById('suspendCustomDateField').classList.add('hidden');
+    }
+
+    function toggleSuspendCustomDate() {
+        const duration = document.getElementById('suspendDurationSelect').value;
+        const customDateField = document.getElementById('suspendCustomDateField');
+        if (duration === 'custom') {
+            customDateField.classList.remove('hidden');
+        } else {
+            customDateField.classList.add('hidden');
+        }
+    }
+
+    function validateSuspendForm() {
+        const reason = document.getElementById('suspendReasonText').value.trim();
+        const reasonError = document.getElementById('suspendReasonError');
+
+        if (reason === '') {
+            reasonError.classList.remove('hidden');
+            document.getElementById('suspendReasonText').focus();
+            document.getElementById('suspendReasonText').classList.add('border-red-500');
+            return false;
+        }
+
+        // Validate custom date if selected
+        const duration = document.getElementById('suspendDurationSelect').value;
+        if (duration === 'custom') {
+            const customDate = document.getElementById('suspendCustomEndDate').value;
+            if (!customDate) {
+                Swal.fire({
+                    title: 'Date Required',
+                    text: 'Please select a suspension end date.',
+                    icon: 'warning',
+                    confirmButtonColor: '#E75234'
+                });
+                return false;
+            }
+        }
+
+        reasonError.classList.add('hidden');
+        document.getElementById('suspendReasonText').classList.remove('border-red-500');
+        return true;
     }
 
     async function submitWarning(e) {
@@ -846,21 +930,21 @@
             div class = "absolute -left-[calc(0.75rem+1.5px)] top-1 w-5 h-5 rounded-full bg-${s.color}-100 border-2 border-${s.color}-400 flex items-center justify-center" >
             <
             i data - lucide = "${s.icon}"
-        class = "w-2.5 h-2.5 text-${s.color}-600" > < /i> <
-        /div> <
-        div class = "ml-4" >
-        <
-        p class = "text-sm font-semibold text-gray-900" > $ {
-            s.label
-        } < /p> <
+        class = "w-2.5 h-2.5 text-${s.color}-600" > < /i> < /
+        div > <
+            div class = "ml-4" >
+            <
+            p class = "text-sm font-semibold text-gray-900" > $ {
+                s.label
+            } < /p> <
         p class = "text-xs text-gray-600 capitalize" > $ {
             doc.auth_type.replace(/_/g, ' ')
         } < /p> <
         p class = "text-[11px] text-gray-400 mt-0.5" > $ {
             doc.date_created
-        } < /p> <
-        /div> <
-        /div>
+        } < /p> < /
+        div > <
+            /div>
         `;
                 }).join('')}
             </div>
@@ -927,22 +1011,22 @@
         } <
         /div> <
         i data - lucide = "${statusIcon}"
-        class = "w-5 h-5 flex-shrink-0" > < /i> <
-        /div>
-        $ {
-            expiryDate ? '<p class="text-xs text-gray-500 mb-2">Expires: ' + expiryDate + '</p>' : ''
-        } <
-        div class = "flex items-center gap-2" >
-        <
-        div class = "h-1.5 flex-1 bg-gray-200 rounded-full overflow-hidden" >
-        <
-        div class = "h-full ${progressColor} rounded-full"
-        style = "width: ${progressWidth}%" > < /div> <
-            /div> <
+        class = "w-5 h-5 flex-shrink-0" > < /i> < /
+        div >
+            $ {
+                expiryDate ? '<p class="text-xs text-gray-500 mb-2">Expires: ' + expiryDate + '</p>' : ''
+            } <
+            div class = "flex items-center gap-2" >
+            <
+            div class = "h-1.5 flex-1 bg-gray-200 rounded-full overflow-hidden" >
+            <
+            div class = "h-full ${progressColor} rounded-full"
+        style = "width: ${progressWidth}%" > < /div> < /
+            div > <
             span class = "text-xs font-semibold whitespace-nowrap" > $ {
                 statusText
-            } < /span> <
-            /div> <
+            } < /span> < /
+            div > <
             /div>
         `;
                 }).join('')}
