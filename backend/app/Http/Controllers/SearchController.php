@@ -203,12 +203,15 @@ class SearchController extends Controller
             $petsQuery = Pet::where('status', 'approved')
                 ->with(['owner:id,name,profile_image', 'photos']);
 
-            // Apply text search if query provided
+            // Apply text search if query provided (search pet name, breed, species, AND owner name)
             if (!empty($query)) {
                 $petsQuery->where(function ($q) use ($query) {
                     $q->where('name', 'like', "%{$query}%")
                         ->orWhere('breed', 'like', "%{$query}%")
-                        ->orWhere('species', 'like', "%{$query}%");
+                        ->orWhere('species', 'like', "%{$query}%")
+                        ->orWhereHas('owner', function ($ownerQuery) use ($query) {
+                            $ownerQuery->where('name', 'like', "%{$query}%");
+                        });
                 });
             }
 
@@ -363,12 +366,15 @@ class SearchController extends Controller
                 ]);
             }
 
-            // Search Pets - no longer excludes cooldown pets
+            // Search Pets - no longer excludes cooldown pets, also searches by owner name
             $petsQuery = Pet::where('status', 'approved')
                 ->where(function ($q) use ($query) {
                     $q->where('name', 'like', "%{$query}%")
                         ->orWhere('breed', 'like', "%{$query}%")
-                        ->orWhere('species', 'like', "%{$query}%");
+                        ->orWhere('species', 'like', "%{$query}%")
+                        ->orWhereHas('owner', function ($ownerQuery) use ($query) {
+                            $ownerQuery->where('name', 'like', "%{$query}%");
+                        });
                 })
                 ->with(['owner:id,name,profile_image', 'photos']);
 

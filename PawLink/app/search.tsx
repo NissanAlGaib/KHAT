@@ -84,17 +84,12 @@ function SearchScreenContent() {
     }
   }, [params.tab]);
 
-  // Load explore data on mount
+  // Load explore data on mount and when filters change
   useEffect(() => {
     if (!initialLoadRef.current) {
       initialLoadRef.current = true;
-      loadExploreData(true);
       loadRecentSearches();
     }
-  }, []);
-
-  // Reload explore when filters change (only in explore mode)
-  useEffect(() => {
     if (searchMode === "explore") {
       loadExploreData(true);
     }
@@ -109,8 +104,13 @@ function SearchScreenContent() {
       setGlobalResults(null);
       setFilteredResults([]);
       setHasSearched(false);
+      setIsSearching(false);
       return;
     }
+
+    // Immediately switch to search mode (no flash of explore grid)
+    setSearchMode("search");
+    setIsSearching(true);
 
     if (debounceTimeoutRef.current) {
       clearTimeout(debounceTimeoutRef.current);
@@ -141,11 +141,26 @@ function SearchScreenContent() {
 
     try {
       const page = reset ? 1 : (exploreMeta?.current_page || 0) + 1;
-      const result = await searchService.explore({
-        ...filters,
-        page,
-        per_page: 20,
-      });
+      let result;
+
+      try {
+        // Try the dedicated explore endpoint first
+        result = await searchService.explore({
+          ...filters,
+          page,
+          per_page: 20,
+        });
+      } catch {
+        // Fallback: use searchPets with empty query (returns all approved pets)
+        console.warn(
+          "Explore endpoint unavailable, falling back to searchPets",
+        );
+        result = await searchService.searchPets("", {
+          ...filters,
+          page,
+          per_page: 20,
+        });
+      }
 
       if (reset) {
         setExploreData(result.data);
@@ -223,10 +238,8 @@ function SearchScreenContent() {
   // Handlers
   const handleCategoryChange = (category: CategoryFilter) => {
     setActiveCategory(category);
-    if (query.trim()) {
-      // Re-search with new category
-      setHasSearched(false); // reset to trigger re-search via useEffect
-    }
+    // Don't reset hasSearched — the useEffect on [query, activeCategory, filters]
+    // will re-trigger the search. Show loading spinner during transition.
   };
 
   const handleSeeAllPress = (category: "pets" | "breeders" | "shooters") => {
@@ -572,6 +585,7 @@ function SearchScreenContent() {
 
   // Main content
   const renderContent = () => {
+    // Show loading spinner when search is in progress
     if (isSearching) {
       return (
         <View style={styles.centerContainer}>
@@ -580,8 +594,16 @@ function SearchScreenContent() {
       );
     }
 
-    // If user is searching
-    if (searchMode === "search" && hasSearched) {
+    // If in search mode, show results (or empty state if searched with no results)
+    if (searchMode === "search") {
+      if (!hasSearched) {
+        // Still waiting for first results — show nothing special
+        return (
+          <View style={styles.centerContainer}>
+            <ActivityIndicator size="large" color={Colors.primary} />
+          </View>
+        );
+      }
       if (activeCategory === "all") {
         return renderGlobalResults();
       }
@@ -653,8 +675,8 @@ function SearchScreenContent() {
         </TouchableOpacity>
       </View>
 
-      {/* Category tabs (when searching) */}
-      {searchMode === "search" && hasSearched && (
+      {/* Category tabs (when in search mode) */}
+      {searchMode === "search" && (
         <View style={styles.categoryBar}>
           <ScrollView
             horizontal
