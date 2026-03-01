@@ -30,6 +30,41 @@ export interface ReleaseEntry {
  */
 export const releases: ReleaseEntry[] = [
   {
+    version: "1.5.10",
+    title: "Search & Filter Revamp",
+    date: "March 1, 2026",
+    items: [
+      {
+        text: "Redesigned search screen with Instagram Explore-style pet grid",
+        category: "new",
+      },
+      {
+        text: "Filter bottom sheet — filter pets by species, sex, breed, and age range",
+        category: "new",
+      },
+      {
+        text: "Breed filter on homepage Top Matches swiping section",
+        category: "new",
+      },
+      {
+        text: "Infinite scroll pagination on search and explore results",
+        category: "new",
+      },
+      {
+        text: "Cooldown badge overlay on pet cards showing days remaining",
+        category: "new",
+      },
+      {
+        text: "Breed list endpoint with preset and user-submitted breeds for dogs and cats",
+        category: "new",
+      },
+      {
+        text: "Pets on cooldown now appear in search results instead of being hidden",
+        category: "fixed",
+      },
+    ],
+  },
+  {
     version: "1.5.8",
     title: "Quality-of-Life Improvements",
     date: "March 1, 2026",
