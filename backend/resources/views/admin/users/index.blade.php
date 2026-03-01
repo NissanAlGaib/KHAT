@@ -128,9 +128,6 @@ collect($subscriptionTiers)->map(fn($tier) => ['value' => $tier->slug, 'label' =
         </div>
     </div>
 </div>
-</div>
-</div>
-</div>
 
 <!-- Results Count -->
 <p class="text-sm text-gray-600 mb-4 font-medium">
@@ -322,7 +319,7 @@ collect($subscriptionTiers)->map(fn($tier) => ['value' => $tier->slug, 'label' =
                 </tr>
                 @empty
                 <tr>
-                    <td colspan="8" class="px-6 py-16 text-center">
+                    <td colspan="9" class="px-6 py-16 text-center">
                         <div class="flex flex-col items-center gap-3 text-gray-400">
                             <i data-lucide="users" class="w-16 h-16 text-gray-300"></i>
                             <p class="text-base font-medium text-gray-500">No users found</p>
@@ -1022,11 +1019,11 @@ collect($subscriptionTiers)->map(fn($tier) => ['value' => $tier->slug, 'label' =
             <
             div class = "h-full ${progressColor} rounded-full"
         style = "width: ${progressWidth}%" > < /div> < /
-            div > <
+        div > <
             span class = "text-xs font-semibold whitespace-nowrap" > $ {
                 statusText
             } < /span> < /
-            div > <
+        div > <
             /div>
         `;
                 }).join('')}
