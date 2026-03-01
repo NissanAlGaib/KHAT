@@ -73,7 +73,7 @@ class SearchController extends Controller
             ];
 
             // Get dynamic breeds from DB
-            $dbQuery = Pet::where('status', 'approved')
+            $dbQuery = Pet::where('status', 'active')
                 ->whereNotNull('breed')
                 ->where('breed', '!=', '');
 
@@ -100,11 +100,11 @@ class SearchController extends Controller
                     'breeds' => array_values($allBreeds),
                     'dog_breeds' => array_values(array_unique(array_merge(
                         $presetDogBreeds,
-                        Pet::where('status', 'approved')->where('species', 'dog')->whereNotNull('breed')->where('breed', '!=', '')->distinct()->pluck('breed')->toArray()
+                        Pet::where('status', 'active')->where('species', 'dog')->whereNotNull('breed')->where('breed', '!=', '')->distinct()->pluck('breed')->toArray()
                     ))),
                     'cat_breeds' => array_values(array_unique(array_merge(
                         $presetCatBreeds,
-                        Pet::where('status', 'approved')->where('species', 'cat')->whereNotNull('breed')->where('breed', '!=', '')->distinct()->pluck('breed')->toArray()
+                        Pet::where('status', 'active')->where('species', 'cat')->whereNotNull('breed')->where('breed', '!=', '')->distinct()->pluck('breed')->toArray()
                     ))),
                 ]
             ]);
@@ -131,7 +131,7 @@ class SearchController extends Controller
             $page = max(1, (int) $request->input('page', 1));
             $perPage = min(30, max(1, (int) $request->input('per_page', 20)));
 
-            $petsQuery = Pet::where('status', 'approved')
+            $petsQuery = Pet::where('status', 'active')
                 ->with(['owner:id,name,profile_image', 'photos']);
 
             // Apply species filter
@@ -200,7 +200,7 @@ class SearchController extends Controller
             $page = max(1, (int) $request->input('page', 1));
             $perPage = min(30, max(1, (int) $request->input('per_page', 20)));
 
-            $petsQuery = Pet::where('status', 'approved')
+            $petsQuery = Pet::where('status', 'active')
                 ->with(['owner:id,name,profile_image', 'photos']);
 
             // Apply text search if query provided (search pet name, breed, species, AND owner name)
@@ -367,7 +367,7 @@ class SearchController extends Controller
             }
 
             // Search Pets - no longer excludes cooldown pets, also searches by owner name
-            $petsQuery = Pet::where('status', 'approved')
+            $petsQuery = Pet::where('status', 'active')
                 ->where(function ($q) use ($query) {
                     $q->where('name', 'like', "%{$query}%")
                         ->orWhere('breed', 'like', "%{$query}%")
@@ -680,9 +680,9 @@ class SearchController extends Controller
 
             $experienceYears = $breeder->created_at ? ceil($breeder->created_at->diffInYears(now())) : 0;
 
-            // Get approved pets only
+            // Get active pets only
             $approvedPets = $breeder->pets->filter(function ($pet) {
-                return $pet->status === 'approved';
+                return $pet->status === 'active';
             });
 
             // Format pets data
