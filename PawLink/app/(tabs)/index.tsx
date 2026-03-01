@@ -6,7 +6,9 @@ import {
   RefreshControl,
   Image,
   Text,
+  TouchableOpacity,
 } from "react-native";
+import { Feather } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
 import { useFocusEffect } from "@react-navigation/native";
 import dayjs from "dayjs";
@@ -49,6 +51,7 @@ import SkeletonLoader from "@/components/home/SkeletonLoader";
 import SectionContainer from "@/components/home/SectionContainer";
 import TabSwitcher from "@/components/home/TabSwitcher";
 import AlertModal from "@/components/core/AlertModal";
+import BreedFilterModal from "@/components/home/BreedFilterModal";
 import ShooterHomepage from "./shooter-index";
 
 export default function Homepage() {
@@ -66,6 +69,9 @@ export default function Homepage() {
   const [topMatches, setTopMatches] = useState<TopMatch[]>([]);
   const [shooters, setShooters] = useState<ShooterProfile[]>([]);
   const [selectedTab, setSelectedTab] = useState<string>("pets");
+  // Breed filter for Top Matches swiping
+  const [breedFilterVisible, setBreedFilterVisible] = useState(false);
+  const [selectedBreeds, setSelectedBreeds] = useState<string[]>([]);
   // Track pet IDs that already have active match requests (for dupe guard)
   const activeRequestPetIdsRef = useRef<Set<number>>(new Set());
   // Track pet IDs that were passed (persisted in AsyncStorage)
@@ -253,6 +259,12 @@ export default function Homepage() {
         if (passedPetIdsRef.current.has(otherPet.pet_id)) return false;
         // Filter out pets that already have an active match request (dupe guard)
         if (activeRequestPetIdsRef.current.has(otherPet.pet_id)) return false;
+        // Breed filter — if breeds are selected, only keep matches whose other pet's breed is in the list
+        if (selectedBreeds.length > 0) {
+          const otherBreed = (otherPet.breed || "").toLowerCase();
+          if (!selectedBreeds.some((b) => b.toLowerCase() === otherBreed))
+            return false;
+        }
         return true;
       })
     : [];
@@ -297,6 +309,29 @@ export default function Homepage() {
               style={styles.heartIcon}
             />
             <Text style={styles.matchTitle}>Top Matches</Text>
+            <View style={{ flex: 1 }} />
+            <TouchableOpacity
+              style={[
+                styles.breedFilterButton,
+                selectedBreeds.length > 0 && styles.breedFilterButtonActive,
+              ]}
+              onPress={() => setBreedFilterVisible(true)}
+            >
+              <Feather
+                name="sliders"
+                size={16}
+                color={
+                  selectedBreeds.length > 0 ? Colors.white : Colors.coralDark
+                }
+              />
+              {selectedBreeds.length > 0 && (
+                <View style={styles.filterBadge}>
+                  <Text style={styles.filterBadgeText}>
+                    {selectedBreeds.length}
+                  </Text>
+                </View>
+              )}
+            </TouchableOpacity>
           </View>
 
           {loading ? (
@@ -373,6 +408,14 @@ export default function Homepage() {
       </ScrollView>
 
       <AlertModal visible={visible} {...alertOptions} onClose={hideAlert} />
+
+      <BreedFilterModal
+        visible={breedFilterVisible}
+        onClose={() => setBreedFilterVisible(false)}
+        onApply={(breeds) => setSelectedBreeds(breeds)}
+        selectedBreeds={selectedBreeds}
+        species={selectedPet?.species}
+      />
     </View>
   );
 }
@@ -412,5 +455,33 @@ const styles = StyleSheet.create({
     fontSize: 20,
     fontWeight: "800",
     color: Colors.coralDark,
+  },
+  breedFilterButton: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: "rgba(255,255,255,0.6)",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  breedFilterButtonActive: {
+    backgroundColor: Colors.primary,
+  },
+  filterBadge: {
+    position: "absolute",
+    top: -4,
+    right: -4,
+    backgroundColor: Colors.coralDark,
+    borderRadius: 8,
+    minWidth: 16,
+    height: 16,
+    alignItems: "center",
+    justifyContent: "center",
+    paddingHorizontal: 4,
+  },
+  filterBadgeText: {
+    fontSize: 10,
+    fontWeight: "700",
+    color: Colors.white,
   },
 });

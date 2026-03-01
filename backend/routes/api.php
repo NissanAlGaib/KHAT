@@ -195,6 +195,8 @@ Route::middleware(['auth:sanctum'])
         Route::get('/search/pets', [SearchController::class, 'searchPets']);
         Route::get('/search/breeders', [SearchController::class, 'searchBreeders']);
         Route::get('/search/shooters', [SearchController::class, 'searchShooters']);
+        Route::get('/search/explore', [SearchController::class, 'explore']);
+        Route::get('/search/breeds', [SearchController::class, 'getBreeds']);
 
         // Safety routes (Block & Report)
         Route::post('/users/{id}/block', [SafetyController::class, 'blockUser']);

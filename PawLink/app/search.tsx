@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect, useRef, useCallback } from "react";
 import {
   View,
   Text,
@@ -22,18 +22,21 @@ import {
   GlobalSearchPetItem,
   GlobalSearchBreederItem,
   GlobalSearchShooterItem,
+  ExplorePetItem,
+  PaginationMeta,
 } from "@/services/searchService";
 import { getStorageUrl } from "@/utils/imageUrl";
 import ErrorBoundary from "@/components/ErrorBoundary";
 import {
   CategorySection,
   SearchResultCard,
-  FilterChips,
-  CategoryFilter,
+  FilterBottomSheet,
+  ExploreCard,
 } from "@/components/search";
 
 // Types
-type SearchMode = "global" | "filtered";
+type SearchMode = "explore" | "search";
+type CategoryFilter = "all" | "pets" | "breeders" | "shooters";
 
 function SearchScreenContent() {
   const router = useRouter();
@@ -42,102 +45,148 @@ function SearchScreenContent() {
 
   // State
   const [query, setQuery] = useState("");
-  const [searchMode, setSearchMode] = useState<SearchMode>("global");
+  const [searchMode, setSearchMode] = useState<SearchMode>("explore");
   const [activeCategory, setActiveCategory] = useState<CategoryFilter>("all");
-  const [speciesFilter, setSpeciesFilter] = useState<"dog" | "cat" | undefined>(
-    (params.species as "dog" | "cat") || undefined
-  );
-  const [sexFilter, setSexFilter] = useState<"male" | "female" | undefined>(undefined);
 
-  // Global search results
-  const [globalResults, setGlobalResults] = useState<GlobalSearchResults | null>(null);
+  // Filters
+  const [filters, setFilters] = useState<SearchFilters>({
+    species: (params.species as "dog" | "cat") || undefined,
+  });
+  const [showFilterSheet, setShowFilterSheet] = useState(false);
 
-  // Filtered search results (when category is selected)
+  // Explore grid data
+  const [exploreData, setExploreData] = useState<ExplorePetItem[]>([]);
+  const [exploreMeta, setExploreMeta] = useState<PaginationMeta | null>(null);
+  const [isLoadingExplore, setIsLoadingExplore] = useState(true);
+  const [isLoadingMore, setIsLoadingMore] = useState(false);
+
+  // Search results
+  const [globalResults, setGlobalResults] =
+    useState<GlobalSearchResults | null>(null);
   const [filteredResults, setFilteredResults] = useState<any[]>([]);
+  const [filteredPetsMeta, setFilteredPetsMeta] =
+    useState<PaginationMeta | null>(null);
+  const [isSearching, setIsSearching] = useState(false);
 
-  const [isLoading, setIsLoading] = useState(false);
+  // Recent searches
   const [recentSearches, setRecentSearches] = useState<string[]>([]);
   const [hasSearched, setHasSearched] = useState(false);
+  const [searchFocused, setSearchFocused] = useState(false);
+
+  // Track if initial load happened
+  const initialLoadRef = useRef(false);
 
   // Check if came with pre-selected tab
   useEffect(() => {
     const tabParam = params.tab as string;
     if (tabParam && ["pets", "breeders", "shooters"].includes(tabParam)) {
       setActiveCategory(tabParam as CategoryFilter);
-      setSearchMode("filtered");
     }
   }, [params.tab]);
 
-  // Load recent searches on mount
+  // Load explore data on mount
   useEffect(() => {
-    loadRecentSearches();
+    if (!initialLoadRef.current) {
+      initialLoadRef.current = true;
+      loadExploreData(true);
+      loadRecentSearches();
+    }
   }, []);
 
-  const loadRecentSearches = async () => {
-    const recent = await searchService.getRecentSearches();
-    setRecentSearches(recent);
-  };
+  // Reload explore when filters change (only in explore mode)
+  useEffect(() => {
+    if (searchMode === "explore") {
+      loadExploreData(true);
+    }
+  }, [filters]);
 
   // Debounced search
   const debounceTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
-    if (debounceTimeoutRef.current) {
-      clearTimeout(debounceTimeoutRef.current);
-    }
-
-    debounceTimeoutRef.current = setTimeout(() => {
-      performSearch();
-    }, 300);
-
-    return () => {
-      if (debounceTimeoutRef.current) {
-        clearTimeout(debounceTimeoutRef.current);
-      }
-    };
-  }, [query, activeCategory, speciesFilter, sexFilter]);
-
-  const performSearch = async () => {
     if (!query.trim()) {
+      setSearchMode("explore");
       setGlobalResults(null);
       setFilteredResults([]);
       setHasSearched(false);
       return;
     }
 
-    setIsLoading(true);
+    if (debounceTimeoutRef.current) {
+      clearTimeout(debounceTimeoutRef.current);
+    }
+
+    debounceTimeoutRef.current = setTimeout(() => {
+      performSearch();
+    }, 400);
+
+    return () => {
+      if (debounceTimeoutRef.current) {
+        clearTimeout(debounceTimeoutRef.current);
+      }
+    };
+  }, [query, activeCategory, filters]);
+
+  const loadRecentSearches = async () => {
+    const recent = await searchService.getRecentSearches();
+    setRecentSearches(recent);
+  };
+
+  const loadExploreData = async (reset: boolean) => {
+    if (reset) {
+      setIsLoadingExplore(true);
+    } else {
+      setIsLoadingMore(true);
+    }
+
+    try {
+      const page = reset ? 1 : (exploreMeta?.current_page || 0) + 1;
+      const result = await searchService.explore({
+        ...filters,
+        page,
+        per_page: 20,
+      });
+
+      if (reset) {
+        setExploreData(result.data);
+      } else {
+        setExploreData((prev) => [...prev, ...result.data]);
+      }
+      setExploreMeta(result.meta);
+    } catch (error) {
+      console.error("Explore load error:", error);
+    } finally {
+      setIsLoadingExplore(false);
+      setIsLoadingMore(false);
+    }
+  };
+
+  const performSearch = async () => {
+    if (!query.trim()) return;
+
+    setIsSearching(true);
     setHasSearched(true);
+    setSearchMode("search");
 
     try {
       if (activeCategory === "all") {
-        // Global search - get all categories at once
         const results = await searchService.searchGlobal(query, 5);
         setGlobalResults(results);
-        setSearchMode("global");
-      } else {
-        // Filtered search - get specific category with full results
-        setSearchMode("filtered");
-        let data: any[] = [];
-
-        switch (activeCategory) {
-          case "pets":
-            const filters: SearchFilters = {};
-            if (speciesFilter) filters.species = speciesFilter;
-            if (sexFilter) filters.sex = sexFilter;
-            data = await searchService.searchPets(query, filters);
-            break;
-          case "breeders":
-            data = await searchService.searchBreeders(query);
-            break;
-          case "shooters":
-            data = await searchService.searchShooters(query);
-            break;
-        }
-
+      } else if (activeCategory === "pets") {
+        const result = await searchService.searchPets(query, {
+          ...filters,
+          page: 1,
+        });
+        setFilteredResults(result.data);
+        setFilteredPetsMeta(result.meta);
+      } else if (activeCategory === "breeders") {
+        const data = await searchService.searchBreeders(query);
+        setFilteredResults(Array.isArray(data) ? data : []);
+      } else if (activeCategory === "shooters") {
+        const data = await searchService.searchShooters(query);
         setFilteredResults(Array.isArray(data) ? data : []);
       }
 
-      // Save to recent searches
       await searchService.saveRecentSearch(query);
       loadRecentSearches();
     } catch (error) {
@@ -145,23 +194,43 @@ function SearchScreenContent() {
       setGlobalResults(null);
       setFilteredResults([]);
     } finally {
-      setIsLoading(false);
+      setIsSearching(false);
+    }
+  };
+
+  const loadMoreSearchPets = async () => {
+    if (
+      !filteredPetsMeta ||
+      filteredPetsMeta.current_page >= filteredPetsMeta.last_page ||
+      isLoadingMore
+    )
+      return;
+    setIsLoadingMore(true);
+    try {
+      const result = await searchService.searchPets(query, {
+        ...filters,
+        page: filteredPetsMeta.current_page + 1,
+      });
+      setFilteredResults((prev) => [...prev, ...result.data]);
+      setFilteredPetsMeta(result.meta);
+    } catch (error) {
+      console.error("Load more search pets error:", error);
+    } finally {
+      setIsLoadingMore(false);
     }
   };
 
   // Handlers
   const handleCategoryChange = (category: CategoryFilter) => {
     setActiveCategory(category);
-    if (category === "all") {
-      setSearchMode("global");
-    } else {
-      setSearchMode("filtered");
+    if (query.trim()) {
+      // Re-search with new category
+      setHasSearched(false); // reset to trigger re-search via useEffect
     }
   };
 
   const handleSeeAllPress = (category: "pets" | "breeders" | "shooters") => {
     setActiveCategory(category);
-    setSearchMode("filtered");
   };
 
   const handleRecentSearchClick = (term: string) => {
@@ -190,20 +259,49 @@ function SearchScreenContent() {
     router.push(`/(shooter)/${userId}`);
   };
 
-  // Render recent searches (when no query)
-  const renderRecentSearches = () => (
-    <View style={styles.recentContainer}>
-      <View style={styles.recentHeader}>
-        <Text style={styles.sectionTitle}>Recent Searches</Text>
-        {recentSearches.length > 0 && (
+  const handleFilterApply = (newFilters: SearchFilters) => {
+    setFilters(newFilters);
+  };
+
+  const handleExploreEndReached = () => {
+    if (
+      !isLoadingMore &&
+      exploreMeta &&
+      exploreMeta.current_page < exploreMeta.last_page
+    ) {
+      loadExploreData(false);
+    }
+  };
+
+  // Count active filters
+  const activeFilterCount = [
+    filters.species,
+    filters.sex,
+    filters.breed,
+    filters.age_range,
+  ].filter(Boolean).length;
+
+  // Render category chips
+  const categories: { key: CategoryFilter; label: string; icon: string }[] = [
+    { key: "all", label: "All", icon: "🔍" },
+    { key: "pets", label: "Pets", icon: "🐕" },
+    { key: "breeders", label: "Breeders", icon: "👤" },
+    { key: "shooters", label: "Shooters", icon: "📸" },
+  ];
+
+  // Render recent searches overlay (when search focused + no query)
+  const renderRecentSearches = () => {
+    if (!searchFocused || query.trim()) return null;
+    if (recentSearches.length === 0) return null;
+
+    return (
+      <View style={styles.recentOverlay}>
+        <View style={styles.recentHeader}>
+          <Text style={styles.sectionLabel}>Recent Searches</Text>
           <TouchableOpacity onPress={handleClearAllRecentSearches}>
             <Text style={styles.clearAllText}>Clear All</Text>
           </TouchableOpacity>
-        )}
-      </View>
-      {recentSearches.length === 0 ? (
-        <Text style={styles.noRecentText}>No recent searches</Text>
-      ) : (
+        </View>
         <View style={styles.recentTags}>
           {recentSearches.map((term, index) => (
             <View key={index} style={styles.recentTag}>
@@ -229,20 +327,18 @@ function SearchScreenContent() {
             </View>
           ))}
         </View>
-      )}
-    </View>
-  );
+      </View>
+    );
+  };
 
-  // Render global search results (categorized)
+  // Global search results (categorized preview)
   const renderGlobalResults = () => {
     if (!globalResults) return null;
 
     const { pets, breeders, shooters } = globalResults;
     const totalResults = pets.count + breeders.count + shooters.count;
 
-    if (totalResults === 0) {
-      return renderEmptyState();
-    }
+    if (totalResults === 0) return renderEmptyState();
 
     return (
       <ScrollView
@@ -306,22 +402,36 @@ function SearchScreenContent() {
     );
   };
 
-  // Render filtered results (full list for specific category)
+  // Filtered search results (full list)
   const renderFilteredResults = () => {
-    if (filteredResults.length === 0) {
-      return renderEmptyState();
-    }
+    if (filteredResults.length === 0) return renderEmptyState();
 
     if (activeCategory === "pets") {
       return (
         <FlatList
           data={filteredResults}
-          renderItem={({ item }) => renderPetCard(item)}
+          renderItem={({ item }) => (
+            <ExploreCard
+              item={item}
+              onPress={() => handlePetPress(item.pet_id)}
+            />
+          )}
           keyExtractor={(item) => (item.pet_id || item.id).toString()}
           numColumns={2}
           contentContainerStyle={styles.gridContent}
           columnWrapperStyle={styles.columnWrapper}
           showsVerticalScrollIndicator={false}
+          onEndReached={loadMoreSearchPets}
+          onEndReachedThreshold={0.3}
+          ListFooterComponent={
+            isLoadingMore ? (
+              <ActivityIndicator
+                size="small"
+                color={Colors.primary}
+                style={{ padding: 16 }}
+              />
+            ) : null
+          }
         />
       );
     }
@@ -337,75 +447,7 @@ function SearchScreenContent() {
     );
   };
 
-  // Render pet card for grid view
-  const renderPetCard = (item: any) => {
-    if (!item) return null;
-
-    const petId = item.pet_id || item.id;
-    if (!petId) return null;
-
-    const petGender = item.sex || item.gender;
-    const profileImage = item.profile_image;
-    const photos = item.photos;
-    const displayName = item.name || "Unknown";
-    const displayBreed = item.breed || "Unknown breed";
-
-    let photoUrl = item.primary_photo_url;
-    if (!photoUrl && profileImage) {
-      photoUrl = profileImage;
-    }
-    if (!photoUrl && photos && photos.length > 0) {
-      const primary = photos.find((p: any) => p.is_primary);
-      photoUrl = primary ? primary.photo_url : photos[0].photo_url;
-    }
-
-    const fullPhotoUrl = getStorageUrl(photoUrl);
-
-    return (
-      <TouchableOpacity
-        style={styles.card}
-        onPress={() => router.push(`/(pet)/pet-profile?id=${petId}`)}
-      >
-        <View style={styles.imageContainer}>
-          {fullPhotoUrl ? (
-            <Image source={{ uri: fullPhotoUrl }} style={styles.cardImage} />
-          ) : (
-            <View style={styles.placeholderImage}>
-              <Feather name="image" size={24} color={Colors.textMuted} />
-            </View>
-          )}
-          <View
-            style={[
-              styles.badge,
-              { backgroundColor: petGender === "female" ? "#FFD1DC" : "#BAE6FD" },
-            ]}
-          >
-            <Text
-              style={[
-                styles.badgeText,
-                { color: petGender === "female" ? "#FF1493" : "#0077B6" },
-              ]}
-            >
-              {petGender === "female" ? "♀" : "♂"}
-            </Text>
-          </View>
-        </View>
-        <View style={styles.cardContent}>
-          <Text style={styles.cardTitle} numberOfLines={1}>
-            {displayName}
-          </Text>
-          <Text style={styles.cardSubtitle} numberOfLines={1}>
-            {displayBreed}
-          </Text>
-          <Text style={styles.cardPrice}>
-            {item.breeding_price ? `$${item.breeding_price}` : "Contact for price"}
-          </Text>
-        </View>
-      </TouchableOpacity>
-    );
-  };
-
-  // Render user card for list view
+  // User card for list view (breeders/shooters)
   const renderUserCard = (item: any) => {
     if (!item || !item.id) return null;
 
@@ -441,15 +483,17 @@ function SearchScreenContent() {
             {item.city && item.state
               ? `${item.city}, ${item.state}`
               : isShooter
-              ? `${item.experience_years || 0}y experience`
-              : "Location unknown"}
+                ? `${item.experience_years || 0}y experience`
+                : item.pet_breeds?.slice(0, 2).join(", ") || "Breeder"}
           </Text>
           <View style={styles.ratingContainer}>
             <Feather name="star" size={12} color={Colors.warning} />
             <Text style={styles.ratingText}>{item.rating || "New"}</Text>
-            {isShooter && item.experience_years && (
-              <Text style={styles.experienceText}>• {item.experience_years}y exp</Text>
-            )}
+            {isShooter && item.experience_years ? (
+              <Text style={styles.experienceText}>
+                • {item.experience_years}y exp
+              </Text>
+            ) : null}
           </View>
         </View>
         <Feather name="chevron-right" size={20} color={Colors.textMuted} />
@@ -457,7 +501,7 @@ function SearchScreenContent() {
     );
   };
 
-  // Render empty state
+  // Empty state
   const renderEmptyState = () => (
     <View style={styles.centerContainer}>
       <View style={styles.emptyIcon}>
@@ -470,9 +514,65 @@ function SearchScreenContent() {
     </View>
   );
 
-  // Render main content
+  // Explore grid (default view - Instagram style)
+  const renderExploreGrid = () => {
+    if (isLoadingExplore) {
+      return (
+        <View style={styles.centerContainer}>
+          <ActivityIndicator size="large" color={Colors.primary} />
+          <Text style={[styles.emptySubtitle, { marginTop: 12 }]}>
+            Loading pets...
+          </Text>
+        </View>
+      );
+    }
+
+    if (exploreData.length === 0) {
+      return (
+        <View style={styles.centerContainer}>
+          <View style={styles.emptyIcon}>
+            <Feather name="inbox" size={40} color={Colors.textDisabled} />
+          </View>
+          <Text style={styles.emptyTitle}>No pets found</Text>
+          <Text style={styles.emptySubtitle}>
+            Try adjusting your filters to see more pets.
+          </Text>
+        </View>
+      );
+    }
+
+    return (
+      <FlatList
+        data={exploreData}
+        renderItem={({ item }) => (
+          <ExploreCard
+            item={item}
+            onPress={() => handlePetPress(item.pet_id)}
+          />
+        )}
+        keyExtractor={(item) => item.pet_id.toString()}
+        numColumns={2}
+        contentContainerStyle={styles.gridContent}
+        columnWrapperStyle={styles.columnWrapper}
+        showsVerticalScrollIndicator={false}
+        onEndReached={handleExploreEndReached}
+        onEndReachedThreshold={0.3}
+        ListFooterComponent={
+          isLoadingMore ? (
+            <ActivityIndicator
+              size="small"
+              color={Colors.primary}
+              style={{ padding: 16 }}
+            />
+          ) : null
+        }
+      />
+    );
+  };
+
+  // Main content
   const renderContent = () => {
-    if (isLoading) {
+    if (isSearching) {
       return (
         <View style={styles.centerContainer}>
           <ActivityIndicator size="large" color={Colors.primary} />
@@ -480,22 +580,26 @@ function SearchScreenContent() {
       );
     }
 
-    if (!hasSearched && !query) {
-      return renderRecentSearches();
+    // If user is searching
+    if (searchMode === "search" && hasSearched) {
+      if (activeCategory === "all") {
+        return renderGlobalResults();
+      }
+      return renderFilteredResults();
     }
 
-    if (searchMode === "global" && activeCategory === "all") {
-      return renderGlobalResults();
-    }
-
-    return renderFilteredResults();
+    // Default: explore grid
+    return renderExploreGrid();
   };
 
   return (
     <View style={[styles.container, { paddingTop: insets.top }]}>
       {/* Header with Search Bar */}
       <View style={styles.header}>
-        <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
+        <TouchableOpacity
+          onPress={() => router.back()}
+          style={styles.backButton}
+        >
           <Feather name="arrow-left" size={24} color={Colors.textPrimary} />
         </TouchableOpacity>
         <View style={styles.searchBar}>
@@ -511,37 +615,160 @@ function SearchScreenContent() {
             placeholderTextColor={Colors.textMuted}
             value={query}
             onChangeText={setQuery}
-            autoFocus={false}
+            onFocus={() => setSearchFocused(true)}
+            onBlur={() => setTimeout(() => setSearchFocused(false), 200)}
             returnKeyType="search"
           />
           {query.length > 0 && (
-            <TouchableOpacity onPress={() => setQuery("")}>
+            <TouchableOpacity
+              onPress={() => {
+                setQuery("");
+                setSearchMode("explore");
+              }}
+            >
               <Feather name="x" size={18} color={Colors.textMuted} />
             </TouchableOpacity>
           )}
         </View>
+        {/* Filter button */}
+        <TouchableOpacity
+          style={[
+            styles.filterButton,
+            activeFilterCount > 0 && styles.filterButtonActive,
+          ]}
+          onPress={() => setShowFilterSheet(true)}
+        >
+          <Feather
+            name="sliders"
+            size={20}
+            color={
+              activeFilterCount > 0 ? Colors.primary : Colors.textSecondary
+            }
+          />
+          {activeFilterCount > 0 && (
+            <View style={styles.filterBadge}>
+              <Text style={styles.filterBadgeText}>{activeFilterCount}</Text>
+            </View>
+          )}
+        </TouchableOpacity>
       </View>
 
-      {/* Filter Chips (shown when user has searched) */}
-      {hasSearched && (
-        <FilterChips
-          activeCategory={activeCategory}
-          onCategoryChange={handleCategoryChange}
-          speciesFilter={speciesFilter}
-          sexFilter={sexFilter}
-          onSpeciesChange={setSpeciesFilter}
-          onSexChange={setSexFilter}
-          showSpeciesFilters={activeCategory === "pets" || activeCategory === "all"}
-        />
+      {/* Category tabs (when searching) */}
+      {searchMode === "search" && hasSearched && (
+        <View style={styles.categoryBar}>
+          <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            contentContainerStyle={styles.categoryScrollContent}
+          >
+            {categories.map((cat) => (
+              <TouchableOpacity
+                key={cat.key}
+                style={[
+                  styles.categoryChip,
+                  activeCategory === cat.key && styles.categoryChipActive,
+                ]}
+                onPress={() => handleCategoryChange(cat.key)}
+              >
+                <Text style={styles.categoryIcon}>{cat.icon}</Text>
+                <Text
+                  style={[
+                    styles.categoryText,
+                    activeCategory === cat.key && styles.categoryTextActive,
+                  ]}
+                >
+                  {cat.label}
+                </Text>
+              </TouchableOpacity>
+            ))}
+          </ScrollView>
+        </View>
       )}
+
+      {/* Active filters summary bar (explore mode) */}
+      {searchMode === "explore" && activeFilterCount > 0 && (
+        <View style={styles.activeFiltersBar}>
+          <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            contentContainerStyle={{
+              paddingHorizontal: Spacing.lg,
+              gap: Spacing.sm,
+            }}
+          >
+            {filters.species && (
+              <View style={styles.activeFilterPill}>
+                <Text style={styles.activeFilterText}>
+                  {filters.species === "dog" ? "🐶 Dogs" : "🐱 Cats"}
+                </Text>
+                <TouchableOpacity
+                  onPress={() => setFilters({ ...filters, species: undefined })}
+                >
+                  <Feather name="x" size={14} color={Colors.primaryDark} />
+                </TouchableOpacity>
+              </View>
+            )}
+            {filters.sex && (
+              <View style={styles.activeFilterPill}>
+                <Text style={styles.activeFilterText}>
+                  {filters.sex === "male" ? "♂ Male" : "♀ Female"}
+                </Text>
+                <TouchableOpacity
+                  onPress={() => setFilters({ ...filters, sex: undefined })}
+                >
+                  <Feather name="x" size={14} color={Colors.primaryDark} />
+                </TouchableOpacity>
+              </View>
+            )}
+            {filters.breed && (
+              <View style={styles.activeFilterPill}>
+                <Text style={styles.activeFilterText}>{filters.breed}</Text>
+                <TouchableOpacity
+                  onPress={() => setFilters({ ...filters, breed: undefined })}
+                >
+                  <Feather name="x" size={14} color={Colors.primaryDark} />
+                </TouchableOpacity>
+              </View>
+            )}
+            {filters.age_range && (
+              <View style={styles.activeFilterPill}>
+                <Text style={styles.activeFilterText}>
+                  {filters.age_range === "<1"
+                    ? "Under 1yr"
+                    : filters.age_range === "5+"
+                      ? "5+ years"
+                      : `${filters.age_range} years`}
+                </Text>
+                <TouchableOpacity
+                  onPress={() =>
+                    setFilters({ ...filters, age_range: undefined })
+                  }
+                >
+                  <Feather name="x" size={14} color={Colors.primaryDark} />
+                </TouchableOpacity>
+              </View>
+            )}
+          </ScrollView>
+        </View>
+      )}
+
+      {/* Recent searches overlay */}
+      {renderRecentSearches()}
 
       {/* Content */}
       <View style={styles.content}>{renderContent()}</View>
+
+      {/* Filter Bottom Sheet */}
+      <FilterBottomSheet
+        visible={showFilterSheet}
+        onClose={() => setShowFilterSheet(false)}
+        onApply={handleFilterApply}
+        currentFilters={filters}
+      />
     </View>
   );
 }
 
-// Wrap with ErrorBoundary to catch crashes and show fallback UI
 export default function SearchScreen() {
   return (
     <ErrorBoundary>
@@ -551,7 +778,6 @@ export default function SearchScreen() {
 }
 
 const { width } = Dimensions.get("window");
-const cardWidth = (width - Spacing.lg * 2 - Spacing.md) / 2;
 
 const styles = StyleSheet.create({
   container: {
@@ -566,9 +792,10 @@ const styles = StyleSheet.create({
     backgroundColor: Colors.white,
     borderBottomWidth: 1,
     borderBottomColor: Colors.borderLight,
+    gap: Spacing.sm,
   },
   backButton: {
-    marginRight: Spacing.md,
+    // no extra margin needed with gap
   },
   searchBar: {
     flex: 1,
@@ -588,9 +815,106 @@ const styles = StyleSheet.create({
     color: Colors.textPrimary,
     height: "100%",
   },
+  filterButton: {
+    width: 44,
+    height: 44,
+    borderRadius: BorderRadius.lg,
+    backgroundColor: Colors.bgTertiary,
+    alignItems: "center",
+    justifyContent: "center",
+    position: "relative",
+  },
+  filterButtonActive: {
+    backgroundColor: Colors.bgCoral,
+    borderWidth: 1,
+    borderColor: Colors.primary,
+  },
+  filterBadge: {
+    position: "absolute",
+    top: 4,
+    right: 4,
+    backgroundColor: Colors.primary,
+    width: 16,
+    height: 16,
+    borderRadius: 8,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  filterBadgeText: {
+    fontSize: 9,
+    fontWeight: "700",
+    color: Colors.white,
+  },
   content: {
     flex: 1,
   },
+  // Category bar
+  categoryBar: {
+    backgroundColor: Colors.white,
+    paddingVertical: Spacing.sm,
+    borderBottomWidth: 1,
+    borderBottomColor: Colors.borderLight,
+  },
+  categoryScrollContent: {
+    paddingHorizontal: Spacing.lg,
+    gap: Spacing.sm,
+  },
+  categoryChip: {
+    flexDirection: "row",
+    alignItems: "center",
+    paddingHorizontal: Spacing.md,
+    paddingVertical: 8,
+    borderRadius: BorderRadius.full,
+    backgroundColor: Colors.bgTertiary,
+    gap: 4,
+  },
+  categoryChipActive: {
+    backgroundColor: Colors.bgCoral,
+    borderWidth: 1,
+    borderColor: Colors.primary,
+  },
+  categoryIcon: {
+    fontSize: 14,
+  },
+  categoryText: {
+    fontSize: FontSize.sm,
+    fontWeight: "600",
+    color: Colors.textSecondary,
+  },
+  categoryTextActive: {
+    color: Colors.primaryDark,
+  },
+  // Active filters bar
+  activeFiltersBar: {
+    backgroundColor: Colors.white,
+    paddingVertical: Spacing.sm,
+    borderBottomWidth: 1,
+    borderBottomColor: Colors.borderLight,
+  },
+  activeFilterPill: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: Colors.bgCoral,
+    paddingHorizontal: Spacing.md,
+    paddingVertical: 6,
+    borderRadius: BorderRadius.full,
+    borderWidth: 1,
+    borderColor: Colors.primary,
+    gap: 6,
+  },
+  activeFilterText: {
+    fontSize: FontSize.xs,
+    fontWeight: "600",
+    color: Colors.primaryDark,
+  },
+  // Grid styles
+  gridContent: {
+    padding: Spacing.lg,
+  },
+  columnWrapper: {
+    justifyContent: "space-between",
+  },
+  // Results
   resultsContainer: {
     flex: 1,
   },
@@ -603,8 +927,13 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     padding: Spacing.xl,
   },
-  recentContainer: {
-    padding: Spacing.lg,
+  // Recent searches
+  recentOverlay: {
+    backgroundColor: Colors.white,
+    paddingHorizontal: Spacing.lg,
+    paddingVertical: Spacing.md,
+    borderBottomWidth: 1,
+    borderBottomColor: Colors.borderLight,
   },
   recentHeader: {
     flexDirection: "row",
@@ -612,7 +941,7 @@ const styles = StyleSheet.create({
     alignItems: "center",
     marginBottom: Spacing.md,
   },
-  sectionTitle: {
+  sectionLabel: {
     fontSize: FontSize.sm,
     fontWeight: "700",
     color: Colors.textSecondary,
@@ -624,11 +953,6 @@ const styles = StyleSheet.create({
     fontWeight: "600",
     color: Colors.primary,
   },
-  noRecentText: {
-    fontSize: FontSize.sm,
-    color: Colors.textMuted,
-    fontStyle: "italic",
-  },
   recentTags: {
     flexDirection: "row",
     flexWrap: "wrap",
@@ -637,7 +961,7 @@ const styles = StyleSheet.create({
   recentTag: {
     flexDirection: "row",
     alignItems: "center",
-    backgroundColor: Colors.white,
+    backgroundColor: Colors.bgTertiary,
     paddingLeft: Spacing.md,
     paddingRight: Spacing.xs,
     paddingVertical: Spacing.sm,
@@ -657,6 +981,7 @@ const styles = StyleSheet.create({
     fontSize: FontSize.sm,
     color: Colors.textSecondary,
   },
+  // Empty state
   emptyIcon: {
     width: 80,
     height: 80,
@@ -678,71 +1003,7 @@ const styles = StyleSheet.create({
     textAlign: "center",
     maxWidth: 250,
   },
-  // Grid Styles
-  gridContent: {
-    padding: Spacing.lg,
-  },
-  columnWrapper: {
-    justifyContent: "space-between",
-    marginBottom: Spacing.md,
-  },
-  card: {
-    width: cardWidth,
-    backgroundColor: Colors.white,
-    borderRadius: BorderRadius.lg,
-    overflow: "hidden",
-    ...Shadows.sm,
-    borderWidth: 1,
-    borderColor: Colors.borderLight,
-  },
-  imageContainer: {
-    height: cardWidth,
-    backgroundColor: Colors.bgTertiary,
-    position: "relative",
-  },
-  cardImage: {
-    width: "100%",
-    height: "100%",
-    resizeMode: "cover",
-  },
-  placeholderImage: {
-    width: "100%",
-    height: "100%",
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  badge: {
-    position: "absolute",
-    bottom: 8,
-    right: 8,
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: BorderRadius.full,
-  },
-  badgeText: {
-    fontSize: 10,
-    fontWeight: "bold",
-  },
-  cardContent: {
-    padding: Spacing.sm,
-  },
-  cardTitle: {
-    fontSize: FontSize.base,
-    fontWeight: "700",
-    color: Colors.textPrimary,
-    marginBottom: 2,
-  },
-  cardSubtitle: {
-    fontSize: FontSize.xs,
-    color: Colors.textMuted,
-    marginBottom: 4,
-  },
-  cardPrice: {
-    fontSize: FontSize.sm,
-    fontWeight: "600",
-    color: Colors.primary,
-  },
-  // List Styles
+  // List styles (breeders/shooters)
   listContainer: {
     padding: Spacing.lg,
   },
