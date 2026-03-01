@@ -24,11 +24,8 @@ import {
 } from "@/services/matchRequestService";
 import { getContract, type BreedingContract } from "@/services/contractService";
 import { getStorageUrl } from "@/utils/imageUrl";
-import {
-  ContractPrompt,
-  ContractModal,
-  ContractCard,
-} from "@/components/contracts";
+import { ContractPrompt } from "@/components/contracts";
+import CompactContractCard from "@/components/contracts/CompactContractCard";
 import BlockReportModal from "@/components/chat/BlockReportModal";
 import MatchTimeline from "@/components/chat/MatchTimeline";
 
@@ -48,8 +45,6 @@ export default function ConversationScreen() {
   // Contract state
   const [contract, setContract] = useState<BreedingContract | null>(null);
   const [showContractPrompt, setShowContractPrompt] = useState(false);
-  const [showContractModal, setShowContractModal] = useState(false);
-  const [isEditingContract, setIsEditingContract] = useState(false);
 
   // Block & Report state
   const [showBlockReportModal, setShowBlockReportModal] = useState(false);
@@ -118,18 +113,14 @@ export default function ConversationScreen() {
 
   const handleContractSuccess = (newContract: BreedingContract) => {
     setContract(newContract);
-    setIsEditingContract(false);
-  };
-
-  const handleEditContract = () => {
-    setIsEditingContract(true);
-    setShowContractModal(true);
   };
 
   const handleCreateContract = () => {
     setShowContractPrompt(false);
-    setIsEditingContract(false);
-    setShowContractModal(true);
+    router.push({
+      pathname: "/(chat)/create-contract",
+      params: { conversationId },
+    });
   };
 
   const handleSend = async () => {
@@ -384,14 +375,9 @@ export default function ConversationScreen() {
 
           {/* Contract Card */}
           {contract && (
-            <ContractCard
+            <CompactContractCard
               contract={contract}
-              onContractUpdate={handleContractSuccess}
-              onEdit={handleEditContract}
-              onMatchCompleted={() => {
-                // Navigate back to matches/conversations list after match is completed
-                router.back();
-              }}
+              conversationId={parseInt(conversationId)}
             />
           )}
 
@@ -446,18 +432,6 @@ export default function ConversationScreen() {
         visible={showContractPrompt}
         onClose={() => setShowContractPrompt(false)}
         onAccept={handleCreateContract}
-      />
-
-      {/* Contract Creation/Edit Modal */}
-      <ContractModal
-        visible={showContractModal}
-        onClose={() => {
-          setShowContractModal(false);
-          setIsEditingContract(false);
-        }}
-        onSuccess={handleContractSuccess}
-        conversationId={parseInt(conversationId)}
-        existingContract={isEditingContract ? contract : null}
       />
 
       {/* Block & Report Modal */}
