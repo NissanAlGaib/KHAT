@@ -120,47 +120,68 @@ const VerificationCard = ({
 }) => {
   const getStatusColor = (status: string) => {
     switch (status) {
-      case "approved": return "#15803d";
-      case "rejected": return "#b91c1c";
-      case "warning": return "#c2410c";
-      default: return "#a16207";
+      case "approved":
+        return "#15803d";
+      case "rejected":
+        return "#b91c1c";
+      case "warning":
+        return "#c2410c";
+      default:
+        return "#a16207";
     }
   };
 
   const getStatusBg = (status: string) => {
     switch (status) {
-      case "approved": return "#dcfce7";
-      case "rejected": return "#fee2e2";
-      case "warning": return "#fff7ed";
-      default: return "#fef9c3";
+      case "approved":
+        return "#dcfce7";
+      case "rejected":
+        return "#fee2e2";
+      case "warning":
+        return "#fff7ed";
+      default:
+        return "#fef9c3";
     }
   };
 
   const getStatusIcon = (status: string): string => {
     switch (status) {
-      case "approved": return "check-circle";
-      case "rejected": return "x-circle";
-      case "warning": return "alert-triangle";
-      default: return "clock";
+      case "approved":
+        return "check-circle";
+      case "rejected":
+        return "x-circle";
+      case "warning":
+        return "alert-triangle";
+      default:
+        return "clock";
     }
   };
 
   const getStatusLabel = (status: string) => {
     switch (status) {
-      case "approved": return "Approved";
-      case "rejected": return "Rejected";
-      case "warning": return "Warning";
-      default: return "Pending";
+      case "approved":
+        return "Approved";
+      case "rejected":
+        return "Rejected";
+      case "warning":
+        return "Warning";
+      default:
+        return "Pending";
     }
   };
 
   const getTypeIcon = (type: string): string => {
     switch (type) {
-      case "user_verification": return "user-check";
-      case "pet_vaccination": return "activity";
-      case "pet_health_record": return "file-text";
-      case "admin_warning": return "alert-triangle";
-      default: return "bell";
+      case "user_verification":
+        return "user-check";
+      case "pet_vaccination":
+        return "activity";
+      case "pet_health_record":
+        return "file-text";
+      case "admin_warning":
+        return "alert-triangle";
+      default:
+        return "bell";
     }
   };
 
@@ -168,14 +189,27 @@ const VerificationCard = ({
   const statusBg = getStatusBg(notification.status);
 
   return (
-    <View style={[styles.card, { borderLeftWidth: 3, borderLeftColor: statusColor }]}>
+    <View
+      style={[
+        styles.card,
+        { borderLeftWidth: 3, borderLeftColor: statusColor },
+      ]}
+    >
       <View style={[styles.iconCircle, { backgroundColor: statusBg }]}>
-        <Feather name={getTypeIcon(notification.type) as any} size={20} color={statusColor} />
+        <Feather
+          name={getTypeIcon(notification.type) as any}
+          size={20}
+          color={statusColor}
+        />
       </View>
       <View style={styles.cardContent}>
         <View style={styles.cardHeader}>
           <View style={[styles.statusBadge, { backgroundColor: statusBg }]}>
-            <Feather name={getStatusIcon(notification.status) as any} size={10} color={statusColor} />
+            <Feather
+              name={getStatusIcon(notification.status) as any}
+              size={10}
+              color={statusColor}
+            />
             <Text style={[styles.statusBadgeText, { color: statusColor }]}>
               {getStatusLabel(notification.status)}
             </Text>
@@ -189,32 +223,52 @@ const VerificationCard = ({
         </Text>
 
         {/* Rejection reason */}
-        {notification.status === "rejected" && notification.rejection_reason && (
-          <View style={[styles.reasonBox, { backgroundColor: "#fef2f2", borderColor: "#fecaca" }]}>
-            <Text style={[styles.reasonLabel, { color: "#991b1b" }]}>Reason for rejection:</Text>
-            <Text style={[styles.reasonText, { color: "#b91c1c" }]}>{notification.rejection_reason}</Text>
-          </View>
-        )}
+        {notification.status === "rejected" &&
+          notification.rejection_reason && (
+            <View
+              style={[
+                styles.reasonBox,
+                { backgroundColor: "#fef2f2", borderColor: "#fecaca" },
+              ]}
+            >
+              <Text style={[styles.reasonLabel, { color: "#991b1b" }]}>
+                Reason for rejection:
+              </Text>
+              <Text style={[styles.reasonText, { color: "#b91c1c" }]}>
+                {notification.rejection_reason}
+              </Text>
+            </View>
+          )}
 
         {/* Admin warning notes */}
         {notification.type === "admin_warning" && notification.admin_notes && (
-          <View style={[styles.reasonBox, { backgroundColor: "#fff7ed", borderColor: "#fed7aa" }]}>
-            <Text style={[styles.reasonLabel, { color: "#9a3412" }]}>Details from admin:</Text>
-            <Text style={[styles.reasonText, { color: "#c2410c" }]}>{notification.admin_notes}</Text>
+          <View
+            style={[
+              styles.reasonBox,
+              { backgroundColor: "#fff7ed", borderColor: "#fed7aa" },
+            ]}
+          >
+            <Text style={[styles.reasonLabel, { color: "#9a3412" }]}>
+              Details from admin:
+            </Text>
+            <Text style={[styles.reasonText, { color: "#c2410c" }]}>
+              {notification.admin_notes}
+            </Text>
           </View>
         )}
 
         {/* Resubmit button for rejected items (not for warnings) */}
-        {notification.status === "rejected" && notification.type !== "admin_warning" && (
-          <TouchableOpacity
-            style={styles.resubmitButton}
-            onPress={() => onResubmit(notification)}
-            activeOpacity={0.8}
-          >
-            <Feather name="upload" size={12} color="#FFF" />
-            <Text style={styles.resubmitText}>Resubmit Document</Text>
-          </TouchableOpacity>
-        )}
+        {notification.status === "rejected" &&
+          notification.type !== "admin_warning" && (
+            <TouchableOpacity
+              style={styles.resubmitButton}
+              onPress={() => onResubmit(notification)}
+              activeOpacity={0.8}
+            >
+              <Feather name="upload" size={12} color="#FFF" />
+              <Text style={styles.resubmitText}>Resubmit Document</Text>
+            </TouchableOpacity>
+          )}
       </View>
     </View>
   );
@@ -238,7 +292,9 @@ export default function NotificationsTab() {
   const { refreshBadgeCount } = useNotifications();
 
   // Activity notifications state
-  const [notifications, setNotifications] = useState<ActivityNotification[]>([]);
+  const [notifications, setNotifications] = useState<ActivityNotification[]>(
+    [],
+  );
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [loadingMore, setLoadingMore] = useState(false);
@@ -248,8 +304,11 @@ export default function NotificationsTab() {
   const [unreadCount, setUnreadCount] = useState(0);
 
   // Verification notifications state
-  const [verificationItems, setVerificationItems] = useState<NotificationItem[]>([]);
-  const [verificationSummary, setVerificationSummary] = useState<NotificationSummary | null>(null);
+  const [verificationItems, setVerificationItems] = useState<
+    NotificationItem[]
+  >([]);
+  const [verificationSummary, setVerificationSummary] =
+    useState<NotificationSummary | null>(null);
   const [verificationLoading, setVerificationLoading] = useState(false);
 
   const fetchNotifications = useCallback(
@@ -263,7 +322,7 @@ export default function NotificationsTab() {
         const response = await getActivityNotifications(
           pageNum,
           20,
-          typeFilter
+          typeFilter,
         );
 
         if (pageNum === 1) {
@@ -281,7 +340,7 @@ export default function NotificationsTab() {
         setLoadingMore(false);
       }
     },
-    [activeFilter]
+    [activeFilter],
   );
 
   const fetchVerificationNotifications = useCallback(async () => {
@@ -312,7 +371,12 @@ export default function NotificationsTab() {
       fetchUnreadCount();
       // Also preload verification summary for "All" tab banner
       fetchVerificationNotifications();
-    }, [fetchNotifications, fetchUnreadCount, fetchVerificationNotifications, activeFilter])
+    }, [
+      fetchNotifications,
+      fetchUnreadCount,
+      fetchVerificationNotifications,
+      activeFilter,
+    ]),
   );
 
   const onRefresh = useCallback(() => {
@@ -324,7 +388,12 @@ export default function NotificationsTab() {
     }
     fetchUnreadCount();
     fetchVerificationNotifications();
-  }, [fetchNotifications, fetchUnreadCount, fetchVerificationNotifications, activeFilter]);
+  }, [
+    fetchNotifications,
+    fetchUnreadCount,
+    fetchVerificationNotifications,
+    activeFilter,
+  ]);
 
   const handleLoadMore = () => {
     if (activeFilter !== "verification" && page < lastPage && !loadingMore) {
@@ -346,14 +415,19 @@ export default function NotificationsTab() {
     const success = await markAllActivityAsRead();
     if (success) {
       setNotifications((prev) =>
-        prev.map((n) => ({ ...n, read_at: n.read_at || new Date().toISOString() }))
+        prev.map((n) => ({
+          ...n,
+          read_at: n.read_at || new Date().toISOString(),
+        })),
       );
       setUnreadCount(0);
       refreshBadgeCount();
     }
   };
 
-  const handleNotificationPress = async (notification: ActivityNotification) => {
+  const handleNotificationPress = async (
+    notification: ActivityNotification,
+  ) => {
     // Mark as read
     if (!notification.read_at) {
       const success = await markActivityAsRead(notification.id);
@@ -362,8 +436,8 @@ export default function NotificationsTab() {
           prev.map((n) =>
             n.id === notification.id
               ? { ...n, read_at: new Date().toISOString() }
-              : n
-          )
+              : n,
+          ),
         );
         setUnreadCount((prev) => Math.max(0, prev - 1));
         refreshBadgeCount();
@@ -441,20 +515,32 @@ export default function NotificationsTab() {
     }
   };
 
-  const isCloseToBottom = ({ layoutMeasurement, contentOffset, contentSize }: any) => {
-    return layoutMeasurement.height + contentOffset.y >= contentSize.height - 100;
+  const isCloseToBottom = ({
+    layoutMeasurement,
+    contentOffset,
+    contentSize,
+  }: any) => {
+    return (
+      layoutMeasurement.height + contentOffset.y >= contentSize.height - 100
+    );
   };
 
   // Verification summary for "All" tab banner
   const hasVerificationAlerts =
     verificationSummary &&
-    ((verificationSummary.warnings ?? 0) > 0 || verificationSummary.rejected > 0 || verificationSummary.pending > 0);
+    ((verificationSummary.warnings ?? 0) > 0 ||
+      verificationSummary.rejected > 0 ||
+      verificationSummary.pending > 0);
 
   // Grouped verification items
   const warningItems = verificationItems.filter((n) => n.status === "warning");
-  const rejectedItems = verificationItems.filter((n) => n.status === "rejected");
+  const rejectedItems = verificationItems.filter(
+    (n) => n.status === "rejected",
+  );
   const pendingItems = verificationItems.filter((n) => n.status === "pending");
-  const approvedItems = verificationItems.filter((n) => n.status === "approved");
+  const approvedItems = verificationItems.filter(
+    (n) => n.status === "approved",
+  );
 
   const isVerificationFilter = activeFilter === "verification";
   const isLoadingContent = isVerificationFilter ? verificationLoading : loading;
@@ -512,7 +598,11 @@ export default function NotificationsTab() {
         scrollEventThrottle={400}
       >
         {isLoadingContent && !refreshing ? (
-          <ActivityIndicator size="large" color="#FF6B4A" style={{ marginTop: 60 }} />
+          <ActivityIndicator
+            size="large"
+            color="#FF6B4A"
+            style={{ marginTop: 60 }}
+          />
         ) : isVerificationFilter ? (
           /* ─── Verification Feed ─── */
           verificationItems.length > 0 ? (
@@ -521,25 +611,52 @@ export default function NotificationsTab() {
               {verificationSummary && (
                 <View style={styles.summaryRow}>
                   {(verificationSummary.warnings ?? 0) > 0 && (
-                    <View style={[styles.summaryBadge, { backgroundColor: "#fff7ed", borderColor: "#fed7aa" }]}>
-                      <Feather name="alert-triangle" size={12} color="#c2410c" />
-                      <Text style={[styles.summaryBadgeText, { color: "#9a3412" }]}>
-                        {verificationSummary.warnings} warning{(verificationSummary.warnings ?? 0) > 1 ? "s" : ""}
+                    <View
+                      style={[
+                        styles.summaryBadge,
+                        { backgroundColor: "#fff7ed", borderColor: "#fed7aa" },
+                      ]}
+                    >
+                      <Feather
+                        name="alert-triangle"
+                        size={12}
+                        color="#c2410c"
+                      />
+                      <Text
+                        style={[styles.summaryBadgeText, { color: "#9a3412" }]}
+                      >
+                        {verificationSummary.warnings} warning
+                        {(verificationSummary.warnings ?? 0) > 1 ? "s" : ""}
                       </Text>
                     </View>
                   )}
                   {verificationSummary.rejected > 0 && (
-                    <View style={[styles.summaryBadge, { backgroundColor: "#fee2e2", borderColor: "#fecaca" }]}>
+                    <View
+                      style={[
+                        styles.summaryBadge,
+                        { backgroundColor: "#fee2e2", borderColor: "#fecaca" },
+                      ]}
+                    >
                       <Feather name="alert-circle" size={12} color="#b91c1c" />
-                      <Text style={[styles.summaryBadgeText, { color: "#991b1b" }]}>
-                        {verificationSummary.rejected} action{verificationSummary.rejected > 1 ? "s" : ""} needed
+                      <Text
+                        style={[styles.summaryBadgeText, { color: "#991b1b" }]}
+                      >
+                        {verificationSummary.rejected} action
+                        {verificationSummary.rejected > 1 ? "s" : ""} needed
                       </Text>
                     </View>
                   )}
                   {verificationSummary.pending > 0 && (
-                    <View style={[styles.summaryBadge, { backgroundColor: "#fef9c3", borderColor: "#fde68a" }]}>
+                    <View
+                      style={[
+                        styles.summaryBadge,
+                        { backgroundColor: "#fef9c3", borderColor: "#fde68a" },
+                      ]}
+                    >
                       <Feather name="clock" size={12} color="#a16207" />
-                      <Text style={[styles.summaryBadgeText, { color: "#854d0e" }]}>
+                      <Text
+                        style={[styles.summaryBadgeText, { color: "#854d0e" }]}
+                      >
                         {verificationSummary.pending} pending
                       </Text>
                     </View>
@@ -552,7 +669,11 @@ export default function NotificationsTab() {
                 <View style={styles.section}>
                   <Text style={styles.sectionTitle}>Admin Warnings</Text>
                   {warningItems.map((item) => (
-                    <VerificationCard key={item.id} notification={item} onResubmit={handleResubmit} />
+                    <VerificationCard
+                      key={item.id}
+                      notification={item}
+                      onResubmit={handleResubmit}
+                    />
                   ))}
                 </View>
               )}
@@ -562,7 +683,11 @@ export default function NotificationsTab() {
                 <View style={styles.section}>
                   <Text style={styles.sectionTitle}>Needs Your Attention</Text>
                   {rejectedItems.map((item) => (
-                    <VerificationCard key={item.id} notification={item} onResubmit={handleResubmit} />
+                    <VerificationCard
+                      key={item.id}
+                      notification={item}
+                      onResubmit={handleResubmit}
+                    />
                   ))}
                 </View>
               )}
@@ -572,7 +697,11 @@ export default function NotificationsTab() {
                 <View style={styles.section}>
                   <Text style={styles.sectionTitle}>Under Review</Text>
                   {pendingItems.map((item) => (
-                    <VerificationCard key={item.id} notification={item} onResubmit={handleResubmit} />
+                    <VerificationCard
+                      key={item.id}
+                      notification={item}
+                      onResubmit={handleResubmit}
+                    />
                   ))}
                 </View>
               )}
@@ -582,7 +711,11 @@ export default function NotificationsTab() {
                 <View style={styles.section}>
                   <Text style={styles.sectionTitle}>Approved</Text>
                   {approvedItems.map((item) => (
-                    <VerificationCard key={item.id} notification={item} onResubmit={handleResubmit} />
+                    <VerificationCard
+                      key={item.id}
+                      notification={item}
+                      onResubmit={handleResubmit}
+                    />
                   ))}
                 </View>
               )}
@@ -645,7 +778,11 @@ export default function NotificationsTab() {
                   />
                 ))}
                 {loadingMore && (
-                  <ActivityIndicator size="small" color="#FF6B4A" style={{ marginVertical: 16 }} />
+                  <ActivityIndicator
+                    size="small"
+                    color="#FF6B4A"
+                    style={{ marginVertical: 16 }}
+                  />
                 )}
               </>
             ) : (
@@ -747,9 +884,20 @@ const styles = StyleSheet.create({
     alignItems: "center",
     marginBottom: 2,
   },
-  typeLabel: { fontSize: 11, fontWeight: "600", color: "#9CA3AF", textTransform: "uppercase", letterSpacing: 0.5 },
+  typeLabel: {
+    fontSize: 11,
+    fontWeight: "600",
+    color: "#9CA3AF",
+    textTransform: "uppercase",
+    letterSpacing: 0.5,
+  },
   timeText: { fontSize: 12, color: "#9CA3AF" },
-  titleText: { fontSize: 15, fontWeight: "600", color: "#374151", marginBottom: 2 },
+  titleText: {
+    fontSize: 15,
+    fontWeight: "600",
+    color: "#374151",
+    marginBottom: 2,
+  },
   titleTextUnread: { color: "#111827", fontWeight: "700" },
   messageText: { fontSize: 13, color: "#6B7280", lineHeight: 18 },
 

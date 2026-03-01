@@ -33,7 +33,9 @@ export default function PrivacySecurityScreen() {
   const [currentPassword, setCurrentPassword] = useState("");
   const [newPassword, setNewPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
-  // const [showCurrentPassword, setShowCurrentPassword] = useState(false); // Can just use secureTextEntry toggle if I update Input, but for now standard secure
+  const [showCurrentPassword, setShowCurrentPassword] = useState(false);
+  const [showNewPassword, setShowNewPassword] = useState(false);
+  const [showConfirmNewPassword, setShowConfirmNewPassword] = useState(false);
   const [changingPassword, setChangingPassword] = useState(false);
 
   // Delete account state
@@ -66,6 +68,15 @@ export default function PrivacySecurityScreen() {
       showAlert({
         title: "Validation Error",
         message: "New passwords do not match",
+        type: "warning",
+      });
+      return;
+    }
+
+    if (currentPassword === newPassword) {
+      showAlert({
+        title: "Validation Error",
+        message: "New password cannot be the same as your current password",
         type: "warning",
       });
       return;
@@ -242,24 +253,59 @@ export default function PrivacySecurityScreen() {
                 value={currentPassword}
                 onChangeText={setCurrentPassword}
                 placeholder="Enter current password"
-                secureTextEntry
+                secureTextEntry={!showCurrentPassword}
                 icon="lock"
+                rightIcon={
+                  <TouchableOpacity
+                    onPress={() => setShowCurrentPassword(!showCurrentPassword)}
+                  >
+                    <Feather
+                      name={showCurrentPassword ? "eye" : "eye-off"}
+                      size={18}
+                      color="#9CA3AF"
+                    />
+                  </TouchableOpacity>
+                }
               />
               <SettingsInput
                 label="New Password"
                 value={newPassword}
                 onChangeText={setNewPassword}
                 placeholder="Min 8 characters"
-                secureTextEntry
+                secureTextEntry={!showNewPassword}
                 icon="key"
+                rightIcon={
+                  <TouchableOpacity
+                    onPress={() => setShowNewPassword(!showNewPassword)}
+                  >
+                    <Feather
+                      name={showNewPassword ? "eye" : "eye-off"}
+                      size={18}
+                      color="#9CA3AF"
+                    />
+                  </TouchableOpacity>
+                }
               />
               <SettingsInput
                 label="Confirm New Password"
                 value={confirmPassword}
                 onChangeText={setConfirmPassword}
                 placeholder="Re-enter new password"
-                secureTextEntry
+                secureTextEntry={!showConfirmNewPassword}
                 icon="check-circle"
+                rightIcon={
+                  <TouchableOpacity
+                    onPress={() =>
+                      setShowConfirmNewPassword(!showConfirmNewPassword)
+                    }
+                  >
+                    <Feather
+                      name={showConfirmNewPassword ? "eye" : "eye-off"}
+                      size={18}
+                      color="#9CA3AF"
+                    />
+                  </TouchableOpacity>
+                }
               />
 
               <SettingsButton

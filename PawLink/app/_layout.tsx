@@ -6,6 +6,8 @@ import { NotificationProvider } from "@/context/NotificationContext";
 import * as SplashScreen from "expo-splash-screen";
 import { useLoadFonts } from "@/hooks/useLoadFonts";
 import { useUpdateChecker } from "@/hooks/useUpdateChecker";
+import { useWhatsNew } from "@/hooks/useWhatsNew";
+import WhatsNewModal from "@/components/core/WhatsNewModal";
 import { useEffect, useMemo } from "react";
 import { Text, View } from "react-native";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
@@ -89,6 +91,9 @@ export default function RootLayout() {
   // Check for OTA updates
   useUpdateChecker();
 
+  // "What's New" modal after updates
+  const whatsNew = useWhatsNew();
+
   useEffect(() => {
     console.log("RootLayout - fontsLoaded:", fontsLoaded);
     if (fontsLoaded) {
@@ -112,6 +117,16 @@ export default function RootLayout() {
               <RoleProvider>
                 <NotificationProvider>
                   <RootNavigator />
+
+                  {/* What's New modal — shown after app updates */}
+                  {whatsNew.release && (
+                    <WhatsNewModal
+                      visible={whatsNew.visible}
+                      release={whatsNew.release}
+                      onDismiss={whatsNew.dismiss}
+                      onDontShowAgain={whatsNew.dontShowAgain}
+                    />
+                  )}
                 </NotificationProvider>
               </RoleProvider>
             </PetProvider>

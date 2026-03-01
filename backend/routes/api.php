@@ -22,6 +22,8 @@ use App\Http\Controllers\SearchController;
 use App\Http\Controllers\AiOffspringController;
 use App\Http\Controllers\BreedIdentifierController;
 use App\Http\Controllers\Api\UserReviewController;
+use App\Http\Controllers\Auth\PasswordResetLinkController;
+use App\Http\Controllers\Auth\NewPasswordController;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
 
@@ -33,6 +35,13 @@ Route::middleware("guest")->group(function () {
     Route::post('/login', [AuthenticatedSessionController::class, 'store'])
         ->middleware('guest')
         ->name('login');
+
+    // Password Reset
+    Route::post('/forgot-password', [PasswordResetLinkController::class, 'store'])
+        ->name('password.email');
+
+    Route::post('/reset-password', [NewPasswordController::class, 'store'])
+        ->name('password.store');
 });
 
 // PayMongo webhook (no auth required)

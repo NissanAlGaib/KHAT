@@ -2,13 +2,7 @@ import React, { useState, useEffect } from "react";
 import { View, TouchableOpacity, Dimensions, Text, Image } from "react-native";
 import Svg, { Path } from "react-native-svg";
 import { useRouter } from "expo-router";
-import {
-  Home,
-  Heart,
-  PawPrint,
-  Bell,
-  User,
-} from "lucide-react-native";
+import { Home, Heart, PawPrint, Bell, User } from "lucide-react-native";
 import { BottomTabBarProps } from "@react-navigation/bottom-tabs";
 import PetSelectionModal from "./PetSelectionModal";
 import { useRole } from "@/context/RoleContext";
@@ -279,9 +273,7 @@ export default function CurvedTabBar({
                           fontWeight: "bold",
                         }}
                       >
-                        {badgeCount > 9
-                          ? "9+"
-                          : badgeCount}
+                        {badgeCount > 9 ? "9+" : badgeCount}
                       </Text>
                     </View>
                   )}

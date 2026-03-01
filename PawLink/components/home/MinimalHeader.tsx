@@ -14,9 +14,7 @@ interface MinimalHeaderProps {
  * MinimalHeader - Clean, compact header for homepage
  * Height: 56px (plus safe area)
  */
-export default function MinimalHeader({
-  onSettingsPress,
-}: MinimalHeaderProps) {
+export default function MinimalHeader({ onSettingsPress }: MinimalHeaderProps) {
   const insets = useSafeAreaInsets();
   const router = useRouter();
 

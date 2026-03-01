@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useCallback } from "react";
 import {
   View,
   Text,
@@ -6,6 +6,7 @@ import {
   Image,
   ActivityIndicator,
   Modal,
+  Platform,
 } from "react-native";
 import { Feather } from "@expo/vector-icons";
 import * as ImagePicker from "expo-image-picker";
@@ -30,23 +31,25 @@ export default function DocumentUploader({
   aspectRatio = [16, 10],
 }: DocumentUploaderProps) {
   const [modalVisible, setModalVisible] = useState(false);
+  // Pending action to execute after modal fully closes
+  const [pendingAction, setPendingAction] = useState<
+    "camera" | "gallery" | null
+  >(null);
 
   const requestPermission = async (type: "camera" | "library") => {
     if (type === "camera") {
       const { status } = await ImagePicker.requestCameraPermissionsAsync();
       return status === "granted";
     } else {
-      const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+      const { status } =
+        await ImagePicker.requestMediaLibraryPermissionsAsync();
       return status === "granted";
     }
   };
 
-  const handleCamera = async () => {
-    setModalVisible(false);
+  const launchCamera = useCallback(async () => {
     const hasPermission = await requestPermission("camera");
-    if (!hasPermission) {
-      return;
-    }
+    if (!hasPermission) return;
 
     const result = await ImagePicker.launchCameraAsync({
       mediaTypes: ImagePicker.MediaTypeOptions.Images,
@@ -58,14 +61,11 @@ export default function DocumentUploader({
     if (!result.canceled && result.assets[0]) {
       onChange(result.assets[0].uri);
     }
-  };
+  }, [aspectRatio, onChange]);
 
-  const handleGallery = async () => {
-    setModalVisible(false);
+  const launchGallery = useCallback(async () => {
     const hasPermission = await requestPermission("library");
-    if (!hasPermission) {
-      return;
-    }
+    if (!hasPermission) return;
 
     const result = await ImagePicker.launchImageLibraryAsync({
       mediaTypes: ImagePicker.MediaTypeOptions.Images,
@@ -77,7 +77,37 @@ export default function DocumentUploader({
     if (!result.canceled && result.assets[0]) {
       onChange(result.assets[0].uri);
     }
+  }, [aspectRatio, onChange]);
+
+  const handleCamera = () => {
+    if (modalVisible) {
+      setPendingAction("camera");
+      setModalVisible(false);
+    } else {
+      launchCamera();
+    }
   };
+
+  const handleGallery = () => {
+    if (modalVisible) {
+      setPendingAction("gallery");
+      setModalVisible(false);
+    } else {
+      launchGallery();
+    }
+  };
+
+  // Execute pending action after modal fully dismisses
+  const handleModalDismiss = useCallback(() => {
+    if (pendingAction === "camera") {
+      setPendingAction(null);
+      // Small delay ensures modal overlay is fully gone
+      setTimeout(() => launchCamera(), Platform.OS === "android" ? 300 : 100);
+    } else if (pendingAction === "gallery") {
+      setPendingAction(null);
+      setTimeout(() => launchGallery(), Platform.OS === "android" ? 300 : 100);
+    }
+  }, [pendingAction, launchCamera, launchGallery]);
 
   const handleRemove = () => {
     onChange(null);
@@ -212,13 +242,18 @@ export default function DocumentUploader({
         animationType="slide"
         transparent
         onRequestClose={() => setModalVisible(false)}
+        onDismiss={handleModalDismiss}
       >
         <TouchableOpacity
-          className="flex-1 bg-black/50 justify-end"
+          className="flex-1 justify-end"
+          style={{ backgroundColor: "rgba(0,0,0,0.4)" }}
           activeOpacity={1}
           onPress={() => setModalVisible(false)}
         >
-          <View className="bg-white rounded-t-3xl p-6">
+          <View
+            className="bg-white rounded-t-3xl p-6"
+            onStartShouldSetResponder={() => true}
+          >
             <Text className="text-xl font-bold text-gray-900 text-center mb-6">
               Upload Document
             </Text>

@@ -32,10 +32,7 @@ import {
 } from "@/services/matchRequestService";
 
 // Utils
-import {
-  addPassedPet,
-  getPassedPetIdsForPet,
-} from "@/utils/passedPetsStorage";
+import { addPassedPet, getPassedPetIdsForPet } from "@/utils/passedPetsStorage";
 
 // Hooks
 import { useAlert } from "@/hooks/useAlert";
@@ -250,7 +247,8 @@ export default function Homepage() {
         if (!isUserPet1 && !isUserPet2) return false;
         // Ensure opposite sex
         const otherPet = isUserPet1 ? match.pet2 : match.pet1;
-        if (otherPet.sex?.toLowerCase() === selectedPet.sex?.toLowerCase()) return false;
+        if (otherPet.sex?.toLowerCase() === selectedPet.sex?.toLowerCase())
+          return false;
         // Filter out pets that were passed (stored in AsyncStorage)
         if (passedPetIdsRef.current.has(otherPet.pet_id)) return false;
         // Filter out pets that already have an active match request (dupe guard)

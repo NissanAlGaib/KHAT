@@ -577,7 +577,7 @@ class ShooterController extends Controller
             foreach ($shooterContracts as $contract) {
                 if ($contract->conversation && $contract->conversation->matchRequest) {
                     $matchRequest = $contract->conversation->matchRequest;
-                    
+
                     // Count pet1
                     if ($matchRequest->requesterPet) {
                         $pet = $matchRequest->requesterPet;
@@ -589,7 +589,7 @@ class ShooterController extends Controller
                             $contractCatCount++;
                         }
                     }
-                    
+
                     // Count pet2
                     if ($matchRequest->targetPet) {
                         $pet = $matchRequest->targetPet;
@@ -616,7 +616,7 @@ class ShooterController extends Controller
 
             // Count active contracts (not completed and not failed)
             $activeContracts = $shooterContracts->filter(function ($contract) {
-                return $contract->breeding_status !== 'completed' 
+                return $contract->breeding_status !== 'completed'
                     && $contract->breeding_status !== 'failed'
                     && !$contract->offsprings_allocated;
             })->count();

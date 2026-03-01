@@ -54,11 +54,36 @@ interface TabConfig {
 }
 
 const TABS: TabConfig[] = [
-  { id: "overview", label: "Overview", icon: <FileText size={16} color="#FF6B6B" />, emoji: "📋" },
-  { id: "payments", label: "Payments", icon: <CreditCard size={16} color="#FF6B6B" />, emoji: "💳" },
-  { id: "reports", label: "Reports", icon: <ClipboardList size={16} color="#FF6B6B" />, emoji: "📝" },
-  { id: "breeding", label: "Breeding", icon: <Heart size={16} color="#FF6B6B" />, emoji: "❤️" },
-  { id: "offspring", label: "Offspring", icon: <Baby size={16} color="#FF6B6B" />, emoji: "🐾" },
+  {
+    id: "overview",
+    label: "Overview",
+    icon: <FileText size={16} color="#FF6B6B" />,
+    emoji: "📋",
+  },
+  {
+    id: "payments",
+    label: "Payments",
+    icon: <CreditCard size={16} color="#FF6B6B" />,
+    emoji: "💳",
+  },
+  {
+    id: "reports",
+    label: "Reports",
+    icon: <ClipboardList size={16} color="#FF6B6B" />,
+    emoji: "📝",
+  },
+  {
+    id: "breeding",
+    label: "Breeding",
+    icon: <Heart size={16} color="#FF6B6B" />,
+    emoji: "❤️",
+  },
+  {
+    id: "offspring",
+    label: "Offspring",
+    icon: <Baby size={16} color="#FF6B6B" />,
+    emoji: "🐾",
+  },
 ];
 
 // ─── Lifecycle stages ─────────────────────────────────────
@@ -67,8 +92,20 @@ interface LifecycleStage {
   label: string;
   emoji: string;
   description: string;
-  isComplete: (c: BreedingContract, payments: Payment[], currentUserId: number, hasOffspring: boolean, allocationData: AllocationSummaryData | null) => boolean;
-  isActive: (c: BreedingContract, payments: Payment[], currentUserId: number, hasOffspring: boolean, allocationData: AllocationSummaryData | null) => boolean;
+  isComplete: (
+    c: BreedingContract,
+    payments: Payment[],
+    currentUserId: number,
+    hasOffspring: boolean,
+    allocationData: AllocationSummaryData | null,
+  ) => boolean;
+  isActive: (
+    c: BreedingContract,
+    payments: Payment[],
+    currentUserId: number,
+    hasOffspring: boolean,
+    allocationData: AllocationSummaryData | null,
+  ) => boolean;
   tab: TabId;
 }
 
@@ -98,7 +135,12 @@ const LIFECYCLE_STAGES: LifecycleStage[] = [
     description: "Pay your security deposit",
     isComplete: (c, payments, userId) => {
       if (!c.collateral_per_owner || c.collateral_per_owner <= 0) return true;
-      return payments.some(p => p.payment_type === "collateral" && p.user_id === userId && p.status === "paid");
+      return payments.some(
+        (p) =>
+          p.payment_type === "collateral" &&
+          p.user_id === userId &&
+          p.status === "paid",
+      );
     },
     isActive: (c) => c.status === "accepted",
     tab: "payments",
@@ -108,8 +150,13 @@ const LIFECYCLE_STAGES: LifecycleStage[] = [
     label: "Submit Reports",
     emoji: "📊",
     description: "Track breeding progress daily",
-    isComplete: (c) => c.breeding_status === "completed" || c.breeding_status === "failed",
-    isActive: (c) => c.status === "accepted" && (!c.breeding_status || c.breeding_status === "pending" || c.breeding_status === "in_progress"),
+    isComplete: (c) =>
+      c.breeding_status === "completed" || c.breeding_status === "failed",
+    isActive: (c) =>
+      c.status === "accepted" &&
+      (!c.breeding_status ||
+        c.breeding_status === "pending" ||
+        c.breeding_status === "in_progress"),
     tab: "reports",
   },
   {
@@ -117,8 +164,13 @@ const LIFECYCLE_STAGES: LifecycleStage[] = [
     label: "Mark Breeding",
     emoji: "❤️",
     description: "Record breeding outcome",
-    isComplete: (c) => c.breeding_status === "completed" || c.breeding_status === "failed",
-    isActive: (c) => c.status === "accepted" && (!c.breeding_status || c.breeding_status === "pending" || c.breeding_status === "in_progress"),
+    isComplete: (c) =>
+      c.breeding_status === "completed" || c.breeding_status === "failed",
+    isActive: (c) =>
+      c.status === "accepted" &&
+      (!c.breeding_status ||
+        c.breeding_status === "pending" ||
+        c.breeding_status === "in_progress"),
     tab: "breeding",
   },
   {
@@ -127,7 +179,8 @@ const LIFECYCLE_STAGES: LifecycleStage[] = [
     emoji: "🐾",
     description: "Log litter details",
     isComplete: (_c, _p, _u, hasOffspring) => hasOffspring,
-    isActive: (c) => c.breeding_status === "completed" && c.has_offspring === true,
+    isActive: (c) =>
+      c.breeding_status === "completed" && c.has_offspring === true,
     tab: "offspring",
   },
   {
@@ -136,7 +189,8 @@ const LIFECYCLE_STAGES: LifecycleStage[] = [
     emoji: "🎉",
     description: "Finalize and archive",
     isComplete: (c) => c.status === "fulfilled",
-    isActive: (c, _p, _u, hasOffspring) => c.breeding_status === "completed" && hasOffspring,
+    isActive: (c, _p, _u, hasOffspring) =>
+      c.breeding_status === "completed" && hasOffspring,
     tab: "offspring",
   },
 ];
@@ -155,7 +209,8 @@ export default function ContractDetailScreen() {
   const [activeTab, setActiveTab] = useState<TabId>("overview");
   const [contractPayments, setContractPayments] = useState<Payment[]>([]);
   const [hasOffspringRecorded, setHasOffspringRecorded] = useState(false);
-  const [allocationSummary, setAllocationSummary] = useState<AllocationSummaryData | null>(null);
+  const [allocationSummary, setAllocationSummary] =
+    useState<AllocationSummaryData | null>(null);
 
   const pulseAnim = useRef(new Animated.Value(1)).current;
 
@@ -163,9 +218,17 @@ export default function ContractDetailScreen() {
   useEffect(() => {
     const loop = Animated.loop(
       Animated.sequence([
-        Animated.timing(pulseAnim, { toValue: 1.05, duration: 800, useNativeDriver: true }),
-        Animated.timing(pulseAnim, { toValue: 1, duration: 800, useNativeDriver: true }),
-      ])
+        Animated.timing(pulseAnim, {
+          toValue: 1.05,
+          duration: 800,
+          useNativeDriver: true,
+        }),
+        Animated.timing(pulseAnim, {
+          toValue: 1,
+          duration: 800,
+          useNativeDriver: true,
+        }),
+      ]),
     );
     loop.start();
     return () => loop.stop();
@@ -178,7 +241,10 @@ export default function ContractDetailScreen() {
         setContract(contractData);
 
         // Fetch payments
-        if (contractData.status === "accepted" || contractData.status === "fulfilled") {
+        if (
+          contractData.status === "accepted" ||
+          contractData.status === "fulfilled"
+        ) {
           const payResult = await getContractPayments(contractData.id);
           if (payResult.success && payResult.data) {
             setContractPayments(payResult.data);
@@ -186,14 +252,25 @@ export default function ContractDetailScreen() {
         }
 
         // Check offspring
-        if (contractData.breeding_status === "completed" && contractData.has_offspring) {
+        if (
+          contractData.breeding_status === "completed" &&
+          contractData.has_offspring
+        ) {
           const offspring = await getOffspring(contractData.id);
-          setHasOffspringRecorded(offspring !== null && offspring.offspring.length > 0);
+          setHasOffspringRecorded(
+            offspring !== null && offspring.offspring.length > 0,
+          );
         }
 
         // Fetch allocation summary
-        if (contractData.status === "fulfilled" && contractData.has_offspring && contractData.share_offspring) {
-          const allocResult = await getOffspringAllocationSummary(contractData.id);
+        if (
+          contractData.status === "fulfilled" &&
+          contractData.has_offspring &&
+          contractData.share_offspring
+        ) {
+          const allocResult = await getOffspringAllocationSummary(
+            contractData.id,
+          );
           if (allocResult.success && allocResult.data) {
             setAllocationSummary(allocResult.data);
           }
@@ -231,7 +308,22 @@ export default function ContractDetailScreen() {
   const getNextAction = (): LifecycleStage | null => {
     if (!contract) return null;
     for (const stage of LIFECYCLE_STAGES) {
-      if (stage.isActive(contract, contractPayments, currentUserId, hasOffspringRecorded, allocationSummary) && !stage.isComplete(contract, contractPayments, currentUserId, hasOffspringRecorded, allocationSummary)) {
+      if (
+        stage.isActive(
+          contract,
+          contractPayments,
+          currentUserId,
+          hasOffspringRecorded,
+          allocationSummary,
+        ) &&
+        !stage.isComplete(
+          contract,
+          contractPayments,
+          currentUserId,
+          hasOffspringRecorded,
+          allocationSummary,
+        )
+      ) {
         return stage;
       }
     }
@@ -254,7 +346,10 @@ export default function ContractDetailScreen() {
       <SafeAreaView className="flex-1 bg-white items-center justify-center">
         <Text className="text-4xl mb-3">😿</Text>
         <Text className="text-gray-500">No contract found</Text>
-        <TouchableOpacity onPress={() => router.back()} className="mt-4 bg-[#FF6B6B] px-6 py-2 rounded-full">
+        <TouchableOpacity
+          onPress={() => router.back()}
+          className="mt-4 bg-[#FF6B6B] px-6 py-2 rounded-full"
+        >
           <Text className="text-white font-semibold">Go Back</Text>
         </TouchableOpacity>
       </SafeAreaView>
@@ -263,18 +358,50 @@ export default function ContractDetailScreen() {
 
   // Status badge component
   const StatusBadge = () => {
-    const statusConfig: Record<string, { bg: string; text: string; label: string; emoji: string }> = {
-      draft: { bg: "bg-gray-200", text: "text-gray-700", label: "Draft", emoji: "📝" },
-      pending_review: { bg: "bg-yellow-100", text: "text-yellow-800", label: "Pending Review", emoji: "⏳" },
-      accepted: { bg: "bg-green-100", text: "text-green-800", label: "Active", emoji: "✅" },
-      rejected: { bg: "bg-red-100", text: "text-red-800", label: "Rejected", emoji: "❌" },
-      fulfilled: { bg: "bg-purple-100", text: "text-purple-800", label: "Completed", emoji: "🎉" },
+    const statusConfig: Record<
+      string,
+      { bg: string; text: string; label: string; emoji: string }
+    > = {
+      draft: {
+        bg: "bg-gray-200",
+        text: "text-gray-700",
+        label: "Draft",
+        emoji: "📝",
+      },
+      pending_review: {
+        bg: "bg-yellow-100",
+        text: "text-yellow-800",
+        label: "Pending Review",
+        emoji: "⏳",
+      },
+      accepted: {
+        bg: "bg-green-100",
+        text: "text-green-800",
+        label: "Active",
+        emoji: "✅",
+      },
+      rejected: {
+        bg: "bg-red-100",
+        text: "text-red-800",
+        label: "Rejected",
+        emoji: "❌",
+      },
+      fulfilled: {
+        bg: "bg-purple-100",
+        text: "text-purple-800",
+        label: "Completed",
+        emoji: "🎉",
+      },
     };
     const config = statusConfig[contract.status] || statusConfig.draft;
     return (
-      <View className={`${config.bg} px-3 py-1 rounded-full flex-row items-center`}>
+      <View
+        className={`${config.bg} px-3 py-1 rounded-full flex-row items-center`}
+      >
         <Text className="mr-1">{config.emoji}</Text>
-        <Text className={`${config.text} text-xs font-bold`}>{config.label}</Text>
+        <Text className={`${config.text} text-xs font-bold`}>
+          {config.label}
+        </Text>
       </View>
     );
   };
@@ -288,7 +415,9 @@ export default function ContractDetailScreen() {
             <ArrowLeft size={24} color="#333" />
           </TouchableOpacity>
           <View className="flex-1">
-            <Text className="text-lg font-bold text-gray-900">Breeding Contract 🐾</Text>
+            <Text className="text-lg font-bold text-gray-900">
+              Breeding Contract 🐾
+            </Text>
             <Text className="text-xs text-gray-500">
               Created {dayjs(contract.created_at).format("MMM D, YYYY")}
             </Text>
@@ -303,8 +432,21 @@ export default function ContractDetailScreen() {
           <ScrollView horizontal showsHorizontalScrollIndicator={false}>
             <View className="flex-row items-center">
               {LIFECYCLE_STAGES.map((stage, i) => {
-                const isComplete = stage.isComplete(contract, contractPayments, currentUserId, hasOffspringRecorded, allocationSummary);
-                const isActive = stage.isActive(contract, contractPayments, currentUserId, hasOffspringRecorded, allocationSummary) && !isComplete;
+                const isComplete = stage.isComplete(
+                  contract,
+                  contractPayments,
+                  currentUserId,
+                  hasOffspringRecorded,
+                  allocationSummary,
+                );
+                const isActive =
+                  stage.isActive(
+                    contract,
+                    contractPayments,
+                    currentUserId,
+                    hasOffspringRecorded,
+                    allocationSummary,
+                  ) && !isComplete;
                 const isNext = nextAction?.id === stage.id;
 
                 return (
@@ -324,7 +466,11 @@ export default function ContractDetailScreen() {
                       ) : (
                         <View
                           className={`w-8 h-8 rounded-full items-center justify-center ${
-                            isComplete ? "bg-green-100" : isActive ? "bg-[#FF6B6B]/10" : "bg-gray-100"
+                            isComplete
+                              ? "bg-green-100"
+                              : isActive
+                                ? "bg-[#FF6B6B]/10"
+                                : "bg-gray-100"
                           }`}
                         >
                           {isComplete ? (
@@ -336,7 +482,11 @@ export default function ContractDetailScreen() {
                       )}
                       <Text
                         className={`text-[8px] mt-1 text-center ${
-                          isComplete ? "text-green-600" : isNext ? "text-[#FF6B6B] font-bold" : "text-gray-400"
+                          isComplete
+                            ? "text-green-600"
+                            : isNext
+                              ? "text-[#FF6B6B] font-bold"
+                              : "text-gray-400"
                         }`}
                         numberOfLines={1}
                       >
@@ -360,26 +510,38 @@ export default function ContractDetailScreen() {
       )}
 
       {/* Next Action Banner */}
-      {nextAction && contract.status !== "rejected" && contract.status !== "fulfilled" && (
-        <TouchableOpacity
-          onPress={() => setActiveTab(nextAction.tab)}
-          className="mx-4 mt-3 bg-[#FF6B6B] rounded-2xl px-4 py-3 flex-row items-center"
-        >
-          <View className="w-10 h-10 rounded-full bg-white/20 items-center justify-center mr-3">
-            <Text className="text-lg">{nextAction.emoji}</Text>
-          </View>
-          <View className="flex-1">
-            <Text className="text-white text-xs font-medium opacity-80">NEXT ACTION</Text>
-            <Text className="text-white font-bold text-base">{nextAction.label}</Text>
-            <Text className="text-white/80 text-xs">{nextAction.description}</Text>
-          </View>
-          <ChevronRight size={20} color="white" />
-        </TouchableOpacity>
-      )}
+      {nextAction &&
+        contract.status !== "rejected" &&
+        contract.status !== "fulfilled" && (
+          <TouchableOpacity
+            onPress={() => setActiveTab(nextAction.tab)}
+            className="mx-4 mt-3 bg-[#FF6B6B] rounded-2xl px-4 py-3 flex-row items-center"
+          >
+            <View className="w-10 h-10 rounded-full bg-white/20 items-center justify-center mr-3">
+              <Text className="text-lg">{nextAction.emoji}</Text>
+            </View>
+            <View className="flex-1">
+              <Text className="text-white text-xs font-medium opacity-80">
+                NEXT ACTION
+              </Text>
+              <Text className="text-white font-bold text-base">
+                {nextAction.label}
+              </Text>
+              <Text className="text-white/80 text-xs">
+                {nextAction.description}
+              </Text>
+            </View>
+            <ChevronRight size={20} color="white" />
+          </TouchableOpacity>
+        )}
 
       {/* Tab Bar */}
       <View className="bg-white mt-3 border-b border-gray-100">
-        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ paddingHorizontal: 12 }}>
+        <ScrollView
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          contentContainerStyle={{ paddingHorizontal: 12 }}
+        >
           {TABS.map((tab) => (
             <TouchableOpacity
               key={tab.id}
@@ -407,7 +569,13 @@ export default function ContractDetailScreen() {
       <ScrollView
         className="flex-1"
         showsVerticalScrollIndicator={false}
-        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={handleRefresh} tintColor="#FF6B6B" />}
+        refreshControl={
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={handleRefresh}
+            tintColor="#FF6B6B"
+          />
+        }
         contentContainerStyle={{ paddingBottom: 32 }}
       >
         {activeTab === "overview" && (
@@ -430,9 +598,7 @@ export default function ContractDetailScreen() {
             onPaymentSuccess={() => fetchAll()}
           />
         )}
-        {activeTab === "reports" && (
-          <ContractReportsTab contract={contract} />
-        )}
+        {activeTab === "reports" && <ContractReportsTab contract={contract} />}
         {activeTab === "breeding" && (
           <ContractBreedingTab
             contract={contract}

@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useMemo } from "react";
 import { View, Text, Image, TouchableOpacity } from "react-native";
 import { Link, router } from "expo-router";
 import axiosInstance from "@/config/axiosConfig";
@@ -7,10 +7,15 @@ import CustomInput from "@/components/app/CustomInput";
 import CustomButton from "@/components/app/CustomButton";
 import DateTimePickerModal from "react-native-modal-datetime-picker";
 import dayjs from "dayjs";
-import { MaterialCommunityIcons } from "@expo/vector-icons";
+import { MaterialCommunityIcons, Feather } from "@expo/vector-icons";
 import DropDownPicker from "react-native-dropdown-picker";
 import { useAlert } from "@/hooks/useAlert";
 import AlertModal from "@/components/core/AlertModal";
+import {
+  getRegions,
+  getProvinces,
+  getCities,
+} from "@/constants/philippineAddress";
 
 interface RegisterData {
   email: string;
@@ -76,6 +81,49 @@ const Register = () => {
   const [open, setOpen] = useState(false);
   const [value, setValue] = useState(data.sex);
 
+  // Show/hide password state
+  const [showPassword, setShowPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+
+  // Address dropdown states
+  const [selectedRegion, setSelectedRegion] = useState("");
+  const [selectedProvince, setSelectedProvince] = useState("");
+  const [selectedCity, setSelectedCity] = useState("");
+  const [regionOpen, setRegionOpen] = useState(false);
+  const [provinceOpen, setProvinceOpen] = useState(false);
+  const [cityOpen, setCityOpen] = useState(false);
+
+  const regionItems = useMemo(() => getRegions(), []);
+  const provinceItems = useMemo(
+    () => getProvinces(selectedRegion),
+    [selectedRegion],
+  );
+  const cityItems = useMemo(
+    () => getCities(selectedRegion, selectedProvince),
+    [selectedRegion, selectedProvince],
+  );
+
+  // Sync address when cascading dropdowns change
+  useEffect(() => {
+    setAddress((a) => ({
+      ...a,
+      province: selectedProvince,
+      city: selectedCity,
+    }));
+  }, [selectedProvince, selectedCity]);
+
+  // Reset dependent dropdowns when parent changes
+  useEffect(() => {
+    setSelectedProvince("");
+    setSelectedCity("");
+    setAddress((a) => ({ ...a, province: "", city: "" }));
+  }, [selectedRegion]);
+
+  useEffect(() => {
+    setSelectedCity("");
+    setAddress((a) => ({ ...a, city: "" }));
+  }, [selectedProvince]);
+
   const handleConfirm = (date: Date) => {
     const formatted = dayjs(date).format("YYYY-MM-DD");
     setData((prev) => ({ ...prev, birthdate: formatted }));
@@ -85,7 +133,13 @@ const Register = () => {
   const [errors, setErrors] = useState<Errors>({});
 
   const handleChange = (key: string, value: string) => {
-    setData((prev) => ({ ...prev, [key]: value }));
+    // Strip non-letter characters in real-time for name fields
+    if (key === "firstName" || key === "lastName") {
+      const filtered = value.replace(/[^A-Za-zÀ-ÖØ-öø-ÿÑñ' -]/g, "");
+      setData((prev) => ({ ...prev, [key]: filtered }));
+    } else {
+      setData((prev) => ({ ...prev, [key]: value }));
+    }
     setErrors((prev) => ({ ...prev, [key]: "" }));
   };
 
@@ -121,8 +175,19 @@ const Register = () => {
       }
     } else if (step === 2) {
       // Step 2: Personal Information
-      if (!data.firstName) stepErrors.firstName = "First name is required.";
-      if (!data.lastName) stepErrors.lastName = "Last name is required.";
+      const nameRegex = /^[A-Za-zÀ-ÖØ-öø-ÿÑñ' -]+$/;
+      if (!data.firstName) {
+        stepErrors.firstName = "First name is required.";
+      } else if (!nameRegex.test(data.firstName)) {
+        stepErrors.firstName =
+          "First name can only contain letters, spaces, hyphens, and apostrophes.";
+      }
+      if (!data.lastName) {
+        stepErrors.lastName = "Last name is required.";
+      } else if (!nameRegex.test(data.lastName)) {
+        stepErrors.lastName =
+          "Last name can only contain letters, spaces, hyphens, and apostrophes.";
+      }
       if (!data.birthdate) {
         stepErrors.birthdate = "Please select your birthdate.";
       } else {
@@ -253,18 +318,40 @@ const Register = () => {
             <CustomInput
               label="Create Password"
               placeholder="Create password"
-              secureTextEntry
+              secureTextEntry={!showPassword}
               value={data.password ?? ""}
               onChangeText={(t) => handleChange("password", t)}
               error={errors.password}
+              rightIcon={
+                <TouchableOpacity
+                  onPress={() => setShowPassword(!showPassword)}
+                >
+                  <Feather
+                    name={showPassword ? "eye" : "eye-off"}
+                    size={20}
+                    color="#9CA3AF"
+                  />
+                </TouchableOpacity>
+              }
             />
             <CustomInput
               label="Confirm Password"
               placeholder="Repeat password"
-              secureTextEntry
+              secureTextEntry={!showConfirmPassword}
               value={data.password_confirmation ?? ""}
               onChangeText={(t) => handleChange("password_confirmation", t)}
               error={errors.password_confirmation}
+              rightIcon={
+                <TouchableOpacity
+                  onPress={() => setShowConfirmPassword(!showConfirmPassword)}
+                >
+                  <Feather
+                    name={showConfirmPassword ? "eye" : "eye-off"}
+                    size={20}
+                    color="#9CA3AF"
+                  />
+                </TouchableOpacity>
+              }
             />
           </View>
         );
@@ -340,36 +427,146 @@ const Register = () => {
         return (
           <View className="gap-3">
             <CustomInput
-              label="Street"
+              label="Street / House No."
               value={address.street}
               onChangeText={(t) => setAddress((a) => ({ ...a, street: t }))}
               error={errors["address.street"]}
             />
+
+            {/* Region Dropdown */}
+            <View style={{ zIndex: 4000 }}>
+              <Text className="font-mulish mb-2 text-sm text-text-secondary">
+                Region
+              </Text>
+              <DropDownPicker
+                open={regionOpen}
+                value={selectedRegion}
+                items={regionItems}
+                setOpen={setRegionOpen}
+                setValue={setSelectedRegion}
+                listMode="SCROLLVIEW"
+                scrollViewProps={{ nestedScrollEnabled: true }}
+                placeholder="Select Region"
+                searchable={true}
+                searchPlaceholder="Search region..."
+                style={{ borderColor: "#d1d5db", minHeight: 48 }}
+                dropDownContainerStyle={{
+                  borderColor: "#d1d5db",
+                  maxHeight: 200,
+                }}
+                onOpen={() => {
+                  setProvinceOpen(false);
+                  setCityOpen(false);
+                }}
+              />
+              {errors["address.province"] && !selectedRegion && (
+                <Text className="text-red-500 text-sm mt-1 font-roboto-condensed-extralight">
+                  Please select a region first.
+                </Text>
+              )}
+            </View>
+
+            {/* Province Dropdown */}
+            <View style={{ zIndex: 3000 }}>
+              <Text className="font-mulish mb-2 text-sm text-text-secondary">
+                Province
+              </Text>
+              <DropDownPicker
+                open={provinceOpen}
+                value={selectedProvince}
+                items={provinceItems}
+                setOpen={setProvinceOpen}
+                setValue={setSelectedProvince}
+                listMode="SCROLLVIEW"
+                scrollViewProps={{ nestedScrollEnabled: true }}
+                placeholder={
+                  selectedRegion ? "Select Province" : "Select a region first"
+                }
+                disabled={!selectedRegion}
+                searchable={true}
+                searchPlaceholder="Search province..."
+                style={{
+                  borderColor: "#d1d5db",
+                  minHeight: 48,
+                  opacity: selectedRegion ? 1 : 0.5,
+                }}
+                dropDownContainerStyle={{
+                  borderColor: "#d1d5db",
+                  maxHeight: 200,
+                }}
+                onOpen={() => {
+                  setRegionOpen(false);
+                  setCityOpen(false);
+                }}
+              />
+              {errors["address.province"] ? (
+                <Text className="text-red-500 text-sm mt-1 font-roboto-condensed-extralight">
+                  {errors["address.province"]}
+                </Text>
+              ) : null}
+            </View>
+
+            {/* City Dropdown */}
+            <View style={{ zIndex: 2000 }}>
+              <Text className="font-mulish mb-2 text-sm text-text-secondary">
+                City / Municipality
+              </Text>
+              <DropDownPicker
+                open={cityOpen}
+                value={selectedCity}
+                items={cityItems}
+                setOpen={setCityOpen}
+                setValue={setSelectedCity}
+                listMode="SCROLLVIEW"
+                scrollViewProps={{ nestedScrollEnabled: true }}
+                placeholder={
+                  selectedProvince
+                    ? "Select City/Municipality"
+                    : "Select a province first"
+                }
+                disabled={!selectedProvince}
+                searchable={true}
+                searchPlaceholder="Search city..."
+                style={{
+                  borderColor: "#d1d5db",
+                  minHeight: 48,
+                  opacity: selectedProvince ? 1 : 0.5,
+                }}
+                dropDownContainerStyle={{
+                  borderColor: "#d1d5db",
+                  maxHeight: 200,
+                }}
+                onOpen={() => {
+                  setRegionOpen(false);
+                  setProvinceOpen(false);
+                }}
+              />
+              {errors["address.city"] ? (
+                <Text className="text-red-500 text-sm mt-1 font-roboto-condensed-extralight">
+                  {errors["address.city"]}
+                </Text>
+              ) : null}
+            </View>
+
             <CustomInput
-              label="Barangay/District"
+              label="Barangay / District"
               value={address.barangay}
               onChangeText={(t) => setAddress((a) => ({ ...a, barangay: t }))}
               error={errors["address.barangay"]}
+              placeholder="Enter your barangay"
             />
-            <CustomInput
-              label="City/Municipality"
-              value={address.city}
-              onChangeText={(t) => setAddress((a) => ({ ...a, city: t }))}
-              error={errors["address.city"]}
-            />
-            <CustomInput
-              label="Province"
-              value={address.province}
-              onChangeText={(t) => setAddress((a) => ({ ...a, province: t }))}
-              error={errors["address.province"]}
-            />
+
             <CustomInput
               label="Postal Code"
               value={address.postal_code}
-              onChangeText={(t) =>
-                setAddress((a) => ({ ...a, postal_code: t }))
-              }
+              onChangeText={(t) => {
+                const digits = t.replace(/[^0-9]/g, "").slice(0, 4);
+                setAddress((a) => ({ ...a, postal_code: digits }));
+              }}
               error={errors["address.postal_code"]}
+              keyboardType="number-pad"
+              maxLength={4}
+              placeholder="e.g. 8000"
             />
           </View>
         );

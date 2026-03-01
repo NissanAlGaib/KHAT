@@ -204,6 +204,14 @@ class UserController extends Controller
             ], 400);
         }
 
+        // Check that the new password is different from the old password
+        if (Hash::check($request->new_password, $user->password)) {
+            return response()->json([
+                'success' => false,
+                'message' => 'New password cannot be the same as your current password'
+            ], 422);
+        }
+
         // Update password
         $user->password = Hash::make($request->new_password);
         $user->save();

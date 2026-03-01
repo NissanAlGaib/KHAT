@@ -439,9 +439,7 @@ export default function SubscriptionScreen() {
             className="font-semibold text-sm"
             style={{
               color:
-                billingCycle === "monthly"
-                  ? "#fff"
-                  : "rgba(255,255,255,0.5)",
+                billingCycle === "monthly" ? "#fff" : "rgba(255,255,255,0.5)",
             }}
           >
             Monthly
@@ -465,9 +463,7 @@ export default function SubscriptionScreen() {
             className="font-semibold text-sm"
             style={{
               color:
-                billingCycle === "yearly"
-                  ? "#fff"
-                  : "rgba(255,255,255,0.5)",
+                billingCycle === "yearly" ? "#fff" : "rgba(255,255,255,0.5)",
             }}
           >
             Yearly
@@ -546,11 +542,7 @@ export default function SubscriptionScreen() {
                     backgroundColor: glassBg,
                   }}
                 >
-                  <Feather
-                    name={plan.icon as any}
-                    size={18}
-                    color="#fff"
-                  />
+                  <Feather name={plan.icon as any} size={18} color="#fff" />
                 </View>
                 <Text className="text-white text-xl font-bold">
                   {plan.name}
@@ -828,10 +820,7 @@ export default function SubscriptionScreen() {
                 </View>
                 <View className="flex-row flex-wrap">
                   {FREE_PLAN_FEATURES.map((f, i) => (
-                    <View
-                      key={i}
-                      className="flex-row items-center mr-4 mb-1.5"
-                    >
+                    <View key={i} className="flex-row items-center mr-4 mb-1.5">
                       <Feather
                         name="check"
                         size={12}

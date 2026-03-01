@@ -101,6 +101,7 @@
 Tap **Register** on the login screen to begin the 4-step registration process:
 
 #### Step 1 — Account Setup
+
 - Enter your **email address** (must be valid and unique).
 - Choose a **username**.
 - Create a **password** with the following requirements:
@@ -110,11 +111,13 @@ Tap **Register** on the login screen to begin the 4-step registration process:
   - Contains at least one special character
 
 #### Step 2 — Personal Information
+
 - Enter your **first name** and **last name**.
 - Select your **birthdate** (you must be at least 13 years old).
 - Choose your **sex** (Male or Female).
 
 #### Step 3 — Address
+
 - Enter your address in the Philippine format:
   - **Street Address**
   - **Barangay**
@@ -123,6 +126,7 @@ Tap **Register** on the login screen to begin the 4-step registration process:
   - **Postal Code** (4 digits)
 
 #### Step 4 — Role Selection
+
 - Choose one or both roles:
   - **Breeder** — You own pets and are looking for breeding partners.
   - **Shooter** — You facilitate and handle breeding arrangements.
@@ -154,6 +158,7 @@ Before you can add pets or send match requests, you must verify your identity.
 2. If you have not yet verified, you will be guided through the verification wizard.
 
 #### Step 1 — Government ID Verification (Required)
+
 - Tap **Upload ID** to take a photo or select one from your gallery.
 - The app uses **OCR (Optical Character Recognition)** to automatically read and fill in details from your ID:
   - Full Name
@@ -164,11 +169,13 @@ Before you can add pets or send match requests, you must verify your identity.
 - Tap **Next** to proceed.
 
 #### Step 2 — Licensed Breeder Certificate (Optional)
+
 - If you have a breeder's license, upload it here.
 - OCR will auto-fill certificate details.
 - You may tap **Skip** if you don't have one.
 
 #### Step 3 — Shooter Certificate (Optional)
+
 - If you are a Shooter with certification, upload it here.
 - You may tap **Skip** if not applicable.
 
@@ -186,12 +193,12 @@ If you skipped a certificate during initial verification, you can add it later:
 
 Go to **Settings > Verification Status** to see the current state of each document:
 
-| Status | Meaning |
-|--------|---------|
-| **Not Submitted** | You have not uploaded this document yet. |
-| **Under Review** | Your document has been submitted and is awaiting admin review. |
-| **Verified** ✅ | Your document has been approved. |
-| **Rejected** ❌ | Your document was rejected. Check the reason and resubmit. |
+| Status            | Meaning                                                        |
+| ----------------- | -------------------------------------------------------------- |
+| **Not Submitted** | You have not uploaded this document yet.                       |
+| **Under Review**  | Your document has been submitted and is awaiting admin review. |
+| **Verified** ✅   | Your document has been approved.                               |
+| **Rejected** ❌   | Your document was rejected. Check the reason and resubmit.     |
 
 If a document is rejected, tap **Resubmit** to upload a new version with corrections.
 
@@ -203,13 +210,13 @@ If a document is rejected, tap **Resubmit** to upload a new version with correct
 
 PawLink uses a bottom navigation bar with 5 tabs:
 
-| Tab | Icon | Description |
-|-----|------|-------------|
-| **Home** | 🏠 | Your main dashboard — browse top matches, nearby pets, and shooters. |
-| **Matches** | ❤️ | Manage match requests (incoming/outgoing), view active matches, and review match history. |
-| **Match** (center) | 🐾 | Full-screen swipe interface for discovering pet matches. |
-| **Activity** | 🔔 | Notification center — verification updates, match alerts, messages, and system notices. |
-| **Profile** | 👤 | Your profile dashboard, pet list, and settings. |
+| Tab                | Icon | Description                                                                               |
+| ------------------ | ---- | ----------------------------------------------------------------------------------------- |
+| **Home**           | 🏠   | Your main dashboard — browse top matches, nearby pets, and shooters.                      |
+| **Matches**        | ❤️   | Manage match requests (incoming/outgoing), view active matches, and review match history. |
+| **Match** (center) | 🐾   | Full-screen swipe interface for discovering pet matches.                                  |
+| **Activity**       | 🔔   | Notification center — verification updates, match alerts, messages, and system notices.   |
+| **Profile**        | 👤   | Your profile dashboard, pet list, and settings.                                           |
 
 ### 4.2 Switching Roles (Breeder / Shooter)
 
@@ -235,6 +242,7 @@ If you registered for both Breeder and Shooter roles:
 4. Complete the 5-step Add Pet wizard:
 
 #### Step 1 — Pet Information
+
 - Enter your pet's **name**.
 - Select **species** (Dog or Cat).
 - **AI Breed Identification**: Tap the camera icon to take a photo or select one from your gallery. The AI will identify the breed and auto-fill it.
@@ -244,20 +252,24 @@ If you registered for both Breeder and Shooter roles:
 - Optionally enter a **microchip ID**.
 
 #### Step 2 — About Your Pet
+
 - Select relevant **behaviors** from the multi-select list (e.g., Friendly, Playful, Calm, Protective).
 - Select relevant **attributes** (e.g., Hypoallergenic, Good with children).
 - Write a **description** about your pet.
 
 #### Step 3 — Health Certificate
+
 - Upload your pet's health certificate document (photo).
 - OCR will auto-fill certificate details.
 - Review and correct the information as needed.
 
 #### Step 4 — Photos
+
 - Upload a **minimum of 3 photos** of your pet.
 - Tap on a photo to set it as the **primary photo** (this will be shown in match cards).
 
 #### Step 5 — Preferences
+
 - Set your preferred breeding partner criteria:
   - **Preferred breed**
   - **Preferred behaviors**
@@ -277,12 +289,12 @@ From **Profile > My Pets**, tap on any pet card to view the full pet profile. Yo
 
 **Pet Status Badges:**
 
-| Badge | Meaning |
-|-------|---------|
-| **Available** | Your pet is ready for matching. |
-| **Pending** | Your pet has an active match request or is awaiting verification. |
-| **Disabled** | Your pet has been temporarily disabled. |
-| **Archived** | Your pet has been archived and is not active. |
+| Badge            | Meaning                                                            |
+| ---------------- | ------------------------------------------------------------------ |
+| **Available**    | Your pet is ready for matching.                                    |
+| **Pending**      | Your pet has an active match request or is awaiting verification.  |
+| **Disabled**     | Your pet has been temporarily disabled.                            |
+| **Archived**     | Your pet has been archived and is not active.                      |
 | **Cooldown: Xd** | Your pet is in a post-breeding cooldown period (X days remaining). |
 
 ### 5.3 Managing Vaccinations
@@ -411,6 +423,7 @@ There are several ways to send a match request:
 - Tap **"Send Match Request"** on a pet's public profile.
 
 > **Requirements:**
+>
 > - Your identity must be verified.
 > - You must have an active pet selected.
 > - Free tier users may need to make a per-request payment via PayMongo.
@@ -484,33 +497,41 @@ Once a match is established, either party can create a breeding contract:
 2. Complete the 5-step contract wizard:
 
 #### Step 1 — Compensation Type
+
 Select one or more compensation types:
+
 - **💰 Money** — Monetary payment in Philippine Peso (₱).
 - **🐾 Share Offspring** — Share puppies/kittens from the litter.
 - **📦 Goods / Foods** — Non-monetary compensation.
 
 #### Step 2 — Compensation Details
+
 Based on your selections in Step 1:
+
 - **Money**: Enter the payment amount (₱).
 - **Offspring Sharing**: Choose the split method:
-  - *Percentage-based* — Each party gets a percentage of the litter.
-  - *Fixed number* — Each party gets a set number of offspring.
-  - *Alternating selection* — Parties take turns choosing offspring.
+  - _Percentage-based_ — Each party gets a percentage of the litter.
+  - _Fixed number_ — Each party gets a set number of offspring.
+  - _Alternating selection_ — Parties take turns choosing offspring.
   - Enter the value, and select who picks first.
 - **Goods/Foods**: Describe the items.
 
 #### Step 3 — Shooter (Optional)
+
 If you want to assign a breeding handler:
+
 - Enter the **shooter's name** or search for one.
 - Enter the **shooter payment amount** (₱).
 - Provide a **location description** for the breeding.
 - Add any **special conditions**.
 
 #### Step 4 — Collateral & Timeline
+
 - **Security Deposit**: Set the total collateral amount. This is split 50/50 between both parties and held in the money pool as escrow.
 - **Contract End Date**: Set the deadline for the contract.
 
 #### Step 5 — Review & Submit
+
 - Review the full contract summary.
 - Tap **Submit** to send the contract for the other party's review.
 
@@ -527,30 +548,30 @@ When you receive a contract from the other party:
 
 A breeding contract follows these stages:
 
-| Stage | Description |
-|-------|-------------|
-| **1. Create Contract** | One party drafts the contract terms. |
-| **2. Accept Contract** | The other party reviews and accepts (or rejects). |
-| **3. Pay Collateral** | Both parties pay their 50% share of the collateral via PayMongo. Funds are held in the money pool. |
-| **4. Submit Reports** | Both parties can submit breeding progress reports. |
-| **5. Mark Breeding** | When breeding occurs, mark it as complete. |
-| **6. Record Offspring** | Record the resulting litter — number of offspring, health status. |
-| **7. Complete Match** | Finalize the contract. Collateral and compensation are released from the money pool. |
+| Stage                   | Description                                                                                        |
+| ----------------------- | -------------------------------------------------------------------------------------------------- |
+| **1. Create Contract**  | One party drafts the contract terms.                                                               |
+| **2. Accept Contract**  | The other party reviews and accepts (or rejects).                                                  |
+| **3. Pay Collateral**   | Both parties pay their 50% share of the collateral via PayMongo. Funds are held in the money pool. |
+| **4. Submit Reports**   | Both parties can submit breeding progress reports.                                                 |
+| **5. Mark Breeding**    | When breeding occurs, mark it as complete.                                                         |
+| **6. Record Offspring** | Record the resulting litter — number of offspring, health status.                                  |
+| **7. Complete Match**   | Finalize the contract. Collateral and compensation are released from the money pool.               |
 
 **Contract Statuses:**
 
-| Status | Meaning |
-|--------|---------|
-| `Draft` | Contract is being created. |
-| `Pending` | Waiting for the other party to review. |
-| `Accepted` | Both parties agree — awaiting collateral payment. |
-| `Shooter Requested` | A shooter has been invited to the contract. |
-| `Shooter Accepted` | The shooter has accepted the assignment. |
-| `In Progress` | Breeding activities are underway. |
-| `Breeding Complete` | Breeding has been confirmed. |
-| `Completed` | Contract is finalized and closed. |
-| `Rejected` | The contract was rejected by one party. |
-| `Cancelled` | The contract was cancelled. |
+| Status              | Meaning                                           |
+| ------------------- | ------------------------------------------------- |
+| `Draft`             | Contract is being created.                        |
+| `Pending`           | Waiting for the other party to review.            |
+| `Accepted`          | Both parties agree — awaiting collateral payment. |
+| `Shooter Requested` | A shooter has been invited to the contract.       |
+| `Shooter Accepted`  | The shooter has accepted the assignment.          |
+| `In Progress`       | Breeding activities are underway.                 |
+| `Breeding Complete` | Breeding has been confirmed.                      |
+| `Completed`         | Contract is finalized and closed.                 |
+| `Rejected`          | The contract was rejected by one party.           |
+| `Cancelled`         | The contract was cancelled.                       |
 
 ### 9.4 Contract Detail Tabs
 
@@ -616,12 +637,12 @@ Once confirmed:
 
 PawLink offers the following plans:
 
-| Feature | Free | Standard | Premium |
-|---------|------|----------|---------|
-| **Registered Pets** | 1 | More | Unlimited |
-| **Matches per Month** | 3 | More | Unlimited |
-| **AI Offspring Predictions/Day** | 1 | More | Unlimited |
-| **Billing** | — | Monthly / Yearly | Monthly / Yearly |
+| Feature                          | Free | Standard         | Premium          |
+| -------------------------------- | ---- | ---------------- | ---------------- |
+| **Registered Pets**              | 1    | More             | Unlimited        |
+| **Matches per Month**            | 3    | More             | Unlimited        |
+| **AI Offspring Predictions/Day** | 1    | More             | Unlimited        |
+| **Billing**                      | —    | Monthly / Yearly | Monthly / Yearly |
 
 > Paid plans are available with monthly and yearly billing cycles. Yearly plans include a savings discount.
 
@@ -644,12 +665,12 @@ Access via **Profile > Settings > My Payments**.
 
 PawLink uses a virtual escrow-style **Money Pool** to securely manage breeding contract finances. Your balance shows:
 
-| Type | Description |
-|------|-------------|
-| **Held** | Funds currently held in escrow for active contracts. |
-| **Frozen** | Funds frozen due to a pending dispute or admin action. |
-| **Pending Deposits** | Collateral payments that are still processing. |
-| **Total Released** | Total amount released to you from completed contracts. |
+| Type                 | Description                                            |
+| -------------------- | ------------------------------------------------------ |
+| **Held**             | Funds currently held in escrow for active contracts.   |
+| **Frozen**           | Funds frozen due to a pending dispute or admin action. |
+| **Pending Deposits** | Collateral payments that are still processing.         |
+| **Total Released**   | Total amount released to you from completed contracts. |
 
 **Transaction Tabs:**
 
@@ -659,6 +680,7 @@ PawLink uses a virtual escrow-style **Money Pool** to securely manage breeding c
 - **Fee Deductions** — Platform fees and cancellation charges.
 
 Amounts are color-coded:
+
 - 🟢 Green — Earnings / Money received
 - 🟠 Orange — Credits / Pending amounts
 - 🔴 Red — Debits / Deductions
@@ -680,6 +702,7 @@ If there is a disagreement regarding a contract payment:
 The **Activity** tab (🔔) serves as your unified notification center.
 
 **Filter Chips** — Filter notifications by category:
+
 - **All** — View all notifications.
 - **Verification** — Updates on your document verification status.
 - **Matches** — Match request updates (new requests, acceptances, declines).
@@ -689,12 +712,14 @@ The **Activity** tab (🔔) serves as your unified notification center.
 - **System** — General announcements and system alerts.
 
 **Verification Notifications** are grouped by severity:
+
 - ⚠️ **Warnings** — Documents expiring soon.
 - 🔴 **Rejected / Needs Attention** — Documents rejected with reasons; tap **Resubmit** to fix.
 - 🟡 **Under Review** — Documents submitted and pending.
 - 🟢 **Approved** — Documents verified and valid.
 
 **Actions:**
+
 - Tap **"Mark All as Read"** to clear all unread indicators.
 - Tap any notification to navigate directly to the relevant screen (conversation, matches, subscription, etc.).
 
@@ -735,12 +760,14 @@ Go to the **Profile** tab to see:
 Go to **Profile > Settings > Privacy & Security** for:
 
 #### Change Password
+
 1. Enter your **current password**.
 2. Enter your **new password** (same requirements as registration: 8+ chars, uppercase, number, special char).
 3. Confirm the new password.
 4. Tap **Update Password**.
 
 #### Delete Account
+
 1. Tap **Delete Account**.
 2. Type **"DELETE"** in the confirmation field.
 3. Enter your **password** to confirm.
@@ -757,33 +784,43 @@ Go to **Profile > Settings > Privacy & Security** for:
 ## 14. Troubleshooting & FAQ
 
 ### Q: I can't add a pet. What do I do?
+
 **A:** You must complete identity verification first. Go to **Settings > Verification Status** and ensure your government ID is verified (✅).
 
 ### Q: My verification document was rejected. What now?
+
 **A:** Go to **Settings > Verification Status**, check the rejection reason, and tap **Resubmit** to upload a corrected document.
 
 ### Q: I can't see any pets to match with.
+
 **A:** Make sure you have a pet registered and selected. Matches only show pets of the same species and opposite sex. If your area is low-activity, try the Search feature.
 
 ### Q: I was charged but my subscription didn't activate.
+
 **A:** Return to the app and go to **Settings > Subscription**. The app checks for payment confirmation when you return. If the issue persists, contact support.
 
 ### Q: My match card says "Pending Shooter Request." What does this mean?
+
 **A:** A shooter (breeding handler) has been invited but hasn't accepted yet. Wait for them to respond.
 
 ### Q: I accidentally passed on a pet. Can I undo it?
+
 **A:** No, passed pets are not shown again. You may find the same pet using the Search feature and send a match request from their profile.
 
 ### Q: My account is suspended or banned. What can I do?
+
 **A:** A banned screen will appear showing the reason and (for suspensions) the end date. You can contact support at **pawlink.support@gmail.com** or tap the **Contact Support** button.
 
 ### Q: How do I switch between Breeder and Shooter mode?
+
 **A:** Go to the Profile tab and tap the role switcher toggle at the top.
 
 ### Q: How does the money pool work?
+
 **A:** The money pool is a virtual escrow that holds collateral and compensation payments during breeding contracts. Funds are released to the appropriate parties upon contract completion, or refunded if the contract is cancelled. Disputes are reviewed by the admin team.
 
 ### Q: How many pets can I register?
+
 **A:** Free plan: 1 pet. Paid plans allow more pets. Check the Subscription screen for plan details.
 
 ---
@@ -797,6 +834,6 @@ If you need assistance, have questions, or want to report an issue:
 
 ---
 
-*PawLink — Connecting Responsible Pet Breeders*
+_PawLink — Connecting Responsible Pet Breeders_
 
-*© 2026 KHAT Development Team. All rights reserved.*
+_© 2026 KHAT Development Team. All rights reserved._

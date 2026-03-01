@@ -51,6 +51,38 @@ export default function EditProfileScreen() {
   const [profileImage, setProfileImage] = useState<string | null>(null);
   const [newImageUri, setNewImageUri] = useState<string | null>(null);
 
+  // Contact number formatting: +63 XXX-XXX-XXXX
+  const formatPhoneNumber = (text: string) => {
+    // Strip all non-digit characters
+    let digits = text.replace(/[^0-9]/g, "");
+
+    // If starts with 63, strip it (we'll add +63 prefix)
+    if (digits.startsWith("63")) {
+      digits = digits.substring(2);
+    }
+    // If starts with 0, strip leading 0
+    if (digits.startsWith("0")) {
+      digits = digits.substring(1);
+    }
+    // Limit to 10 digits (Philippine mobile number without country code)
+    digits = digits.slice(0, 10);
+
+    // Format as XXX-XXX-XXXX
+    if (digits.length <= 3) {
+      return digits;
+    } else if (digits.length <= 6) {
+      return `${digits.slice(0, 3)}-${digits.slice(3)}`;
+    } else {
+      return `${digits.slice(0, 3)}-${digits.slice(3, 6)}-${digits.slice(6)}`;
+    }
+  };
+
+  const handleContactChange = (text: string) => {
+    const formatted = formatPhoneNumber(text);
+    // Store with +63 prefix for display
+    setContactNumber(formatted ? `+63 ${formatted}` : "");
+  };
+
   // Validation state
   const [errors, setErrors] = useState<{ name?: string; contact?: string }>({});
 
@@ -116,6 +148,18 @@ export default function EditProfileScreen() {
     if (!name.trim()) {
       newErrors.name = "Name is required";
       valid = false;
+    }
+
+    // Validate phone number - should be exactly 10 digits (after +63)
+    if (contactNumber) {
+      const digits = contactNumber.replace(/[^0-9]/g, "");
+      // digits should be 6310digits = 12 total, or just the 10 raw digits
+      const rawDigits = digits.startsWith("63") ? digits.substring(2) : digits;
+      if (rawDigits.length > 0 && rawDigits.length !== 10) {
+        newErrors.contact =
+          "Phone number must be exactly 10 digits (e.g. +63 912-345-6789)";
+        valid = false;
+      }
     }
 
     setErrors(newErrors);
@@ -261,10 +305,12 @@ export default function EditProfileScreen() {
             <SettingsInput
               label="Phone Number"
               value={contactNumber}
-              onChangeText={setContactNumber}
-              placeholder="e.g. 09123456789"
+              onChangeText={handleContactChange}
+              placeholder="+63 XXX-XXX-XXXX"
               keyboardType="phone-pad"
               icon="phone"
+              maxLength={16}
+              error={errors.contact}
             />
 
             <View className="mb-4 mx-4">

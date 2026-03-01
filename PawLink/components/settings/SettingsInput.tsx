@@ -7,12 +7,14 @@ interface SettingsInputProps extends TextInputProps {
   label: string;
   error?: string;
   icon?: keyof typeof Feather.glyphMap;
+  rightIcon?: React.ReactNode;
 }
 
 export const SettingsInput = ({
   label,
   error,
   icon,
+  rightIcon,
   className,
   ...props
 }: SettingsInputProps) => {
@@ -42,6 +44,7 @@ export const SettingsInput = ({
           selectionColor={Colors.primary}
           {...props}
         />
+        {rightIcon && <View style={{ marginLeft: 8 }}>{rightIcon}</View>}
       </View>
       {error && <Text className="text-red-500 text-xs mt-1 ml-1">{error}</Text>}
     </View>

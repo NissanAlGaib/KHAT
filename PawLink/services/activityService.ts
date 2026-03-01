@@ -55,7 +55,7 @@ export const getActivityNotifications = async (
   page: number = 1,
   perPage: number = 20,
   type?: ActivityNotificationType,
-  status?: "read" | "unread"
+  status?: "read" | "unread",
 ): Promise<ActivityNotificationsResponse> => {
   try {
     const params: Record<string, any> = { page, per_page: perPage };
@@ -67,7 +67,7 @@ export const getActivityNotifications = async (
   } catch (error: any) {
     console.error(
       "Error fetching activity notifications:",
-      error.response?.data || error.message
+      error.response?.data || error.message,
     );
     throw error;
   }
@@ -83,7 +83,7 @@ export const getActivityUnreadCount = async (): Promise<number> => {
   } catch (error: any) {
     console.error(
       "Error fetching unread count:",
-      error.response?.data || error.message
+      error.response?.data || error.message,
     );
     return 0;
   }
@@ -99,7 +99,7 @@ export const markActivityAsRead = async (id: number): Promise<boolean> => {
   } catch (error: any) {
     console.error(
       "Error marking notification as read:",
-      error.response?.data || error.message
+      error.response?.data || error.message,
     );
     return false;
   }
@@ -115,7 +115,7 @@ export const markAllActivityAsRead = async (): Promise<boolean> => {
   } catch (error: any) {
     console.error(
       "Error marking all notifications as read:",
-      error.response?.data || error.message
+      error.response?.data || error.message,
     );
     return false;
   }
@@ -126,9 +126,7 @@ export const markAllActivityAsRead = async (): Promise<boolean> => {
 /**
  * Get the icon name (Feather) for a notification type.
  */
-export const getNotificationIcon = (
-  type: ActivityNotificationType
-): string => {
+export const getNotificationIcon = (type: ActivityNotificationType): string => {
   const icons: Record<ActivityNotificationType, string> = {
     match_request: "heart",
     match_accepted: "check-circle",
@@ -148,7 +146,7 @@ export const getNotificationIcon = (
  * Get the color for a notification type.
  */
 export const getNotificationColor = (
-  type: ActivityNotificationType
+  type: ActivityNotificationType,
 ): string => {
   const colors: Record<ActivityNotificationType, string> = {
     match_request: "#FF6B4A",
@@ -169,7 +167,7 @@ export const getNotificationColor = (
  * Get a human-friendly label for a notification type.
  */
 export const getNotificationTypeLabel = (
-  type: ActivityNotificationType
+  type: ActivityNotificationType,
 ): string => {
   const labels: Record<ActivityNotificationType, string> = {
     match_request: "Match Request",

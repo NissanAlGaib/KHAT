@@ -46,10 +46,9 @@ export interface PaymentVerifyResponse {
  */
 export const getSubscriptionPlans =
   async (): Promise<SubscriptionPlansResponse> => {
-    const response =
-      await axiosInstance.get<SubscriptionPlansResponse>(
-        "/api/subscriptions/plans",
-      );
+    const response = await axiosInstance.get<SubscriptionPlansResponse>(
+      "/api/subscriptions/plans",
+    );
     return response.data;
   };
 

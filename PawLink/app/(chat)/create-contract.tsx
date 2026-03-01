@@ -45,35 +45,40 @@ const STEP_META = [
   {
     title: "Compensation Type",
     subtitle: "What's the deal? 🤝",
-    description: "Choose how you and your breeding partner will compensate each other.",
+    description:
+      "Choose how you and your breeding partner will compensate each other.",
     icon: DollarSign,
     emoji: "💰",
   },
   {
     title: "Compensation Details",
     subtitle: "Let's talk numbers 📊",
-    description: "Set the specific amounts and terms for your agreed compensation.",
+    description:
+      "Set the specific amounts and terms for your agreed compensation.",
     icon: FileText,
     emoji: "📝",
   },
   {
     title: "Shooter (Optional)",
     subtitle: "Need a helping paw? 🐾",
-    description: "A shooter is a professional who assists with the breeding process. Skip this if not needed!",
+    description:
+      "A shooter is a professional who assists with the breeding process. Skip this if not needed!",
     icon: Users,
     emoji: "👤",
   },
   {
     title: "Collateral & Timeline",
     subtitle: "Stay protected! 🛡️",
-    description: "Set security deposits and contract dates to protect both parties.",
+    description:
+      "Set security deposits and contract dates to protect both parties.",
     icon: Shield,
     emoji: "🔒",
   },
   {
     title: "Review & Submit",
     subtitle: "Almost there! 🎉",
-    description: "Review your contract details before sending it to your breeding partner.",
+    description:
+      "Review your contract details before sending it to your breeding partner.",
     icon: Check,
     emoji: "✅",
   },
@@ -106,7 +111,8 @@ export default function CreateContractScreen() {
   const [currentStep, setCurrentStep] = useState(0);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [showDatePicker, setShowDatePicker] = useState(false);
-  const [existingContract, setExistingContract] = useState<BreedingContract | null>(null);
+  const [existingContract, setExistingContract] =
+    useState<BreedingContract | null>(null);
   const [loading, setLoading] = useState(isEditing);
   const progressAnim = useRef(new Animated.Value(0)).current;
   const fadeAnim = useRef(new Animated.Value(1)).current;
@@ -151,7 +157,8 @@ export default function CreateContractScreen() {
             share_offspring: data.share_offspring || false,
             offspring_split_type: data.offspring_split_type || undefined,
             offspring_split_value: data.offspring_split_value || undefined,
-            offspring_selection_method: data.offspring_selection_method || undefined,
+            offspring_selection_method:
+              data.offspring_selection_method || undefined,
             include_goods_foods: data.include_goods_foods || false,
             goods_foods_value: data.goods_foods_value || undefined,
             collateral_total: data.collateral_total || 0,
@@ -174,13 +181,28 @@ export default function CreateContractScreen() {
     }).start();
   }, [currentStep]);
 
-  const animateStepTransition = (direction: "next" | "prev", callback: () => void) => {
+  const animateStepTransition = (
+    direction: "next" | "prev",
+    callback: () => void,
+  ) => {
     Animated.sequence([
-      Animated.timing(fadeAnim, { toValue: 0, duration: 120, useNativeDriver: true }),
-      Animated.timing(fadeAnim, { toValue: 0, duration: 0, useNativeDriver: true }),
+      Animated.timing(fadeAnim, {
+        toValue: 0,
+        duration: 120,
+        useNativeDriver: true,
+      }),
+      Animated.timing(fadeAnim, {
+        toValue: 0,
+        duration: 0,
+        useNativeDriver: true,
+      }),
     ]).start(() => {
       callback();
-      Animated.timing(fadeAnim, { toValue: 1, duration: 200, useNativeDriver: true }).start();
+      Animated.timing(fadeAnim, {
+        toValue: 1,
+        duration: 200,
+        useNativeDriver: true,
+      }).start();
     });
   };
 
@@ -248,9 +270,7 @@ export default function CreateContractScreen() {
     <TouchableOpacity
       onPress={onPress}
       className={`rounded-2xl p-4 mb-3 border-2 ${
-        active
-          ? "border-[#FF6B6B] bg-[#FFF5F3]"
-          : "border-gray-200 bg-white"
+        active ? "border-[#FF6B6B] bg-[#FFF5F3]" : "border-gray-200 bg-white"
       }`}
     >
       <View className="flex-row items-center">
@@ -262,7 +282,9 @@ export default function CreateContractScreen() {
           <Text className="text-xl">{emoji}</Text>
         </View>
         <View className="flex-1 ml-3">
-          <Text className={`font-bold text-base ${active ? "text-[#FF6B6B]" : "text-gray-800"}`}>
+          <Text
+            className={`font-bold text-base ${active ? "text-[#FF6B6B]" : "text-gray-800"}`}
+          >
             {label}
           </Text>
           <Text className="text-xs text-gray-500 mt-0.5">{description}</Text>
@@ -280,9 +302,14 @@ export default function CreateContractScreen() {
 
   // ─── Step 1: Compensation Type ───
   const renderStep1 = () => (
-    <ScrollView className="flex-1" showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 24 }}>
+    <ScrollView
+      className="flex-1"
+      showsVerticalScrollIndicator={false}
+      contentContainerStyle={{ paddingBottom: 24 }}
+    >
       <Text className="text-sm text-gray-500 mb-4">
-        Select one or more ways you'd like to be compensated. You can combine them!
+        Select one or more ways you'd like to be compensated. You can combine
+        them!
       </Text>
 
       <CompensationOption
@@ -291,7 +318,12 @@ export default function CreateContractScreen() {
         label="Money"
         description="One party pays the other a fixed amount"
         active={formData.include_monetary_amount || false}
-        onPress={() => updateFormField("include_monetary_amount", !formData.include_monetary_amount)}
+        onPress={() =>
+          updateFormField(
+            "include_monetary_amount",
+            !formData.include_monetary_amount,
+          )
+        }
       />
 
       <CompensationOption
@@ -300,7 +332,9 @@ export default function CreateContractScreen() {
         label="Share Offspring"
         description="Split the puppies/kittens between both parties"
         active={formData.share_offspring || false}
-        onPress={() => updateFormField("share_offspring", !formData.share_offspring)}
+        onPress={() =>
+          updateFormField("share_offspring", !formData.share_offspring)
+        }
       />
 
       <CompensationOption
@@ -309,22 +343,30 @@ export default function CreateContractScreen() {
         label="Goods & Food"
         description="Provide pet food, supplies, or other items"
         active={formData.include_goods_foods || false}
-        onPress={() => updateFormField("include_goods_foods", !formData.include_goods_foods)}
+        onPress={() =>
+          updateFormField("include_goods_foods", !formData.include_goods_foods)
+        }
       />
 
-      {!formData.include_monetary_amount && !formData.share_offspring && !formData.include_goods_foods && (
-        <View className="bg-yellow-50 rounded-xl p-4 mt-2 border border-yellow-200">
-          <Text className="text-yellow-800 text-sm text-center">
-            💡 Select at least one compensation type to proceed
-          </Text>
-        </View>
-      )}
+      {!formData.include_monetary_amount &&
+        !formData.share_offspring &&
+        !formData.include_goods_foods && (
+          <View className="bg-yellow-50 rounded-xl p-4 mt-2 border border-yellow-200">
+            <Text className="text-yellow-800 text-sm text-center">
+              💡 Select at least one compensation type to proceed
+            </Text>
+          </View>
+        )}
     </ScrollView>
   );
 
   // ─── Step 2: Compensation Details ───
   const renderStep2 = () => (
-    <ScrollView className="flex-1" showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 24 }}>
+    <ScrollView
+      className="flex-1"
+      showsVerticalScrollIndicator={false}
+      contentContainerStyle={{ paddingBottom: 24 }}
+    >
       {/* Monetary Amount */}
       {formData.include_monetary_amount && (
         <View className="mb-5">
@@ -332,8 +374,15 @@ export default function CreateContractScreen() {
             <View className="w-8 h-8 rounded-full bg-[#FF6B6B]/10 items-center justify-center">
               <Text className="text-sm">💵</Text>
             </View>
-            <Text className="font-bold text-gray-800 ml-2 text-base">Money Payment</Text>
-            <TouchableOpacity onPress={() => setShowTooltip(showTooltip === "money" ? null : "money")} className="ml-2">
+            <Text className="font-bold text-gray-800 ml-2 text-base">
+              Money Payment
+            </Text>
+            <TouchableOpacity
+              onPress={() =>
+                setShowTooltip(showTooltip === "money" ? null : "money")
+              }
+              className="ml-2"
+            >
               <HelpCircle size={16} color="#9CA3AF" />
             </TouchableOpacity>
           </View>
@@ -341,7 +390,9 @@ export default function CreateContractScreen() {
             text="This is the amount one party will pay the other. For example, the male dog owner might pay the female dog owner a stud fee."
             visible={showTooltip === "money"}
           />
-          <Text className="text-xs text-gray-500 mb-2">How much will be paid?</Text>
+          <Text className="text-xs text-gray-500 mb-2">
+            How much will be paid?
+          </Text>
           <View className="flex-row items-center bg-gray-100 rounded-xl px-4 py-3">
             <Text className="text-gray-500 font-bold mr-2">₱</Text>
             <TextInput
@@ -349,7 +400,12 @@ export default function CreateContractScreen() {
               placeholder="0.00"
               placeholderTextColor="#9CA3AF"
               value={formData.monetary_amount?.toString() || ""}
-              onChangeText={(text) => updateFormField("monetary_amount", text ? parseFloat(text) : undefined)}
+              onChangeText={(text) =>
+                updateFormField(
+                  "monetary_amount",
+                  text ? parseFloat(text) : undefined,
+                )
+              }
               keyboardType="numeric"
             />
           </View>
@@ -363,8 +419,15 @@ export default function CreateContractScreen() {
             <View className="w-8 h-8 rounded-full bg-[#FF6B6B]/10 items-center justify-center">
               <Text className="text-sm">🐾</Text>
             </View>
-            <Text className="font-bold text-gray-800 ml-2 text-base">Offspring Sharing</Text>
-            <TouchableOpacity onPress={() => setShowTooltip(showTooltip === "offspring" ? null : "offspring")} className="ml-2">
+            <Text className="font-bold text-gray-800 ml-2 text-base">
+              Offspring Sharing
+            </Text>
+            <TouchableOpacity
+              onPress={() =>
+                setShowTooltip(showTooltip === "offspring" ? null : "offspring")
+              }
+              className="ml-2"
+            >
               <HelpCircle size={16} color="#9CA3AF" />
             </TouchableOpacity>
           </View>
@@ -381,11 +444,15 @@ export default function CreateContractScreen() {
                   ? "bg-[#FF6B6B] border-[#FF6B6B]"
                   : "bg-white border-gray-200"
               }`}
-              onPress={() => updateFormField("offspring_split_type", "percentage")}
+              onPress={() =>
+                updateFormField("offspring_split_type", "percentage")
+              }
             >
               <Text
                 className={`text-center font-semibold text-sm ${
-                  formData.offspring_split_type === "percentage" ? "text-white" : "text-gray-700"
+                  formData.offspring_split_type === "percentage"
+                    ? "text-white"
+                    : "text-gray-700"
                 }`}
               >
                 📊 Percentage
@@ -397,11 +464,15 @@ export default function CreateContractScreen() {
                   ? "bg-[#FF6B6B] border-[#FF6B6B]"
                   : "bg-white border-gray-200"
               }`}
-              onPress={() => updateFormField("offspring_split_type", "specific_number")}
+              onPress={() =>
+                updateFormField("offspring_split_type", "specific_number")
+              }
             >
               <Text
                 className={`text-center font-semibold text-sm ${
-                  formData.offspring_split_type === "specific_number" ? "text-white" : "text-gray-700"
+                  formData.offspring_split_type === "specific_number"
+                    ? "text-white"
+                    : "text-gray-700"
                 }`}
               >
                 🔢 Specific #
@@ -418,7 +489,12 @@ export default function CreateContractScreen() {
             }
             placeholderTextColor="#9CA3AF"
             value={formData.offspring_split_value?.toString() || ""}
-            onChangeText={(text) => updateFormField("offspring_split_value", text ? parseInt(text) : undefined)}
+            onChangeText={(text) =>
+              updateFormField(
+                "offspring_split_value",
+                text ? parseInt(text) : undefined,
+              )
+            }
             keyboardType="numeric"
           />
 
@@ -430,11 +506,15 @@ export default function CreateContractScreen() {
                   ? "bg-[#FF6B6B] border-[#FF6B6B]"
                   : "bg-white border-gray-200"
               }`}
-              onPress={() => updateFormField("offspring_selection_method", "first_pick")}
+              onPress={() =>
+                updateFormField("offspring_selection_method", "first_pick")
+              }
             >
               <Text
                 className={`text-center font-semibold text-sm ${
-                  formData.offspring_selection_method === "first_pick" ? "text-white" : "text-gray-700"
+                  formData.offspring_selection_method === "first_pick"
+                    ? "text-white"
+                    : "text-gray-700"
                 }`}
               >
                 👆 First Pick
@@ -446,11 +526,15 @@ export default function CreateContractScreen() {
                   ? "bg-[#FF6B6B] border-[#FF6B6B]"
                   : "bg-white border-gray-200"
               }`}
-              onPress={() => updateFormField("offspring_selection_method", "randomized")}
+              onPress={() =>
+                updateFormField("offspring_selection_method", "randomized")
+              }
             >
               <Text
                 className={`text-center font-semibold text-sm ${
-                  formData.offspring_selection_method === "randomized" ? "text-white" : "text-gray-700"
+                  formData.offspring_selection_method === "randomized"
+                    ? "text-white"
+                    : "text-gray-700"
                 }`}
               >
                 🎲 Randomized
@@ -458,7 +542,8 @@ export default function CreateContractScreen() {
             </TouchableOpacity>
           </View>
           <Text className="text-xs text-gray-400 mt-1">
-            First Pick = female (dam) owner chooses first. Randomized = fair random distribution.
+            First Pick = female (dam) owner chooses first. Randomized = fair
+            random distribution.
           </Text>
         </View>
       )}
@@ -470,8 +555,15 @@ export default function CreateContractScreen() {
             <View className="w-8 h-8 rounded-full bg-[#FF6B6B]/10 items-center justify-center">
               <Text className="text-sm">📦</Text>
             </View>
-            <Text className="font-bold text-gray-800 ml-2 text-base">Goods & Food Value</Text>
-            <TouchableOpacity onPress={() => setShowTooltip(showTooltip === "goods" ? null : "goods")} className="ml-2">
+            <Text className="font-bold text-gray-800 ml-2 text-base">
+              Goods & Food Value
+            </Text>
+            <TouchableOpacity
+              onPress={() =>
+                setShowTooltip(showTooltip === "goods" ? null : "goods")
+              }
+              className="ml-2"
+            >
               <HelpCircle size={16} color="#9CA3AF" />
             </TouchableOpacity>
           </View>
@@ -486,40 +578,59 @@ export default function CreateContractScreen() {
               placeholder="Estimated value"
               placeholderTextColor="#9CA3AF"
               value={formData.goods_foods_value?.toString() || ""}
-              onChangeText={(text) => updateFormField("goods_foods_value", text ? parseFloat(text) : undefined)}
+              onChangeText={(text) =>
+                updateFormField(
+                  "goods_foods_value",
+                  text ? parseFloat(text) : undefined,
+                )
+              }
               keyboardType="numeric"
             />
           </View>
         </View>
       )}
 
-      {!formData.include_monetary_amount && !formData.share_offspring && !formData.include_goods_foods && (
-        <View className="items-center justify-center py-12">
-          <Text className="text-4xl mb-4">🤔</Text>
-          <Text className="text-gray-400 text-center">
-            Go back to Step 1 and select at least one compensation type
-          </Text>
-        </View>
-      )}
+      {!formData.include_monetary_amount &&
+        !formData.share_offspring &&
+        !formData.include_goods_foods && (
+          <View className="items-center justify-center py-12">
+            <Text className="text-4xl mb-4">🤔</Text>
+            <Text className="text-gray-400 text-center">
+              Go back to Step 1 and select at least one compensation type
+            </Text>
+          </View>
+        )}
     </ScrollView>
   );
 
   // ─── Step 3: Shooter (Optional) ───
   const renderStep3 = () => (
-    <ScrollView className="flex-1" showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 24 }}>
+    <ScrollView
+      className="flex-1"
+      showsVerticalScrollIndicator={false}
+      contentContainerStyle={{ paddingBottom: 24 }}
+    >
       <View className="bg-blue-50 rounded-2xl p-4 mb-4 border border-blue-100">
         <View className="flex-row items-center mb-2">
           <Text className="text-lg mr-2">💡</Text>
-          <Text className="text-blue-800 font-bold text-sm">What's a Shooter?</Text>
+          <Text className="text-blue-800 font-bold text-sm">
+            What's a Shooter?
+          </Text>
         </View>
         <Text className="text-blue-700 text-xs leading-5">
-          A shooter is a verified professional who assists with the breeding process. If you add a payment amount below, verified shooters will see this offer and can apply once the contract is accepted.
+          A shooter is a verified professional who assists with the breeding
+          process. If you add a payment amount below, verified shooters will see
+          this offer and can apply once the contract is accepted.
         </Text>
       </View>
 
       <View className="mb-4">
-        <Text className="text-sm font-semibold text-gray-700 mb-1">Preferred Shooter Name</Text>
-        <Text className="text-xs text-gray-400 mb-2">Leave blank to accept any verified shooter</Text>
+        <Text className="text-sm font-semibold text-gray-700 mb-1">
+          Preferred Shooter Name
+        </Text>
+        <Text className="text-xs text-gray-400 mb-2">
+          Leave blank to accept any verified shooter
+        </Text>
         <TextInput
           className="bg-gray-100 rounded-xl px-4 py-3 text-base"
           placeholder="Anyone is fine 😊"
@@ -531,12 +642,18 @@ export default function CreateContractScreen() {
 
       <View className="mb-4">
         <View className="flex-row items-center mb-1">
-          <Text className="text-sm font-semibold text-gray-700">Shooter Payment</Text>
+          <Text className="text-sm font-semibold text-gray-700">
+            Shooter Payment
+          </Text>
           <View className="bg-[#FF6B6B] rounded-full px-2 py-0.5 ml-2">
-            <Text className="text-white text-[10px] font-bold">REQUIRED TO POST</Text>
+            <Text className="text-white text-[10px] font-bold">
+              REQUIRED TO POST
+            </Text>
           </View>
         </View>
-        <Text className="text-xs text-gray-400 mb-2">This is how much both owners will pay the shooter</Text>
+        <Text className="text-xs text-gray-400 mb-2">
+          This is how much both owners will pay the shooter
+        </Text>
         <View className="flex-row items-center bg-gray-100 rounded-xl px-4 py-3">
           <Text className="text-gray-500 font-bold mr-2">₱</Text>
           <TextInput
@@ -544,15 +661,24 @@ export default function CreateContractScreen() {
             placeholder="0.00"
             placeholderTextColor="#9CA3AF"
             value={formData.shooter_payment?.toString() || ""}
-            onChangeText={(text) => updateFormField("shooter_payment", text ? parseFloat(text) : undefined)}
+            onChangeText={(text) =>
+              updateFormField(
+                "shooter_payment",
+                text ? parseFloat(text) : undefined,
+              )
+            }
             keyboardType="numeric"
           />
         </View>
       </View>
 
       <View className="mb-4">
-        <Text className="text-sm font-semibold text-gray-700 mb-1">Breeding Location</Text>
-        <Text className="text-xs text-gray-400 mb-2">Where will the breeding take place?</Text>
+        <Text className="text-sm font-semibold text-gray-700 mb-1">
+          Breeding Location
+        </Text>
+        <Text className="text-xs text-gray-400 mb-2">
+          Where will the breeding take place?
+        </Text>
         <TextInput
           className="bg-gray-100 rounded-xl px-4 py-3 text-base"
           placeholder="e.g. Manila, Quezon City"
@@ -563,8 +689,12 @@ export default function CreateContractScreen() {
       </View>
 
       <View className="mb-4">
-        <Text className="text-sm font-semibold text-gray-700 mb-1">Conditions for Shooter</Text>
-        <Text className="text-xs text-gray-400 mb-2">Any specific requirements?</Text>
+        <Text className="text-sm font-semibold text-gray-700 mb-1">
+          Conditions for Shooter
+        </Text>
+        <Text className="text-xs text-gray-400 mb-2">
+          Any specific requirements?
+        </Text>
         <TextInput
           className="bg-gray-100 rounded-xl px-4 py-3 text-base min-h-[80px]"
           placeholder="e.g. Must have experience with Bulldogs..."
@@ -575,7 +705,9 @@ export default function CreateContractScreen() {
           maxLength={200}
           textAlignVertical="top"
         />
-        <Text className="text-xs text-gray-400 text-right mt-1">{formData.shooter_conditions?.length || 0}/200</Text>
+        <Text className="text-xs text-gray-400 text-right mt-1">
+          {formData.shooter_conditions?.length || 0}/200
+        </Text>
       </View>
 
       <TouchableOpacity
@@ -588,30 +720,41 @@ export default function CreateContractScreen() {
         }}
         className="bg-gray-100 rounded-full py-3 items-center"
       >
-        <Text className="text-gray-500 font-semibold">Skip — I don't need a shooter</Text>
+        <Text className="text-gray-500 font-semibold">
+          Skip — I don't need a shooter
+        </Text>
       </TouchableOpacity>
     </ScrollView>
   );
 
   // ─── Step 4: Collateral & Timeline ───
   const renderStep4 = () => (
-    <ScrollView className="flex-1" showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 24 }}>
+    <ScrollView
+      className="flex-1"
+      showsVerticalScrollIndicator={false}
+      contentContainerStyle={{ paddingBottom: 24 }}
+    >
       {/* End Date */}
       <View className="mb-5">
         <View className="flex-row items-center mb-2">
           <View className="w-8 h-8 rounded-full bg-[#FF6B6B]/10 items-center justify-center">
             <Calendar size={16} color="#FF6B6B" />
           </View>
-          <Text className="font-bold text-gray-800 ml-2 text-base">Contract End Date</Text>
+          <Text className="font-bold text-gray-800 ml-2 text-base">
+            Contract End Date
+          </Text>
         </View>
         <Text className="text-xs text-gray-500 mb-2">
-          When should this contract expire? This gives both parties a clear timeline.
+          When should this contract expire? This gives both parties a clear
+          timeline.
         </Text>
         <TouchableOpacity
           className="bg-gray-100 rounded-xl px-4 py-3.5 flex-row items-center justify-between"
           onPress={() => setShowDatePicker(true)}
         >
-          <Text className={`text-base ${formData.end_contract_date ? "text-gray-900" : "text-gray-400"}`}>
+          <Text
+            className={`text-base ${formData.end_contract_date ? "text-gray-900" : "text-gray-400"}`}
+          >
             {formData.end_contract_date
               ? dayjs(formData.end_contract_date).format("MMMM D, YYYY")
               : "📅 Pick a date"}
@@ -626,8 +769,15 @@ export default function CreateContractScreen() {
           <View className="w-8 h-8 rounded-full bg-[#FF6B6B]/10 items-center justify-center">
             <Shield size={16} color="#FF6B6B" />
           </View>
-          <Text className="font-bold text-gray-800 ml-2 text-base">Security Collateral</Text>
-          <TouchableOpacity onPress={() => setShowTooltip(showTooltip === "collateral" ? null : "collateral")} className="ml-2">
+          <Text className="font-bold text-gray-800 ml-2 text-base">
+            Security Collateral
+          </Text>
+          <TouchableOpacity
+            onPress={() =>
+              setShowTooltip(showTooltip === "collateral" ? null : "collateral")
+            }
+            className="ml-2"
+          >
             <HelpCircle size={16} color="#9CA3AF" />
           </TouchableOpacity>
         </View>
@@ -635,7 +785,9 @@ export default function CreateContractScreen() {
           text="Collateral is a security deposit that both parties pay upfront. It protects against contract violations. The total is split equally — each owner pays half. It's fully refunded when the contract is fulfilled!"
           visible={showTooltip === "collateral"}
         />
-        <Text className="text-xs text-gray-500 mb-2">Total collateral amount (split equally between both owners)</Text>
+        <Text className="text-xs text-gray-500 mb-2">
+          Total collateral amount (split equally between both owners)
+        </Text>
         <View className="flex-row items-center bg-gray-100 rounded-xl px-4 py-3">
           <Text className="text-gray-500 font-bold mr-2">₱</Text>
           <TextInput
@@ -657,18 +809,26 @@ export default function CreateContractScreen() {
             <View className="flex-row justify-between mb-2">
               <Text className="text-gray-600 text-sm">Total Collateral:</Text>
               <Text className="text-gray-900 font-bold text-sm">
-                ₱{(Number(formData.collateral_total) || 0).toLocaleString("en-PH", { minimumFractionDigits: 2 })}
+                ₱
+                {(Number(formData.collateral_total) || 0).toLocaleString(
+                  "en-PH",
+                  { minimumFractionDigits: 2 },
+                )}
               </Text>
             </View>
             <View className="flex-row justify-between mb-2">
               <Text className="text-gray-600 text-sm">Each Owner Pays:</Text>
               <Text className="text-[#FF6B6B] font-bold text-sm">
-                ₱{collateralPerOwner.toLocaleString("en-PH", { minimumFractionDigits: 2 })}
+                ₱
+                {collateralPerOwner.toLocaleString("en-PH", {
+                  minimumFractionDigits: 2,
+                })}
               </Text>
             </View>
             <View className="border-t border-[#FF6B6B]/10 pt-2 mt-1">
               <Text className="text-xs text-gray-500">
-                🔄 Fully refundable upon contract completion (5% platform fee deducted)
+                🔄 Fully refundable upon contract completion (5% platform fee
+                deducted)
               </Text>
             </View>
           </View>
@@ -681,7 +841,9 @@ export default function CreateContractScreen() {
           <View className="w-8 h-8 rounded-full bg-[#FF6B6B]/10 items-center justify-center">
             <FileText size={16} color="#FF6B6B" />
           </View>
-          <Text className="font-bold text-gray-800 ml-2 text-base">Custom Terms (Optional)</Text>
+          <Text className="font-bold text-gray-800 ml-2 text-base">
+            Custom Terms (Optional)
+          </Text>
         </View>
         <Text className="text-xs text-gray-500 mb-2">
           Add any additional agreements or conditions not covered above
@@ -696,21 +858,31 @@ export default function CreateContractScreen() {
           maxLength={1000}
           textAlignVertical="top"
         />
-        <Text className="text-xs text-gray-400 text-right mt-1">{formData.custom_terms?.length || 0}/1000</Text>
+        <Text className="text-xs text-gray-400 text-right mt-1">
+          {formData.custom_terms?.length || 0}/1000
+        </Text>
       </View>
     </ScrollView>
   );
 
   // ─── Step 5: Review ───
   const renderStep5 = () => (
-    <ScrollView className="flex-1" showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 24 }}>
+    <ScrollView
+      className="flex-1"
+      showsVerticalScrollIndicator={false}
+      contentContainerStyle={{ paddingBottom: 24 }}
+    >
       {/* Compensation Summary */}
       <View className="bg-white rounded-2xl border-2 border-gray-100 p-4 mb-4">
-        <Text className="font-bold text-gray-800 text-base mb-3">💰 Compensation</Text>
+        <Text className="font-bold text-gray-800 text-base mb-3">
+          💰 Compensation
+        </Text>
         {formData.include_monetary_amount && (
           <View className="flex-row justify-between mb-2 pb-2 border-b border-gray-50">
             <Text className="text-gray-500 text-sm">Money Payment</Text>
-            <Text className="text-gray-900 font-semibold text-sm">₱{formData.monetary_amount?.toLocaleString() || "0"}</Text>
+            <Text className="text-gray-900 font-semibold text-sm">
+              ₱{formData.monetary_amount?.toLocaleString() || "0"}
+            </Text>
           </View>
         )}
         {formData.share_offspring && (
@@ -719,13 +891,17 @@ export default function CreateContractScreen() {
               <Text className="text-gray-500 text-sm">Offspring Split</Text>
               <Text className="text-gray-900 font-semibold text-sm">
                 {formData.offspring_split_value}
-                {formData.offspring_split_type === "percentage" ? "%" : " puppies"}
+                {formData.offspring_split_type === "percentage"
+                  ? "%"
+                  : " puppies"}
               </Text>
             </View>
             <View className="flex-row justify-between mb-2 pb-2 border-b border-gray-50">
               <Text className="text-gray-500 text-sm">Selection Method</Text>
               <Text className="text-gray-900 font-semibold text-sm">
-                {formData.offspring_selection_method === "first_pick" ? "👆 First Pick" : "🎲 Randomized"}
+                {formData.offspring_selection_method === "first_pick"
+                  ? "👆 First Pick"
+                  : "🎲 Randomized"}
               </Text>
             </View>
           </>
@@ -733,40 +909,56 @@ export default function CreateContractScreen() {
         {formData.include_goods_foods && (
           <View className="flex-row justify-between mb-2">
             <Text className="text-gray-500 text-sm">Goods/Food Value</Text>
-            <Text className="text-gray-900 font-semibold text-sm">₱{formData.goods_foods_value?.toLocaleString() || "0"}</Text>
+            <Text className="text-gray-900 font-semibold text-sm">
+              ₱{formData.goods_foods_value?.toLocaleString() || "0"}
+            </Text>
           </View>
         )}
-        {!formData.include_monetary_amount && !formData.share_offspring && !formData.include_goods_foods && (
-          <Text className="text-gray-400 text-sm italic">No compensation selected</Text>
-        )}
+        {!formData.include_monetary_amount &&
+          !formData.share_offspring &&
+          !formData.include_goods_foods && (
+            <Text className="text-gray-400 text-sm italic">
+              No compensation selected
+            </Text>
+          )}
       </View>
 
       {/* Shooter Summary */}
       {(formData.shooter_payment || formData.shooter_name) && (
         <View className="bg-white rounded-2xl border-2 border-gray-100 p-4 mb-4">
-          <Text className="font-bold text-gray-800 text-base mb-3">👤 Shooter</Text>
+          <Text className="font-bold text-gray-800 text-base mb-3">
+            👤 Shooter
+          </Text>
           {formData.shooter_name ? (
             <View className="flex-row justify-between mb-2">
               <Text className="text-gray-500 text-sm">Preferred Name</Text>
-              <Text className="text-gray-900 font-semibold text-sm">{formData.shooter_name}</Text>
+              <Text className="text-gray-900 font-semibold text-sm">
+                {formData.shooter_name}
+              </Text>
             </View>
           ) : null}
           {formData.shooter_payment ? (
             <View className="flex-row justify-between mb-2">
               <Text className="text-gray-500 text-sm">Payment</Text>
-              <Text className="text-gray-900 font-semibold text-sm">₱{formData.shooter_payment.toLocaleString()}</Text>
+              <Text className="text-gray-900 font-semibold text-sm">
+                ₱{formData.shooter_payment.toLocaleString()}
+              </Text>
             </View>
           ) : null}
           {formData.shooter_location ? (
             <View className="flex-row justify-between mb-2">
               <Text className="text-gray-500 text-sm">Location</Text>
-              <Text className="text-gray-900 font-semibold text-sm">{formData.shooter_location}</Text>
+              <Text className="text-gray-900 font-semibold text-sm">
+                {formData.shooter_location}
+              </Text>
             </View>
           ) : null}
           {formData.shooter_conditions ? (
             <View className="mt-2 pt-2 border-t border-gray-100">
               <Text className="text-gray-500 text-xs mb-1">Conditions:</Text>
-              <Text className="text-gray-700 text-sm">{formData.shooter_conditions}</Text>
+              <Text className="text-gray-700 text-sm">
+                {formData.shooter_conditions}
+              </Text>
             </View>
           ) : null}
         </View>
@@ -774,7 +966,9 @@ export default function CreateContractScreen() {
 
       {/* Protection Summary */}
       <View className="bg-white rounded-2xl border-2 border-gray-100 p-4 mb-4">
-        <Text className="font-bold text-gray-800 text-base mb-3">🛡️ Protection</Text>
+        <Text className="font-bold text-gray-800 text-base mb-3">
+          🛡️ Protection
+        </Text>
         {formData.end_contract_date ? (
           <View className="flex-row justify-between mb-2">
             <Text className="text-gray-500 text-sm">End Date</Text>
@@ -786,13 +980,19 @@ export default function CreateContractScreen() {
         <View className="flex-row justify-between mb-2">
           <Text className="text-gray-500 text-sm">Total Collateral</Text>
           <Text className="text-gray-900 font-semibold text-sm">
-            ₱{(Number(formData.collateral_total) || 0).toLocaleString("en-PH", { minimumFractionDigits: 2 })}
+            ₱
+            {(Number(formData.collateral_total) || 0).toLocaleString("en-PH", {
+              minimumFractionDigits: 2,
+            })}
           </Text>
         </View>
         <View className="flex-row justify-between">
           <Text className="text-gray-500 text-sm">Each Owner</Text>
           <Text className="text-[#FF6B6B] font-semibold text-sm">
-            ₱{collateralPerOwner.toLocaleString("en-PH", { minimumFractionDigits: 2 })}
+            ₱
+            {collateralPerOwner.toLocaleString("en-PH", {
+              minimumFractionDigits: 2,
+            })}
           </Text>
         </View>
       </View>
@@ -800,24 +1000,34 @@ export default function CreateContractScreen() {
       {/* Custom Terms */}
       {formData.custom_terms ? (
         <View className="bg-white rounded-2xl border-2 border-gray-100 p-4 mb-4">
-          <Text className="font-bold text-gray-800 text-base mb-2">📝 Custom Terms</Text>
+          <Text className="font-bold text-gray-800 text-base mb-2">
+            📝 Custom Terms
+          </Text>
           <Text className="text-gray-700 text-sm">{formData.custom_terms}</Text>
         </View>
       ) : null}
 
       {/* Standard Policies */}
       <View className="bg-gray-50 rounded-2xl p-4 mb-4">
-        <Text className="font-bold text-gray-700 text-sm mb-3">📋 Standard Policies (Auto-included)</Text>
+        <Text className="font-bold text-gray-700 text-sm mb-3">
+          📋 Standard Policies (Auto-included)
+        </Text>
         <View className="mb-3">
-          <Text className="text-gray-600 font-semibold text-xs mb-1">Responsibility Policy</Text>
+          <Text className="text-gray-600 font-semibold text-xs mb-1">
+            Responsibility Policy
+          </Text>
           <Text className="text-gray-500 text-xs leading-4">
-            If a pet causes any incident, its owner is responsible for all related medical expenses including anti-rabies shots and treatments.
+            If a pet causes any incident, its owner is responsible for all
+            related medical expenses including anti-rabies shots and treatments.
           </Text>
         </View>
         <View>
-          <Text className="text-gray-600 font-semibold text-xs mb-1">Cancellation Policy</Text>
+          <Text className="text-gray-600 font-semibold text-xs mb-1">
+            Cancellation Policy
+          </Text>
           <Text className="text-gray-500 text-xs leading-4">
-            Both parties must agree to cancel. No response within 3 days = auto-cancel. Breach may result in collateral forfeiture.
+            Both parties must agree to cancel. No response within 3 days =
+            auto-cancel. Breach may result in collateral forfeiture.
           </Text>
         </View>
       </View>
@@ -826,12 +1036,18 @@ export default function CreateContractScreen() {
 
   const renderCurrentStep = () => {
     switch (currentStep) {
-      case 0: return renderStep1();
-      case 1: return renderStep2();
-      case 2: return renderStep3();
-      case 3: return renderStep4();
-      case 4: return renderStep5();
-      default: return null;
+      case 0:
+        return renderStep1();
+      case 1:
+        return renderStep2();
+      case 2:
+        return renderStep3();
+      case 3:
+        return renderStep4();
+      case 4:
+        return renderStep5();
+      default:
+        return null;
     }
   };
 
@@ -880,7 +1096,9 @@ export default function CreateContractScreen() {
               key={i}
               onPress={() => {
                 if (i <= currentStep) {
-                  animateStepTransition(i < currentStep ? "prev" : "next", () => setCurrentStep(i));
+                  animateStepTransition(i < currentStep ? "prev" : "next", () =>
+                    setCurrentStep(i),
+                  );
                 }
               }}
               className="items-center"
@@ -891,21 +1109,25 @@ export default function CreateContractScreen() {
                   i < currentStep
                     ? "bg-[#FF6B6B]"
                     : i === currentStep
-                    ? "bg-[#FF6B6B]/20 border-2 border-[#FF6B6B]"
-                    : "bg-gray-100"
+                      ? "bg-[#FF6B6B]/20 border-2 border-[#FF6B6B]"
+                      : "bg-gray-100"
                 }`}
               >
                 {i < currentStep ? (
                   <Check size={14} color="white" />
                 ) : (
-                  <Text className={`text-xs font-bold ${i === currentStep ? "text-[#FF6B6B]" : "text-gray-400"}`}>
+                  <Text
+                    className={`text-xs font-bold ${i === currentStep ? "text-[#FF6B6B]" : "text-gray-400"}`}
+                  >
                     {i + 1}
                   </Text>
                 )}
               </View>
               <Text
                 className={`text-[9px] mt-1 text-center ${
-                  i <= currentStep ? "text-[#FF6B6B] font-semibold" : "text-gray-400"
+                  i <= currentStep
+                    ? "text-[#FF6B6B] font-semibold"
+                    : "text-gray-400"
                 }`}
                 numberOfLines={1}
               >
@@ -918,8 +1140,12 @@ export default function CreateContractScreen() {
 
       {/* Step Header */}
       <View className="px-5 py-4 bg-[#FFF5F3] mx-4 rounded-2xl mb-3">
-        <Text className="text-xl font-bold text-gray-900">{STEP_META[currentStep].subtitle}</Text>
-        <Text className="text-sm text-gray-600 mt-1">{STEP_META[currentStep].description}</Text>
+        <Text className="text-xl font-bold text-gray-900">
+          {STEP_META[currentStep].subtitle}
+        </Text>
+        <Text className="text-sm text-gray-600 mt-1">
+          {STEP_META[currentStep].description}
+        </Text>
       </View>
 
       {/* Step Content */}
@@ -927,7 +1153,9 @@ export default function CreateContractScreen() {
         className="flex-1"
         behavior={Platform.OS === "ios" ? "padding" : undefined}
       >
-        <Animated.View style={{ flex: 1, opacity: fadeAnim, paddingHorizontal: 20 }}>
+        <Animated.View
+          style={{ flex: 1, opacity: fadeAnim, paddingHorizontal: 20 }}
+        >
           {renderCurrentStep()}
         </Animated.View>
       </KeyboardAvoidingView>
