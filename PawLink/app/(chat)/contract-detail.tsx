@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, useRef } from "react";
+import React, { useState, useEffect, useCallback, useMemo } from "react";
 import {
   View,
   Text,
@@ -6,7 +6,6 @@ import {
   ScrollView,
   ActivityIndicator,
   RefreshControl,
-  Animated,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import {
@@ -18,8 +17,6 @@ import {
   Baby,
   ChevronRight,
   CheckCircle,
-  Circle,
-  AlertCircle,
 } from "lucide-react-native";
 import { useRouter, useLocalSearchParams } from "expo-router";
 import dayjs from "dayjs";
@@ -30,11 +27,7 @@ import {
   getOffspringAllocationSummary,
   AllocationSummaryData,
 } from "@/services/contractService";
-import {
-  getContractPayments,
-  Payment,
-  PaymentType,
-} from "@/services/paymentService";
+import { getContractPayments, Payment } from "@/services/paymentService";
 import { useSession } from "@/context/AuthContext";
 
 // Tab components
@@ -49,151 +42,129 @@ type TabId = "overview" | "payments" | "reports" | "breeding" | "offspring";
 interface TabConfig {
   id: TabId;
   label: string;
-  icon: React.ReactNode;
   emoji: string;
 }
 
-const TABS: TabConfig[] = [
-  {
-    id: "overview",
-    label: "Overview",
-    icon: <FileText size={16} color="#FF6B6B" />,
-    emoji: "📋",
-  },
-  {
-    id: "payments",
-    label: "Payments",
-    icon: <CreditCard size={16} color="#FF6B6B" />,
-    emoji: "💳",
-  },
-  {
-    id: "reports",
-    label: "Reports",
-    icon: <ClipboardList size={16} color="#FF6B6B" />,
-    emoji: "📝",
-  },
-  {
-    id: "breeding",
-    label: "Breeding",
-    icon: <Heart size={16} color="#FF6B6B" />,
-    emoji: "❤️",
-  },
-  {
-    id: "offspring",
-    label: "Offspring",
-    icon: <Baby size={16} color="#FF6B6B" />,
-    emoji: "🐾",
-  },
+const ALL_TABS: TabConfig[] = [
+  { id: "overview", label: "Overview", emoji: "📋" },
+  { id: "payments", label: "Payments", emoji: "💳" },
+  { id: "reports", label: "Reports", emoji: "📝" },
+  { id: "breeding", label: "Breeding", emoji: "❤️" },
+  { id: "offspring", label: "Offspring", emoji: "🐾" },
 ];
 
-// ─── Lifecycle stages ─────────────────────────────────────
+// ─── Simplified 5-stage lifecycle ──────────────────────────
 interface LifecycleStage {
   id: string;
   label: string;
   emoji: string;
   description: string;
-  isComplete: (
-    c: BreedingContract,
-    payments: Payment[],
-    currentUserId: number,
-    hasOffspring: boolean,
-    allocationData: AllocationSummaryData | null,
-  ) => boolean;
-  isActive: (
-    c: BreedingContract,
-    payments: Payment[],
-    currentUserId: number,
-    hasOffspring: boolean,
-    allocationData: AllocationSummaryData | null,
-  ) => boolean;
+  isComplete: (ctx: StageContext) => boolean;
+  isActive: (ctx: StageContext) => boolean;
   tab: TabId;
+}
+
+interface StageContext {
+  c: BreedingContract;
+  payments: Payment[];
+  userId: number;
+  hasOffspring: boolean;
+  allocationData: AllocationSummaryData | null;
 }
 
 const LIFECYCLE_STAGES: LifecycleStage[] = [
   {
     id: "create",
-    label: "Create Contract",
+    label: "Create",
     emoji: "📝",
     description: "Draft your breeding agreement",
-    isComplete: (c) => c.status !== "draft",
-    isActive: (c) => c.status === "draft" || c.status === "pending_review",
+    isComplete: (ctx) => ctx.c.status !== "draft",
+    isActive: (ctx) =>
+      ctx.c.status === "draft" || ctx.c.status === "pending_review",
     tab: "overview",
   },
   {
     id: "accept",
-    label: "Accept Contract",
+    label: "Accept",
     emoji: "🤝",
     description: "Both parties agree to the terms",
-    isComplete: (c) => c.status === "accepted" || c.status === "fulfilled",
-    isActive: (c) => c.status === "pending_review",
+    isComplete: (ctx) =>
+      ctx.c.status === "accepted" || ctx.c.status === "fulfilled",
+    isActive: (ctx) => ctx.c.status === "pending_review",
     tab: "overview",
   },
   {
     id: "pay_collateral",
-    label: "Pay Collateral",
+    label: "Payment",
     emoji: "💰",
     description: "Pay your security deposit",
-    isComplete: (c, payments, userId) => {
-      if (!c.collateral_per_owner || c.collateral_per_owner <= 0) return true;
-      return payments.some(
+    isComplete: (ctx) => {
+      if (!ctx.c.collateral_per_owner || ctx.c.collateral_per_owner <= 0)
+        return true;
+      return ctx.payments.some(
         (p) =>
           p.payment_type === "collateral" &&
-          p.user_id === userId &&
+          p.user_id === ctx.userId &&
           p.status === "paid",
       );
     },
-    isActive: (c) => c.status === "accepted",
+    isActive: (ctx) => ctx.c.status === "accepted",
     tab: "payments",
   },
   {
-    id: "daily_reports",
-    label: "Submit Reports",
-    emoji: "📊",
-    description: "Track breeding progress daily",
-    isComplete: (c) =>
-      c.breeding_status === "completed" || c.breeding_status === "failed",
-    isActive: (c) =>
-      c.status === "accepted" &&
-      (!c.breeding_status ||
-        c.breeding_status === "pending" ||
-        c.breeding_status === "in_progress"),
-    tab: "reports",
-  },
-  {
-    id: "mark_breeding",
-    label: "Mark Breeding",
-    emoji: "❤️",
-    description: "Record breeding outcome",
-    isComplete: (c) =>
-      c.breeding_status === "completed" || c.breeding_status === "failed",
-    isActive: (c) =>
-      c.status === "accepted" &&
-      (!c.breeding_status ||
-        c.breeding_status === "pending" ||
-        c.breeding_status === "in_progress"),
+    id: "breeding_progress",
+    label: "Breeding",
+    emoji: "💕",
+    description: "Submit reports & mark breeding outcome",
+    isComplete: (ctx) =>
+      ctx.c.breeding_status === "completed" ||
+      ctx.c.breeding_status === "failed",
+    isActive: (ctx) =>
+      ctx.c.status === "accepted" &&
+      (!ctx.c.breeding_status ||
+        ctx.c.breeding_status === "pending" ||
+        ctx.c.breeding_status === "in_progress"),
     tab: "breeding",
   },
   {
-    id: "offspring",
-    label: "Record Offspring",
-    emoji: "🐾",
-    description: "Log litter details",
-    isComplete: (_c, _p, _u, hasOffspring) => hasOffspring,
-    isActive: (c) =>
-      c.breeding_status === "completed" && c.has_offspring === true,
-    tab: "offspring",
-  },
-  {
     id: "complete",
-    label: "Complete Match",
+    label: "Complete",
     emoji: "🎉",
-    description: "Finalize and archive",
-    isComplete: (c) => c.status === "fulfilled",
-    isActive: (c, _p, _u, hasOffspring) =>
-      c.breeding_status === "completed" && hasOffspring,
+    description: "Record offspring & finalize match",
+    isComplete: (ctx) => ctx.c.status === "fulfilled",
+    isActive: (ctx) =>
+      ctx.c.breeding_status === "completed" ||
+      ctx.c.breeding_status === "failed",
     tab: "offspring",
   },
 ];
+
+// ─── Phase-gated tab visibility ────────────────────────────
+function getVisibleTabs(contract: BreedingContract): TabId[] {
+  const status = contract.status;
+  const breeding = contract.breeding_status;
+
+  // Phase 1: Negotiation
+  if (
+    status === "draft" ||
+    status === "pending_review" ||
+    status === "rejected"
+  ) {
+    return ["overview"];
+  }
+
+  // Phase 3: Post-Breeding (breeding completed/failed or fulfilled)
+  if (
+    breeding === "completed" ||
+    breeding === "failed" ||
+    status === "fulfilled"
+  ) {
+    return ["overview", "payments", "reports", "breeding", "offspring"];
+  }
+
+  // Phase 2: Active Breeding (accepted, breeding pending/in_progress)
+  return ["overview", "payments", "reports", "breeding"];
+}
 
 export default function ContractDetailScreen() {
   const router = useRouter();
@@ -211,28 +182,7 @@ export default function ContractDetailScreen() {
   const [hasOffspringRecorded, setHasOffspringRecorded] = useState(false);
   const [allocationSummary, setAllocationSummary] =
     useState<AllocationSummaryData | null>(null);
-
-  const pulseAnim = useRef(new Animated.Value(1)).current;
-
-  // Pulse animation for the "Next Action" badge
-  useEffect(() => {
-    const loop = Animated.loop(
-      Animated.sequence([
-        Animated.timing(pulseAnim, {
-          toValue: 1.05,
-          duration: 800,
-          useNativeDriver: true,
-        }),
-        Animated.timing(pulseAnim, {
-          toValue: 1,
-          duration: 800,
-          useNativeDriver: true,
-        }),
-      ]),
-    );
-    loop.start();
-    return () => loop.stop();
-  }, []);
+  const [hasAutoSelectedTab, setHasAutoSelectedTab] = useState(false);
 
   const fetchAll = useCallback(async () => {
     try {
@@ -304,33 +254,83 @@ export default function ContractDetailScreen() {
     fetchAll();
   };
 
-  // Find the current/next lifecycle stage
-  const getNextAction = (): LifecycleStage | null => {
-    if (!contract) return null;
+  // ─── Computed stage context ────────────────────────────
+  const stageCtx: StageContext | null = contract
+    ? {
+        c: contract,
+        payments: contractPayments,
+        userId: currentUserId,
+        hasOffspring: hasOffspringRecorded,
+        allocationData: allocationSummary,
+      }
+    : null;
+
+  // Find current step index and next action
+  const { completedCount, nextAction } = useMemo(() => {
+    if (!stageCtx)
+      return { completedCount: 0, nextAction: null as LifecycleStage | null };
+
+    let completed = 0;
+    let next: LifecycleStage | null = null;
+
     for (const stage of LIFECYCLE_STAGES) {
-      if (
-        stage.isActive(
-          contract,
-          contractPayments,
-          currentUserId,
-          hasOffspringRecorded,
-          allocationSummary,
-        ) &&
-        !stage.isComplete(
-          contract,
-          contractPayments,
-          currentUserId,
-          hasOffspringRecorded,
-          allocationSummary,
-        )
-      ) {
-        return stage;
+      if (stage.isComplete(stageCtx)) {
+        completed++;
+      } else if (!next && stage.isActive(stageCtx)) {
+        next = stage;
       }
     }
-    return null;
-  };
+    return { completedCount: completed, nextAction: next };
+  }, [stageCtx]);
 
-  const nextAction = contract ? getNextAction() : null;
+  // Visible tabs based on contract phase
+  const visibleTabs = useMemo(
+    () => (contract ? getVisibleTabs(contract) : ["overview" as TabId]),
+    [contract],
+  );
+
+  const filteredTabs = ALL_TABS.filter((t) => visibleTabs.includes(t.id));
+
+  // Auto-select the most relevant tab on first load
+  useEffect(() => {
+    if (contract && !hasAutoSelectedTab && nextAction) {
+      const targetTab = nextAction.tab;
+      if (visibleTabs.includes(targetTab)) {
+        setActiveTab(targetTab);
+      }
+      setHasAutoSelectedTab(true);
+    }
+  }, [contract, hasAutoSelectedTab, nextAction, visibleTabs]);
+
+  // Ensure active tab is still visible after phase change
+  useEffect(() => {
+    if (!visibleTabs.includes(activeTab)) {
+      setActiveTab(visibleTabs[0] || "overview");
+    }
+  }, [visibleTabs, activeTab]);
+
+  // Check if both parties have paid collateral
+  const bothCollateralPaid = useMemo(() => {
+    if (!contract) return false;
+    if (!contract.collateral_per_owner || contract.collateral_per_owner <= 0)
+      return true;
+    const paidCollateral = contractPayments.filter(
+      (p) => p.payment_type === "collateral" && p.status === "paid",
+    );
+    return paidCollateral.length >= 2;
+  }, [contract, contractPayments]);
+
+  const currentUserPaidCollateral = useMemo(() => {
+    if (!contract) return false;
+    if (!contract.collateral_per_owner || contract.collateral_per_owner <= 0)
+      return true;
+    return contractPayments.some(
+      (p) =>
+        p.payment_type === "collateral" &&
+        p.user_id === currentUserId &&
+        p.status === "paid",
+    );
+  }, [contract, contractPayments, currentUserId]);
 
   if (loading) {
     return (
@@ -356,55 +356,43 @@ export default function ContractDetailScreen() {
     );
   }
 
-  // Status badge component
-  const StatusBadge = () => {
-    const statusConfig: Record<
-      string,
-      { bg: string; text: string; label: string; emoji: string }
-    > = {
-      draft: {
-        bg: "bg-gray-200",
-        text: "text-gray-700",
-        label: "Draft",
-        emoji: "📝",
-      },
-      pending_review: {
-        bg: "bg-yellow-100",
-        text: "text-yellow-800",
-        label: "Pending Review",
-        emoji: "⏳",
-      },
-      accepted: {
-        bg: "bg-green-100",
-        text: "text-green-800",
-        label: "Active",
-        emoji: "✅",
-      },
-      rejected: {
-        bg: "bg-red-100",
-        text: "text-red-800",
-        label: "Rejected",
-        emoji: "❌",
-      },
-      fulfilled: {
-        bg: "bg-purple-100",
-        text: "text-purple-800",
-        label: "Completed",
-        emoji: "🎉",
-      },
-    };
-    const config = statusConfig[contract.status] || statusConfig.draft;
-    return (
-      <View
-        className={`${config.bg} px-3 py-1 rounded-full flex-row items-center`}
-      >
-        <Text className="mr-1">{config.emoji}</Text>
-        <Text className={`${config.text} text-xs font-bold`}>
-          {config.label}
-        </Text>
-      </View>
-    );
+  // Status badge
+  const statusConfig: Record<
+    string,
+    { bg: string; text: string; label: string; emoji: string }
+  > = {
+    draft: {
+      bg: "bg-gray-200",
+      text: "text-gray-700",
+      label: "Draft",
+      emoji: "📝",
+    },
+    pending_review: {
+      bg: "bg-yellow-100",
+      text: "text-yellow-800",
+      label: "Pending Review",
+      emoji: "⏳",
+    },
+    accepted: {
+      bg: "bg-green-100",
+      text: "text-green-800",
+      label: "Active",
+      emoji: "✅",
+    },
+    rejected: {
+      bg: "bg-red-100",
+      text: "text-red-800",
+      label: "Rejected",
+      emoji: "❌",
+    },
+    fulfilled: {
+      bg: "bg-purple-100",
+      text: "text-purple-800",
+      label: "Completed",
+      emoji: "🎉",
+    },
   };
+  const badgeConfig = statusConfig[contract.status] || statusConfig.draft;
 
   return (
     <SafeAreaView className="flex-1 bg-[#FAFAFA]" edges={["top"]}>
@@ -416,133 +404,119 @@ export default function ContractDetailScreen() {
           </TouchableOpacity>
           <View className="flex-1">
             <Text className="text-lg font-bold text-gray-900">
-              Breeding Contract 🐾
+              Breeding Contract
             </Text>
             <Text className="text-xs text-gray-500">
               Created {dayjs(contract.created_at).format("MMM D, YYYY")}
             </Text>
           </View>
         </View>
-        <StatusBadge />
+        <View
+          className={`${badgeConfig.bg} px-3 py-1 rounded-full flex-row items-center`}
+        >
+          <Text className="mr-1">{badgeConfig.emoji}</Text>
+          <Text className={`${badgeConfig.text} text-xs font-bold`}>
+            {badgeConfig.label}
+          </Text>
+        </View>
       </View>
 
-      {/* Lifecycle Progress Bar */}
-      {contract.status !== "rejected" && (
-        <View className="bg-white px-4 py-3 border-b border-gray-100">
-          <ScrollView horizontal showsHorizontalScrollIndicator={false}>
-            <View className="flex-row items-center">
-              {LIFECYCLE_STAGES.map((stage, i) => {
-                const isComplete = stage.isComplete(
-                  contract,
-                  contractPayments,
-                  currentUserId,
-                  hasOffspringRecorded,
-                  allocationSummary,
-                );
-                const isActive =
-                  stage.isActive(
-                    contract,
-                    contractPayments,
-                    currentUserId,
-                    hasOffspringRecorded,
-                    allocationSummary,
-                  ) && !isComplete;
-                const isNext = nextAction?.id === stage.id;
-
-                return (
-                  <React.Fragment key={stage.id}>
-                    <TouchableOpacity
-                      onPress={() => setActiveTab(stage.tab)}
-                      className="items-center"
-                      style={{ width: 56 }}
-                    >
-                      {isNext ? (
-                        <Animated.View
-                          style={{ transform: [{ scale: pulseAnim }] }}
-                          className="w-8 h-8 rounded-full bg-[#FF6B6B] items-center justify-center"
-                        >
-                          <Text className="text-xs">{stage.emoji}</Text>
-                        </Animated.View>
-                      ) : (
-                        <View
-                          className={`w-8 h-8 rounded-full items-center justify-center ${
-                            isComplete
-                              ? "bg-green-100"
-                              : isActive
-                                ? "bg-[#FF6B6B]/10"
-                                : "bg-gray-100"
-                          }`}
-                        >
-                          {isComplete ? (
-                            <CheckCircle size={16} color="#10b981" />
-                          ) : (
-                            <Text className="text-xs">{stage.emoji}</Text>
-                          )}
-                        </View>
-                      )}
-                      <Text
-                        className={`text-[8px] mt-1 text-center ${
-                          isComplete
-                            ? "text-green-600"
-                            : isNext
-                              ? "text-[#FF6B6B] font-bold"
-                              : "text-gray-400"
-                        }`}
-                        numberOfLines={1}
-                      >
-                        {stage.label}
-                      </Text>
-                    </TouchableOpacity>
-                    {i < LIFECYCLE_STAGES.length - 1 && (
-                      <View
-                        className={`w-3 h-0.5 ${
-                          isComplete ? "bg-green-300" : "bg-gray-200"
-                        }`}
-                        style={{ marginHorizontal: -2 }}
-                      />
-                    )}
-                  </React.Fragment>
-                );
-              })}
+      {/* ─── Compact Stepper ─── */}
+      {contract.status !== "rejected" && stageCtx && (
+        <View className="bg-white px-4 pt-3 pb-2 border-b border-gray-100">
+          {/* Progress bar */}
+          <View className="flex-row items-center mb-2">
+            <View className="flex-1 h-1.5 bg-gray-100 rounded-full overflow-hidden">
+              <View
+                className="h-full bg-[#FF6B6B] rounded-full"
+                style={{
+                  width: `${(completedCount / LIFECYCLE_STAGES.length) * 100}%`,
+                }}
+              />
             </View>
-          </ScrollView>
+            <Text className="text-xs text-gray-400 ml-2 font-medium">
+              {completedCount}/{LIFECYCLE_STAGES.length}
+            </Text>
+          </View>
+
+          {/* Stage dots */}
+          <View className="flex-row items-center justify-between">
+            {LIFECYCLE_STAGES.map((stage, i) => {
+              const isComplete = stage.isComplete(stageCtx);
+              const isActive = stage.isActive(stageCtx) && !isComplete;
+              const isNext = nextAction?.id === stage.id;
+
+              return (
+                <TouchableOpacity
+                  key={stage.id}
+                  onPress={() => {
+                    if (visibleTabs.includes(stage.tab))
+                      setActiveTab(stage.tab);
+                  }}
+                  className="items-center"
+                  style={{ flex: 1 }}
+                >
+                  <View
+                    className={`w-7 h-7 rounded-full items-center justify-center ${
+                      isComplete
+                        ? "bg-green-100"
+                        : isNext
+                          ? "bg-[#FF6B6B]"
+                          : isActive
+                            ? "bg-[#FF6B6B]/10"
+                            : "bg-gray-100"
+                    }`}
+                  >
+                    {isComplete ? (
+                      <CheckCircle size={14} color="#10b981" />
+                    ) : (
+                      <Text className="text-[10px]">{stage.emoji}</Text>
+                    )}
+                  </View>
+                  <Text
+                    className={`text-[9px] mt-0.5 text-center ${
+                      isComplete
+                        ? "text-green-600"
+                        : isNext
+                          ? "text-[#FF6B6B] font-bold"
+                          : "text-gray-400"
+                    }`}
+                    numberOfLines={1}
+                  >
+                    {stage.label}
+                  </Text>
+                </TouchableOpacity>
+              );
+            })}
+          </View>
+
+          {/* Next action hint — compact inline version */}
+          {nextAction && contract.status !== "fulfilled" && (
+            <TouchableOpacity
+              onPress={() => {
+                if (visibleTabs.includes(nextAction.tab))
+                  setActiveTab(nextAction.tab);
+              }}
+              className="mt-2 bg-[#FFF0EE] rounded-xl px-3 py-2 flex-row items-center"
+            >
+              <Text className="text-sm mr-2">{nextAction.emoji}</Text>
+              <Text className="text-[#FF6B6B] text-xs font-semibold flex-1">
+                Next: {nextAction.description}
+              </Text>
+              <ChevronRight size={14} color="#FF6B6B" />
+            </TouchableOpacity>
+          )}
         </View>
       )}
 
-      {/* Next Action Banner */}
-      {nextAction &&
-        contract.status !== "rejected" &&
-        contract.status !== "fulfilled" && (
-          <TouchableOpacity
-            onPress={() => setActiveTab(nextAction.tab)}
-            className="mx-4 mt-3 bg-[#FF6B6B] rounded-2xl px-4 py-3 flex-row items-center"
-          >
-            <View className="w-10 h-10 rounded-full bg-white/20 items-center justify-center mr-3">
-              <Text className="text-lg">{nextAction.emoji}</Text>
-            </View>
-            <View className="flex-1">
-              <Text className="text-white text-xs font-medium opacity-80">
-                NEXT ACTION
-              </Text>
-              <Text className="text-white font-bold text-base">
-                {nextAction.label}
-              </Text>
-              <Text className="text-white/80 text-xs">
-                {nextAction.description}
-              </Text>
-            </View>
-            <ChevronRight size={20} color="white" />
-          </TouchableOpacity>
-        )}
-
-      {/* Tab Bar */}
-      <View className="bg-white mt-3 border-b border-gray-100">
+      {/* ─── Phase-gated Tab Bar ─── */}
+      <View className="bg-white border-b border-gray-100">
         <ScrollView
           horizontal
           showsHorizontalScrollIndicator={false}
           contentContainerStyle={{ paddingHorizontal: 12 }}
         >
-          {TABS.map((tab) => (
+          {filteredTabs.map((tab) => (
             <TouchableOpacity
               key={tab.id}
               onPress={() => setActiveTab(tab.id)}
@@ -598,11 +572,17 @@ export default function ContractDetailScreen() {
             onPaymentSuccess={() => fetchAll()}
           />
         )}
-        {activeTab === "reports" && <ContractReportsTab contract={contract} />}
+        {activeTab === "reports" && (
+          <ContractReportsTab
+            contract={contract}
+            collateralPaid={currentUserPaidCollateral}
+          />
+        )}
         {activeTab === "breeding" && (
           <ContractBreedingTab
             contract={contract}
             onContractUpdate={handleContractUpdate}
+            bothCollateralPaid={bothCollateralPaid}
           />
         )}
         {activeTab === "offspring" && (

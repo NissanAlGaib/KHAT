@@ -181,61 +181,72 @@ export default function MatchTimeline({
         Match Progress
       </Text>
 
-      <View className="flex-row items-start justify-between">
+      {/* Circle row with flex-based connectors */}
+      <View className="flex-row items-center">
         {stages.map((stage, index) => {
           const style = getStageStyle(stage);
           const isLast = index === stages.length - 1;
+          const isFirst = index === 0;
 
           return (
+            <React.Fragment key={stage.key}>
+              {/* Leading connector line */}
+              {!isFirst && (
+                <View
+                  className="h-0.5 flex-1"
+                  style={{
+                    backgroundColor:
+                      stage.status === "upcoming" ? "#E5E7EB" : "#FF6B6B",
+                  }}
+                />
+              )}
+
+              {/* Circle with icon */}
+              <View
+                className="w-10 h-10 rounded-full items-center justify-center"
+                style={{ backgroundColor: style.circleColor }}
+              >
+                <Feather
+                  name={stage.icon}
+                  size={18}
+                  color={stage.status === "upcoming" ? "#9CA3AF" : "white"}
+                />
+              </View>
+
+              {/* Trailing connector line */}
+              {!isLast && (
+                <View
+                  className="h-0.5 flex-1"
+                  style={{
+                    backgroundColor:
+                      stages[index + 1]?.status === "upcoming"
+                        ? "#E5E7EB"
+                        : "#FF6B6B",
+                  }}
+                />
+              )}
+            </React.Fragment>
+          );
+        })}
+      </View>
+
+      {/* Labels row */}
+      <View className="flex-row mt-2">
+        {stages.map((stage) => {
+          const style = getStageStyle(stage);
+          return (
             <View
-              key={stage.key}
+              key={`label-${stage.key}`}
               className="items-center"
               style={{ flex: 1 }}
             >
-              {/* Circle with icon */}
-              <View className="relative">
-                <View
-                  className="w-10 h-10 rounded-full items-center justify-center"
-                  style={{ backgroundColor: style.circleColor }}
-                >
-                  {stage.status === "completed" ? (
-                    <Feather
-                      name={stage.icon}
-                      size={18}
-                      color="white"
-                    />
-                  ) : stage.status === "current" ? (
-                    <Feather name={stage.icon} size={18} color="white" />
-                  ) : (
-                    <Feather name={stage.icon} size={18} color="#9CA3AF" />
-                  )}
-                </View>
-
-                {/* Connecting line */}
-                {!isLast && (
-                  <View
-                    className="absolute top-5 left-10 h-0.5"
-                    style={{
-                      width: 40,
-                      backgroundColor:
-                        stages[index + 1]?.status === "upcoming"
-                          ? "#E5E7EB"
-                          : "#FF6B6B",
-                    }}
-                  />
-                )}
-              </View>
-
-              {/* Label */}
               <Text
-                className="text-xs font-medium mt-2 text-center"
+                className="text-xs font-medium text-center"
                 style={{ color: style.textColor }}
                 numberOfLines={1}
               >
                 {stage.label}
               </Text>
-
-              {/* Date */}
               {stage.date && (
                 <Text className="text-xs text-gray-400 mt-0.5">
                   {stage.date}

@@ -25,7 +25,8 @@ import {
 
 interface BreedingTabProps {
   contract: BreedingContract;
-  onContractUpdated: () => void;
+  onContractUpdate: (updated: BreedingContract) => void;
+  bothCollateralPaid?: boolean;
 }
 
 const statusConfig: Record<
@@ -50,7 +51,8 @@ const statusConfig: Record<
 
 export default function ContractBreedingTab({
   contract,
-  onContractUpdated,
+  onContractUpdate,
+  bothCollateralPaid = true,
 }: BreedingTabProps) {
   const [showForm, setShowForm] = useState(false);
   const [formType, setFormType] = useState<"completed" | "failed">("completed");
@@ -114,7 +116,8 @@ export default function ContractBreedingTab({
                 });
                 setShowForm(false);
                 setBreedingNotes("");
-                onContractUpdated();
+                if (result.data) onContractUpdate(result.data);
+                else onContractUpdate(contract);
               } else {
                 showAlert({
                   title: "Error",
@@ -154,6 +157,25 @@ export default function ContractBreedingTab({
 
   return (
     <View className="px-4 pt-3">
+      {/* Collateral payment warning */}
+      {!bothCollateralPaid &&
+        breedingStatus !== "completed" &&
+        breedingStatus !== "failed" && (
+          <View className="bg-amber-50 rounded-2xl p-4 mb-4 border border-amber-200 flex-row items-start">
+            <AlertTriangle size={18} color="#d97706" />
+            <View className="flex-1 ml-2">
+              <Text className="text-amber-800 font-semibold text-sm">
+                Collateral Not Fully Paid
+              </Text>
+              <Text className="text-amber-700 text-xs mt-0.5">
+                Both parties must pay their collateral deposit before breeding
+                can be marked as complete or failed. Go to the Payments tab to
+                complete your payment.
+              </Text>
+            </View>
+          </View>
+        )}
+
       {/* Current Status Banner */}
       <View
         className="rounded-2xl p-5 mb-5 border"
@@ -233,13 +255,21 @@ export default function ContractBreedingTab({
         breedingStatus !== "failed" &&
         !showForm && (
           <View className="mb-4">
+            {!bothCollateralPaid && (
+              <Text className="text-amber-600 text-xs text-center mb-2 font-medium">
+                Buttons disabled until both parties pay collateral
+              </Text>
+            )}
             <TouchableOpacity
               onPress={() => {
                 setFormType("completed");
                 setShowForm(true);
                 setHasOffspring(true);
               }}
-              className="bg-[#FF6B6B] py-4 rounded-2xl flex-row items-center justify-center mb-3"
+              disabled={!bothCollateralPaid}
+              className={`py-4 rounded-2xl flex-row items-center justify-center mb-3 ${
+                !bothCollateralPaid ? "bg-gray-300" : "bg-[#FF6B6B]"
+              }`}
             >
               <CheckCircle2 size={20} color="white" />
               <Text className="text-white font-bold text-base ml-2">
@@ -252,7 +282,12 @@ export default function ContractBreedingTab({
                 setShowForm(true);
                 setHasOffspring(false);
               }}
-              className="bg-white py-4 rounded-2xl flex-row items-center justify-center border-2 border-red-300"
+              disabled={!bothCollateralPaid}
+              className={`py-4 rounded-2xl flex-row items-center justify-center border-2 ${
+                !bothCollateralPaid
+                  ? "bg-gray-100 border-gray-200"
+                  : "bg-white border-red-300"
+              }`}
             >
               <XCircle size={20} color="#ef4444" />
               <Text className="text-red-500 font-bold text-base ml-2">

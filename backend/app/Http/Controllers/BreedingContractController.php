@@ -982,6 +982,32 @@ class BreedingContractController extends Controller
             ], 403);
         }
 
+        // Soft payment gate: require both owners to pay collateral before breeding can be marked
+        if ($contract->collateral_total > 0) {
+            $contract->load('conversation.matchRequest.requesterPet', 'conversation.matchRequest.targetPet');
+            $matchRequest = $contract->conversation->matchRequest ?? null;
+            if ($matchRequest) {
+                $ownerIds = collect([
+                    $matchRequest->requesterPet->user_id ?? null,
+                    $matchRequest->targetPet->user_id ?? null,
+                ])->filter()->unique()->values();
+
+                $paidOwnerCount = \App\Models\Payment::where('contract_id', $contract->id)
+                    ->where('payment_type', 'collateral')
+                    ->where('status', 'paid')
+                    ->whereIn('user_id', $ownerIds)
+                    ->distinct('user_id')
+                    ->count('user_id');
+
+                if ($paidOwnerCount < $ownerIds->count()) {
+                    return response()->json([
+                        'success' => false,
+                        'message' => 'Both parties must pay their collateral deposit before breeding can be marked as complete or failed.',
+                    ], 422);
+                }
+            }
+        }
+
         try {
             $contract->update([
                 'breeding_status' => $validated['breeding_status'],

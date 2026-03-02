@@ -36,6 +36,7 @@ import { getStorageUrl } from "@/utils/imageUrl";
 
 interface ReportsTabProps {
   contract: BreedingContract;
+  collateralPaid?: boolean;
 }
 
 const healthStatusOptions: {
@@ -51,7 +52,10 @@ const healthStatusOptions: {
   { value: "concerning", label: "Concerning", emoji: "🚨", color: "#ef4444" },
 ];
 
-export default function ContractReportsTab({ contract }: ReportsTabProps) {
+export default function ContractReportsTab({
+  contract,
+  collateralPaid = true,
+}: ReportsTabProps) {
   const [activeView, setActiveView] = useState<"submit" | "history">("submit");
   const [isLoading, setIsLoading] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -231,6 +235,16 @@ export default function ContractReportsTab({ contract }: ReportsTabProps) {
 
   return (
     <View className="px-4 pt-3">
+      {/* Collateral payment warning */}
+      {!collateralPaid && (
+        <View className="bg-amber-50 rounded-2xl p-3 mb-3 border border-amber-200 flex-row items-center">
+          <Text className="text-amber-800 text-xs flex-1">
+            ⚠️ Your collateral is unpaid. You can still submit reports, but
+            breeding completion requires payment from both parties.
+          </Text>
+        </View>
+      )}
+
       {/* Tab Switcher */}
       <View className="flex-row bg-gray-100 rounded-full p-1 mb-4">
         <TouchableOpacity

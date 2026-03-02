@@ -378,6 +378,18 @@ export default function ConversationScreen() {
             <CompactContractCard
               contract={contract}
               conversationId={parseInt(conversationId)}
+              pet1={
+                conversation?.is_shooter_view
+                  ? conversation.pet1
+                  : conversation?.matched_pet
+                    ? {
+                        pet_id: conversation.matched_pet.pet_id,
+                        name: conversation.matched_pet.name,
+                        photo_url: conversation.matched_pet.photo_url,
+                      }
+                    : null
+              }
+              pet2={conversation?.is_shooter_view ? conversation.pet2 : null}
             />
           )}
 

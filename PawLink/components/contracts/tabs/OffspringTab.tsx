@@ -42,14 +42,20 @@ import {
 
 interface OffspringTabProps {
   contract: BreedingContract;
-  onContractUpdated: () => void;
+  onContractUpdate: (updated: BreedingContract) => void;
+  hasOffspringRecorded?: boolean;
+  allocationSummary?: AllocationSummaryData | null;
+  onMatchCompleted?: () => void;
+  onRefresh?: () => void;
 }
 
 type SubView = "record" | "allocate" | "complete";
 
 export default function ContractOffspringTab({
   contract,
-  onContractUpdated,
+  onContractUpdate,
+  onMatchCompleted,
+  onRefresh,
 }: OffspringTabProps) {
   const [activeView, setActiveView] = useState<SubView>("record");
   const [isLoading, setIsLoading] = useState(false);
@@ -171,7 +177,8 @@ export default function ContractOffspringTab({
           type: "success",
         });
         fetchData();
-        onContractUpdated();
+        onContractUpdate(contract);
+        if (onRefresh) onRefresh();
       } else {
         showAlert({
           title: "Error",
@@ -307,7 +314,8 @@ export default function ContractOffspringTab({
                     "The breeding match has been completed successfully!",
                   type: "success",
                 });
-                onContractUpdated();
+                onContractUpdate(contract);
+                if (onMatchCompleted) onMatchCompleted();
               } else {
                 showAlert({
                   title: "Error",
