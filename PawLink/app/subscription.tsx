@@ -10,6 +10,7 @@ import {
   AppStateStatus,
   Dimensions,
   FlatList,
+  StyleSheet,
   Animated as RNAnimated,
 } from "react-native";
 import { useRouter } from "expo-router";
@@ -21,6 +22,7 @@ import { useAlert } from "@/hooks/useAlert";
 import AlertModal from "@/components/core/AlertModal";
 import { API_BASE_URL } from "@/config/env";
 import { useSession } from "@/context/AuthContext";
+import { Colors, Shadows } from "@/constants";
 import {
   getSubscriptionPlans,
   createSubscriptionCheckout,
@@ -33,15 +35,15 @@ const { width: SCREEN_WIDTH } = Dimensions.get("window");
 const CARD_WIDTH = SCREEN_WIDTH * 0.82;
 const CARD_SPACING = 12;
 
-// ─── Gradient presets per plan ────────────────────────────────────
-const PLAN_GRADIENTS: Record<string, readonly [string, string, string]> = {
-  standard: ["#1E3A5F", "#2563EB", "#60A5FA"] as const,
-  premium: ["#7C2D12", "#D97706", "#FBBF24"] as const,
+// ─── Gradient accents per plan (header strip only) ────────────────
+const PLAN_HEADER_GRADIENTS: Record<string, readonly [string, string]> = {
+  standard: ["#2563EB", "#60A5FA"] as const,
+  premium: ["#D97706", "#FBBF24"] as const,
 };
 
-const GLASS_BG: Record<string, string> = {
-  standard: "rgba(255,255,255,0.12)",
-  premium: "rgba(255,255,255,0.14)",
+const PLAN_ACCENT: Record<string, string> = {
+  standard: "#2563EB",
+  premium: "#D97706",
 };
 
 // ─── Free plan card config ────────────────────────────────────────
@@ -260,7 +262,7 @@ export default function SubscriptionScreen() {
 
   // ─── Pagination dot component ───────────────────────────────────
   const renderDots = () => (
-    <View className="flex-row justify-center items-center mt-5 mb-2">
+    <View style={s.dotsContainer}>
       {plans.map((_, i) => {
         const inputRange = [
           (i - 1) * (CARD_WIDTH + CARD_SPACING),
@@ -274,7 +276,7 @@ export default function SubscriptionScreen() {
         });
         const dotOpacity = scrollX.interpolate({
           inputRange,
-          outputRange: [0.3, 1, 0.3],
+          outputRange: [0.25, 1, 0.25],
           extrapolate: "clamp",
         });
         return (
@@ -282,11 +284,11 @@ export default function SubscriptionScreen() {
             key={i}
             style={{
               width: dotWidth,
-              height: 8,
-              borderRadius: 4,
-              backgroundColor: "#fff",
+              height: 6,
+              borderRadius: 3,
+              backgroundColor: Colors.primary,
               opacity: dotOpacity,
-              marginHorizontal: 4,
+              marginHorizontal: 3,
             }}
           />
         );
@@ -301,73 +303,40 @@ export default function SubscriptionScreen() {
     const isFreeTier = currentTier === "free";
 
     return (
-      <View className="mx-5 mb-4">
-        <View
-          className="rounded-2xl overflow-hidden"
-          style={{
-            backgroundColor: isFreeTier
-              ? "rgba(255,255,255,0.08)"
-              : "rgba(255,255,255,0.12)",
-            borderWidth: 1,
-            borderColor: "rgba(255,255,255,0.15)",
-          }}
-        >
-          <View className="px-4 py-3.5 flex-row items-center justify-between">
-            <View className="flex-row items-center flex-1">
+      <View style={s.sectionPadding}>
+        <View style={s.currentPlanCard}>
+          <View style={s.currentPlanRow}>
+            <View style={s.currentPlanLeft}>
               <View
-                className="rounded-full items-center justify-center"
-                style={{
-                  width: 36,
-                  height: 36,
-                  backgroundColor: isFreeTier
-                    ? "rgba(255,255,255,0.12)"
-                    : "rgba(251,191,36,0.25)",
-                }}
+                style={[
+                  s.currentPlanIcon,
+                  {
+                    backgroundColor: isFreeTier
+                      ? Colors.bgTertiary
+                      : Colors.warningLight,
+                  },
+                ]}
               >
                 <Feather
                   name={isFreeTier ? "user" : "award"}
                   size={18}
-                  color={isFreeTier ? "rgba(255,255,255,0.7)" : "#FBBF24"}
+                  color={isFreeTier ? Colors.textMuted : Colors.warning}
                 />
               </View>
-              <View className="ml-3 flex-1">
-                <Text
-                  className="text-xs font-medium"
-                  style={{ color: "rgba(255,255,255,0.6)" }}
-                >
-                  CURRENT PLAN
-                </Text>
-                <Text className="text-white text-base font-bold">
-                  {tierLabel}
-                </Text>
+              <View style={{ marginLeft: 12, flex: 1 }}>
+                <Text style={s.currentPlanLabel}>CURRENT PLAN</Text>
+                <Text style={s.currentPlanTier}>{tierLabel}</Text>
               </View>
             </View>
-            {!isFreeTier && expiresAt && (
-              <View
-                className="px-3 py-1.5 rounded-full"
-                style={{ backgroundColor: "rgba(34,197,94,0.2)" }}
-              >
-                <Text
-                  className="text-xs font-semibold"
-                  style={{ color: "#4ADE80" }}
-                >
-                  Active
-                </Text>
+            {!isFreeTier && expiresAt ? (
+              <View style={s.activeBadge}>
+                <Text style={s.activeBadgeText}>Active</Text>
               </View>
-            )}
-            {isFreeTier && (
-              <View
-                className="px-3 py-1.5 rounded-full"
-                style={{ backgroundColor: "rgba(255,255,255,0.1)" }}
-              >
-                <Text
-                  className="text-xs font-medium"
-                  style={{ color: "rgba(255,255,255,0.5)" }}
-                >
-                  Free Tier
-                </Text>
+            ) : isFreeTier ? (
+              <View style={s.freeBadge}>
+                <Text style={s.freeBadgeText}>Free Tier</Text>
               </View>
-            )}
+            ) : null}
           </View>
         </View>
       </View>
@@ -378,32 +347,19 @@ export default function SubscriptionScreen() {
   const renderPendingBanner = () => {
     if (!pendingPaymentId) return null;
     return (
-      <View className="mx-5 mb-4">
-        <View
-          className="rounded-2xl overflow-hidden flex-row items-center px-4 py-3"
-          style={{
-            backgroundColor: "rgba(251,146,60,0.2)",
-            borderWidth: 1,
-            borderColor: "rgba(251,146,60,0.3)",
-          }}
-        >
-          <Feather name="clock" size={20} color="#FB923C" />
-          <Text
-            className="flex-1 ml-3 text-sm font-medium"
-            style={{ color: "#FDBA74" }}
-          >
-            Payment pending verification
-          </Text>
+      <View style={s.sectionPadding}>
+        <View style={s.pendingBanner}>
+          <Feather name="clock" size={20} color={Colors.warning} />
+          <Text style={s.pendingText}>Payment pending verification</Text>
           <TouchableOpacity
-            className="px-3 py-1.5 rounded-full"
-            style={{ backgroundColor: "rgba(255,255,255,0.15)" }}
+            style={s.pendingVerifyBtn}
             onPress={() => checkPaymentStatus(pendingPaymentId)}
             disabled={checkingPayment}
           >
             {checkingPayment ? (
-              <ActivityIndicator color="#FDBA74" size="small" />
+              <ActivityIndicator color={Colors.warning} size="small" />
             ) : (
-              <Text className="text-white text-xs font-bold">Verify</Text>
+              <Text style={s.pendingVerifyText}>Verify</Text>
             )}
           </TouchableOpacity>
         </View>
@@ -413,72 +369,44 @@ export default function SubscriptionScreen() {
 
   // ─── Billing toggle ─────────────────────────────────────────────
   const renderBillingToggle = () => (
-    <View className="mx-5 mb-5">
-      <View
-        className="flex-row rounded-2xl p-1"
-        style={{
-          backgroundColor: "rgba(255,255,255,0.1)",
-          borderWidth: 1,
-          borderColor: "rgba(255,255,255,0.1)",
-        }}
-      >
+    <View style={s.sectionPadding}>
+      <View style={s.toggleContainer}>
         <TouchableOpacity
-          className="flex-1 py-3 rounded-xl items-center"
-          style={
-            billingCycle === "monthly"
-              ? {
-                  backgroundColor: "rgba(255,255,255,0.18)",
-                  borderWidth: 1,
-                  borderColor: "rgba(255,255,255,0.2)",
-                }
-              : {}
-          }
+          style={[
+            s.toggleOption,
+            billingCycle === "monthly" && s.toggleOptionActive,
+          ]}
           onPress={() => setBillingCycle("monthly")}
         >
           <Text
-            className="font-semibold text-sm"
-            style={{
-              color:
-                billingCycle === "monthly" ? "#fff" : "rgba(255,255,255,0.5)",
-            }}
+            style={[
+              s.toggleText,
+              billingCycle === "monthly" && s.toggleTextActive,
+            ]}
           >
             Monthly
           </Text>
         </TouchableOpacity>
 
         <TouchableOpacity
-          className="flex-1 py-3 rounded-xl items-center flex-row justify-center"
-          style={
-            billingCycle === "yearly"
-              ? {
-                  backgroundColor: "rgba(255,255,255,0.18)",
-                  borderWidth: 1,
-                  borderColor: "rgba(255,255,255,0.2)",
-                }
-              : {}
-          }
+          style={[
+            s.toggleOption,
+            s.toggleOptionRight,
+            billingCycle === "yearly" && s.toggleOptionActive,
+          ]}
           onPress={() => setBillingCycle("yearly")}
         >
           <Text
-            className="font-semibold text-sm"
-            style={{
-              color:
-                billingCycle === "yearly" ? "#fff" : "rgba(255,255,255,0.5)",
-            }}
+            style={[
+              s.toggleText,
+              billingCycle === "yearly" && s.toggleTextActive,
+            ]}
           >
             Yearly
           </Text>
           {plans.length > 0 && (
-            <View
-              className="ml-2 px-1.5 py-0.5 rounded-full"
-              style={{ backgroundColor: "rgba(34,197,94,0.25)" }}
-            >
-              <Text
-                className="text-[10px] font-bold"
-                style={{ color: "#4ADE80" }}
-              >
-                -{getMaxSavingsPercent()}%
-              </Text>
+            <View style={s.savingsBadge}>
+              <Text style={s.savingsText}>-{getMaxSavingsPercent()}%</Text>
             </View>
           )}
         </TouchableOpacity>
@@ -494,12 +422,11 @@ export default function SubscriptionScreen() {
     item: SubscriptionPlan;
     index: number;
   }) => {
-    const gradientColors = PLAN_GRADIENTS[plan.id] ?? [
-      "#374151",
+    const headerGradient = PLAN_HEADER_GRADIENTS[plan.id] ?? [
       "#6B7280",
       "#9CA3AF",
     ];
-    const glassBg = GLASS_BG[plan.id] ?? "rgba(255,255,255,0.1)";
+    const accent = PLAN_ACCENT[plan.id] ?? Colors.textSecondary;
     const isCurrentPlan =
       currentTier === plan.id ||
       (currentTier === "basic" && plan.id === "standard");
@@ -511,177 +438,111 @@ export default function SubscriptionScreen() {
         : plan.monthly_price;
 
     return (
-      <View
-        style={{
-          width: CARD_WIDTH,
-          marginHorizontal: CARD_SPACING / 2,
-        }}
-      >
-        <LinearGradient
-          colors={gradientColors as unknown as string[]}
-          start={{ x: 0, y: 0 }}
-          end={{ x: 1, y: 1 }}
-          className="rounded-3xl overflow-hidden"
-          style={{
-            borderWidth: plan.highlighted ? 2 : 1,
-            borderColor: plan.highlighted
-              ? "rgba(251,191,36,0.4)"
-              : "rgba(255,255,255,0.15)",
-          }}
+      <View style={{ width: CARD_WIDTH, marginHorizontal: CARD_SPACING / 2 }}>
+        <View
+          style={[
+            s.planCard,
+            plan.highlighted && {
+              borderColor: PLAN_ACCENT[plan.id] || Colors.borderLight,
+              borderWidth: 2,
+            },
+          ]}
         >
-          {/* Header area */}
-          <View className="px-5 pt-5 pb-3">
-            {/* Plan badge row */}
-            <View className="flex-row items-center justify-between mb-3">
-              <View className="flex-row items-center">
-                <View
-                  className="rounded-full items-center justify-center mr-2.5"
-                  style={{
-                    width: 36,
-                    height: 36,
-                    backgroundColor: glassBg,
-                  }}
-                >
-                  <Feather name={plan.icon as any} size={18} color="#fff" />
-                </View>
-                <Text className="text-white text-xl font-bold">
-                  {plan.name}
-                </Text>
-              </View>
-              {plan.highlighted && !isCurrentPlan && (
-                <View
-                  className="px-3 py-1 rounded-full"
-                  style={{ backgroundColor: "rgba(251,191,36,0.25)" }}
-                >
-                  <Text
-                    className="text-xs font-bold"
-                    style={{ color: "#FCD34D" }}
-                  >
-                    BEST VALUE
-                  </Text>
-                </View>
-              )}
-              {isCurrentPlan && (
-                <View
-                  className="px-3 py-1 rounded-full"
-                  style={{ backgroundColor: "rgba(34,197,94,0.25)" }}
-                >
-                  <Text
-                    className="text-xs font-bold"
-                    style={{ color: "#4ADE80" }}
-                  >
-                    CURRENT
-                  </Text>
-                </View>
-              )}
-            </View>
-
-            {/* Price */}
-            <View className="mb-1">
-              <View className="flex-row items-end">
-                <Text className="text-white text-4xl font-extrabold">
-                  {formatPrice(price)}
-                </Text>
-                <Text
-                  className="text-base ml-1 mb-1"
-                  style={{ color: "rgba(255,255,255,0.6)" }}
-                >
-                  /{billingCycle === "monthly" ? "mo" : "yr"}
-                </Text>
-              </View>
-              {billingCycle === "yearly" && (
-                <Text
-                  className="text-sm mt-0.5"
-                  style={{ color: "rgba(255,255,255,0.5)" }}
-                >
-                  {formatPrice(perMonthPrice)}/mo · Save{" "}
-                  <Text style={{ color: "#4ADE80" }}>
-                    {formatPrice(getYearlySavings(plan))}
-                  </Text>
-                </Text>
-              )}
-            </View>
-          </View>
-
-          {/* Divider */}
-          <View
-            className="mx-5"
-            style={{
-              height: 1,
-              backgroundColor: "rgba(255,255,255,0.1)",
-            }}
-          />
-
-          {/* Features list — glass effect */}
-          <View
-            className="mx-4 mt-4 mb-4 rounded-2xl px-4 py-4"
-            style={{
-              backgroundColor: glassBg,
-              borderWidth: 1,
-              borderColor: "rgba(255,255,255,0.08)",
-            }}
+          {/* Gradient header strip */}
+          <LinearGradient
+            colors={headerGradient as unknown as string[]}
+            start={{ x: 0, y: 0 }}
+            end={{ x: 1, y: 0 }}
+            style={s.planHeader}
           >
-            <Text
-              className="text-xs font-semibold mb-3 tracking-wider"
-              style={{ color: "rgba(255,255,255,0.5)" }}
-            >
-              WHAT'S INCLUDED
-            </Text>
-            {plan.features.map((feature, idx) => (
-              <View key={idx} className="flex-row items-center mb-2.5">
-                <View
-                  className="rounded-full items-center justify-center"
-                  style={{
-                    width: 22,
-                    height: 22,
-                    backgroundColor: "rgba(255,255,255,0.12)",
-                  }}
-                >
-                  <Feather name="check" size={13} color="#fff" />
-                </View>
-                <Text
-                  className="ml-3 text-sm flex-1"
-                  style={{ color: "rgba(255,255,255,0.85)" }}
-                >
-                  {feature}
-                </Text>
+            <View style={s.planHeaderRow}>
+              <View style={s.planIconCircle}>
+                <Feather name={plan.icon as any} size={18} color="#fff" />
               </View>
-            ))}
-          </View>
+              <Text style={s.planHeaderName}>{plan.name}</Text>
+            </View>
+            {plan.highlighted && !isCurrentPlan && (
+              <View style={s.bestValueBadge}>
+                <Text style={s.bestValueText}>BEST VALUE</Text>
+              </View>
+            )}
+            {isCurrentPlan && (
+              <View style={s.currentBadge}>
+                <Text style={s.currentBadgeText}>CURRENT</Text>
+              </View>
+            )}
+          </LinearGradient>
 
-          {/* CTA button */}
-          <View className="px-5 pb-5">
+          {/* White body */}
+          <View style={s.planBody}>
+            {/* Price */}
+            <View style={s.priceRow}>
+              <Text style={[s.priceAmount, { color: accent }]}>
+                {formatPrice(price)}
+              </Text>
+              <Text style={s.pricePeriod}>
+                /{billingCycle === "monthly" ? "mo" : "yr"}
+              </Text>
+            </View>
+            {billingCycle === "yearly" && (
+              <Text style={s.priceSaving}>
+                {formatPrice(perMonthPrice)}/mo · Save{" "}
+                <Text style={{ color: Colors.success }}>
+                  {formatPrice(getYearlySavings(plan))}
+                </Text>
+              </Text>
+            )}
+
+            {/* Divider */}
+            <View style={s.divider} />
+
+            {/* Features list */}
+            <View style={s.featuresList}>
+              <Text style={s.featuresLabel}>WHAT'S INCLUDED</Text>
+              {plan.features.map((feature, idx) => (
+                <View key={idx} style={s.featureRow}>
+                  <View
+                    style={[s.featureCheck, { backgroundColor: accent + "15" }]}
+                  >
+                    <Feather name="check" size={13} color={accent} />
+                  </View>
+                  <Text style={s.featureText}>{feature}</Text>
+                </View>
+              ))}
+            </View>
+
+            {/* CTA button */}
             <TouchableOpacity
-              className="rounded-xl py-3.5 items-center justify-center"
-              style={{
-                backgroundColor: isCurrentPlan
-                  ? "rgba(255,255,255,0.15)"
-                  : "#fff",
-              }}
+              style={[
+                s.ctaButton,
+                isCurrentPlan
+                  ? s.ctaButtonDisabled
+                  : { backgroundColor: accent },
+              ]}
               activeOpacity={0.8}
               onPress={() => !isCurrentPlan && handleSubscribe(plan)}
               disabled={isCurrentPlan || loadingPlan === plan.id}
             >
               {loadingPlan === plan.id ? (
                 <ActivityIndicator
-                  color={isCurrentPlan ? "#fff" : gradientColors[1]}
+                  color={isCurrentPlan ? Colors.textDisabled : "#fff"}
                   size="small"
                 />
               ) : (
                 <Text
-                  className="text-base font-bold"
-                  style={{
-                    color: isCurrentPlan
-                      ? "rgba(255,255,255,0.5)"
-                      : gradientColors[1],
-                  }}
+                  style={[
+                    s.ctaText,
+                    isCurrentPlan
+                      ? { color: Colors.textDisabled }
+                      : { color: "#fff" },
+                  ]}
                 >
                   {isCurrentPlan ? "Current Plan" : `Get ${plan.name}`}
                 </Text>
               )}
             </TouchableOpacity>
           </View>
-        </LinearGradient>
+        </View>
       </View>
     );
   };
@@ -689,51 +550,41 @@ export default function SubscriptionScreen() {
   // ─── Loading state ──────────────────────────────────────────────
   if (loading) {
     return (
-      <LinearGradient
-        colors={["#0F172A", "#1E293B", "#334155"]}
-        className="flex-1 items-center justify-center"
-      >
-        <SafeAreaView className="flex-1 items-center justify-center">
-          <ActivityIndicator color="#fff" size="large" />
-          <Text className="text-white mt-4 text-base">Loading plans...</Text>
+      <View style={s.screen}>
+        <SafeAreaView style={s.loadingCenter}>
+          <ActivityIndicator color={Colors.primary} size="large" />
+          <Text style={s.loadingText}>Loading plans...</Text>
         </SafeAreaView>
-      </LinearGradient>
+      </View>
     );
   }
 
   // ─── Main render ────────────────────────────────────────────────
   return (
-    <LinearGradient
-      colors={["#0F172A", "#1E293B", "#334155"]}
-      className="flex-1"
-    >
-      <SafeAreaView className="flex-1" edges={["top"]}>
-        <StatusBar barStyle="light-content" backgroundColor="#0F172A" />
+    <View style={s.screen}>
+      <SafeAreaView style={{ flex: 1 }} edges={["top"]}>
+        <StatusBar barStyle="dark-content" backgroundColor={Colors.bgApp} />
 
         {/* ── Header ─────────────────────────────────────────── */}
-        <View className="px-5 pt-2 pb-4 flex-row items-center">
+        <View style={s.header}>
           <TouchableOpacity
             onPress={() => router.back()}
-            className="p-2 -ml-2 rounded-full"
-            style={{ backgroundColor: "rgba(255,255,255,0.08)" }}
+            style={s.backButton}
             activeOpacity={0.7}
             hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
           >
-            <Feather name="arrow-left" size={22} color="white" />
+            <Feather name="arrow-left" size={22} color={Colors.textPrimary} />
           </TouchableOpacity>
-          <View className="flex-1 ml-3">
-            <Text className="text-white text-xl font-bold">Subscription</Text>
-            <Text
-              className="text-xs mt-0.5"
-              style={{ color: "rgba(255,255,255,0.5)" }}
-            >
+          <View style={{ flex: 1, marginLeft: 12 }}>
+            <Text style={s.headerTitle}>Subscription</Text>
+            <Text style={s.headerSubtitle}>
               Choose the plan that fits your needs
             </Text>
           </View>
         </View>
 
         <ScrollView
-          className="flex-1"
+          style={{ flex: 1 }}
           contentContainerStyle={{ paddingBottom: 40 }}
           showsVerticalScrollIndicator={false}
         >
@@ -778,87 +629,46 @@ export default function SubscriptionScreen() {
           {plans.length > 1 && renderDots()}
 
           {/* ── Free plan section ──────────────────────────────── */}
-          <View className="mx-5 mt-6">
-            <View
-              className="rounded-2xl overflow-hidden"
-              style={{
-                backgroundColor: "rgba(255,255,255,0.06)",
-                borderWidth: 1,
-                borderColor: "rgba(255,255,255,0.08)",
-              }}
-            >
-              <View className="px-5 py-4">
-                <View className="flex-row items-center justify-between mb-3">
-                  <View className="flex-row items-center">
-                    <View
-                      className="rounded-full items-center justify-center mr-2.5"
-                      style={{
-                        width: 32,
-                        height: 32,
-                        backgroundColor: "rgba(255,255,255,0.08)",
-                      }}
-                    >
-                      <Feather
-                        name="heart"
-                        size={16}
-                        color="rgba(255,255,255,0.4)"
-                      />
-                    </View>
-                    <Text
-                      className="text-base font-semibold"
-                      style={{ color: "rgba(255,255,255,0.6)" }}
-                    >
-                      Free Plan
-                    </Text>
+          <View style={s.sectionPadding}>
+            <View style={s.freePlanCard}>
+              <View style={s.freePlanHeader}>
+                <View style={s.freePlanLeft}>
+                  <View style={s.freePlanIconCircle}>
+                    <Feather
+                      name="heart"
+                      size={16}
+                      color={Colors.textDisabled}
+                    />
                   </View>
-                  <Text
-                    className="text-lg font-bold"
-                    style={{ color: "rgba(255,255,255,0.4)" }}
-                  >
-                    ₱0
-                  </Text>
+                  <Text style={s.freePlanTitle}>Free Plan</Text>
                 </View>
-                <View className="flex-row flex-wrap">
-                  {FREE_PLAN_FEATURES.map((f, i) => (
-                    <View key={i} className="flex-row items-center mr-4 mb-1.5">
-                      <Feather
-                        name="check"
-                        size={12}
-                        color="rgba(255,255,255,0.3)"
-                      />
-                      <Text
-                        className="ml-1.5 text-xs"
-                        style={{ color: "rgba(255,255,255,0.4)" }}
-                      >
-                        {f}
-                      </Text>
-                    </View>
-                  ))}
-                </View>
+                <Text style={s.freePlanPrice}>₱0</Text>
+              </View>
+              <View style={s.freePlanFeatures}>
+                {FREE_PLAN_FEATURES.map((f, i) => (
+                  <View key={i} style={s.freePlanFeatureRow}>
+                    <Feather
+                      name="check"
+                      size={12}
+                      color={Colors.textDisabled}
+                    />
+                    <Text style={s.freePlanFeatureText}>{f}</Text>
+                  </View>
+                ))}
               </View>
             </View>
           </View>
 
           {/* ── Footer info ────────────────────────────────────── */}
-          <View className="mx-5 mt-5">
-            <View
-              className="rounded-2xl overflow-hidden flex-row items-start px-4 py-3.5"
-              style={{
-                backgroundColor: "rgba(255,255,255,0.05)",
-                borderWidth: 1,
-                borderColor: "rgba(255,255,255,0.06)",
-              }}
-            >
+          <View style={s.sectionPadding}>
+            <View style={s.footerCard}>
               <Feather
                 name="shield"
                 size={16}
-                color="rgba(255,255,255,0.3)"
+                color={Colors.textDisabled}
                 style={{ marginTop: 2 }}
               />
-              <Text
-                className="ml-3 text-xs leading-5 flex-1"
-                style={{ color: "rgba(255,255,255,0.35)" }}
-              >
+              <Text style={s.footerText}>
                 Payments are processed securely via PayMongo. Cancel anytime
                 from your account settings.
               </Text>
@@ -875,6 +685,403 @@ export default function SubscriptionScreen() {
         buttons={alertOptions.buttons}
         onClose={hideAlert}
       />
-    </LinearGradient>
+    </View>
   );
 }
+
+// ═══════════════════════════════════════════════════════════════════
+// STYLES
+// ═══════════════════════════════════════════════════════════════════
+const s = StyleSheet.create({
+  screen: {
+    flex: 1,
+    backgroundColor: Colors.bgApp,
+  },
+  loadingCenter: {
+    flex: 1,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  loadingText: {
+    color: Colors.textSecondary,
+    marginTop: 16,
+    fontSize: 15,
+  },
+
+  // Header
+  header: {
+    paddingHorizontal: 20,
+    paddingTop: 8,
+    paddingBottom: 16,
+    flexDirection: "row",
+    alignItems: "center",
+    borderBottomWidth: 1,
+    borderBottomColor: Colors.borderLight,
+    backgroundColor: Colors.bgPrimary,
+  },
+  backButton: {
+    padding: 8,
+    marginLeft: -8,
+    borderRadius: 20,
+    backgroundColor: Colors.bgTertiary,
+  },
+  headerTitle: {
+    color: Colors.textPrimary,
+    fontSize: 20,
+    fontWeight: "700",
+  },
+  headerSubtitle: {
+    color: Colors.textMuted,
+    fontSize: 12,
+    marginTop: 2,
+  },
+
+  // Sections
+  sectionPadding: {
+    paddingHorizontal: 20,
+    marginBottom: 16,
+  },
+
+  // Current plan
+  currentPlanCard: {
+    backgroundColor: Colors.bgPrimary,
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: Colors.borderLight,
+    padding: 16,
+    ...Shadows.sm,
+  },
+  currentPlanRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+  },
+  currentPlanLeft: {
+    flexDirection: "row",
+    alignItems: "center",
+    flex: 1,
+  },
+  currentPlanIcon: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  currentPlanLabel: {
+    fontSize: 10,
+    fontWeight: "600",
+    color: Colors.textMuted,
+    letterSpacing: 0.5,
+  },
+  currentPlanTier: {
+    fontSize: 16,
+    fontWeight: "700",
+    color: Colors.textPrimary,
+    marginTop: 2,
+  },
+  activeBadge: {
+    paddingHorizontal: 12,
+    paddingVertical: 4,
+    borderRadius: 12,
+    backgroundColor: Colors.successLight,
+  },
+  activeBadgeText: {
+    fontSize: 12,
+    fontWeight: "600",
+    color: Colors.success,
+  },
+  freeBadge: {
+    paddingHorizontal: 12,
+    paddingVertical: 4,
+    borderRadius: 12,
+    backgroundColor: Colors.bgTertiary,
+  },
+  freeBadgeText: {
+    fontSize: 12,
+    fontWeight: "500",
+    color: Colors.textMuted,
+  },
+
+  // Pending banner
+  pendingBanner: {
+    backgroundColor: Colors.warningLight,
+    borderRadius: 16,
+    flexDirection: "row",
+    alignItems: "center",
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    borderWidth: 1,
+    borderColor: "rgba(245, 158, 11, 0.2)",
+  },
+  pendingText: {
+    flex: 1,
+    marginLeft: 12,
+    fontSize: 13,
+    fontWeight: "500",
+    color: Colors.warning,
+  },
+  pendingVerifyBtn: {
+    paddingHorizontal: 14,
+    paddingVertical: 6,
+    borderRadius: 12,
+    backgroundColor: "rgba(245, 158, 11, 0.15)",
+  },
+  pendingVerifyText: {
+    color: Colors.warning,
+    fontSize: 12,
+    fontWeight: "700",
+  },
+
+  // Billing toggle
+  toggleContainer: {
+    flexDirection: "row",
+    backgroundColor: Colors.bgTertiary,
+    borderRadius: 16,
+    padding: 4,
+    borderWidth: 1,
+    borderColor: Colors.borderLight,
+  },
+  toggleOption: {
+    flex: 1,
+    paddingVertical: 12,
+    borderRadius: 12,
+    alignItems: "center",
+    justifyContent: "center",
+    flexDirection: "row",
+  },
+  toggleOptionRight: {
+    flexDirection: "row",
+  },
+  toggleOptionActive: {
+    backgroundColor: Colors.bgPrimary,
+    ...Shadows.sm,
+  },
+  toggleText: {
+    fontWeight: "600",
+    fontSize: 14,
+    color: Colors.textMuted,
+  },
+  toggleTextActive: {
+    color: Colors.textPrimary,
+  },
+  savingsBadge: {
+    marginLeft: 6,
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 8,
+    backgroundColor: Colors.successLight,
+  },
+  savingsText: {
+    fontSize: 10,
+    fontWeight: "700",
+    color: Colors.success,
+  },
+
+  // Plan card
+  planCard: {
+    backgroundColor: Colors.bgPrimary,
+    borderRadius: 24,
+    overflow: "hidden",
+    borderWidth: 1,
+    borderColor: Colors.borderLight,
+    ...Shadows.md,
+  },
+  planHeader: {
+    paddingHorizontal: 20,
+    paddingVertical: 16,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+  },
+  planHeaderRow: {
+    flexDirection: "row",
+    alignItems: "center",
+  },
+  planIconCircle: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: "rgba(255,255,255,0.25)",
+    alignItems: "center",
+    justifyContent: "center",
+    marginRight: 10,
+  },
+  planHeaderName: {
+    color: "#fff",
+    fontSize: 20,
+    fontWeight: "700",
+  },
+  bestValueBadge: {
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 10,
+    backgroundColor: "rgba(255,255,255,0.25)",
+  },
+  bestValueText: {
+    color: "#fff",
+    fontSize: 10,
+    fontWeight: "800",
+    letterSpacing: 0.5,
+  },
+  currentBadge: {
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 10,
+    backgroundColor: "rgba(255,255,255,0.25)",
+  },
+  currentBadgeText: {
+    color: "#fff",
+    fontSize: 10,
+    fontWeight: "800",
+    letterSpacing: 0.5,
+  },
+  planBody: {
+    padding: 20,
+  },
+  priceRow: {
+    flexDirection: "row",
+    alignItems: "baseline",
+  },
+  priceAmount: {
+    fontSize: 36,
+    fontWeight: "800",
+  },
+  pricePeriod: {
+    fontSize: 15,
+    color: Colors.textMuted,
+    marginLeft: 4,
+  },
+  priceSaving: {
+    fontSize: 13,
+    color: Colors.textMuted,
+    marginTop: 4,
+  },
+  divider: {
+    height: 1,
+    backgroundColor: Colors.borderLight,
+    marginVertical: 16,
+  },
+  featuresList: {
+    marginBottom: 20,
+  },
+  featuresLabel: {
+    fontSize: 10,
+    fontWeight: "700",
+    color: Colors.textMuted,
+    letterSpacing: 1,
+    marginBottom: 12,
+  },
+  featureRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginBottom: 10,
+  },
+  featureCheck: {
+    width: 24,
+    height: 24,
+    borderRadius: 12,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  featureText: {
+    marginLeft: 12,
+    fontSize: 14,
+    color: Colors.textSecondary,
+    flex: 1,
+  },
+  ctaButton: {
+    borderRadius: 14,
+    paddingVertical: 14,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  ctaButtonDisabled: {
+    backgroundColor: Colors.bgTertiary,
+  },
+  ctaText: {
+    fontSize: 15,
+    fontWeight: "700",
+  },
+
+  // Pagination dots
+  dotsContainer: {
+    flexDirection: "row",
+    justifyContent: "center",
+    alignItems: "center",
+    marginTop: 20,
+    marginBottom: 8,
+  },
+
+  // Free plan
+  freePlanCard: {
+    backgroundColor: Colors.bgPrimary,
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: Colors.borderLight,
+    padding: 16,
+  },
+  freePlanHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    marginBottom: 12,
+  },
+  freePlanLeft: {
+    flexDirection: "row",
+    alignItems: "center",
+  },
+  freePlanIconCircle: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: Colors.bgTertiary,
+    alignItems: "center",
+    justifyContent: "center",
+    marginRight: 10,
+  },
+  freePlanTitle: {
+    fontSize: 15,
+    fontWeight: "600",
+    color: Colors.textMuted,
+  },
+  freePlanPrice: {
+    fontSize: 18,
+    fontWeight: "700",
+    color: Colors.textDisabled,
+  },
+  freePlanFeatures: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+  },
+  freePlanFeatureRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginRight: 16,
+    marginBottom: 6,
+  },
+  freePlanFeatureText: {
+    marginLeft: 6,
+    fontSize: 12,
+    color: Colors.textMuted,
+  },
+
+  // Footer
+  footerCard: {
+    backgroundColor: Colors.bgSecondary,
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: Colors.borderLight,
+    flexDirection: "row",
+    alignItems: "flex-start",
+    paddingHorizontal: 16,
+    paddingVertical: 14,
+  },
+  footerText: {
+    marginLeft: 12,
+    fontSize: 12,
+    lineHeight: 18,
+    color: Colors.textDisabled,
+    flex: 1,
+  },
+});

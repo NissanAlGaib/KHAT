@@ -27,7 +27,7 @@ export default function SectionContainer({
           <Text style={styles.icon}>{icon}</Text>
           <Text style={styles.title}>{title}</Text>
         </View>
-        
+
         {showSeeAll && (
           <TouchableOpacity onPress={onSeeAllPress} style={styles.seeAllButton}>
             <Text style={styles.seeAllText}>See All</Text>
@@ -35,10 +35,8 @@ export default function SectionContainer({
           </TouchableOpacity>
         )}
       </View>
-      
-      <View style={styles.content}>
-        {children}
-      </View>
+
+      <View style={styles.content}>{children}</View>
     </View>
   );
 }
@@ -50,7 +48,7 @@ const styles = StyleSheet.create({
     borderRadius: 24,
     paddingVertical: 16,
     ...Shadows.sm,
-    shadowColor: Colors.coralVibrant,
+    shadowColor: Colors.shadow,
     shadowOpacity: 0.05,
   },
   header: {
@@ -77,7 +75,7 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     gap: 4,
-    backgroundColor: Colors.bgCoralLight,
+    backgroundColor: Colors.bgTertiary,
     paddingHorizontal: 10,
     paddingVertical: 4,
     borderRadius: 12,

@@ -1,5 +1,6 @@
 import { Tabs } from "expo-router";
 import CurvedTabBar from "@/components/core/CurvedTabBar";
+import { Colors } from "@/constants";
 
 export default function TabLayout() {
   return (
@@ -7,7 +8,7 @@ export default function TabLayout() {
       tabBar={(props) => <CurvedTabBar {...props} />}
       screenOptions={{
         headerShown: false,
-        sceneStyle: { backgroundColor: "#FFFFFF" },
+        sceneStyle: { backgroundColor: Colors.bgApp },
       }}
     >
       <Tabs.Screen name="index" options={{ title: "Home" }} />

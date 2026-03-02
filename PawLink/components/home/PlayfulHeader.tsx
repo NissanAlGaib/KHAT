@@ -8,27 +8,32 @@ import {
   Platform,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { Colors, Shadows } from "@/constants";
+import { Feather } from "@expo/vector-icons";
+import { Colors } from "@/constants";
 
 interface PlayfulHeaderProps {
   onSearchPress?: () => void;
   onSubscriptionPress?: () => void;
+  onFilterPress?: () => void;
+  filterActive?: boolean;
+  filterCount?: number;
 }
 
 /**
- * Instagram-style header with:
- * - Search icon on the left
- * - Centered app name "PAWLINK"
- * - Subscription (crown) icon on the right
+ * PlayfulHeader v2 — Clean white header with coral accent.
+ * Supports optional breed filter button on the right side.
  */
 export default function PlayfulHeader({
   onSearchPress,
   onSubscriptionPress,
+  onFilterPress,
+  filterActive,
+  filterCount = 0,
 }: PlayfulHeaderProps) {
   const insets = useSafeAreaInsets();
 
   return (
-    <View style={[styles.header, { paddingTop: insets.top + 8 }]}>
+    <View style={[styles.header, { paddingTop: insets.top + 4 }]}>
       <View style={styles.headerRow}>
         {/* Left Side - Search Icon */}
         <View style={styles.leftContainer}>
@@ -49,8 +54,29 @@ export default function PlayfulHeader({
           <Text style={styles.title}>PAWLINK</Text>
         </View>
 
-        {/* Right Side - Subscription Icon */}
+        {/* Right Side - Filter + Subscription */}
         <View style={styles.rightContainer}>
+          {onFilterPress && (
+            <TouchableOpacity
+              style={[
+                styles.filterButton,
+                filterActive && styles.filterButtonActive,
+              ]}
+              onPress={onFilterPress}
+              activeOpacity={0.7}
+            >
+              <Feather
+                name="sliders"
+                size={18}
+                color={filterActive ? Colors.white : Colors.textSecondary}
+              />
+              {filterCount > 0 && (
+                <View style={styles.filterBadge}>
+                  <Text style={styles.filterBadgeText}>{filterCount}</Text>
+                </View>
+              )}
+            </TouchableOpacity>
+          )}
           <TouchableOpacity
             style={styles.iconButton}
             onPress={onSubscriptionPress}
@@ -71,23 +97,20 @@ const styles = StyleSheet.create({
   header: {
     backgroundColor: Colors.white,
     paddingHorizontal: 16,
-    paddingBottom: 16,
-    marginBottom: 16, // Space below header
-    // Subtle shadow for depth without being heavy
+    paddingBottom: 12,
     ...Platform.select({
       ios: {
-        shadowColor: "#000",
-        shadowOffset: { width: 0, height: 2 },
-        shadowOpacity: 0.06,
-        shadowRadius: 4,
+        shadowColor: Colors.shadow,
+        shadowOffset: { width: 0, height: 1 },
+        shadowOpacity: 0.04,
+        shadowRadius: 3,
       },
       android: {
-        elevation: 3,
+        elevation: 2,
       },
     }),
-    // Subtle bottom border as fallback
     borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: "rgba(0,0,0,0.08)",
+    borderBottomColor: Colors.borderLight,
   },
   headerRow: {
     flexDirection: "row",
@@ -111,12 +134,12 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "flex-end",
-    gap: 4,
+    gap: 6,
   },
   title: {
-    fontSize: 24,
+    fontSize: 22,
     fontFamily: "Baloo2-ExtraBold",
-    color: Colors.coralVibrant,
+    color: Colors.primary,
     letterSpacing: 1.5,
   },
   iconButton: {
@@ -124,11 +147,38 @@ const styles = StyleSheet.create({
     height: 40,
     justifyContent: "center",
     alignItems: "center",
-    position: "relative",
   },
   iconImage: {
-    width: 26,
-    height: 26,
+    width: 24,
+    height: 24,
     resizeMode: "contain",
+  },
+  filterButton: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: Colors.bgTertiary,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  filterButtonActive: {
+    backgroundColor: Colors.primary,
+  },
+  filterBadge: {
+    position: "absolute",
+    top: -3,
+    right: -3,
+    backgroundColor: Colors.error,
+    borderRadius: 8,
+    minWidth: 16,
+    height: 16,
+    alignItems: "center",
+    justifyContent: "center",
+    paddingHorizontal: 4,
+  },
+  filterBadgeText: {
+    fontSize: 10,
+    fontWeight: "700",
+    color: Colors.white,
   },
 });

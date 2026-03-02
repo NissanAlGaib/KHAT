@@ -1,19 +1,9 @@
 import React from "react";
-import {
-  View,
-  Text,
-  Image,
-  StyleSheet,
-  Dimensions,
-} from "react-native";
+import { View, Text, Image, StyleSheet } from "react-native";
 import { LinearGradient } from "expo-linear-gradient";
 import { Feather } from "@expo/vector-icons";
-import { Colors, Shadows, BorderRadius } from "@/constants";
+import { Colors, Shadows } from "@/constants";
 import { getStorageUrl } from "@/utils/imageUrl";
-
-const { width: SCREEN_WIDTH } = Dimensions.get("window");
-const CARD_WIDTH = SCREEN_WIDTH - 32;
-const CARD_HEIGHT = 400;
 
 interface MatchCardProps {
   match: {
@@ -51,21 +41,19 @@ const getAge = (birthdate?: string) => {
 };
 
 /**
- * MatchCard - Individual match card for the stack
- * Shows the OTHER pet (not the selected one)
+ * MatchCard v2 — Full-bleed photo card with overlay info.
+ * Fills parent via flex: 1. Shows the OTHER pet (not the selected one).
  */
 export default function MatchCard({ match, selectedPetId }: MatchCardProps) {
-  // Determine which pet to show (the one that's NOT the user's selected pet)
-  const displayPet = 
+  const displayPet =
     match.pet1.pet_id === selectedPetId ? match.pet2 : match.pet1;
 
   const photoUrl = getStorageUrl(displayPet.photo_url);
-
   const age = getAge(displayPet.birthdate);
 
   return (
     <View style={styles.card}>
-      {/* Photo */}
+      {/* Full-bleed Photo */}
       <View style={styles.photoContainer}>
         {photoUrl ? (
           <Image source={{ uri: photoUrl }} style={styles.photo} />
@@ -75,28 +63,32 @@ export default function MatchCard({ match, selectedPetId }: MatchCardProps) {
           </View>
         )}
 
-        {/* Gradient overlay */}
+        {/* Top gradient for readability */}
         <LinearGradient
-          colors={["transparent", "rgba(0,0,0,0.4)"]}
-          style={styles.gradient}
+          colors={["rgba(0,0,0,0.25)", "transparent"]}
+          style={styles.topGradient}
         />
 
-        {/* Compatibility badge */}
+        {/* Bottom gradient for info readability */}
+        <LinearGradient
+          colors={["transparent", "rgba(0,0,0,0.65)"]}
+          style={styles.bottomGradient}
+        />
+
+        {/* Compatibility badge — top right */}
         <View style={styles.compatibilityBadge}>
-          <Feather name="heart" size={14} color={Colors.primary} />
+          <Feather name="heart" size={12} color={Colors.primary} />
           <Text style={styles.compatibilityText}>
-            {match.compatibility_score}% Match
+            {match.compatibility_score}%
           </Text>
         </View>
-      </View>
 
-      {/* Info section */}
-      <View style={styles.infoSection}>
-        <View>
+        {/* Info overlay — bottom */}
+        <View style={styles.infoOverlay}>
           <View style={styles.nameRow}>
             <Text style={styles.petName} numberOfLines={1}>
               {displayPet.name}
-              {age && <Text style={styles.petAge}>, {age}</Text>}
+              {age ? <Text style={styles.petAge}>, {age}</Text> : null}
             </Text>
             {displayPet.sex && (
               <View
@@ -105,8 +97,8 @@ export default function MatchCard({ match, selectedPetId }: MatchCardProps) {
                   {
                     backgroundColor:
                       displayPet.sex.toLowerCase() === "female"
-                        ? "#FFE4E6"
-                        : "#E0F2FE",
+                        ? "rgba(255, 228, 230, 0.9)"
+                        : "rgba(224, 242, 254, 0.9)",
                   },
                 ]}
               >
@@ -116,30 +108,28 @@ export default function MatchCard({ match, selectedPetId }: MatchCardProps) {
                     {
                       color:
                         displayPet.sex.toLowerCase() === "female"
-                          ? "#BE123C"
-                          : "#0284C7",
+                          ? Colors.femaleTxt
+                          : Colors.maleTxt,
                     },
                   ]}
                 >
-                  {displayPet.sex.toLowerCase() === "female" ? "♀" : "♂"}{" "}
-                  {displayPet.sex}
+                  {displayPet.sex.toLowerCase() === "female" ? "♀" : "♂"}
                 </Text>
               </View>
             )}
           </View>
 
-          <View style={styles.breedRow}>
-            <Feather name="tag" size={16} color={Colors.primary} />
-            <Text style={styles.breedText} numberOfLines={1}>
-              {displayPet.breed || "Unknown Breed"}
-            </Text>
-          </View>
-        </View>
-
-        <View style={styles.footerRow}>
-          <View style={styles.locationRow}>
-            <Feather name="map-pin" size={16} color={Colors.textMuted} />
-            <Text style={styles.locationText}>Nearby</Text>
+          <View style={styles.detailsRow}>
+            <View style={styles.breedTag}>
+              <Feather name="tag" size={12} color={Colors.white} />
+              <Text style={styles.breedText} numberOfLines={1}>
+                {displayPet.breed || "Unknown Breed"}
+              </Text>
+            </View>
+            <View style={styles.locationTag}>
+              <Feather name="map-pin" size={12} color="rgba(255,255,255,0.8)" />
+              <Text style={styles.locationText}>Nearby</Text>
+            </View>
           </View>
         </View>
       </View>
@@ -149,18 +139,16 @@ export default function MatchCard({ match, selectedPetId }: MatchCardProps) {
 
 const styles = StyleSheet.create({
   card: {
-    width: CARD_WIDTH,
-    height: CARD_HEIGHT,
-    backgroundColor: Colors.bgPrimary,
-    borderRadius: BorderRadius["2xl"],
+    flex: 1,
+    backgroundColor: Colors.cardBg,
+    borderRadius: 24,
     overflow: "hidden",
     ...Shadows.lg,
     borderWidth: 1,
-    borderColor: Colors.borderLight,
+    borderColor: Colors.cardBorder,
   },
   photoContainer: {
-    width: "100%",
-    height: 260,
+    flex: 1,
     position: "relative",
   },
   photo: {
@@ -176,14 +164,21 @@ const styles = StyleSheet.create({
     justifyContent: "center",
   },
   placeholderEmoji: {
-    fontSize: 64,
+    fontSize: 80,
   },
-  gradient: {
+  topGradient: {
+    position: "absolute",
+    top: 0,
+    left: 0,
+    right: 0,
+    height: 100,
+  },
+  bottomGradient: {
     position: "absolute",
     left: 0,
     right: 0,
     bottom: 0,
-    height: 80,
+    height: 200,
   },
   compatibilityBadge: {
     position: "absolute",
@@ -195,7 +190,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12,
     paddingVertical: 6,
     borderRadius: 20,
-    gap: 6,
+    gap: 4,
     ...Shadows.sm,
   },
   compatibilityText: {
@@ -203,65 +198,70 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: "700",
   },
-  infoSection: {
-    flex: 1,
-    padding: 20,
-    justifyContent: "space-between",
+  infoOverlay: {
+    position: "absolute",
+    bottom: 0,
+    left: 0,
+    right: 0,
+    padding: 24,
+    paddingBottom: 28,
   },
   nameRow: {
     flexDirection: "row",
     alignItems: "center",
-    justifyContent: "space-between",
-    marginBottom: 8,
+    marginBottom: 10,
+    gap: 10,
   },
   petName: {
-    fontSize: 26,
+    fontSize: 30,
     fontWeight: "800",
-    color: Colors.textPrimary,
+    color: Colors.white,
     flex: 1,
-    marginRight: 8,
+    textShadowColor: "rgba(0,0,0,0.3)",
+    textShadowOffset: { width: 0, height: 1 },
+    textShadowRadius: 4,
   },
   petAge: {
-    fontSize: 26,
+    fontSize: 28,
     fontWeight: "400",
-    color: Colors.textPrimary,
-  },
-  breedRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 8,
-  },
-  breedText: {
-    fontSize: 16,
-    color: Colors.textSecondary,
-    fontWeight: "500",
+    color: Colors.white,
   },
   sexBadge: {
     paddingHorizontal: 10,
-    paddingVertical: 4,
-    borderRadius: 12,
+    paddingVertical: 5,
+    borderRadius: 14,
   },
   sexText: {
-    fontSize: 12,
-    fontWeight: "700",
+    fontSize: 16,
+    fontWeight: "800",
   },
-  footerRow: {
+  detailsRow: {
     flexDirection: "row",
     alignItems: "center",
-    justifyContent: "space-between",
-    marginTop: 8,
-    paddingTop: 12,
-    borderTopWidth: 1,
-    borderTopColor: Colors.borderLight,
+    gap: 12,
   },
-  locationRow: {
+  breedTag: {
     flexDirection: "row",
     alignItems: "center",
     gap: 6,
+    backgroundColor: "rgba(255,255,255,0.2)",
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: 12,
+  },
+  breedText: {
+    fontSize: 14,
+    color: Colors.white,
+    fontWeight: "600",
+  },
+  locationTag: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 4,
   },
   locationText: {
-    fontSize: 14,
-    color: Colors.textMuted,
+    fontSize: 13,
+    color: "rgba(255,255,255,0.8)",
     fontWeight: "500",
   },
 });

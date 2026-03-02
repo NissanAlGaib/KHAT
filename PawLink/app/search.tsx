@@ -12,6 +12,7 @@ import {
   ScrollView,
   Modal,
 } from "react-native";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useRouter, useLocalSearchParams } from "expo-router";
 import { Feather } from "@expo/vector-icons";
@@ -23,6 +24,7 @@ import {
   ExplorePetItem,
   PaginationMeta,
 } from "@/services/searchService";
+import { getShooters, type ShooterProfile } from "@/services/matchService";
 import { getStorageUrl } from "@/utils/imageUrl";
 import ErrorBoundary from "@/components/ErrorBoundary";
 
@@ -90,6 +92,13 @@ function SearchScreenContent() {
     "<1" | "1-3" | "3-5" | "5+" | undefined
   >(undefined);
 
+  // Featured shooters carousel
+  const [featuredShooters, setFeaturedShooters] = useState<ShooterProfile[]>(
+    [],
+  );
+  const [shootersLoading, setShootersLoading] = useState(true);
+  const [showShooterTooltip, setShowShooterTooltip] = useState(false);
+
   const isSearchMode = query.trim().length > 0;
 
   // Derived filter params
@@ -115,10 +124,16 @@ function SearchScreenContent() {
   useEffect(() => {
     loadRecentSearches();
     loadBreedList();
+    loadFeaturedShooters();
 
     // Check for incoming tab param (from See All buttons)
     const tabParam = params.tab as string;
     if (tabParam === "pets") setQuickFilter("all");
+
+    // First-visit tooltip for shooter section
+    AsyncStorage.getItem("shooterTooltipSeen").then((val) => {
+      if (val !== "true") setShowShooterTooltip(true);
+    });
   }, []);
 
   // Debounced search
@@ -152,7 +167,12 @@ function SearchScreenContent() {
       const filters = getFilters();
 
       let petItems: ExplorePetItem[] = [];
-      let meta: PaginationMeta = { current_page: page, per_page: 20, total: 0, last_page: 1 };
+      let meta: PaginationMeta = {
+        current_page: page,
+        per_page: 20,
+        total: 0,
+        last_page: 1,
+      };
 
       try {
         // Primary: searchPets endpoint (exists on all backend versions)
@@ -184,9 +204,17 @@ function SearchScreenContent() {
               cooldown_days_remaining: item.cooldown_days_remaining ?? null,
               owner: item.owner ? { ...item.owner, profile_image: null } : null,
             }));
-            meta = { current_page: 1, per_page: 50, total: petItems.length, last_page: 1 };
+            meta = {
+              current_page: 1,
+              per_page: 50,
+              total: petItems.length,
+              last_page: 1,
+            };
           } catch (fallbackErr: any) {
-            console.warn("searchGlobal fallback also failed:", fallbackErr?.message);
+            console.warn(
+              "searchGlobal fallback also failed:",
+              fallbackErr?.message,
+            );
             throw primaryErr; // Re-throw original error for the outer catch
           }
         } else {
@@ -202,10 +230,16 @@ function SearchScreenContent() {
       setPetsMeta(meta);
       setErrorMessage(null);
     } catch (error: any) {
-      const msg = error?.response?.data?.message
-        || error?.message
-        || "Something went wrong";
-      console.error("Failed to load pets:", msg, error?.response?.status, error);
+      const msg =
+        error?.response?.data?.message ||
+        error?.message ||
+        "Something went wrong";
+      console.error(
+        "Failed to load pets:",
+        msg,
+        error?.response?.status,
+        error,
+      );
       if (reset) {
         setErrorMessage(`Could not load pets: ${msg}`);
       }
@@ -247,8 +281,7 @@ function SearchScreenContent() {
           type: "breeder",
           name: b.name,
           subtitle:
-            b.pet_breeds?.slice(0, 2).join(", ") ||
-            `${b.pet_count || 0} pets`,
+            b.pet_breeds?.slice(0, 2).join(", ") || `${b.pet_count || 0} pets`,
           imageUrl: b.profile_image,
           userId: b.id,
         });
@@ -289,6 +322,23 @@ function SearchScreenContent() {
     } catch {
       // Breeds just won't be available in filter
     }
+  };
+
+  const loadFeaturedShooters = async () => {
+    setShootersLoading(true);
+    try {
+      const shooters = await getShooters();
+      setFeaturedShooters(shooters.slice(0, 10)); // cap at 10
+    } catch {
+      // Silently fail — carousel just won't show
+    } finally {
+      setShootersLoading(false);
+    }
+  };
+
+  const dismissShooterTooltip = () => {
+    setShowShooterTooltip(false);
+    AsyncStorage.setItem("shooterTooltipSeen", "true");
   };
 
   // Handlers
@@ -373,7 +423,9 @@ function SearchScreenContent() {
           ) : (
             <View style={styles.gridPlaceholder}>
               <Text style={{ fontSize: 32 }}>
-                {item.species?.toLowerCase() === "cat" ? "\uD83D\uDC31" : "\uD83D\uDC36"}
+                {item.species?.toLowerCase() === "cat"
+                  ? "\uD83D\uDC31"
+                  : "\uD83D\uDC36"}
               </Text>
             </View>
           )}
@@ -398,7 +450,9 @@ function SearchScreenContent() {
           {/* Species emoji */}
           <View style={styles.speciesBadge}>
             <Text style={{ fontSize: 12 }}>
-              {item.species?.toLowerCase() === "cat" ? "\uD83D\uDC31" : "\uD83D\uDC36"}
+              {item.species?.toLowerCase() === "cat"
+                ? "\uD83D\uDC31"
+                : "\uD83D\uDC36"}
             </Text>
           </View>
 
@@ -638,7 +692,9 @@ function SearchScreenContent() {
               </View>
 
               {/* Age Range Section */}
-              <Text style={[styles.sheetSectionTitle, { marginTop: Spacing.xl }]}>
+              <Text
+                style={[styles.sheetSectionTitle, { marginTop: Spacing.xl }]}
+              >
                 Age Range
               </Text>
               <View style={styles.ageChipsRow}>
@@ -688,7 +744,9 @@ function SearchScreenContent() {
   // RENDER: Error state with retry
   const renderError = () => (
     <View style={styles.emptyContainer}>
-      <View style={[styles.emptyIconWrap, { backgroundColor: Colors.warningBg }]}>
+      <View
+        style={[styles.emptyIconWrap, { backgroundColor: Colors.warningBg }]}
+      >
         <Feather name="wifi-off" size={36} color={Colors.warning} />
       </View>
       <Text style={styles.emptyTitle}>Failed to load</Text>
@@ -725,6 +783,99 @@ function SearchScreenContent() {
       </Text>
     </View>
   );
+
+  // RENDER: Featured Shooters horizontal carousel (above pet grid)
+  const renderFeaturedShooters = () => {
+    if (shootersLoading && featuredShooters.length === 0) return null;
+    if (featuredShooters.length === 0) return null;
+
+    return (
+      <View style={styles.shooterSection}>
+        {/* Tooltip — shown on first visit */}
+        {showShooterTooltip && (
+          <View style={styles.tooltip}>
+            <Text style={styles.tooltipText}>
+              New! Browse breeding assistants near you
+            </Text>
+            <TouchableOpacity
+              onPress={dismissShooterTooltip}
+              hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
+            >
+              <Feather name="x" size={14} color={Colors.white} />
+            </TouchableOpacity>
+          </View>
+        )}
+
+        <View style={styles.shooterSectionHeader}>
+          <View style={styles.shooterTitleRow}>
+            <Feather name="zap" size={16} color={Colors.warning} />
+            <Text style={styles.shooterSectionTitle}>Featured Shooters</Text>
+          </View>
+        </View>
+
+        <ScrollView
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          contentContainerStyle={styles.shooterScroll}
+        >
+          {featuredShooters.map((shooter) => {
+            const avatarUrl = getStorageUrl(shooter.profile_image);
+            return (
+              <TouchableOpacity
+                key={shooter.id}
+                style={styles.shooterCard}
+                activeOpacity={0.8}
+                onPress={() => handleShooterPress(shooter.id)}
+              >
+                <View style={styles.shooterAvatarWrap}>
+                  {avatarUrl ? (
+                    <Image
+                      source={{ uri: avatarUrl }}
+                      style={styles.shooterAvatar}
+                    />
+                  ) : (
+                    <View
+                      style={[
+                        styles.shooterAvatar,
+                        styles.shooterAvatarPlaceholder,
+                      ]}
+                    >
+                      <Feather
+                        name="user"
+                        size={22}
+                        color={Colors.textDisabled}
+                      />
+                    </View>
+                  )}
+                  {shooter.shooter_verified && (
+                    <View style={styles.shooterVerifiedBadge}>
+                      <Feather name="check" size={8} color={Colors.white} />
+                    </View>
+                  )}
+                </View>
+                <Text style={styles.shooterName} numberOfLines={1}>
+                  {shooter.name}
+                </Text>
+                {shooter.rating != null && (
+                  <View style={styles.shooterRatingRow}>
+                    <Feather name="star" size={10} color={Colors.warning} />
+                    <Text style={styles.shooterRating}>
+                      {shooter.rating.toFixed(1)}
+                    </Text>
+                  </View>
+                )}
+                {!shooter.rating && shooter.experience_years != null && (
+                  <Text style={styles.shooterExp}>
+                    {shooter.experience_years}y exp
+                  </Text>
+                )}
+              </TouchableOpacity>
+            );
+          })}
+        </ScrollView>
+      </View>
+    );
+  };
 
   // RENDER: Main content
   const renderContent = () => {
@@ -777,6 +928,7 @@ function SearchScreenContent() {
         showsVerticalScrollIndicator={false}
         onEndReached={handleEndReached}
         onEndReachedThreshold={0.4}
+        ListHeaderComponent={renderFeaturedShooters}
         ListFooterComponent={
           isLoadingMore ? (
             <ActivityIndicator
@@ -865,7 +1017,9 @@ function SearchScreenContent() {
                   onPress={() => setQuickFilter(f.key)}
                 >
                   {f.icon && <Text style={styles.chipIcon}>{f.icon}</Text>}
-                  <Text style={[styles.chipLabel, active && styles.chipLabelActive]}>
+                  <Text
+                    style={[styles.chipLabel, active && styles.chipLabelActive]}
+                  >
                     {f.label}
                   </Text>
                 </TouchableOpacity>
@@ -887,7 +1041,10 @@ function SearchScreenContent() {
                   </Text>
                   <TouchableOpacity
                     onPress={() =>
-                      setAdvancedFilters({ ...advancedFilters, breed: undefined })
+                      setAdvancedFilters({
+                        ...advancedFilters,
+                        breed: undefined,
+                      })
                     }
                   >
                     <Feather name="x" size={12} color={Colors.primaryDark} />
@@ -1459,5 +1616,110 @@ const styles = StyleSheet.create({
     fontSize: FontSize.md,
     fontWeight: "700",
     color: Colors.white,
+  },
+
+  // Featured Shooters Carousel
+  shooterSection: {
+    marginBottom: Spacing.md,
+  },
+  tooltip: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: Colors.primaryDark,
+    marginHorizontal: 0,
+    marginBottom: Spacing.sm,
+    paddingHorizontal: Spacing.md,
+    paddingVertical: 10,
+    borderRadius: BorderRadius.lg,
+    gap: Spacing.sm,
+  },
+  tooltipText: {
+    flex: 1,
+    fontSize: FontSize.sm,
+    fontWeight: "600",
+    color: Colors.white,
+  },
+  shooterSectionHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    marginBottom: Spacing.sm,
+  },
+  shooterTitleRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+  },
+  shooterSectionTitle: {
+    fontSize: FontSize.base,
+    fontWeight: "700",
+    color: Colors.textPrimary,
+  },
+  shooterScroll: {
+    gap: Spacing.sm,
+    paddingBottom: Spacing.xs,
+  },
+  shooterCard: {
+    width: 90,
+    alignItems: "center",
+    backgroundColor: Colors.white,
+    borderRadius: BorderRadius.xl,
+    paddingVertical: Spacing.md,
+    paddingHorizontal: Spacing.sm,
+    borderWidth: 1,
+    borderColor: Colors.borderLight,
+    ...Shadows.sm,
+  },
+  shooterAvatarWrap: {
+    position: "relative",
+    marginBottom: 6,
+  },
+  shooterAvatar: {
+    width: 50,
+    height: 50,
+    borderRadius: 25,
+  },
+  shooterAvatarPlaceholder: {
+    backgroundColor: Colors.bgTertiary,
+    alignItems: "center",
+    justifyContent: "center",
+    borderWidth: 1,
+    borderColor: Colors.borderLight,
+  },
+  shooterVerifiedBadge: {
+    position: "absolute",
+    bottom: -1,
+    right: -1,
+    width: 16,
+    height: 16,
+    borderRadius: 8,
+    backgroundColor: Colors.success,
+    alignItems: "center",
+    justifyContent: "center",
+    borderWidth: 2,
+    borderColor: Colors.white,
+  },
+  shooterName: {
+    fontSize: FontSize.xs,
+    fontWeight: "700",
+    color: Colors.textPrimary,
+    textAlign: "center",
+    maxWidth: 80,
+  },
+  shooterRatingRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 2,
+    marginTop: 2,
+  },
+  shooterRating: {
+    fontSize: 10,
+    fontWeight: "600",
+    color: Colors.textSecondary,
+  },
+  shooterExp: {
+    fontSize: 10,
+    color: Colors.textMuted,
+    marginTop: 2,
   },
 });

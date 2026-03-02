@@ -1,17 +1,9 @@
-import React, { useState, useCallback, useRef } from "react";
-import {
-  View,
-  StyleSheet,
-  ScrollView,
-  RefreshControl,
-  Image,
-  Text,
-  TouchableOpacity,
-} from "react-native";
-import { Feather } from "@expo/vector-icons";
+import React, { useState, useCallback, useRef, useEffect } from "react";
+import { View, StyleSheet, Text, TouchableOpacity } from "react-native";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useRouter } from "expo-router";
 import { useFocusEffect } from "@react-navigation/native";
-import dayjs from "dayjs";
+import { Feather } from "@expo/vector-icons";
 
 // Contexts
 import { useSession } from "@/context/AuthContext";
@@ -19,14 +11,7 @@ import { usePet } from "@/context/PetContext";
 import { useRole } from "@/context/RoleContext";
 
 // Services
-import {
-  getTopMatches,
-  getShooters,
-  getAllAvailablePets,
-  type PetMatch,
-  type TopMatch,
-  type ShooterProfile,
-} from "@/services/matchService";
+import { getTopMatches, type TopMatch } from "@/services/matchService";
 import {
   sendMatchRequest,
   getOutgoingRequests,
@@ -40,16 +25,13 @@ import { addPassedPet, getPassedPetIdsForPet } from "@/utils/passedPetsStorage";
 import { useAlert } from "@/hooks/useAlert";
 
 // Constants
-import { Colors, Spacing, Shadows } from "@/constants";
+import { Colors } from "@/constants";
 
 // Components
 import PlayfulHeader from "@/components/home/PlayfulHeader";
 import MatchCardStack from "@/components/home/MatchCardStack";
-import HorizontalPetScroll from "@/components/home/HorizontalPetScroll";
-import HorizontalShooterScroll from "@/components/home/HorizontalShooterScroll";
+import { SidePassButton, SideLikeButton } from "@/components/home/ActionBar";
 import SkeletonLoader from "@/components/home/SkeletonLoader";
-import SectionContainer from "@/components/home/SectionContainer";
-import TabSwitcher from "@/components/home/TabSwitcher";
 import AlertModal from "@/components/core/AlertModal";
 import BreedFilterModal from "@/components/home/BreedFilterModal";
 import ShooterHomepage from "./shooter-index";
@@ -65,25 +47,34 @@ export default function Homepage() {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [sendingRequest, setSendingRequest] = useState(false);
-  const [allPets, setAllPets] = useState<PetMatch[]>([]);
   const [topMatches, setTopMatches] = useState<TopMatch[]>([]);
-  const [shooters, setShooters] = useState<ShooterProfile[]>([]);
-  const [selectedTab, setSelectedTab] = useState<string>("pets");
   // Breed filter for Top Matches swiping
   const [breedFilterVisible, setBreedFilterVisible] = useState(false);
   const [selectedBreeds, setSelectedBreeds] = useState<string[]>([]);
+  // Shooter promo banner
+  const [showShooterBanner, setShowShooterBanner] = useState(false);
   // Track pet IDs that already have active match requests (for dupe guard)
   const activeRequestPetIdsRef = useRef<Set<number>>(new Set());
   // Track pet IDs that were passed (persisted in AsyncStorage)
   const passedPetIdsRef = useRef<Set<number>>(new Set());
 
+  // Check if shooter banner was previously dismissed
+  useEffect(() => {
+    AsyncStorage.getItem("shooterBannerDismissed").then((val) => {
+      if (val !== "true") setShowShooterBanner(true);
+    });
+  }, []);
+
+  const dismissShooterBanner = () => {
+    setShowShooterBanner(false);
+    AsyncStorage.setItem("shooterBannerDismissed", "true");
+  };
+
   // Fetch Data
   const fetchData = useCallback(async () => {
     try {
-      const [pets, tops, shootersList, outgoing, incoming] = await Promise.all([
-        getAllAvailablePets(),
+      const [tops, outgoing, incoming] = await Promise.all([
         getTopMatches(),
-        getShooters(),
         getOutgoingRequests(),
         getIncomingRequests(),
       ]);
@@ -98,13 +89,7 @@ export default function Homepage() {
       });
       activeRequestPetIdsRef.current = activeIds;
 
-      setAllPets(pets);
       setTopMatches(tops);
-
-      const filteredShooters = shootersList.filter(
-        (shooter) => shooter.id !== Number(user?.id),
-      );
-      setShooters(filteredShooters);
     } catch (error) {
       console.error("Error fetching homepage data:", error);
     } finally {
@@ -128,20 +113,7 @@ export default function Homepage() {
     }, [fetchData, selectedPet?.pet_id]),
   );
 
-  const onRefresh = useCallback(() => {
-    setRefreshing(true);
-    fetchData();
-  }, [fetchData]);
-
   // Handlers
-  const handlePetPress = (pet: PetMatch) => {
-    router.push(`/(pet)/view-profile?id=${pet.pet_id}`);
-  };
-
-  const handleShooterPress = (shooter: ShooterProfile) => {
-    router.push(`/(shooter)/${shooter.id}`);
-  };
-
   const handleMatchCardPress = (match: TopMatch) => {
     // Determine which pet to show (the one that's NOT the user's selected pet)
     const displayPet =
@@ -214,7 +186,6 @@ export default function Homepage() {
         });
       } else if (result.requires_payment) {
         // Handle free tier users who need to pay
-        // TODO: Implement payment flow screen
         showAlert({
           title: "Upgrade Required",
           message: `Free users need to pay ₱${result.payment_amount} per match request, or upgrade to a subscription for unlimited requests.`,
@@ -239,9 +210,17 @@ export default function Homepage() {
     }
   };
 
-  const handleMessage = (match: TopMatch) => {
-    // TODO: Implement message logic
-    console.log("Message match:", match);
+  // Programmatic swipe via ActionBar buttons
+  const handleActionPass = () => {
+    if (filteredMatches.length > 0) {
+      handlePass(filteredMatches[0]);
+    }
+  };
+
+  const handleActionLike = () => {
+    if (filteredMatches.length > 0) {
+      handleLike(filteredMatches[0]);
+    }
   };
 
   // Filter matches for selected pet — show nothing if no pet is selected
@@ -269,15 +248,6 @@ export default function Homepage() {
       })
     : [];
 
-  // Filter pets (same species only, exclude same sex)
-  const filteredPets = selectedPet
-    ? allPets.filter(
-        (pet) =>
-          pet.species?.toLowerCase() === selectedPet.species?.toLowerCase() &&
-          pet.sex?.toLowerCase() !== selectedPet.sex?.toLowerCase(),
-      )
-    : allPets;
-
   // If role is Shooter, show ShooterHomepage
   if (role === "Shooter") {
     return <ShooterHomepage />;
@@ -285,127 +255,74 @@ export default function Homepage() {
 
   return (
     <View style={styles.container}>
+      {/* Header */}
       <PlayfulHeader
         onSearchPress={() => router.navigate("/search")}
         onSubscriptionPress={() => router.push("/subscription")}
+        onFilterPress={() => setBreedFilterVisible(true)}
+        filterActive={selectedBreeds.length > 0}
+        filterCount={selectedBreeds.length}
       />
 
-      <ScrollView
-        contentContainerStyle={styles.scrollContent}
-        showsVerticalScrollIndicator={false}
-        refreshControl={
-          <RefreshControl
-            refreshing={refreshing}
-            onRefresh={onRefresh}
-            tintColor={Colors.primary}
-          />
-        }
-      >
-        {/* Match Stack */}
-        <View style={styles.matchSectionContainer}>
-          <View style={styles.matchHeader}>
-            <Image
-              source={require("@/assets/images/Heart_Icon.png")}
-              style={styles.heartIcon}
-            />
-            <Text style={styles.matchTitle}>Top Matches</Text>
-            <View style={{ flex: 1 }} />
-            <TouchableOpacity
-              style={[
-                styles.breedFilterButton,
-                selectedBreeds.length > 0 && styles.breedFilterButtonActive,
-              ]}
-              onPress={() => setBreedFilterVisible(true)}
-            >
-              <Feather
-                name="sliders"
-                size={16}
-                color={
-                  selectedBreeds.length > 0 ? Colors.white : Colors.coralDark
-                }
-              />
-              {selectedBreeds.length > 0 && (
-                <View style={styles.filterBadge}>
-                  <Text style={styles.filterBadgeText}>
-                    {selectedBreeds.length}
-                  </Text>
-                </View>
-              )}
-            </TouchableOpacity>
-          </View>
-
-          {loading ? (
-            <View style={{ alignItems: "center" }}>
-              <SkeletonLoader type="matchCard" />
+      {/* Shooter Promo Banner */}
+      {showShooterBanner && (
+        <View style={styles.shooterBanner}>
+          <TouchableOpacity
+            style={styles.shooterBannerContent}
+            activeOpacity={0.8}
+            onPress={() => router.push("/search")}
+          >
+            <View style={styles.shooterBannerIcon}>
+              <Feather name="zap" size={18} color={Colors.warning} />
             </View>
-          ) : (
+            <View style={styles.shooterBannerText}>
+              <Text style={styles.shooterBannerTitle}>
+                Need breeding assistance?
+              </Text>
+              <Text style={styles.shooterBannerSub}>
+                Browse verified Shooters nearby
+              </Text>
+            </View>
+            <Feather name="chevron-right" size={18} color={Colors.textMuted} />
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={styles.shooterBannerClose}
+            onPress={dismissShooterBanner}
+            hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+          >
+            <Feather name="x" size={14} color={Colors.textMuted} />
+          </TouchableOpacity>
+        </View>
+      )}
+
+      {/* Card Stack — fills viewport, half-buttons overlap edges */}
+      <View style={styles.cardArea}>
+        {loading ? (
+          <View style={styles.loadingContainer}>
+            <SkeletonLoader type="matchCard" />
+          </View>
+        ) : (
+          <View style={styles.stackWrapper}>
             <MatchCardStack
               matches={filteredMatches}
               selectedPetId={selectedPet?.pet_id}
               onPass={handlePass}
               onLike={handleLike}
-              onMessage={handleMessage}
               onCardPress={handleMatchCardPress}
             />
-          )}
-        </View>
-
-        {/* Tab Switcher */}
-        <TabSwitcher
-          tabs={[
-            { key: "pets", label: "Pets" },
-            { key: "shooters", label: "Shooters" },
-          ]}
-          activeTab={selectedTab}
-          onTabChange={setSelectedTab}
-        />
-
-        {/* Conditional Content */}
-        {selectedTab === "pets" ? (
-          <SectionContainer
-            title="Nearby Pets"
-            icon="🐕"
-            showSeeAll
-            onSeeAllPress={() => router.navigate("/search?tab=pets")}
-          >
-            {loading ? (
-              <ScrollView horizontal showsHorizontalScrollIndicator={false}>
-                <SkeletonLoader type="petCard" />
-                <SkeletonLoader type="petCard" />
-                <SkeletonLoader type="petCard" />
-              </ScrollView>
-            ) : (
-              <HorizontalPetScroll
-                pets={filteredPets}
-                onPetPress={handlePetPress}
-              />
-            )}
-          </SectionContainer>
-        ) : (
-          <SectionContainer
-            title="Shooters"
-            icon="📸"
-            showSeeAll
-            onSeeAllPress={() => router.navigate("/search?tab=shooters")}
-          >
-            {loading ? (
-              <ScrollView horizontal showsHorizontalScrollIndicator={false}>
-                <SkeletonLoader type="shooterCard" />
-                <SkeletonLoader type="shooterCard" />
-                <SkeletonLoader type="shooterCard" />
-              </ScrollView>
-            ) : (
-              <HorizontalShooterScroll
-                shooters={shooters}
-                onShooterPress={handleShooterPress}
-              />
-            )}
-          </SectionContainer>
+          </View>
         )}
 
-        {/* Bottom spacing for tab bar */}
-        <View style={{ height: 100 }} />
-      </ScrollView>
+        {/* Half-circle buttons — flush with screen edges, above the card */}
+        <SidePassButton
+          onPress={handleActionPass}
+          disabled={filteredMatches.length === 0 || sendingRequest}
+        />
+        <SideLikeButton
+          onPress={handleActionLike}
+          disabled={filteredMatches.length === 0 || sendingRequest}
+        />
+      </View>
 
       <AlertModal visible={visible} {...alertOptions} onClose={hideAlert} />
 
@@ -423,65 +340,66 @@ export default function Homepage() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: Colors.bgCoral, // #FFE0D8
+    backgroundColor: Colors.bgApp,
   },
-  scrollContent: {
-    paddingBottom: 20,
-  },
-  matchSectionContainer: {
-    backgroundColor: Colors.matchCardBg, // #F9DCDC
-    marginHorizontal: 20,
-    borderRadius: 24,
-    padding: 20,
-    marginBottom: 24,
-    ...Shadows.md,
-    shadowColor: Colors.coralDark,
-    shadowOpacity: 0.15,
+  // Shooter promo banner
+  shooterBanner: {
+    marginHorizontal: 16,
+    marginTop: 8,
+    backgroundColor: Colors.white,
+    borderRadius: 14,
     borderWidth: 1,
-    borderColor: Colors.matchCardBorder,
-  },
-  matchHeader: {
+    borderColor: Colors.borderLight,
     flexDirection: "row",
     alignItems: "center",
-    marginBottom: 16,
-    gap: 8,
+    overflow: "hidden",
   },
-  heartIcon: {
-    width: 24,
-    height: 24,
-    resizeMode: "contain",
+  shooterBannerContent: {
+    flex: 1,
+    flexDirection: "row",
+    alignItems: "center",
+    padding: 12,
+    gap: 10,
   },
-  matchTitle: {
-    fontSize: 20,
-    fontWeight: "800",
-    color: Colors.coralDark,
-  },
-  breedFilterButton: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
-    backgroundColor: "rgba(255,255,255,0.6)",
+  shooterBannerIcon: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: "#FFF7ED",
     alignItems: "center",
     justifyContent: "center",
   },
-  breedFilterButtonActive: {
-    backgroundColor: Colors.primary,
+  shooterBannerText: {
+    flex: 1,
   },
-  filterBadge: {
-    position: "absolute",
-    top: -4,
-    right: -4,
-    backgroundColor: Colors.coralDark,
-    borderRadius: 8,
-    minWidth: 16,
-    height: 16,
-    alignItems: "center",
-    justifyContent: "center",
-    paddingHorizontal: 4,
-  },
-  filterBadgeText: {
-    fontSize: 10,
+  shooterBannerTitle: {
+    fontSize: 13,
     fontWeight: "700",
-    color: Colors.white,
+    color: Colors.textPrimary,
+  },
+  shooterBannerSub: {
+    fontSize: 11,
+    color: Colors.textMuted,
+    marginTop: 1,
+  },
+  shooterBannerClose: {
+    paddingHorizontal: 12,
+    paddingVertical: 16,
+  },
+  // Card area — no horizontal padding so half-buttons touch screen edges
+  cardArea: {
+    flex: 1,
+    paddingTop: 12,
+    paddingBottom: 100, // clear the CurvedTabBar overlay
+    position: "relative",
+  },
+  loadingContainer: {
+    flex: 1,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  stackWrapper: {
+    flex: 1,
+    marginHorizontal: 16, // card inset, but buttons stay at screen edge
   },
 });

@@ -30,6 +30,65 @@ export interface ReleaseEntry {
  */
 export const releases: ReleaseEntry[] = [
   {
+    version: "1.6.0",
+    title: "Homepage Revamp, Side Buttons, & Shooter Discovery",
+    date: "March 2, 2026",
+    items: [
+      {
+        text: "Action buttons moved to sides of the card — Pass (left) and Like (right) no longer cut off by the tab bar",
+        category: "improved",
+      },
+      {
+        text: "Dismissible Shooter promo banner on the homepage — discover breeding assistants with one tap",
+        category: "new",
+      },
+      {
+        text: "Featured Shooters horizontal carousel on the Search screen with avatar, name, and rating",
+        category: "new",
+      },
+      {
+        text: "First-visit tooltip on the Shooters section to introduce the feature to new users",
+        category: "new",
+      },
+      {
+        text: "Full-screen Tinder-style swipe on the homepage — dedicated swiping experience",
+        category: "new",
+      },
+      {
+        text: "Floating action buttons overlay on card bottom with gradient fade",
+        category: "new",
+      },
+      {
+        text: "LIKE and PASS text indicators appear on-card during swipe gestures",
+        category: "new",
+      },
+      {
+        text: "Breed filter button added to the header bar for quick match filtering",
+        category: "new",
+      },
+      {
+        text: "Subscription page redesigned — white cards with soft gradient accent headers per plan",
+        category: "improved",
+      },
+      {
+        text: "Tab bar updated to clean white design with coral accents",
+        category: "improved",
+      },
+      {
+        text: "App-wide color system overhauled — neutral base with coral highlights instead of all-coral theme",
+        category: "improved",
+      },
+      {
+        text: "Unified sex badge colors across all pet cards",
+        category: "improved",
+      },
+      {
+        text: "Action buttons no longer cut off behind the tab bar",
+        category: "fixed",
+      },
+    ],
+  },
+  {
     version: "1.5.10",
     title: "Search & Filter Revamp",
     date: "March 1, 2026",

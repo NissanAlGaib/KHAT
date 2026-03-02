@@ -5,6 +5,7 @@ import { useRouter } from "expo-router";
 import { Home, Heart, PawPrint, Bell, User } from "lucide-react-native";
 import { BottomTabBarProps } from "@react-navigation/bottom-tabs";
 import PetSelectionModal from "./PetSelectionModal";
+import { Colors } from "@/constants";
 import { useRole } from "@/context/RoleContext";
 import { usePet } from "@/context/PetContext";
 import { getPendingShooterRequestsCount } from "@/services/contractService";
@@ -131,14 +132,24 @@ export default function CurvedTabBar({
 
   return (
     <View className="absolute bottom-0 w-full items-center pb-4">
-      <View style={{ width: TAB_BAR_WIDTH, height: TAB_BAR_HEIGHT + 40 }}>
+      <View
+        style={{
+          width: TAB_BAR_WIDTH,
+          height: TAB_BAR_HEIGHT + 40,
+          shadowColor: "#000",
+          shadowOffset: { width: 0, height: -2 },
+          shadowOpacity: 0.06,
+          shadowRadius: 8,
+          elevation: 8,
+        }}
+      >
         {/* Curved background with cutout */}
         <Svg
           width={TAB_BAR_WIDTH}
           height={TAB_BAR_HEIGHT}
           style={{ position: "absolute", bottom: 0 }}
         >
-          <Path d={createCurvedPath()} fill="#EA5B3A" />
+          <Path d={createCurvedPath()} fill={Colors.tabBarBg} />
         </Svg>
 
         {/* Center floating circle button - only show in Pet Owner mode */}
@@ -160,7 +171,7 @@ export default function CurvedTabBar({
               shadowRadius: 8,
               elevation: 8,
               borderWidth: 4,
-              borderColor: "#EA5B3A",
+              borderColor: Colors.primary,
               overflow: "hidden",
             }}
           >
@@ -184,7 +195,7 @@ export default function CurvedTabBar({
                   resizeMode="cover"
                 />
               ) : (
-                <PawPrint size={36} color="#EA5B3A" strokeWidth={2.5} />
+                <PawPrint size={36} color={Colors.primary} strokeWidth={2.5} />
               )}
             </TouchableOpacity>
           </View>
@@ -245,7 +256,9 @@ export default function CurvedTabBar({
                 <View style={{ position: "relative" }}>
                   <Icon
                     size={28}
-                    color={isActive ? "white" : "rgba(255, 255, 255, 0.6)"}
+                    color={
+                      isActive ? Colors.tabBarActive : Colors.tabBarInactive
+                    }
                     strokeWidth={2.5}
                   />
                   {/* Notification badge */}
@@ -255,7 +268,7 @@ export default function CurvedTabBar({
                         position: "absolute",
                         top: -4,
                         right: -8,
-                        backgroundColor: "#FFD700",
+                        backgroundColor: Colors.tabBarBadgeBg,
                         borderRadius: 10,
                         minWidth: 20,
                         height: 20,
@@ -263,12 +276,12 @@ export default function CurvedTabBar({
                         justifyContent: "center",
                         paddingHorizontal: 4,
                         borderWidth: 2,
-                        borderColor: "#EA5B3A",
+                        borderColor: Colors.tabBarBg,
                       }}
                     >
                       <Text
                         style={{
-                          color: "#EA5B3A",
+                          color: Colors.tabBarBadgeText,
                           fontSize: 11,
                           fontWeight: "bold",
                         }}
@@ -285,7 +298,7 @@ export default function CurvedTabBar({
                       width: 4,
                       height: 4,
                       borderRadius: 2,
-                      backgroundColor: "white",
+                      backgroundColor: Colors.primary,
                       marginTop: 4,
                     }}
                   />

@@ -49,8 +49,8 @@ export default function HorizontalPetScroll({
                 {
                   backgroundColor:
                     item.sex.toLowerCase() === "female"
-                      ? "#FFD1DC"
-                      : "#BAE6FD",
+                      ? Colors.femaleBg
+                      : Colors.maleBg,
                 },
               ]}
             >
@@ -60,8 +60,8 @@ export default function HorizontalPetScroll({
                   {
                     color:
                       item.sex.toLowerCase() === "female"
-                        ? "#FF1493"
-                        : "#0077B6",
+                        ? Colors.femaleTxt
+                        : Colors.maleTxt,
                   },
                 ]}
               >

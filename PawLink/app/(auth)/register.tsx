@@ -444,16 +444,13 @@ const Register = () => {
                 items={regionItems}
                 setOpen={setRegionOpen}
                 setValue={setSelectedRegion}
-                listMode="SCROLLVIEW"
-                scrollViewProps={{ nestedScrollEnabled: true }}
+                listMode="MODAL"
+                modalProps={{ animationType: "slide" }}
+                modalTitle="Select Region"
                 placeholder="Select Region"
                 searchable={true}
                 searchPlaceholder="Search region..."
                 style={{ borderColor: "#d1d5db", minHeight: 48 }}
-                dropDownContainerStyle={{
-                  borderColor: "#d1d5db",
-                  maxHeight: 200,
-                }}
                 onOpen={() => {
                   setProvinceOpen(false);
                   setCityOpen(false);
@@ -477,8 +474,9 @@ const Register = () => {
                 items={provinceItems}
                 setOpen={setProvinceOpen}
                 setValue={setSelectedProvince}
-                listMode="SCROLLVIEW"
-                scrollViewProps={{ nestedScrollEnabled: true }}
+                listMode="MODAL"
+                modalProps={{ animationType: "slide" }}
+                modalTitle="Select Province"
                 placeholder={
                   selectedRegion ? "Select Province" : "Select a region first"
                 }
@@ -489,10 +487,6 @@ const Register = () => {
                   borderColor: "#d1d5db",
                   minHeight: 48,
                   opacity: selectedRegion ? 1 : 0.5,
-                }}
-                dropDownContainerStyle={{
-                  borderColor: "#d1d5db",
-                  maxHeight: 200,
                 }}
                 onOpen={() => {
                   setRegionOpen(false);
@@ -517,8 +511,9 @@ const Register = () => {
                 items={cityItems}
                 setOpen={setCityOpen}
                 setValue={setSelectedCity}
-                listMode="SCROLLVIEW"
-                scrollViewProps={{ nestedScrollEnabled: true }}
+                listMode="MODAL"
+                modalProps={{ animationType: "slide" }}
+                modalTitle="Select City / Municipality"
                 placeholder={
                   selectedProvince
                     ? "Select City/Municipality"
@@ -531,10 +526,6 @@ const Register = () => {
                   borderColor: "#d1d5db",
                   minHeight: 48,
                   opacity: selectedProvince ? 1 : 0.5,
-                }}
-                dropDownContainerStyle={{
-                  borderColor: "#d1d5db",
-                  maxHeight: 200,
                 }}
                 onOpen={() => {
                   setRegionOpen(false);
