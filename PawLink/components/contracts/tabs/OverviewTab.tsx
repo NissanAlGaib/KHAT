@@ -13,6 +13,17 @@ import {
   Edit,
   Clock,
   UserCheck,
+  CreditCard,
+  Baby,
+  Shuffle,
+  MousePointer,
+  ShoppingBag,
+  User,
+  AlertTriangle,
+  Send,
+  CheckCircle,
+  XCircle,
+  Award,
 } from "lucide-react-native";
 import dayjs from "dayjs";
 import {
@@ -22,6 +33,8 @@ import {
   acceptShooterRequest,
   declineShooterRequest,
 } from "@/services/contractService";
+
+type IconComponent = React.ComponentType<{ size: number; color: string }>;
 
 interface OverviewTabProps {
   contract: BreedingContract;
@@ -33,18 +46,20 @@ interface OverviewTabProps {
 function InfoRow({
   label,
   value,
-  emoji,
+  Icon,
 }: {
   label: string;
   value: string;
-  emoji?: string;
+  Icon?: IconComponent;
 }) {
   return (
-    <View className="flex-row justify-between items-center py-2 border-b border-gray-50">
-      <Text className="text-gray-500 text-sm">
-        {emoji ? `${emoji} ` : ""}
-        {label}
-      </Text>
+    <View className="flex-row justify-between items-center py-2.5 border-b border-gray-50">
+      <View className="flex-row items-center">
+        {Icon && <Icon size={13} color="#9CA3AF" />}
+        <Text className={`text-gray-500 text-sm ${Icon ? "ml-1.5" : ""}`}>
+          {label}
+        </Text>
+      </View>
       <Text
         className="text-gray-900 font-semibold text-sm text-right flex-1 ml-4"
         numberOfLines={2}
@@ -58,19 +73,30 @@ function InfoRow({
 // ─── Section Card ───
 function SectionCard({
   title,
-  emoji,
+  Icon,
+  iconColor = "#FF6B6B",
   children,
+  noPadding = false,
 }: {
   title: string;
-  emoji: string;
+  Icon: IconComponent;
+  iconColor?: string;
   children: React.ReactNode;
+  noPadding?: boolean;
 }) {
   return (
-    <View className="bg-white rounded-2xl mx-4 mt-3 p-4 border border-gray-100">
-      <Text className="font-bold text-gray-800 text-base mb-3">
-        {emoji} {title}
-      </Text>
-      {children}
+    <View className="bg-white rounded-2xl mx-4 mt-3 border border-gray-100">
+      <View className="flex-row items-center px-4 pt-4 pb-2">
+        <View className="w-7 h-7 rounded-lg items-center justify-center" style={{ backgroundColor: `${iconColor}15` }}>
+          <Icon size={15} color={iconColor} />
+        </View>
+        <Text className="font-bold text-gray-800 text-base ml-2.5">
+          {title}
+        </Text>
+      </View>
+      <View className={noPadding ? "" : "px-4 pb-4"}>
+        {children}
+      </View>
     </View>
   );
 }
@@ -104,7 +130,7 @@ export default function ContractOverviewTab({
       if (result.success && result.data) {
         onContractUpdate(result.data);
         showAlert({
-          title: "Contract Accepted! 🎉",
+          title: "Contract Accepted!",
           message:
             "Both parties have agreed to the terms. The contract is now active!",
           type: "success",
@@ -180,9 +206,12 @@ export default function ContractOverviewTab({
         <View className="mx-4 mt-3">
           {contract.can_accept ? (
             <View className="bg-yellow-50 rounded-2xl p-4 border border-yellow-200">
-              <Text className="text-yellow-800 font-bold text-base mb-1">
-                ⏳ Awaiting Your Response
-              </Text>
+              <View className="flex-row items-center mb-1">
+                <Clock size={18} color="#92400e" />
+                <Text className="text-yellow-800 font-bold text-base ml-2">
+                  Awaiting Your Response
+                </Text>
+              </View>
               <Text className="text-yellow-700 text-sm mb-4">
                 Your breeding partner has sent you this contract. Review the
                 terms below and accept or reject.
@@ -230,9 +259,12 @@ export default function ContractOverviewTab({
             </View>
           ) : (
             <View className="bg-blue-50 rounded-2xl p-4 border border-blue-200">
-              <Text className="text-blue-800 font-bold text-base mb-1">
-                📤 Contract Sent
-              </Text>
+              <View className="flex-row items-center mb-1">
+                <Send size={16} color="#1e40af" />
+                <Text className="text-blue-800 font-bold text-base ml-2">
+                  Contract Sent
+                </Text>
+              </View>
               <Text className="text-blue-700 text-sm">
                 Waiting for your breeding partner to review and respond to the
                 contract.
@@ -244,9 +276,12 @@ export default function ContractOverviewTab({
 
       {contract.status === "accepted" && (
         <View className="mx-4 mt-3 bg-green-50 rounded-2xl p-4 border border-green-200">
-          <Text className="text-green-800 font-bold text-base mb-1">
-            ✅ Contract Active
-          </Text>
+          <View className="flex-row items-center mb-1">
+            <CheckCircle size={18} color="#166534" />
+            <Text className="text-green-800 font-bold text-base ml-2">
+              Contract Active
+            </Text>
+          </View>
           <Text className="text-green-700 text-sm">
             Accepted on {dayjs(contract.accepted_at).format("MMMM D, YYYY")}.
             Both parties have agreed to the terms.
@@ -256,9 +291,12 @@ export default function ContractOverviewTab({
 
       {contract.status === "rejected" && (
         <View className="mx-4 mt-3 bg-red-50 rounded-2xl p-4 border border-red-200">
-          <Text className="text-red-800 font-bold text-base mb-1">
-            ❌ Contract Rejected
-          </Text>
+          <View className="flex-row items-center mb-1">
+            <XCircle size={18} color="#991b1b" />
+            <Text className="text-red-800 font-bold text-base ml-2">
+              Contract Rejected
+            </Text>
+          </View>
           <Text className="text-red-700 text-sm">
             Rejected on {dayjs(contract.rejected_at).format("MMMM D, YYYY")}.
             The match has ended.
@@ -268,9 +306,12 @@ export default function ContractOverviewTab({
 
       {contract.status === "fulfilled" && (
         <View className="mx-4 mt-3 bg-purple-50 rounded-2xl p-4 border border-purple-200">
-          <Text className="text-purple-800 font-bold text-base mb-1">
-            🎉 Match Completed
-          </Text>
+          <View className="flex-row items-center mb-1">
+            <Award size={18} color="#6b21a8" />
+            <Text className="text-purple-800 font-bold text-base ml-2">
+              Match Completed
+            </Text>
+          </View>
           <Text className="text-purple-700 text-sm">
             This breeding contract has been fulfilled and archived
             {contract.breeding_completed_at &&
@@ -280,69 +321,91 @@ export default function ContractOverviewTab({
         </View>
       )}
 
-      {/* Compensation Section */}
-      <SectionCard title="Compensation" emoji="💰">
-        {contract.include_monetary_amount && contract.monetary_amount && (
-          <InfoRow
-            label="Money Payment"
-            value={`₱${contract.monetary_amount.toLocaleString()}`}
-          />
-        )}
-        {contract.share_offspring && (
-          <>
-            <InfoRow
-              label="Offspring Split"
-              value={`${contract.offspring_split_value}${contract.offspring_split_type === "percentage" ? "%" : " puppies"} (${contract.offspring_split_type === "percentage" ? "Percentage" : "Specific Number"})`}
-            />
-            <InfoRow
-              label="Selection Method"
-              value={
-                contract.offspring_selection_method === "first_pick"
-                  ? "👆 First Pick"
-                  : "🎲 Randomized"
-              }
-            />
-          </>
-        )}
-        {contract.include_goods_foods && contract.goods_foods_value && (
-          <InfoRow
-            label="Goods/Food Value"
-            value={`₱${contract.goods_foods_value.toLocaleString()}`}
-          />
-        )}
-        {!contract.include_monetary_amount &&
-          !contract.share_offspring &&
-          !contract.include_goods_foods && (
-            <Text className="text-gray-400 text-sm italic">
-              No compensation terms set
+      {/* ─── Contract Terms (grouped card) ─── */}
+      <SectionCard title="Contract Terms" Icon={FileText} iconColor="#FF6B6B">
+        {/* Compensation subsection */}
+        <View className="mb-1">
+          <View className="flex-row items-center mb-1">
+            <DollarSign size={13} color="#6B7280" />
+            <Text className="text-gray-500 text-xs font-semibold ml-1 uppercase tracking-wide">
+              Compensation
             </Text>
+          </View>
+          {contract.include_monetary_amount && contract.monetary_amount && (
+            <InfoRow
+              Icon={CreditCard}
+              label="Money Payment"
+              value={`₱${contract.monetary_amount.toLocaleString()}`}
+            />
           )}
-      </SectionCard>
+          {contract.share_offspring && (
+            <>
+              <InfoRow
+                Icon={Baby}
+                label="Offspring Split"
+                value={`${contract.offspring_split_value}${contract.offspring_split_type === "percentage" ? "%" : " puppies"} (${contract.offspring_split_type === "percentage" ? "Percentage" : "Specific Number"})`}
+              />
+              <InfoRow
+                Icon={contract.offspring_selection_method === "first_pick" ? MousePointer : Shuffle}
+                label="Selection Method"
+                value={
+                  contract.offspring_selection_method === "first_pick"
+                    ? "First Pick"
+                    : "Randomized"
+                }
+              />
+            </>
+          )}
+          {contract.include_goods_foods && contract.goods_foods_value && (
+            <InfoRow
+              Icon={ShoppingBag}
+              label="Goods/Food Value"
+              value={`₱${contract.goods_foods_value.toLocaleString()}`}
+            />
+          )}
+          {!contract.include_monetary_amount &&
+            !contract.share_offspring &&
+            !contract.include_goods_foods && (
+              <Text className="text-gray-400 text-sm italic py-1">
+                No compensation terms set
+              </Text>
+            )}
+        </View>
 
-      {/* Collateral & Timeline */}
-      <SectionCard title="Protection" emoji="🛡️">
-        {contract.end_contract_date && (
+        {/* Divider */}
+        <View className="h-px bg-gray-100 my-3" />
+
+        {/* Protection subsection */}
+        <View>
+          <View className="flex-row items-center mb-1">
+            <Shield size={13} color="#6B7280" />
+            <Text className="text-gray-500 text-xs font-semibold ml-1 uppercase tracking-wide">
+              Protection
+            </Text>
+          </View>
+          {contract.end_contract_date && (
+            <InfoRow
+              Icon={Calendar}
+              label="End Date"
+              value={dayjs(contract.end_contract_date).format("MMMM D, YYYY")}
+            />
+          )}
           <InfoRow
-            label="End Date"
-            value={dayjs(contract.end_contract_date).format("MMMM D, YYYY")}
-            emoji="📅"
+            label="Total Collateral"
+            value={`₱${contract.collateral_total.toLocaleString("en-PH", { minimumFractionDigits: 2 })}`}
           />
-        )}
-        <InfoRow
-          label="Total Collateral"
-          value={`₱${contract.collateral_total.toLocaleString("en-PH", { minimumFractionDigits: 2 })}`}
-        />
-        <InfoRow
-          label="Each Owner Pays"
-          value={`₱${collateralPerOwner.toLocaleString("en-PH", { minimumFractionDigits: 2 })}`}
-        />
+          <InfoRow
+            label="Each Owner Pays"
+            value={`₱${collateralPerOwner.toLocaleString("en-PH", { minimumFractionDigits: 2 })}`}
+          />
+        </View>
       </SectionCard>
 
       {/* Shooter Section */}
       {(contract.shooter_name ||
         contract.shooter_payment ||
         contract.is_shooter) && (
-        <SectionCard title="Shooter Agreement" emoji="👤">
+        <SectionCard title="Shooter Agreement" Icon={User} iconColor="#6366f1">
           <InfoRow
             label="Name"
             value={contract.shooter_name || "Any verified shooter"}
@@ -375,7 +438,7 @@ export default function ContractOverviewTab({
                     <View className="flex-row items-center mb-2">
                       <Clock size={16} color="#f59e0b" />
                       <Text className="text-yellow-800 font-bold ml-2">
-                        ⏳ Shooter Applied
+                        Shooter Applied
                       </Text>
                     </View>
                     {contract.shooter && (
@@ -396,7 +459,8 @@ export default function ContractOverviewTab({
                         <Text
                           className={`text-xs ml-1 ${contract.owner1_accepted_shooter ? "text-green-700" : "text-gray-500"}`}
                         >
-                          Owner 1 {contract.owner1_accepted_shooter ? "✓" : ""}
+                          Owner 1{" "}
+                          {contract.owner1_accepted_shooter ? "" : ""}
                         </Text>
                       </View>
                       <View className="flex-row items-center">
@@ -411,7 +475,8 @@ export default function ContractOverviewTab({
                         <Text
                           className={`text-xs ml-1 ${contract.owner2_accepted_shooter ? "text-green-700" : "text-gray-500"}`}
                         >
-                          Owner 2 {contract.owner2_accepted_shooter ? "✓" : ""}
+                          Owner 2{" "}
+                          {contract.owner2_accepted_shooter ? "" : ""}
                         </Text>
                       </View>
                     </View>
@@ -481,7 +546,7 @@ export default function ContractOverviewTab({
                     <View className="flex-row items-center mb-1">
                       <Check size={16} color="#10b981" />
                       <Text className="text-green-800 font-bold ml-2">
-                        ✅ Shooter Confirmed
+                        Shooter Confirmed
                       </Text>
                     </View>
                     {contract.shooter && (
@@ -507,13 +572,13 @@ export default function ContractOverviewTab({
 
       {/* Custom Terms */}
       {contract.custom_terms && (
-        <SectionCard title="Custom Terms" emoji="📝">
+        <SectionCard title="Custom Terms" Icon={Edit} iconColor="#f59e0b">
           <Text className="text-gray-700 text-sm">{contract.custom_terms}</Text>
         </SectionCard>
       )}
 
       {/* Standard Policies */}
-      <SectionCard title="Standard Policies" emoji="📋">
+      <SectionCard title="Standard Policies" Icon={AlertTriangle} iconColor="#6B7280">
         <View className="mb-3">
           <Text className="text-gray-700 font-semibold text-xs mb-1">
             Responsibility Policy

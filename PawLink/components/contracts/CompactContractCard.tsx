@@ -8,8 +8,13 @@ import {
   Baby,
   Shield,
   Heart,
+  Edit,
+  CheckCircle,
+  XCircle,
+  Award,
+  Eye,
+  ArrowRight,
 } from "lucide-react-native";
-import { Feather } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
 import dayjs from "dayjs";
 import { BreedingContract } from "@/services/contractService";
@@ -28,22 +33,24 @@ interface CompactContractCardProps {
   pet2?: PetInfo | null;
 }
 
+type IconComponent = React.ComponentType<{ size: number; color: string }>;
+
 const statusConfig: Record<
   string,
-  { label: string; emoji: string; color: string; bg: string }
+  { label: string; Icon: IconComponent; color: string; bg: string }
 > = {
-  draft: { label: "Draft", emoji: "📝", color: "#6B7280", bg: "#F9FAFB" },
+  draft: { label: "Draft", Icon: Edit, color: "#6B7280", bg: "#F9FAFB" },
   pending_review: {
-    label: "Pending Review",
-    emoji: "⏳",
+    label: "Pending",
+    Icon: Clock,
     color: "#eab308",
     bg: "#fefce8",
   },
-  accepted: { label: "Active", emoji: "✅", color: "#16a34a", bg: "#f0fdf4" },
-  rejected: { label: "Rejected", emoji: "❌", color: "#ef4444", bg: "#fef2f2" },
+  accepted: { label: "Active", Icon: CheckCircle, color: "#16a34a", bg: "#f0fdf4" },
+  rejected: { label: "Rejected", Icon: XCircle, color: "#ef4444", bg: "#fef2f2" },
   fulfilled: {
     label: "Completed",
-    emoji: "🎉",
+    Icon: Award,
     color: "#8b5cf6",
     bg: "#f5f3ff",
   },
@@ -75,38 +82,38 @@ function getProgressSteps(contract: BreedingContract): {
 
 function getNextAction(
   contract: BreedingContract,
-): { text: string; emoji: string } | null {
+): { text: string; Icon: IconComponent } | null {
   const status = contract.status;
 
   if (status === "pending_review") {
     if (contract.can_accept) {
-      return { text: "Review & accept the contract", emoji: "👀" };
+      return { text: "Review & accept the contract", Icon: Eye };
     }
-    return { text: "Waiting for other party to review", emoji: "⏳" };
+    return { text: "Waiting for other party to review", Icon: Clock };
   }
 
   if (status === "accepted") {
     const breedingStatus = contract.breeding_status || "pending";
     if (breedingStatus === "pending" || breedingStatus === "in_progress") {
       if (contract.can_mark_breeding_complete) {
-        return { text: "Mark breeding as complete", emoji: "💕" };
+        return { text: "Mark breeding as complete", Icon: Heart };
       }
-      return { text: "Breeding in progress", emoji: "💕" };
+      return { text: "Breeding in progress", Icon: Heart };
     }
     if (breedingStatus === "completed" && contract.has_offspring) {
       if (contract.can_input_offspring) {
-        return { text: "Record or allocate offspring", emoji: "🐾" };
+        return { text: "Record or allocate offspring", Icon: Baby };
       }
-      return { text: "Waiting for offspring recording", emoji: "🐾" };
+      return { text: "Waiting for offspring recording", Icon: Baby };
     }
     if (breedingStatus === "failed") {
-      return { text: "Breeding failed — review details", emoji: "😔" };
+      return { text: "Breeding failed — review details", Icon: XCircle };
     }
     return null;
   }
 
   if (status === "fulfilled") {
-    return { text: "Match completed!", emoji: "🎊" };
+    return { text: "Match completed!", Icon: Award };
   }
 
   return null;
@@ -132,6 +139,7 @@ export default function CompactContractCard({
   const progress = getProgressSteps(contract);
   const breedingStatus = contract.breeding_status || "pending";
   const breedingConfig = breedingStatusConfig[breedingStatus];
+  const StatusIcon = config.Icon;
 
   const handlePress = () => {
     router.push({
@@ -144,19 +152,25 @@ export default function CompactContractCard({
     pet: PetInfo | null | undefined,
     offset = false,
   ) => {
-    const photoUrl = pet?.photo_url ? getStorageUrl(pet.photo_url) : null;
+    if (!pet) return null;
+    const photoUrl = pet.photo_url ? getStorageUrl(pet.photo_url) : null;
     return (
-      <View
-        className={`w-9 h-9 rounded-full bg-gray-200 items-center justify-center border-2 border-white ${offset ? "-ml-2.5" : ""}`}
-      >
-        {photoUrl ? (
-          <Image
-            source={{ uri: photoUrl }}
-            className="w-full h-full rounded-full"
-          />
-        ) : (
-          <Feather name="image" size={14} color="#9CA3AF" />
-        )}
+      <View className={`items-center ${offset ? "-ml-1" : ""}`}>
+        <View
+          className="w-9 h-9 rounded-full bg-gray-100 items-center justify-center border-2 border-white"
+        >
+          {photoUrl ? (
+            <Image
+              source={{ uri: photoUrl }}
+              className="w-full h-full rounded-full"
+            />
+          ) : (
+            <Heart size={14} color="#D1D5DB" />
+          )}
+        </View>
+        <Text className="text-[9px] text-gray-400 mt-0.5 text-center" numberOfLines={1} style={{ maxWidth: 48 }}>
+          {pet.name}
+        </Text>
       </View>
     );
   };
@@ -175,7 +189,7 @@ export default function CompactContractCard({
         <View className="px-4 py-3 flex-row items-center">
           {/* Pet thumbnails */}
           {(pet1 || pet2) && (
-            <View className="flex-row mr-3">
+            <View className="flex-row items-end mr-3">
               {renderPetThumbnail(pet1)}
               {renderPetThumbnail(pet2, true)}
             </View>
@@ -188,11 +202,6 @@ export default function CompactContractCard({
                 Breeding Contract
               </Text>
             </View>
-            {pet1 && pet2 && (
-              <Text className="text-gray-400 text-xs mt-0.5">
-                {pet1.name} & {pet2.name}
-              </Text>
-            )}
           </View>
 
           {/* Status badge */}
@@ -200,9 +209,9 @@ export default function CompactContractCard({
             className="flex-row items-center px-2.5 py-1 rounded-full"
             style={{ backgroundColor: `${config.color}15` }}
           >
-            <Text className="mr-1 text-xs">{config.emoji}</Text>
+            <StatusIcon size={10} color={config.color} />
             <Text
-              className="text-[10px] font-bold"
+              className="text-[10px] font-bold ml-1"
               style={{ color: config.color }}
             >
               {config.label}
@@ -277,8 +286,8 @@ export default function CompactContractCard({
         {/* Next Action */}
         {nextAction && (
           <View className="mx-4 mb-3 bg-[#FFF5F3] rounded-xl px-3 py-2 flex-row items-center">
-            <Text className="mr-2 text-sm">{nextAction.emoji}</Text>
-            <Text className="text-[#FF6B6B] text-xs font-semibold flex-1">
+            <nextAction.Icon size={14} color="#FF6B6B" />
+            <Text className="text-[#FF6B6B] text-xs font-semibold flex-1 ml-2">
               {nextAction.text}
             </Text>
             <ChevronRight size={14} color="#FF6B6B" />

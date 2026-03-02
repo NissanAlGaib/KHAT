@@ -1084,9 +1084,12 @@ class MatchRequestController extends Controller
         }
 
         $otherPet = $isRequester ? $matchRequest->targetPet : $matchRequest->requesterPet;
+        $userPet = $isRequester ? $matchRequest->requesterPet : $matchRequest->targetPet;
 
         $primaryPhoto = $otherPet->photos->firstWhere('is_primary', true)
             ?? $otherPet->photos->first();
+        $userPetPhoto = $userPet->photos->firstWhere('is_primary', true)
+            ?? $userPet->photos->first();
 
         return response()->json([
             'success' => true,
@@ -1098,6 +1101,11 @@ class MatchRequestController extends Controller
                     'pet_id' => $otherPet->pet_id,
                     'name' => $otherPet->name,
                     'photo_url' => $primaryPhoto?->photo_url,
+                ],
+                'user_pet' => [
+                    'pet_id' => $userPet->pet_id,
+                    'name' => $userPet->name,
+                    'photo_url' => $userPetPhoto?->photo_url,
                 ],
                 'owner' => [
                     'id' => $otherPet->owner->id,

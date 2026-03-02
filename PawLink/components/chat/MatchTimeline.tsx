@@ -1,6 +1,16 @@
 import React from "react";
 import { View, Text } from "react-native";
-import { Feather } from "@expo/vector-icons";
+import {
+  Heart,
+  FileText,
+  CheckCircle,
+  Clock,
+  XCircle,
+  Edit3,
+  Activity,
+  Award,
+  AlertCircle,
+} from "lucide-react-native";
 import { type BreedingContract } from "@/services/contractService";
 
 interface MatchTimelineProps {
@@ -8,12 +18,14 @@ interface MatchTimelineProps {
   contract: BreedingContract | null;
 }
 
+type IconComponent = React.ComponentType<{ size: number; color: string }>;
+
 type TimelineStage = {
   key: string;
   label: string;
   status: "completed" | "current" | "upcoming";
   date?: string;
-  icon: keyof typeof Feather.glyphMap;
+  Icon: IconComponent;
   color?: string;
 };
 
@@ -30,13 +42,13 @@ export default function MatchTimeline({
   const getStages = (): TimelineStage[] => {
     const stages: TimelineStage[] = [];
 
-    // Stage 1: Matched - Always completed if we're viewing
+    // Stage 1: Matched
     stages.push({
       key: "matched",
       label: "Matched",
       status: "completed",
       date: formatDate(matchAcceptedAt),
-      icon: "heart",
+      Icon: Heart,
     });
 
     // Stage 2: Contract Sent
@@ -46,16 +58,16 @@ export default function MatchTimeline({
         label: "Contract",
         status: "completed",
         date: formatDate(contract.created_at),
-        icon: "file-text",
+        Icon: FileText,
       });
     } else {
       stages.push({
         key: "contract_sent",
         label: "Contract",
         status: "current",
-        icon: "file-text",
+        Icon: FileText,
       });
-      return stages; // Stop here if no contract
+      return stages;
     }
 
     // Stage 3: Contract Signed
@@ -67,14 +79,14 @@ export default function MatchTimeline({
         label: "Signed",
         status: "completed",
         date: formatDate(contract.accepted_at),
-        icon: "check-circle",
+        Icon: CheckCircle,
       });
     } else if (contract.status === "pending_review") {
       stages.push({
         key: "contract_signed",
         label: "Pending",
         status: "current",
-        icon: "clock",
+        Icon: Clock,
       });
       return stages;
     } else if (contract.status === "rejected") {
@@ -82,7 +94,7 @@ export default function MatchTimeline({
         key: "contract_signed",
         label: "Rejected",
         status: "completed",
-        icon: "x-circle",
+        Icon: XCircle,
         color: "#EF4444",
       });
       return stages;
@@ -91,7 +103,7 @@ export default function MatchTimeline({
         key: "contract_signed",
         label: "Signing",
         status: "upcoming",
-        icon: "edit-3",
+        Icon: Edit3,
       });
       return stages;
     }
@@ -104,14 +116,14 @@ export default function MatchTimeline({
         label: "Breeding",
         status: "completed",
         date: formatDate(contract.breeding_completed_at),
-        icon: "activity",
+        Icon: Activity,
       });
     } else if (breedingStatus === "in_progress") {
       stages.push({
         key: "breeding",
         label: "Breeding",
         status: "current",
-        icon: "activity",
+        Icon: Activity,
       });
       return stages;
     } else {
@@ -119,7 +131,7 @@ export default function MatchTimeline({
         key: "breeding",
         label: "Breeding",
         status: "upcoming",
-        icon: "activity",
+        Icon: Activity,
       });
       return stages;
     }
@@ -130,16 +142,16 @@ export default function MatchTimeline({
         key: "result",
         label: "Success",
         status: "completed",
-        icon: "award",
-        color: "#10B981", // Green
+        Icon: Award,
+        color: "#10B981",
       });
     } else if (breedingStatus === "failed") {
       stages.push({
         key: "result",
         label: "Failed",
         status: "completed",
-        icon: "alert-circle",
-        color: "#EF4444", // Red
+        Icon: AlertCircle,
+        color: "#EF4444",
       });
     }
 
@@ -148,30 +160,17 @@ export default function MatchTimeline({
 
   const stages = getStages();
 
-  const getStageStyle = (stage: TimelineStage) => {
+  const getStageColors = (stage: TimelineStage) => {
     if (stage.color) {
-      return {
-        circleColor: stage.color,
-        textColor: stage.color,
-      };
+      return { circle: stage.color, text: stage.color };
     }
-
     switch (stage.status) {
       case "completed":
-        return {
-          circleColor: "#FF6B6B",
-          textColor: "#FF6B6B",
-        };
+        return { circle: "#FF6B6B", text: "#FF6B6B" };
       case "current":
-        return {
-          circleColor: "#FF6B6B",
-          textColor: "#FF6B6B",
-        };
+        return { circle: "#FF6B6B", text: "#FF6B6B" };
       case "upcoming":
-        return {
-          circleColor: "#D1D5DB",
-          textColor: "#9CA3AF",
-        };
+        return { circle: "#E5E7EB", text: "#9CA3AF" };
     }
   };
 
@@ -181,78 +180,57 @@ export default function MatchTimeline({
         Match Progress
       </Text>
 
-      {/* Circle row with flex-based connectors */}
-      <View className="flex-row items-center">
+      {/* Each stage is a flex-1 column; connectors sit between them */}
+      <View className="flex-row items-start">
         {stages.map((stage, index) => {
-          const style = getStageStyle(stage);
+          const colors = getStageColors(stage);
           const isLast = index === stages.length - 1;
-          const isFirst = index === 0;
+          const nextStage = stages[index + 1];
 
           return (
             <React.Fragment key={stage.key}>
-              {/* Leading connector line */}
-              {!isFirst && (
+              {/* Stage column — flex-1 so all stages share equal width */}
+              <View className="items-center" style={{ flex: 1 }}>
+                {/* Circle */}
                 <View
-                  className="h-0.5 flex-1"
-                  style={{
-                    backgroundColor:
-                      stage.status === "upcoming" ? "#E5E7EB" : "#FF6B6B",
-                  }}
-                />
-              )}
+                  className="w-10 h-10 rounded-full items-center justify-center"
+                  style={{ backgroundColor: colors.circle }}
+                >
+                  <stage.Icon
+                    size={18}
+                    color={stage.status === "upcoming" ? "#9CA3AF" : "white"}
+                  />
+                </View>
 
-              {/* Circle with icon */}
-              <View
-                className="w-10 h-10 rounded-full items-center justify-center"
-                style={{ backgroundColor: style.circleColor }}
-              >
-                <Feather
-                  name={stage.icon}
-                  size={18}
-                  color={stage.status === "upcoming" ? "#9CA3AF" : "white"}
-                />
+                {/* Label */}
+                <Text
+                  className="text-[11px] font-semibold mt-1.5 text-center"
+                  style={{ color: colors.text }}
+                  numberOfLines={1}
+                >
+                  {stage.label}
+                </Text>
+                {stage.date && (
+                  <Text className="text-[10px] text-gray-400 mt-0.5">
+                    {stage.date}
+                  </Text>
+                )}
               </View>
 
-              {/* Trailing connector line */}
+              {/* Connector line between stages (not after last) */}
               {!isLast && (
                 <View
-                  className="h-0.5 flex-1"
+                  className="h-0.5 self-center"
                   style={{
-                    backgroundColor:
-                      stages[index + 1]?.status === "upcoming"
-                        ? "#E5E7EB"
-                        : "#FF6B6B",
+                    flex: 0.6,
+                    marginTop: -12,
+                    backgroundColor: nextStage?.status === "upcoming"
+                      ? "#E5E7EB"
+                      : "#FF6B6B",
                   }}
                 />
               )}
             </React.Fragment>
-          );
-        })}
-      </View>
-
-      {/* Labels row */}
-      <View className="flex-row mt-2">
-        {stages.map((stage) => {
-          const style = getStageStyle(stage);
-          return (
-            <View
-              key={`label-${stage.key}`}
-              className="items-center"
-              style={{ flex: 1 }}
-            >
-              <Text
-                className="text-xs font-medium text-center"
-                style={{ color: style.textColor }}
-                numberOfLines={1}
-              >
-                {stage.label}
-              </Text>
-              {stage.date && (
-                <Text className="text-xs text-gray-400 mt-0.5">
-                  {stage.date}
-                </Text>
-              )}
-            </View>
           );
         })}
       </View>

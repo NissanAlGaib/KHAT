@@ -17,6 +17,13 @@ import {
   Baby,
   ChevronRight,
   CheckCircle,
+  Edit,
+  Clock,
+  XCircle,
+  Award,
+  DollarSign,
+  Handshake,
+  Activity,
 } from "lucide-react-native";
 import { useRouter, useLocalSearchParams } from "expo-router";
 import dayjs from "dayjs";
@@ -39,25 +46,27 @@ import ContractOffspringTab from "@/components/contracts/tabs/OffspringTab";
 
 type TabId = "overview" | "payments" | "reports" | "breeding" | "offspring";
 
+type IconComponent = React.ComponentType<{ size: number; color: string }>;
+
 interface TabConfig {
   id: TabId;
   label: string;
-  emoji: string;
+  Icon: IconComponent;
 }
 
 const ALL_TABS: TabConfig[] = [
-  { id: "overview", label: "Overview", emoji: "📋" },
-  { id: "payments", label: "Payments", emoji: "💳" },
-  { id: "reports", label: "Reports", emoji: "📝" },
-  { id: "breeding", label: "Breeding", emoji: "❤️" },
-  { id: "offspring", label: "Offspring", emoji: "🐾" },
+  { id: "overview", label: "Overview", Icon: FileText },
+  { id: "payments", label: "Payments", Icon: CreditCard },
+  { id: "reports", label: "Reports", Icon: ClipboardList },
+  { id: "breeding", label: "Breeding", Icon: Heart },
+  { id: "offspring", label: "Offspring", Icon: Baby },
 ];
 
 // ─── Simplified 5-stage lifecycle ──────────────────────────
 interface LifecycleStage {
   id: string;
   label: string;
-  emoji: string;
+  Icon: IconComponent;
   description: string;
   isComplete: (ctx: StageContext) => boolean;
   isActive: (ctx: StageContext) => boolean;
@@ -76,7 +85,7 @@ const LIFECYCLE_STAGES: LifecycleStage[] = [
   {
     id: "create",
     label: "Create",
-    emoji: "📝",
+    Icon: Edit,
     description: "Draft your breeding agreement",
     isComplete: (ctx) => ctx.c.status !== "draft",
     isActive: (ctx) =>
@@ -86,7 +95,7 @@ const LIFECYCLE_STAGES: LifecycleStage[] = [
   {
     id: "accept",
     label: "Accept",
-    emoji: "🤝",
+    Icon: Handshake,
     description: "Both parties agree to the terms",
     isComplete: (ctx) =>
       ctx.c.status === "accepted" || ctx.c.status === "fulfilled",
@@ -96,7 +105,7 @@ const LIFECYCLE_STAGES: LifecycleStage[] = [
   {
     id: "pay_collateral",
     label: "Payment",
-    emoji: "💰",
+    Icon: DollarSign,
     description: "Pay your security deposit",
     isComplete: (ctx) => {
       if (!ctx.c.collateral_per_owner || ctx.c.collateral_per_owner <= 0)
@@ -114,7 +123,7 @@ const LIFECYCLE_STAGES: LifecycleStage[] = [
   {
     id: "breeding_progress",
     label: "Breeding",
-    emoji: "💕",
+    Icon: Activity,
     description: "Submit reports & mark breeding outcome",
     isComplete: (ctx) =>
       ctx.c.breeding_status === "completed" ||
@@ -129,7 +138,7 @@ const LIFECYCLE_STAGES: LifecycleStage[] = [
   {
     id: "complete",
     label: "Complete",
-    emoji: "🎉",
+    Icon: Award,
     description: "Record offspring & finalize match",
     isComplete: (ctx) => ctx.c.status === "fulfilled",
     isActive: (ctx) =>
@@ -344,8 +353,8 @@ export default function ContractDetailScreen() {
   if (!contract) {
     return (
       <SafeAreaView className="flex-1 bg-white items-center justify-center">
-        <Text className="text-4xl mb-3">😿</Text>
-        <Text className="text-gray-500">No contract found</Text>
+        <FileText size={48} color="#D1D5DB" />
+        <Text className="text-gray-500 mt-3">No contract found</Text>
         <TouchableOpacity
           onPress={() => router.back()}
           className="mt-4 bg-[#FF6B6B] px-6 py-2 rounded-full"
@@ -357,42 +366,48 @@ export default function ContractDetailScreen() {
   }
 
   // Status badge
-  const statusConfig: Record<
+  const statusMapping: Record<
     string,
-    { bg: string; text: string; label: string; emoji: string }
+    { bg: string; text: string; label: string; Icon: IconComponent; iconColor: string }
   > = {
     draft: {
       bg: "bg-gray-200",
       text: "text-gray-700",
       label: "Draft",
-      emoji: "📝",
+      Icon: Edit,
+      iconColor: "#374151",
     },
     pending_review: {
       bg: "bg-yellow-100",
       text: "text-yellow-800",
-      label: "Pending Review",
-      emoji: "⏳",
+      label: "Pending",
+      Icon: Clock,
+      iconColor: "#92400e",
     },
     accepted: {
       bg: "bg-green-100",
       text: "text-green-800",
       label: "Active",
-      emoji: "✅",
+      Icon: CheckCircle,
+      iconColor: "#166534",
     },
     rejected: {
       bg: "bg-red-100",
       text: "text-red-800",
       label: "Rejected",
-      emoji: "❌",
+      Icon: XCircle,
+      iconColor: "#991b1b",
     },
     fulfilled: {
       bg: "bg-purple-100",
       text: "text-purple-800",
       label: "Completed",
-      emoji: "🎉",
+      Icon: Award,
+      iconColor: "#6b21a8",
     },
   };
-  const badgeConfig = statusConfig[contract.status] || statusConfig.draft;
+  const badgeConfig = statusMapping[contract.status] || statusMapping.draft;
+  const BadgeIcon = badgeConfig.Icon;
 
   return (
     <SafeAreaView className="flex-1 bg-[#FAFAFA]" edges={["top"]}>
@@ -414,8 +429,8 @@ export default function ContractDetailScreen() {
         <View
           className={`${badgeConfig.bg} px-3 py-1 rounded-full flex-row items-center`}
         >
-          <Text className="mr-1">{badgeConfig.emoji}</Text>
-          <Text className={`${badgeConfig.text} text-xs font-bold`}>
+          <BadgeIcon size={12} color={badgeConfig.iconColor} />
+          <Text className={`${badgeConfig.text} text-xs font-bold ml-1`}>
             {badgeConfig.label}
           </Text>
         </View>
@@ -445,6 +460,7 @@ export default function ContractDetailScreen() {
               const isComplete = stage.isComplete(stageCtx);
               const isActive = stage.isActive(stageCtx) && !isComplete;
               const isNext = nextAction?.id === stage.id;
+              const StageIcon = stage.Icon;
 
               return (
                 <TouchableOpacity
@@ -470,7 +486,10 @@ export default function ContractDetailScreen() {
                     {isComplete ? (
                       <CheckCircle size={14} color="#10b981" />
                     ) : (
-                      <Text className="text-[10px]">{stage.emoji}</Text>
+                      <StageIcon
+                        size={13}
+                        color={isNext ? "white" : isActive ? "#FF6B6B" : "#9CA3AF"}
+                      />
                     )}
                   </View>
                   <Text
@@ -499,8 +518,8 @@ export default function ContractDetailScreen() {
               }}
               className="mt-2 bg-[#FFF0EE] rounded-xl px-3 py-2 flex-row items-center"
             >
-              <Text className="text-sm mr-2">{nextAction.emoji}</Text>
-              <Text className="text-[#FF6B6B] text-xs font-semibold flex-1">
+              <nextAction.Icon size={14} color="#FF6B6B" />
+              <Text className="text-[#FF6B6B] text-xs font-semibold flex-1 ml-2">
                 Next: {nextAction.description}
               </Text>
               <ChevronRight size={14} color="#FF6B6B" />
@@ -525,9 +544,12 @@ export default function ContractDetailScreen() {
               }`}
             >
               <View className="flex-row items-center">
-                <Text className="mr-1">{tab.emoji}</Text>
+                <tab.Icon
+                  size={14}
+                  color={activeTab === tab.id ? "#FF6B6B" : "#9CA3AF"}
+                />
                 <Text
-                  className={`text-sm font-semibold ${
+                  className={`text-sm font-semibold ml-1.5 ${
                     activeTab === tab.id ? "text-[#FF6B6B]" : "text-gray-500"
                   }`}
                 >

@@ -101,6 +101,11 @@ export interface ConversationDetail {
   match_accepted_at?: string;
   // For owner view
   matched_pet?: MatchRequestPet;
+  user_pet?: {
+    pet_id: number;
+    name: string;
+    photo_url?: string;
+  };
   owner?: MatchRequestOwner;
   shooter?: {
     id: number;

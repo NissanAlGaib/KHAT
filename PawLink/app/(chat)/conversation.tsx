@@ -389,7 +389,17 @@ export default function ConversationScreen() {
                       }
                     : null
               }
-              pet2={conversation?.is_shooter_view ? conversation.pet2 : null}
+              pet2={
+                conversation?.is_shooter_view
+                  ? conversation.pet2
+                  : conversation?.user_pet
+                    ? {
+                        pet_id: conversation.user_pet.pet_id,
+                        name: conversation.user_pet.name,
+                        photo_url: conversation.user_pet.photo_url,
+                      }
+                    : null
+              }
             />
           )}
 
