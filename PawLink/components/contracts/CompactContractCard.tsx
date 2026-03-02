@@ -46,8 +46,18 @@ const statusConfig: Record<
     color: "#eab308",
     bg: "#fefce8",
   },
-  accepted: { label: "Active", Icon: CheckCircle, color: "#16a34a", bg: "#f0fdf4" },
-  rejected: { label: "Rejected", Icon: XCircle, color: "#ef4444", bg: "#fef2f2" },
+  accepted: {
+    label: "Active",
+    Icon: CheckCircle,
+    color: "#16a34a",
+    bg: "#f0fdf4",
+  },
+  rejected: {
+    label: "Rejected",
+    Icon: XCircle,
+    color: "#ef4444",
+    bg: "#fef2f2",
+  },
   fulfilled: {
     label: "Completed",
     Icon: Award,
@@ -156,9 +166,7 @@ export default function CompactContractCard({
     const photoUrl = pet.photo_url ? getStorageUrl(pet.photo_url) : null;
     return (
       <View className={`items-center ${offset ? "-ml-1" : ""}`}>
-        <View
-          className="w-9 h-9 rounded-full bg-gray-100 items-center justify-center border-2 border-white"
-        >
+        <View className="w-9 h-9 rounded-full bg-gray-100 items-center justify-center border-2 border-white">
           {photoUrl ? (
             <Image
               source={{ uri: photoUrl }}
@@ -168,7 +176,11 @@ export default function CompactContractCard({
             <Heart size={14} color="#D1D5DB" />
           )}
         </View>
-        <Text className="text-[9px] text-gray-400 mt-0.5 text-center" numberOfLines={1} style={{ maxWidth: 48 }}>
+        <Text
+          className="text-[9px] text-gray-400 mt-0.5 text-center"
+          numberOfLines={1}
+          style={{ maxWidth: 48 }}
+        >
           {pet.name}
         </Text>
       </View>

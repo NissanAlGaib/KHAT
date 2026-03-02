@@ -255,7 +255,7 @@ class MatchController extends Controller
 
             if ($preferences) {
                 $breakdown['breed_match'] = $preferences->preferred_breed
-                    ? $otherPet->breed === $preferences->preferred_breed
+                    ? ($otherPet->breed === $preferences->preferred_breed || $this->breedMatchesMixed($otherPet->breed, $preferences->preferred_breed))
                     : true;
                 $breakdown['sex_match'] = $preferences->preferred_sex
                     ? $otherPet->sex === $preferences->preferred_sex
@@ -344,11 +344,14 @@ class MatchController extends Controller
     {
         $features = [];
 
-        // Breed feature (exact match = 1.0, same species different breed = 0.3, no match = 0)
+        // Breed feature (exact match = 1.0, mixed breed parent match = 0.8, same species different breed = 0.3, no match = 0)
+        // Supports mixed breeds ("Breed1 × Breed2 Mix") by checking if either parent breed matches
         $features['breed'] = 0.0;
         if ($preferences->preferred_breed) {
             if ($pet->breed === $preferences->preferred_breed) {
                 $features['breed'] = 1.0;
+            } elseif ($this->breedMatchesMixed($pet->breed, $preferences->preferred_breed)) {
+                $features['breed'] = 0.8;
             } elseif ($pet->species === $userPet->species) {
                 $features['breed'] = 0.3;
             }
@@ -581,5 +584,28 @@ class MatchController extends Controller
     private function softplus(float $x): float
     {
         return $x > 20 ? $x : log(1 + exp($x));
+    }
+
+    /**
+     * Check if a breed string (possibly mixed) matches a target breed.
+     * Supports mixed breed format "Breed1 × Breed2 Mix" by checking if either parent matches.
+     */
+    private function breedMatchesMixed(?string $petBreed, string $targetBreed): bool
+    {
+        if (!$petBreed || !str_contains($petBreed, '×')) {
+            return false;
+        }
+
+        $parts = array_map(function ($part) {
+            return trim(preg_replace('/\s*Mix$/i', '', trim($part)));
+        }, explode('×', $petBreed));
+
+        foreach ($parts as $parentBreed) {
+            if (strcasecmp($parentBreed, $targetBreed) === 0) {
+                return true;
+            }
+        }
+
+        return false;
     }
 }

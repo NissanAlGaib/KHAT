@@ -87,16 +87,17 @@ function SectionCard({
   return (
     <View className="bg-white rounded-2xl mx-4 mt-3 border border-gray-100">
       <View className="flex-row items-center px-4 pt-4 pb-2">
-        <View className="w-7 h-7 rounded-lg items-center justify-center" style={{ backgroundColor: `${iconColor}15` }}>
+        <View
+          className="w-7 h-7 rounded-lg items-center justify-center"
+          style={{ backgroundColor: `${iconColor}15` }}
+        >
           <Icon size={15} color={iconColor} />
         </View>
         <Text className="font-bold text-gray-800 text-base ml-2.5">
           {title}
         </Text>
       </View>
-      <View className={noPadding ? "" : "px-4 pb-4"}>
-        {children}
-      </View>
+      <View className={noPadding ? "" : "px-4 pb-4"}>{children}</View>
     </View>
   );
 }
@@ -346,7 +347,11 @@ export default function ContractOverviewTab({
                 value={`${contract.offspring_split_value}${contract.offspring_split_type === "percentage" ? "%" : " puppies"} (${contract.offspring_split_type === "percentage" ? "Percentage" : "Specific Number"})`}
               />
               <InfoRow
-                Icon={contract.offspring_selection_method === "first_pick" ? MousePointer : Shuffle}
+                Icon={
+                  contract.offspring_selection_method === "first_pick"
+                    ? MousePointer
+                    : Shuffle
+                }
                 label="Selection Method"
                 value={
                   contract.offspring_selection_method === "first_pick"
@@ -459,8 +464,7 @@ export default function ContractOverviewTab({
                         <Text
                           className={`text-xs ml-1 ${contract.owner1_accepted_shooter ? "text-green-700" : "text-gray-500"}`}
                         >
-                          Owner 1{" "}
-                          {contract.owner1_accepted_shooter ? "" : ""}
+                          Owner 1 {contract.owner1_accepted_shooter ? "" : ""}
                         </Text>
                       </View>
                       <View className="flex-row items-center">
@@ -475,8 +479,7 @@ export default function ContractOverviewTab({
                         <Text
                           className={`text-xs ml-1 ${contract.owner2_accepted_shooter ? "text-green-700" : "text-gray-500"}`}
                         >
-                          Owner 2{" "}
-                          {contract.owner2_accepted_shooter ? "" : ""}
+                          Owner 2 {contract.owner2_accepted_shooter ? "" : ""}
                         </Text>
                       </View>
                     </View>
@@ -578,7 +581,11 @@ export default function ContractOverviewTab({
       )}
 
       {/* Standard Policies */}
-      <SectionCard title="Standard Policies" Icon={AlertTriangle} iconColor="#6B7280">
+      <SectionCard
+        title="Standard Policies"
+        Icon={AlertTriangle}
+        iconColor="#6B7280"
+      >
         <View className="mb-3">
           <Text className="text-gray-700 font-semibold text-xs mb-1">
             Responsibility Policy

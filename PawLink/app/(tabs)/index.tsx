@@ -239,10 +239,20 @@ export default function Homepage() {
         // Filter out pets that already have an active match request (dupe guard)
         if (activeRequestPetIdsRef.current.has(otherPet.pet_id)) return false;
         // Breed filter — if breeds are selected, only keep matches whose other pet's breed is in the list
+        // Supports mixed breeds ("Breed1 × Breed2 Mix") by checking if any parent breed matches
         if (selectedBreeds.length > 0) {
           const otherBreed = (otherPet.breed || "").toLowerCase();
-          if (!selectedBreeds.some((b) => b.toLowerCase() === otherBreed))
-            return false;
+          const otherBreedParts = otherBreed.includes("×")
+            ? otherBreed.split("×").map((p) => p.replace(/\s*mix$/i, "").trim())
+            : [otherBreed];
+          const matchesFilter = selectedBreeds.some((b) => {
+            const filterBreed = b.toLowerCase();
+            return (
+              otherBreedParts.some((part) => part === filterBreed) ||
+              filterBreed === otherBreed
+            );
+          });
+          if (!matchesFilter) return false;
         }
         return true;
       })

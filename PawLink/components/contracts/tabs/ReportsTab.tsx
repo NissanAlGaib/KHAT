@@ -4,7 +4,6 @@ import {
   Text,
   TouchableOpacity,
   TextInput,
-  ScrollView,
   ActivityIndicator,
   Image,
 } from "react-native";
@@ -18,9 +17,25 @@ import {
   CheckCircle,
   XCircle,
   Clock,
-  User,
   ChevronDown,
   ChevronUp,
+  Plus,
+  History,
+  Heart,
+  Stethoscope,
+  ClipboardList,
+  FileText,
+  AlertTriangle,
+  Star,
+  ThumbsUp,
+  Minus,
+  ThumbsDown,
+  AlertOctagon,
+  CircleDot,
+  MessageSquare,
+  Calendar,
+  User,
+  ImagePlus,
 } from "lucide-react-native";
 import * as ImagePicker from "expo-image-picker";
 import dayjs from "dayjs";
@@ -34,6 +49,8 @@ import {
 } from "@/services/contractService";
 import { getStorageUrl } from "@/utils/imageUrl";
 
+type IconComponent = React.ComponentType<{ size: number; color: string }>;
+
 interface ReportsTabProps {
   contract: BreedingContract;
   collateralPaid?: boolean;
@@ -42,15 +59,77 @@ interface ReportsTabProps {
 const healthStatusOptions: {
   value: DailyReportData["health_status"];
   label: string;
-  emoji: string;
+  Icon: IconComponent;
   color: string;
+  bg: string;
 }[] = [
-  { value: "excellent", label: "Excellent", emoji: "🌟", color: "#16a34a" },
-  { value: "good", label: "Good", emoji: "😊", color: "#22c55e" },
-  { value: "fair", label: "Fair", emoji: "😐", color: "#eab308" },
-  { value: "poor", label: "Poor", emoji: "😟", color: "#f97316" },
-  { value: "concerning", label: "Concerning", emoji: "🚨", color: "#ef4444" },
+  {
+    value: "excellent",
+    label: "Excellent",
+    Icon: Star,
+    color: "#16a34a",
+    bg: "#f0fdf4",
+  },
+  {
+    value: "good",
+    label: "Good",
+    Icon: ThumbsUp,
+    color: "#22c55e",
+    bg: "#f0fdf4",
+  },
+  {
+    value: "fair",
+    label: "Fair",
+    Icon: Minus,
+    color: "#eab308",
+    bg: "#fefce8",
+  },
+  {
+    value: "poor",
+    label: "Poor",
+    Icon: ThumbsDown,
+    color: "#f97316",
+    bg: "#fff7ed",
+  },
+  {
+    value: "concerning",
+    label: "Concerning",
+    Icon: AlertOctagon,
+    color: "#ef4444",
+    bg: "#fef2f2",
+  },
 ];
+
+// ─── Section wrapper ───
+function FormSection({
+  title,
+  Icon,
+  iconColor = "#FF6B6B",
+  required,
+  children,
+}: {
+  title: string;
+  Icon: IconComponent;
+  iconColor?: string;
+  required?: boolean;
+  children: React.ReactNode;
+}) {
+  return (
+    <View className="bg-white rounded-2xl p-4 mb-3 border border-gray-100">
+      <View className="flex-row items-center mb-3">
+        <View
+          className="w-6 h-6 rounded-md items-center justify-center"
+          style={{ backgroundColor: `${iconColor}15` }}
+        >
+          <Icon size={13} color={iconColor} />
+        </View>
+        <Text className="font-bold text-gray-800 text-sm ml-2">{title}</Text>
+        {required && <Text className="text-red-400 text-xs ml-1">*</Text>}
+      </View>
+      {children}
+    </View>
+  );
+}
 
 export default function ContractReportsTab({
   contract,
@@ -193,7 +272,7 @@ export default function ContractReportsTab({
 
       if (result.success) {
         showAlert({
-          title: "Report Submitted! 📝",
+          title: "Report Submitted!",
           message: "Your daily report has been recorded.",
           type: "success",
         });
@@ -221,7 +300,9 @@ export default function ContractReportsTab({
   if (contract.status !== "accepted" && contract.status !== "fulfilled") {
     return (
       <View className="items-center justify-center py-16 px-6">
-        <Text className="text-4xl mb-3">📝</Text>
+        <View className="w-14 h-14 rounded-full bg-gray-100 items-center justify-center mb-4">
+          <ClipboardList size={28} color="#D1D5DB" />
+        </View>
         <Text className="text-gray-800 font-bold text-lg mb-2 text-center">
           Reports Not Available Yet
         </Text>
@@ -238,33 +319,42 @@ export default function ContractReportsTab({
       {/* Collateral payment warning */}
       {!collateralPaid && (
         <View className="bg-amber-50 rounded-2xl p-3 mb-3 border border-amber-200 flex-row items-center">
-          <Text className="text-amber-800 text-xs flex-1">
-            ⚠️ Your collateral is unpaid. You can still submit reports, but
+          <AlertTriangle size={16} color="#92400e" />
+          <Text className="text-amber-800 text-xs flex-1 ml-2">
+            Your collateral is unpaid. You can still submit reports, but
             breeding completion requires payment from both parties.
           </Text>
         </View>
       )}
 
       {/* Tab Switcher */}
-      <View className="flex-row bg-gray-100 rounded-full p-1 mb-4">
+      <View className="flex-row bg-gray-100 rounded-2xl p-1 mb-4">
         <TouchableOpacity
           onPress={() => setActiveView("submit")}
-          className={`flex-1 py-2.5 rounded-full ${activeView === "submit" ? "bg-white" : ""}`}
+          className={`flex-1 py-2.5 rounded-xl flex-row items-center justify-center ${activeView === "submit" ? "bg-white shadow-sm" : ""}`}
         >
+          <Plus
+            size={14}
+            color={activeView === "submit" ? "#FF6B6B" : "#9CA3AF"}
+          />
           <Text
-            className={`text-center font-semibold text-sm ${activeView === "submit" ? "text-[#FF6B6B]" : "text-gray-500"}`}
+            className={`text-center font-semibold text-sm ml-1.5 ${activeView === "submit" ? "text-[#FF6B6B]" : "text-gray-500"}`}
           >
-            ✏️ New Report
+            New Report
           </Text>
         </TouchableOpacity>
         <TouchableOpacity
           onPress={() => setActiveView("history")}
-          className={`flex-1 py-2.5 rounded-full ${activeView === "history" ? "bg-white" : ""}`}
+          className={`flex-1 py-2.5 rounded-xl flex-row items-center justify-center ${activeView === "history" ? "bg-white shadow-sm" : ""}`}
         >
+          <History
+            size={14}
+            color={activeView === "history" ? "#FF6B6B" : "#9CA3AF"}
+          />
           <Text
-            className={`text-center font-semibold text-sm ${activeView === "history" ? "text-[#FF6B6B]" : "text-gray-500"}`}
+            className={`text-center font-semibold text-sm ml-1.5 ${activeView === "history" ? "text-[#FF6B6B]" : "text-gray-500"}`}
           >
-            📜 History ({reportsData?.total_reports || 0})
+            History ({reportsData?.total_reports || 0})
           </Text>
         </TouchableOpacity>
       </View>
@@ -273,60 +363,80 @@ export default function ContractReportsTab({
         /* ─── Submit New Report ─── */
         <View>
           {reportsData?.today_report_exists && (
-            <View className="bg-yellow-50 rounded-xl p-3 mb-4 border border-yellow-200">
-              <Text className="text-yellow-800 text-sm">
-                ⚠️ You've already submitted a report today. You can still update
+            <View className="bg-amber-50 rounded-xl p-3 mb-4 border border-amber-200 flex-row items-center">
+              <AlertTriangle size={14} color="#92400e" />
+              <Text className="text-amber-800 text-sm ml-2 flex-1">
+                You've already submitted a report today. You can still update
                 it.
               </Text>
             </View>
           )}
 
           {/* Health Status */}
-          <Text className="font-bold text-gray-800 text-sm mb-2">
-            🏥 Pet Health Status
-          </Text>
-          <View className="flex-row flex-wrap mb-4">
-            {healthStatusOptions.map((option) => (
-              <TouchableOpacity
-                key={option.value}
-                onPress={() => setHealthStatus(option.value)}
-                className={`px-3 py-2 rounded-full mr-2 mb-2 border-2 ${
-                  healthStatus === option.value
-                    ? "border-[#FF6B6B] bg-[#FFF5F3]"
-                    : "border-gray-200"
-                }`}
-              >
-                <Text
-                  className={`text-sm ${healthStatus === option.value ? "font-bold text-[#FF6B6B]" : "text-gray-600"}`}
-                >
-                  {option.emoji} {option.label}
-                </Text>
-              </TouchableOpacity>
-            ))}
-          </View>
+          <FormSection
+            title="Pet Health Status"
+            Icon={Stethoscope}
+            iconColor="#10b981"
+            required
+          >
+            <View className="flex-row flex-wrap">
+              {healthStatusOptions.map((option) => {
+                const isSelected = healthStatus === option.value;
+                const HealthIcon = option.Icon;
+                return (
+                  <TouchableOpacity
+                    key={option.value}
+                    onPress={() => setHealthStatus(option.value)}
+                    className={`flex-row items-center px-3 py-2 rounded-xl mr-2 mb-2 border ${
+                      isSelected
+                        ? "border-transparent"
+                        : "border-gray-200 bg-white"
+                    }`}
+                    style={
+                      isSelected
+                        ? {
+                            backgroundColor: option.bg,
+                            borderColor: option.color,
+                            borderWidth: 1,
+                          }
+                        : undefined
+                    }
+                  >
+                    <HealthIcon
+                      size={14}
+                      color={isSelected ? option.color : "#9CA3AF"}
+                    />
+                    <Text
+                      className={`text-sm ml-1.5 ${isSelected ? "font-bold" : "text-gray-600"}`}
+                      style={isSelected ? { color: option.color } : undefined}
+                    >
+                      {option.label}
+                    </Text>
+                  </TouchableOpacity>
+                );
+              })}
+            </View>
 
-          {/* Health Notes */}
-          <View className="mb-4">
-            <Text className="font-semibold text-gray-700 text-sm mb-1">
-              Health Notes (Optional)
-            </Text>
+            {/* Inline health notes */}
             <TextInput
-              className="bg-gray-100 rounded-xl px-4 py-3 text-base"
-              placeholder="Any health observations..."
+              className="bg-gray-50 rounded-xl px-4 py-3 text-sm mt-2 border border-gray-100"
+              placeholder="Any health observations (optional)..."
               placeholderTextColor="#9CA3AF"
               value={healthNotes}
               onChangeText={setHealthNotes}
               multiline
             />
-          </View>
+          </FormSection>
 
           {/* Progress Notes */}
-          <View className="mb-4">
-            <Text className="font-bold text-gray-800 text-sm mb-1">
-              📋 Progress Notes *
-            </Text>
+          <FormSection
+            title="Progress Notes"
+            Icon={ClipboardList}
+            iconColor="#6366f1"
+            required
+          >
             <TextInput
-              className="bg-gray-100 rounded-xl px-4 py-3 text-base min-h-[80px]"
+              className="bg-gray-50 rounded-xl px-4 py-3 text-sm min-h-[88px] border border-gray-100"
               placeholder="How is the breeding progressing today?..."
               placeholderTextColor="#9CA3AF"
               value={progressNotes}
@@ -334,12 +444,16 @@ export default function ContractReportsTab({
               multiline
               textAlignVertical="top"
             />
-          </View>
+          </FormSection>
 
           {/* Breeding Attempted */}
-          <View className="mb-4">
-            <Text className="font-bold text-gray-800 text-sm mb-2">
-              ❤️ Breeding Attempt Today?
+          <FormSection
+            title="Breeding Attempt"
+            Icon={Heart}
+            iconColor="#FF6B6B"
+          >
+            <Text className="text-gray-500 text-xs mb-2">
+              Was a breeding attempt made today?
             </Text>
             <View className="flex-row">
               <TouchableOpacity
@@ -347,10 +461,18 @@ export default function ContractReportsTab({
                   setBreedingAttempted(true);
                   setBreedingSuccessful(undefined);
                 }}
-                className={`flex-1 py-3 rounded-l-2xl border-2 ${breedingAttempted ? "bg-[#FF6B6B] border-[#FF6B6B]" : "bg-white border-gray-200"}`}
+                className={`flex-1 py-3 rounded-xl mr-1.5 flex-row items-center justify-center border ${
+                  breedingAttempted
+                    ? "bg-[#FF6B6B] border-[#FF6B6B]"
+                    : "bg-white border-gray-200"
+                }`}
               >
+                <CheckCircle
+                  size={15}
+                  color={breedingAttempted ? "white" : "#9CA3AF"}
+                />
                 <Text
-                  className={`text-center font-semibold ${breedingAttempted ? "text-white" : "text-gray-600"}`}
+                  className={`font-semibold ml-1.5 ${breedingAttempted ? "text-white" : "text-gray-600"}`}
                 >
                   Yes
                 </Text>
@@ -360,52 +482,73 @@ export default function ContractReportsTab({
                   setBreedingAttempted(false);
                   setBreedingSuccessful(undefined);
                 }}
-                className={`flex-1 py-3 rounded-r-2xl border-2 border-l-0 ${!breedingAttempted ? "bg-[#FF6B6B] border-[#FF6B6B]" : "bg-white border-gray-200"}`}
+                className={`flex-1 py-3 rounded-xl ml-1.5 flex-row items-center justify-center border ${
+                  !breedingAttempted
+                    ? "bg-gray-800 border-gray-800"
+                    : "bg-white border-gray-200"
+                }`}
               >
+                <XCircle
+                  size={15}
+                  color={!breedingAttempted ? "white" : "#9CA3AF"}
+                />
                 <Text
-                  className={`text-center font-semibold ${!breedingAttempted ? "text-white" : "text-gray-600"}`}
+                  className={`font-semibold ml-1.5 ${!breedingAttempted ? "text-white" : "text-gray-600"}`}
                 >
                   No
                 </Text>
               </TouchableOpacity>
             </View>
-          </View>
 
-          {breedingAttempted && (
-            <View className="mb-4">
-              <Text className="font-semibold text-gray-700 text-sm mb-2">
-                Was it successful? *
-              </Text>
-              <View className="flex-row">
-                <TouchableOpacity
-                  onPress={() => setBreedingSuccessful(true)}
-                  className={`flex-1 py-3 rounded-l-2xl border-2 ${breedingSuccessful === true ? "bg-green-500 border-green-500" : "bg-white border-gray-200"}`}
-                >
-                  <Text
-                    className={`text-center font-semibold ${breedingSuccessful === true ? "text-white" : "text-gray-600"}`}
+            {breedingAttempted && (
+              <View className="mt-3 pt-3 border-t border-gray-100">
+                <Text className="text-gray-500 text-xs mb-2">
+                  Was the attempt successful? *
+                </Text>
+                <View className="flex-row">
+                  <TouchableOpacity
+                    onPress={() => setBreedingSuccessful(true)}
+                    className={`flex-1 py-3 rounded-xl mr-1.5 flex-row items-center justify-center border ${
+                      breedingSuccessful === true
+                        ? "bg-green-500 border-green-500"
+                        : "bg-white border-gray-200"
+                    }`}
                   >
-                    ✅ Yes
-                  </Text>
-                </TouchableOpacity>
-                <TouchableOpacity
-                  onPress={() => setBreedingSuccessful(false)}
-                  className={`flex-1 py-3 rounded-r-2xl border-2 border-l-0 ${breedingSuccessful === false ? "bg-red-400 border-red-400" : "bg-white border-gray-200"}`}
-                >
-                  <Text
-                    className={`text-center font-semibold ${breedingSuccessful === false ? "text-white" : "text-gray-600"}`}
+                    <CheckCircle
+                      size={15}
+                      color={breedingSuccessful === true ? "white" : "#9CA3AF"}
+                    />
+                    <Text
+                      className={`font-semibold ml-1.5 ${breedingSuccessful === true ? "text-white" : "text-gray-600"}`}
+                    >
+                      Successful
+                    </Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    onPress={() => setBreedingSuccessful(false)}
+                    className={`flex-1 py-3 rounded-xl ml-1.5 flex-row items-center justify-center border ${
+                      breedingSuccessful === false
+                        ? "bg-red-400 border-red-400"
+                        : "bg-white border-gray-200"
+                    }`}
                   >
-                    ❌ No
-                  </Text>
-                </TouchableOpacity>
+                    <XCircle
+                      size={15}
+                      color={breedingSuccessful === false ? "white" : "#9CA3AF"}
+                    />
+                    <Text
+                      className={`font-semibold ml-1.5 ${breedingSuccessful === false ? "text-white" : "text-gray-600"}`}
+                    >
+                      Unsuccessful
+                    </Text>
+                  </TouchableOpacity>
+                </View>
               </View>
-            </View>
-          )}
+            )}
+          </FormSection>
 
           {/* Photo */}
-          <View className="mb-4">
-            <Text className="font-bold text-gray-800 text-sm mb-2">
-              📷 Photo (Optional)
-            </Text>
+          <FormSection title="Photo" Icon={ImagePlus} iconColor="#8b5cf6">
             {selectedPhoto ? (
               <View className="relative">
                 <Image
@@ -415,60 +558,63 @@ export default function ContractReportsTab({
                 />
                 <TouchableOpacity
                   onPress={() => setSelectedPhoto(null)}
-                  className="absolute top-2 right-2 bg-red-500 w-8 h-8 rounded-full items-center justify-center"
+                  className="absolute top-2 right-2 bg-black/50 w-8 h-8 rounded-full items-center justify-center"
                 >
-                  <Trash2 size={16} color="white" />
+                  <Trash2 size={14} color="white" />
                 </TouchableOpacity>
               </View>
             ) : (
               <View className="flex-row">
                 <TouchableOpacity
                   onPress={takePhoto}
-                  className="flex-1 bg-gray-100 py-4 rounded-xl items-center mr-2"
+                  className="flex-1 bg-gray-50 py-5 rounded-xl items-center mr-2 border border-dashed border-gray-200"
                 >
-                  <Camera size={24} color="#9CA3AF" />
-                  <Text className="text-gray-500 text-xs mt-1">Camera</Text>
+                  <Camera size={22} color="#9CA3AF" />
+                  <Text className="text-gray-500 text-xs font-medium mt-1.5">
+                    Camera
+                  </Text>
                 </TouchableOpacity>
                 <TouchableOpacity
                   onPress={pickImage}
-                  className="flex-1 bg-gray-100 py-4 rounded-xl items-center"
+                  className="flex-1 bg-gray-50 py-5 rounded-xl items-center border border-dashed border-gray-200"
                 >
-                  <ImageIcon size={24} color="#9CA3AF" />
-                  <Text className="text-gray-500 text-xs mt-1">Gallery</Text>
+                  <ImageIcon size={22} color="#9CA3AF" />
+                  <Text className="text-gray-500 text-xs font-medium mt-1.5">
+                    Gallery
+                  </Text>
                 </TouchableOpacity>
               </View>
             )}
-          </View>
+          </FormSection>
 
           {/* Additional Notes */}
-          <View className="mb-6">
-            <Text className="font-semibold text-gray-700 text-sm mb-1">
-              Additional Notes (Optional)
-            </Text>
+          <FormSection
+            title="Additional Notes"
+            Icon={MessageSquare}
+            iconColor="#6B7280"
+          >
             <TextInput
-              className="bg-gray-100 rounded-xl px-4 py-3 text-base"
+              className="bg-gray-50 rounded-xl px-4 py-3 text-sm border border-gray-100"
               placeholder="Any other observations..."
               placeholderTextColor="#9CA3AF"
               value={additionalNotes}
               onChangeText={setAdditionalNotes}
               multiline
             />
-          </View>
+          </FormSection>
 
           {/* Submit */}
           <TouchableOpacity
             onPress={handleSubmit}
             disabled={isSubmitting}
-            className={`py-4 rounded-full flex-row items-center justify-center ${isSubmitting ? "bg-gray-400" : "bg-[#FF6B6B]"}`}
+            className={`py-4 rounded-2xl flex-row items-center justify-center mb-4 ${isSubmitting ? "bg-gray-300" : "bg-[#FF6B6B]"}`}
           >
             {isSubmitting ? (
               <ActivityIndicator color="white" />
             ) : (
               <>
-                <Send size={18} color="white" />
-                <Text className="text-white font-bold ml-2">
-                  Submit Report 📝
-                </Text>
+                <Send size={16} color="white" />
+                <Text className="text-white font-bold ml-2">Submit Report</Text>
               </>
             )}
           </TouchableOpacity>
@@ -486,6 +632,7 @@ export default function ContractReportsTab({
               const healthConfig = healthStatusOptions.find(
                 (h) => h.value === report.health_status,
               );
+              const HealthIcon = healthConfig?.Icon || ClipboardList;
 
               return (
                 <TouchableOpacity
@@ -493,105 +640,148 @@ export default function ContractReportsTab({
                   onPress={() =>
                     setExpandedReportId(isExpanded ? null : report.report_id)
                   }
-                  className="bg-white rounded-2xl p-4 mb-3 border border-gray-100"
+                  className="bg-white rounded-2xl mb-3 border border-gray-100 overflow-hidden"
                 >
-                  <View className="flex-row items-center justify-between">
-                    <View className="flex-row items-center flex-1">
-                      <Text className="text-lg mr-2">
-                        {healthConfig?.emoji || "📋"}
-                      </Text>
-                      <View className="flex-1">
-                        <Text className="font-bold text-gray-800 text-sm">
-                          {dayjs(report.report_date).format("MMM D, YYYY")}
-                        </Text>
-                        <Text className="text-gray-500 text-xs">
-                          by {report.reporter?.name || "Unknown"}{" "}
-                          {report.is_from_shooter ? "(Shooter)" : ""}
-                        </Text>
-                      </View>
-                    </View>
-                    <View className="flex-row items-center">
-                      <View
-                        className="px-2 py-1 rounded-full"
-                        style={{
-                          backgroundColor: `${healthConfig?.color || "#666"}20`,
-                        }}
-                      >
-                        <Text
-                          className="text-xs font-bold"
-                          style={{ color: healthConfig?.color || "#666" }}
-                        >
-                          {healthConfig?.label || report.health_status}
-                        </Text>
-                      </View>
-                      {isExpanded ? (
-                        <ChevronUp size={16} color="#9CA3AF" className="ml-2" />
-                      ) : (
-                        <ChevronDown
-                          size={16}
-                          color="#9CA3AF"
-                          className="ml-2"
-                        />
-                      )}
-                    </View>
-                  </View>
+                  {/* Colored top accent */}
+                  <View
+                    className="h-1"
+                    style={{
+                      backgroundColor: healthConfig?.color || "#9CA3AF",
+                    }}
+                  />
 
-                  {isExpanded && (
-                    <View className="mt-3 pt-3 border-t border-gray-100">
-                      <Text className="text-gray-700 text-sm mb-2">
-                        {report.progress_notes}
-                      </Text>
-                      {report.health_notes && (
-                        <View className="bg-gray-50 rounded-lg p-2 mb-2">
-                          <Text className="text-gray-500 text-xs font-semibold">
-                            Health Notes:
-                          </Text>
-                          <Text className="text-gray-700 text-xs">
-                            {report.health_notes}
-                          </Text>
-                        </View>
-                      )}
-                      {report.breeding_attempted && (
-                        <View className="flex-row items-center mb-2">
-                          {report.breeding_successful ? (
-                            <>
-                              <CheckCircle size={14} color="#10b981" />
-                              <Text className="text-green-700 text-xs ml-1">
-                                Breeding successful
-                              </Text>
-                            </>
-                          ) : (
-                            <>
-                              <XCircle size={14} color="#ef4444" />
-                              <Text className="text-red-700 text-xs ml-1">
-                                Breeding attempted (not successful)
-                              </Text>
-                            </>
-                          )}
-                        </View>
-                      )}
-                      {report.additional_notes && (
-                        <Text className="text-gray-600 text-xs italic">
-                          {report.additional_notes}
-                        </Text>
-                      )}
-                      {report.photo_url && (
-                        <Image
-                          source={{
-                            uri: getStorageUrl(report.photo_url) || undefined,
+                  <View className="p-4">
+                    <View className="flex-row items-center justify-between">
+                      <View className="flex-row items-center flex-1">
+                        <View
+                          className="w-9 h-9 rounded-xl items-center justify-center mr-3"
+                          style={{
+                            backgroundColor: healthConfig?.bg || "#f3f4f6",
                           }}
-                          className="w-full h-40 rounded-xl mt-2"
-                          resizeMode="cover"
-                        />
-                      )}
+                        >
+                          <HealthIcon
+                            size={16}
+                            color={healthConfig?.color || "#9CA3AF"}
+                          />
+                        </View>
+                        <View className="flex-1">
+                          <Text className="font-bold text-gray-800 text-sm">
+                            {dayjs(report.report_date).format("MMM D, YYYY")}
+                          </Text>
+                          <View className="flex-row items-center mt-0.5">
+                            <User size={10} color="#9CA3AF" />
+                            <Text className="text-gray-500 text-xs ml-1">
+                              {report.reporter?.name || "Unknown"}
+                              {report.is_from_shooter ? " (Shooter)" : ""}
+                            </Text>
+                          </View>
+                        </View>
+                      </View>
+                      <View className="flex-row items-center">
+                        <View
+                          className="px-2.5 py-1 rounded-lg mr-2"
+                          style={{
+                            backgroundColor: healthConfig?.bg || "#f3f4f6",
+                          }}
+                        >
+                          <Text
+                            className="text-xs font-bold"
+                            style={{ color: healthConfig?.color || "#666" }}
+                          >
+                            {healthConfig?.label || report.health_status}
+                          </Text>
+                        </View>
+                        {isExpanded ? (
+                          <ChevronUp size={16} color="#9CA3AF" />
+                        ) : (
+                          <ChevronDown size={16} color="#9CA3AF" />
+                        )}
+                      </View>
                     </View>
-                  )}
+
+                    {isExpanded && (
+                      <View className="mt-3 pt-3 border-t border-gray-100">
+                        {/* Progress notes */}
+                        <View className="bg-gray-50 rounded-xl p-3 mb-2">
+                          <View className="flex-row items-center mb-1">
+                            <FileText size={11} color="#6B7280" />
+                            <Text className="text-gray-500 text-xs font-semibold ml-1">
+                              Progress
+                            </Text>
+                          </View>
+                          <Text className="text-gray-700 text-sm">
+                            {report.progress_notes}
+                          </Text>
+                        </View>
+
+                        {report.health_notes && (
+                          <View className="bg-gray-50 rounded-xl p-3 mb-2">
+                            <View className="flex-row items-center mb-1">
+                              <Stethoscope size={11} color="#6B7280" />
+                              <Text className="text-gray-500 text-xs font-semibold ml-1">
+                                Health Notes
+                              </Text>
+                            </View>
+                            <Text className="text-gray-700 text-sm">
+                              {report.health_notes}
+                            </Text>
+                          </View>
+                        )}
+
+                        {report.breeding_attempted && (
+                          <View className="flex-row items-center bg-gray-50 rounded-xl p-3 mb-2">
+                            {report.breeding_successful ? (
+                              <>
+                                <CheckCircle size={14} color="#10b981" />
+                                <Text className="text-green-700 text-sm ml-1.5 font-medium">
+                                  Breeding successful
+                                </Text>
+                              </>
+                            ) : (
+                              <>
+                                <XCircle size={14} color="#ef4444" />
+                                <Text className="text-red-700 text-sm ml-1.5 font-medium">
+                                  Breeding attempted (unsuccessful)
+                                </Text>
+                              </>
+                            )}
+                          </View>
+                        )}
+
+                        {report.additional_notes && (
+                          <View className="bg-gray-50 rounded-xl p-3 mb-2">
+                            <View className="flex-row items-center mb-1">
+                              <MessageSquare size={11} color="#6B7280" />
+                              <Text className="text-gray-500 text-xs font-semibold ml-1">
+                                Additional Notes
+                              </Text>
+                            </View>
+                            <Text className="text-gray-600 text-sm">
+                              {report.additional_notes}
+                            </Text>
+                          </View>
+                        )}
+
+                        {report.photo_url && (
+                          <Image
+                            source={{
+                              uri: getStorageUrl(report.photo_url) || undefined,
+                            }}
+                            className="w-full h-40 rounded-xl mt-1"
+                            resizeMode="cover"
+                          />
+                        )}
+                      </View>
+                    )}
+                  </View>
                 </TouchableOpacity>
               );
             })
           ) : (
             <View className="items-center py-12">
-              <Text className="text-4xl mb-3">📝</Text>
+              <View className="w-14 h-14 rounded-full bg-gray-100 items-center justify-center mb-3">
+                <ClipboardList size={24} color="#9CA3AF" />
+              </View>
               <Text className="text-gray-400 text-sm">
                 No reports submitted yet
               </Text>

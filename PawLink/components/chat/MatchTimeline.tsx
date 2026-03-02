@@ -224,9 +224,8 @@ export default function MatchTimeline({
                   style={{
                     flex: 0.6,
                     marginTop: -12,
-                    backgroundColor: nextStage?.status === "upcoming"
-                      ? "#E5E7EB"
-                      : "#FF6B6B",
+                    backgroundColor:
+                      nextStage?.status === "upcoming" ? "#E5E7EB" : "#FF6B6B",
                   }}
                 />
               )}

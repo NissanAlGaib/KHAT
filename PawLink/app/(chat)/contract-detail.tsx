@@ -368,7 +368,13 @@ export default function ContractDetailScreen() {
   // Status badge
   const statusMapping: Record<
     string,
-    { bg: string; text: string; label: string; Icon: IconComponent; iconColor: string }
+    {
+      bg: string;
+      text: string;
+      label: string;
+      Icon: IconComponent;
+      iconColor: string;
+    }
   > = {
     draft: {
       bg: "bg-gray-200",
@@ -488,7 +494,9 @@ export default function ContractDetailScreen() {
                     ) : (
                       <StageIcon
                         size={13}
-                        color={isNext ? "white" : isActive ? "#FF6B6B" : "#9CA3AF"}
+                        color={
+                          isNext ? "white" : isActive ? "#FF6B6B" : "#9CA3AF"
+                        }
                       />
                     )}
                   </View>

@@ -30,6 +30,37 @@ export interface ReleaseEntry {
  */
 export const releases: ReleaseEntry[] = [
   {
+    version: "1.6.2",
+    title: "Reports Form Revamp & UI Polish",
+    date: "March 3, 2026",
+    items: [
+      {
+        text: "Completely redesigned the Daily Reports form with grouped card sections, icon headers, and cleaner layout",
+        category: "improved",
+      },
+      {
+        text: "Health status selector now uses colored icon pills instead of emoji text — each status has a unique icon and color",
+        category: "improved",
+      },
+      {
+        text: "Breeding attempt toggle redesigned with Yes/No icon buttons and inline success/failure follow-up",
+        category: "improved",
+      },
+      {
+        text: "Photo upload section now shows Camera and Gallery options with dashed-border cards",
+        category: "improved",
+      },
+      {
+        text: "Report history cards now feature a colored top accent bar, icon badges, and structured detail sections",
+        category: "improved",
+      },
+      {
+        text: "Removed all emoji usage from the Reports tab — replaced with lucide icons throughout",
+        category: "fixed",
+      },
+    ],
+  },
+  {
     version: "1.6.0",
     title: "Homepage Revamp, Side Buttons, & Shooter Discovery",
     date: "March 2, 2026",

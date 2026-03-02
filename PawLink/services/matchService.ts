@@ -222,6 +222,20 @@ interface InputFeatures {
   attributesCount: number;
 }
 
+/**
+ * Check if a breed string (possibly mixed) matches a target breed.
+ * Supports mixed breed format "Breed1 × Breed2 Mix" by checking if either parent matches.
+ */
+const breedMatchesMixed = (petBreed: string, targetBreed: string): boolean => {
+  if (!petBreed || !petBreed.includes("×")) return false;
+  const parts = petBreed
+    .split("×")
+    .map((p) => p.replace(/\s*Mix$/i, "").trim());
+  return parts.some(
+    (parent) => parent.toLowerCase() === targetBreed.toLowerCase(),
+  );
+};
+
 const extractInputFeatures = (
   pet: PetMatch,
   preferences: any,
@@ -236,9 +250,16 @@ const extractInputFeatures = (
     attributesCount: 0,
   };
 
-  // Breed feature (exact match = 1.0, no match = 0)
+  // Breed feature (exact match = 1.0, mixed breed parent match = 0.8, no match = 0)
+  // Supports mixed breeds ("Breed1 × Breed2 Mix") by checking if either parent breed matches
   if (preferences.preferred_breed) {
-    features.breed = pet.breed === preferences.preferred_breed ? 1.0 : 0.0;
+    if (pet.breed === preferences.preferred_breed) {
+      features.breed = 1.0;
+    } else if (breedMatchesMixed(pet.breed, preferences.preferred_breed)) {
+      features.breed = 0.8;
+    } else {
+      features.breed = 0.0;
+    }
   }
 
   // Sex feature (exact match = 1.0, no preference = 0.5, no match = 0)
