@@ -67,6 +67,8 @@ Route::prefix('admin')->group(function () {
 
         // Admin Management
         Route::get('/admins', [AdminController::class, 'adminsIndex'])->name('admin.admins.index');
+        Route::get('/admins/check-email', [AdminController::class, 'checkAdminEmail'])->name('admin.admins.check-email');
+        Route::get('/admins/{userId}', [AdminController::class, 'showAdmin'])->name('admin.admins.show');
         Route::post('/admins', [AdminController::class, 'storeAdmin'])->name('admin.admins.store');
         Route::delete('/admins/{userId}/revoke', [AdminController::class, 'revokeAdmin'])->name('admin.admins.revoke');
 

@@ -219,9 +219,12 @@ class AdminController extends Controller
             ->orderBy('month')
             ->get();
 
-        // Top Rated Users based on reputation score
+        // Top Rated Users based on reputation score (exclude admins)
         $topUsers = User::query()
             ->selectRaw('*, (average_rating * 10 + review_count * 2 - warning_count * 50) as reputation_score')
+            ->whereDoesntHave('roles', function ($q) {
+                $q->where('role_type', 'admin');
+            })
             ->with('roles')
             ->orderByDesc('reputation_score')
             ->take(5)
@@ -427,15 +430,24 @@ class AdminController extends Controller
      */
     public function storeAdmin(Request $request)
     {
+        // First validate email
         $request->validate([
             'email' => 'required|email',
-            'name' => 'required_without:existing_user|string|max:255',
-            'password' => 'required_without:existing_user|string|min:8',
         ]);
 
         $user = User::where('email', $request->email)->first();
 
         if (!$user) {
+            // New user — name and password are required
+            $request->validate([
+                'name' => 'required|string|max:255',
+                'password' => 'required|string|min:8',
+            ], [
+                'name.required' => 'Full name is required when creating a new admin account.',
+                'password.required' => 'Password is required when creating a new admin account.',
+                'password.min' => 'Password must be at least 8 characters.',
+            ]);
+
             $user = User::create([
                 'name' => $request->name,
                 'email' => $request->email,
@@ -494,6 +506,54 @@ class AdminController extends Controller
         }
 
         return redirect()->route('admin.admins.index')->with('success', 'Admin status revoked successfully.');
+    }
+
+    /**
+     * Check if an email belongs to an existing user (AJAX endpoint for admin form).
+     */
+    public function checkAdminEmail(Request $request)
+    {
+        $email = $request->get('email');
+        $user = User::where('email', $email)->first();
+
+        if ($user) {
+            $isAdmin = $user->roles()->where('role_type', 'admin')->exists();
+            return response()->json([
+                'exists' => true,
+                'name' => $user->name,
+                'email' => $user->email,
+                'is_admin' => $isAdmin,
+            ]);
+        }
+
+        return response()->json(['exists' => false]);
+    }
+
+    /**
+     * Display admin detail page.
+     */
+    public function showAdmin($userId)
+    {
+        $admin = User::with('roles')
+            ->whereHas('roles', function ($q) {
+                $q->where('role_type', 'admin');
+            })
+            ->findOrFail($userId);
+
+        // Get recent admin activity from audit logs
+        $recentActivity = AuditLog::where('user_id', $admin->id)
+            ->orderBy('created_at', 'desc')
+            ->take(20)
+            ->get();
+
+        // Find who promoted this user to admin (from audit log)
+        $promotionLog = AuditLog::where('model_type', User::class)
+            ->where('model_id', $admin->id)
+            ->whereIn('action', ['admin.create', 'admin.promote'])
+            ->orderBy('created_at', 'desc')
+            ->first();
+
+        return view('admin.admins.show', compact('admin', 'recentActivity', 'promotionLog'));
     }
 
     /**
@@ -1956,9 +2016,14 @@ class AdminController extends Controller
             $userId
         );
 
-        return response()->json([
-            'success' => true,
-            'message' => 'User account deleted successfully'
-        ]);
+        // Return JSON for AJAX requests, redirect for form submissions
+        if (request()->ajax() || request()->wantsJson()) {
+            return response()->json([
+                'success' => true,
+                'message' => 'User account deleted successfully'
+            ]);
+        }
+
+        return redirect()->route('admin.users.index')->with('success', 'User account deleted successfully.');
     }
 }

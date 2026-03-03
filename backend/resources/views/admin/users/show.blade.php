@@ -496,7 +496,34 @@
             confirmButtonText: 'Yes, delete user'
         }).then((result) => {
             if (result.isConfirmed) {
-                document.getElementById('deleteUserForm').submit();
+                fetch(`/admin/users/${id}`, {
+                    method: 'DELETE',
+                    headers: {
+                        'X-CSRF-TOKEN': '{{ csrf_token() }}',
+                        'Accept': 'application/json',
+                        'X-Requested-With': 'XMLHttpRequest'
+                    }
+                })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        Swal.fire({
+                            title: 'Deleted!',
+                            text: data.message || 'User account deleted successfully.',
+                            icon: 'success',
+                            confirmButtonColor: '#E75234',
+                            timer: 2000,
+                            timerProgressBar: true
+                        }).then(() => {
+                            window.location.href = '{{ route("admin.users.index") }}';
+                        });
+                    } else {
+                        Swal.fire('Error', data.message || 'Failed to delete user.', 'error');
+                    }
+                })
+                .catch(error => {
+                    Swal.fire('Error', 'An unexpected error occurred while deleting the user.', 'error');
+                });
             }
         });
     }

@@ -11,6 +11,13 @@
 </div>
 @endif
 
+@if(session('error'))
+<div class="mb-6 bg-red-50 border border-red-200 rounded-xl p-4 flex items-center gap-3">
+    <i data-lucide="alert-circle" class="w-5 h-5 text-red-600 flex-shrink-0"></i>
+    <p class="text-sm font-medium text-red-800">{{ session('error') }}</p>
+</div>
+@endif
+
 <!-- Header -->
 <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6">
     <div>
@@ -68,7 +75,7 @@
                                 <i data-lucide="pencil" class="w-3.5 h-3.5"></i>
                                 Edit
                             </button>
-                            <form action="{{ route('admin.protocol-categories.destroy', $category->id) }}" method="POST" class="inline" onsubmit="return confirmDelete(event)">
+                            <form action="{{ route('admin.protocol-categories.destroy', $category->id) }}" method="POST" class="inline" onsubmit="return confirmDelete(event, {{ $category->protocols_count ?? 0 }})">
                                 @csrf
                                 @method('DELETE')
                                 <button type="submit" class="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-red-700 bg-red-50 border border-red-200 rounded-lg hover:bg-red-100 transition-colors">
@@ -209,9 +216,25 @@
         document.body.style.overflow = '';
     }
 
-    function confirmDelete(e) {
+    function confirmDelete(e, protocolCount) {
         e.preventDefault();
         const form = e.target;
+
+        // Block deletion if category has protocols
+        if (protocolCount > 0) {
+            Swal.fire({
+                title: 'Cannot Delete',
+                text: `This category cannot be deleted because it contains ${protocolCount} protocol(s). Please remove or reassign the protocols first.`,
+                icon: 'error',
+                confirmButtonColor: '#E75234',
+                confirmButtonText: 'Understood',
+                customClass: {
+                    popup: 'rounded-xl',
+                    confirmButton: 'rounded-lg',
+                }
+            });
+            return false;
+        }
 
         Swal.fire({
             title: 'Are you sure?',

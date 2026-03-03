@@ -323,7 +323,7 @@ export default function ContractPaymentsTab({
         contract.collateral_per_owner <= 0 &&
         !contract.include_monetary_amount && (
           <View className="items-center py-12">
-            <DollarSign size={40} color=\"#9CA3AF\" />
+            <DollarSign size={40} color="#9CA3AF" />
             <Text className="text-gray-400 text-sm text-center mt-3">
               No payments required for this contract
             </Text>

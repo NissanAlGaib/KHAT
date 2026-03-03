@@ -13,9 +13,13 @@
             <i data-lucide="arrow-left" class="w-4 h-4"></i>
             Back to Pool
         </a>
-        <a href="{{ route('admin.pool.export', ['format' => 'csv'] + request()->query()) }}" class="inline-flex items-center gap-2 px-4 py-2.5 bg-[#E75234] rounded-lg text-sm font-medium text-white hover:bg-[#d14024] transition-colors">
-            <i data-lucide="download" class="w-4 h-4"></i>
-            Export
+        <a href="{{ route('admin.pool.export', ['format' => 'csv'] + request()->query()) }}" class="inline-flex items-center gap-2 px-4 py-2.5 bg-green-600 rounded-lg text-sm font-medium text-white hover:bg-green-700 transition-colors">
+            <i data-lucide="file-spreadsheet" class="w-4 h-4"></i>
+            CSV
+        </a>
+        <a href="{{ route('admin.pool.export', ['format' => 'pdf'] + request()->query()) }}" class="inline-flex items-center gap-2 px-4 py-2.5 bg-[#E75234] rounded-lg text-sm font-medium text-white hover:bg-[#d14024] transition-colors">
+            <i data-lucide="file-text" class="w-4 h-4"></i>
+            PDF
         </a>
     </div>
 </div>

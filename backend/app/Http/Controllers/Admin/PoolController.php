@@ -356,7 +356,7 @@ class PoolController extends Controller
             foreach ($transactions as $txn) {
                 fputcsv($file, [
                     $txn->id,
-                    $txn->created_at->format('Y-m-d H:i:s'),
+                    "\t" . $txn->created_at->format('Y-m-d H:i:s'),
                     $txn->user->name ?? 'N/A',
                     $txn->contract_id ?? 'N/A',
                     $txn->type_label,
