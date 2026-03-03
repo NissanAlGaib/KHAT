@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Notifications\ResetPasswordNotification;
 use App\Traits\FiltersByDate;
 use App\Traits\TracksUpdates;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
@@ -203,5 +204,14 @@ class User extends Authenticatable
     public function incrementWarningCount()
     {
         $this->increment('warning_count');
+    }
+
+    /**
+     * Send the password reset notification with a plain token
+     * (instead of a URL link that doesn't work for mobile apps).
+     */
+    public function sendPasswordResetNotification($token): void
+    {
+        $this->notify(new ResetPasswordNotification($token));
     }
 }

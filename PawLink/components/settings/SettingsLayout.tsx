@@ -4,13 +4,13 @@ import {
   Text,
   TouchableOpacity,
   StatusBar,
-  ScrollView,
   ViewStyle,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Feather } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
 import { LinearGradient } from "expo-linear-gradient";
+import KeyboardAwareScrollView from "@/components/app/KeyboardAwareScrollView";
 
 interface SettingsLayoutProps {
   children: React.ReactNode;
@@ -40,13 +40,14 @@ export const SettingsLayout: React.FC<SettingsLayoutProps> = ({
   };
 
   const Content = scrollable ? (
-    <ScrollView
+    <KeyboardAwareScrollView
       className="flex-1"
       contentContainerStyle={[{ paddingBottom: 40 }, contentContainerStyle]}
       showsVerticalScrollIndicator={false}
+      keyboardDismissMode="interactive"
     >
       {children}
-    </ScrollView>
+    </KeyboardAwareScrollView>
   ) : (
     <View className="flex-1" style={contentContainerStyle}>
       {children}

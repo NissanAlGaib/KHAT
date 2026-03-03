@@ -8,6 +8,8 @@ import {
   ScrollView,
   ActivityIndicator,
   Image,
+  KeyboardAvoidingView,
+  Platform,
 } from "react-native";
 import { useAlert } from "@/hooks/useAlert";
 import AlertModal from "@/components/core/AlertModal";
@@ -234,176 +236,183 @@ export default function OffspringInputModal({
       transparent
       onRequestClose={onClose}
     >
-      <View className="flex-1 bg-black/50 justify-end">
-        <View
-          className="bg-white rounded-t-3xl"
-          style={{ maxHeight: "95%", flex: 1 }}
-        >
-          {/* Header */}
-          <View className="flex-row items-center justify-between px-6 py-4 border-b border-gray-100">
-            <View className="flex-row items-center">
-              <View className="w-10 h-10 rounded-full bg-pink-100 items-center justify-center mr-3">
-                <Baby size={22} color="#ec4899" />
-              </View>
-              <View>
-                <Text className="text-xl font-bold text-gray-800">
-                  Record Offspring
-                </Text>
-                <Text className="text-gray-500 text-sm">
-                  Add litter details
-                </Text>
-              </View>
-            </View>
-            <TouchableOpacity
-              onPress={onClose}
-              className="w-10 h-10 rounded-full bg-gray-100 items-center justify-center"
-            >
-              <X size={24} color="#666" />
-            </TouchableOpacity>
-          </View>
-
-          {/* Summary Stats */}
-          <View className="flex-row px-6 py-3 bg-gray-50 border-b border-gray-100">
-            <View className="flex-1 items-center">
-              <Text className="text-2xl font-bold text-gray-800">
-                {offspring.length}
-              </Text>
-              <Text className="text-gray-500 text-xs">Total</Text>
-            </View>
-            <View className="w-px bg-gray-200" />
-            <View className="flex-1 items-center">
-              <Text className="text-2xl font-bold text-blue-500">
-                {maleCount}
-              </Text>
-              <Text className="text-gray-500 text-xs">Males</Text>
-            </View>
-            <View className="w-px bg-gray-200" />
-            <View className="flex-1 items-center">
-              <Text className="text-2xl font-bold text-pink-500">
-                {femaleCount}
-              </Text>
-              <Text className="text-gray-500 text-xs">Females</Text>
-            </View>
-            <View className="w-px bg-gray-200" />
-            <View className="flex-1 items-center">
-              <Text className="text-2xl font-bold text-green-500">
-                {aliveCount}
-              </Text>
-              <Text className="text-gray-500 text-xs">Alive</Text>
-            </View>
-          </View>
-
-          <ScrollView
-            style={{ flex: 1 }}
-            showsVerticalScrollIndicator={false}
-            contentContainerStyle={{ paddingBottom: 20 }}
+      <KeyboardAvoidingView
+        style={{ flex: 1 }}
+        behavior={Platform.OS === "ios" ? "padding" : undefined}
+      >
+        <View className="flex-1 bg-black/50 justify-end">
+          <View
+            className="bg-white rounded-t-3xl"
+            style={{ maxHeight: "95%", flex: 1 }}
           >
-            <View className="px-4 py-4">
-              {/* Birth Date Card */}
-              <View className="bg-white rounded-2xl border border-gray-200 p-4 mb-4 shadow-sm">
-                <View className="flex-row items-center mb-3">
-                  <Calendar size={18} color="#FF6B6B" />
-                  <Text className="text-gray-700 font-semibold ml-2">
-                    Birth Date
-                  </Text>
-                  <Text className="text-red-500 ml-1">*</Text>
+            {/* Header */}
+            <View className="flex-row items-center justify-between px-6 py-4 border-b border-gray-100">
+              <View className="flex-row items-center">
+                <View className="w-10 h-10 rounded-full bg-pink-100 items-center justify-center mr-3">
+                  <Baby size={22} color="#ec4899" />
                 </View>
-                <TouchableOpacity
-                  onPress={() => setShowDatePicker(true)}
-                  className="bg-gray-50 rounded-xl p-4 flex-row items-center justify-between"
-                >
-                  <Text className="text-gray-800 font-medium">
-                    {dayjs(birthDate).format("MMMM D, YYYY")}
+                <View>
+                  <Text className="text-xl font-bold text-gray-800">
+                    Record Offspring
                   </Text>
-                  <Calendar size={20} color="#9ca3af" />
-                </TouchableOpacity>
-              </View>
-
-              {/* Litter Notes Card */}
-              <View className="bg-white rounded-2xl border border-gray-200 p-4 mb-4 shadow-sm">
-                <View className="flex-row items-center mb-3">
-                  <FileText size={18} color="#FF6B6B" />
-                  <Text className="text-gray-700 font-semibold ml-2">
-                    Litter Notes
+                  <Text className="text-gray-500 text-sm">
+                    Add litter details
                   </Text>
-                  <Text className="text-gray-400 text-sm ml-2">(Optional)</Text>
                 </View>
-                <TextInput
-                  value={litterNotes}
-                  onChangeText={setLitterNotes}
-                  placeholder="Add any notes about the litter..."
-                  placeholderTextColor="#9ca3af"
-                  multiline
-                  numberOfLines={3}
-                  className="bg-gray-50 rounded-xl p-4 text-gray-800"
-                  style={{ textAlignVertical: "top", minHeight: 80 }}
-                />
               </View>
+              <TouchableOpacity
+                onPress={onClose}
+                className="w-10 h-10 rounded-full bg-gray-100 items-center justify-center"
+              >
+                <X size={24} color="#666" />
+              </TouchableOpacity>
+            </View>
 
-              {/* Offspring Section */}
-              <View className="mb-4">
-                <View className="flex-row items-center justify-between mb-3">
-                  <View className="flex-row items-center">
-                    <Heart size={18} color="#FF6B6B" />
+            {/* Summary Stats */}
+            <View className="flex-row px-6 py-3 bg-gray-50 border-b border-gray-100">
+              <View className="flex-1 items-center">
+                <Text className="text-2xl font-bold text-gray-800">
+                  {offspring.length}
+                </Text>
+                <Text className="text-gray-500 text-xs">Total</Text>
+              </View>
+              <View className="w-px bg-gray-200" />
+              <View className="flex-1 items-center">
+                <Text className="text-2xl font-bold text-blue-500">
+                  {maleCount}
+                </Text>
+                <Text className="text-gray-500 text-xs">Males</Text>
+              </View>
+              <View className="w-px bg-gray-200" />
+              <View className="flex-1 items-center">
+                <Text className="text-2xl font-bold text-pink-500">
+                  {femaleCount}
+                </Text>
+                <Text className="text-gray-500 text-xs">Females</Text>
+              </View>
+              <View className="w-px bg-gray-200" />
+              <View className="flex-1 items-center">
+                <Text className="text-2xl font-bold text-green-500">
+                  {aliveCount}
+                </Text>
+                <Text className="text-gray-500 text-xs">Alive</Text>
+              </View>
+            </View>
+
+            <ScrollView
+              style={{ flex: 1 }}
+              showsVerticalScrollIndicator={false}
+              contentContainerStyle={{ paddingBottom: 20 }}
+            >
+              <View className="px-4 py-4">
+                {/* Birth Date Card */}
+                <View className="bg-white rounded-2xl border border-gray-200 p-4 mb-4 shadow-sm">
+                  <View className="flex-row items-center mb-3">
+                    <Calendar size={18} color="#FF6B6B" />
                     <Text className="text-gray-700 font-semibold ml-2">
-                      Offspring Details
+                      Birth Date
                     </Text>
+                    <Text className="text-red-500 ml-1">*</Text>
                   </View>
                   <TouchableOpacity
-                    onPress={addOffspring}
-                    className="bg-[#FF6B6B] px-4 py-2 rounded-full flex-row items-center"
+                    onPress={() => setShowDatePicker(true)}
+                    className="bg-gray-50 rounded-xl p-4 flex-row items-center justify-between"
                   >
-                    <Plus size={16} color="white" />
-                    <Text className="text-white font-semibold ml-1">Add</Text>
+                    <Text className="text-gray-800 font-medium">
+                      {dayjs(birthDate).format("MMMM D, YYYY")}
+                    </Text>
+                    <Calendar size={20} color="#9ca3af" />
                   </TouchableOpacity>
                 </View>
 
-                {/* Offspring Cards */}
-                {offspring.map((pup, index) => (
-                  <OffspringCard
-                    key={index}
-                    index={index}
-                    pup={pup}
-                    isExpanded={expandedIndex === index}
-                    onToggle={() =>
-                      setExpandedIndex(expandedIndex === index ? null : index)
-                    }
-                    onUpdate={(field, value) =>
-                      updateOffspring(index, field, value)
-                    }
-                    onRemove={() => removeOffspring(index)}
-                    onPickImage={() => pickImage(index)}
-                    onTakePhoto={() => takePhoto(index)}
-                    onRemovePhoto={() => removePhoto(index)}
-                    canRemove={offspring.length > 1}
+                {/* Litter Notes Card */}
+                <View className="bg-white rounded-2xl border border-gray-200 p-4 mb-4 shadow-sm">
+                  <View className="flex-row items-center mb-3">
+                    <FileText size={18} color="#FF6B6B" />
+                    <Text className="text-gray-700 font-semibold ml-2">
+                      Litter Notes
+                    </Text>
+                    <Text className="text-gray-400 text-sm ml-2">
+                      (Optional)
+                    </Text>
+                  </View>
+                  <TextInput
+                    value={litterNotes}
+                    onChangeText={setLitterNotes}
+                    placeholder="Add any notes about the litter..."
+                    placeholderTextColor="#9ca3af"
+                    multiline
+                    numberOfLines={3}
+                    className="bg-gray-50 rounded-xl p-4 text-gray-800"
+                    style={{ textAlignVertical: "top", minHeight: 80 }}
                   />
-                ))}
-              </View>
-            </View>
-          </ScrollView>
+                </View>
 
-          {/* Submit Button */}
-          <View className="px-4 py-4 border-t border-gray-100 bg-white">
-            <TouchableOpacity
-              onPress={handleSubmit}
-              disabled={isSubmitting}
-              className="py-4 rounded-full flex-row items-center justify-center"
-              style={{ backgroundColor: "#16a34a" }}
-            >
-              {isSubmitting ? (
-                <ActivityIndicator color="white" size="small" />
-              ) : (
-                <>
-                  <CheckCircle size={20} color="white" />
-                  <Text className="text-white font-bold text-base ml-2">
-                    Record {offspring.length} Offspring
-                  </Text>
-                </>
-              )}
-            </TouchableOpacity>
+                {/* Offspring Section */}
+                <View className="mb-4">
+                  <View className="flex-row items-center justify-between mb-3">
+                    <View className="flex-row items-center">
+                      <Heart size={18} color="#FF6B6B" />
+                      <Text className="text-gray-700 font-semibold ml-2">
+                        Offspring Details
+                      </Text>
+                    </View>
+                    <TouchableOpacity
+                      onPress={addOffspring}
+                      className="bg-[#FF6B6B] px-4 py-2 rounded-full flex-row items-center"
+                    >
+                      <Plus size={16} color="white" />
+                      <Text className="text-white font-semibold ml-1">Add</Text>
+                    </TouchableOpacity>
+                  </View>
+
+                  {/* Offspring Cards */}
+                  {offspring.map((pup, index) => (
+                    <OffspringCard
+                      key={index}
+                      index={index}
+                      pup={pup}
+                      isExpanded={expandedIndex === index}
+                      onToggle={() =>
+                        setExpandedIndex(expandedIndex === index ? null : index)
+                      }
+                      onUpdate={(field, value) =>
+                        updateOffspring(index, field, value)
+                      }
+                      onRemove={() => removeOffspring(index)}
+                      onPickImage={() => pickImage(index)}
+                      onTakePhoto={() => takePhoto(index)}
+                      onRemovePhoto={() => removePhoto(index)}
+                      canRemove={offspring.length > 1}
+                    />
+                  ))}
+                </View>
+              </View>
+            </ScrollView>
+
+            {/* Submit Button */}
+            <View className="px-4 py-4 border-t border-gray-100 bg-white">
+              <TouchableOpacity
+                onPress={handleSubmit}
+                disabled={isSubmitting}
+                className="py-4 rounded-full flex-row items-center justify-center"
+                style={{ backgroundColor: "#16a34a" }}
+              >
+                {isSubmitting ? (
+                  <ActivityIndicator color="white" size="small" />
+                ) : (
+                  <>
+                    <CheckCircle size={20} color="white" />
+                    <Text className="text-white font-bold text-base ml-2">
+                      Record {offspring.length} Offspring
+                    </Text>
+                  </>
+                )}
+              </TouchableOpacity>
+            </View>
           </View>
         </View>
-      </View>
+      </KeyboardAvoidingView>
 
       <DateTimePickerModal
         isVisible={showDatePicker}

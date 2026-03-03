@@ -1704,6 +1704,16 @@ class AdminController extends Controller
             ->get()
             : collect();
 
+        // Get pending vaccination shots
+        $pendingVaccinationShots = (!$typeFilter || $typeFilter === 'vaccination_pending')
+            ? \App\Models\VaccinationShot::where('verification_status', 'pending')
+            ->whereBetween('created_at', [$startDate, $endDate])
+            ->with(['card.pet.owner', 'card.protocol'])
+            ->orderBy('created_at', 'desc')
+            ->limit(20)
+            ->get()
+            : collect();
+
         // Build notifications array
         $notifications = collect();
 
@@ -1772,8 +1782,24 @@ class AdminController extends Controller
             ]);
         }
 
+        // Add vaccination shot pending notifications
+        foreach ($pendingVaccinationShots as $shot) {
+            $petName = $shot->card->pet->name ?? 'Unknown pet';
+            $protocolName = $shot->card->protocol->name ?? 'vaccine';
+            $ownerName = $shot->card->pet->owner->name ?? 'Unknown owner';
+            $notifications->push([
+                'type' => 'vaccination_pending',
+                'icon' => 'syringe',
+                'color' => 'yellow',
+                'title' => 'Vaccination proof awaiting review',
+                'message' => "{$ownerName} submitted {$protocolName} proof for {$petName}",
+                'created_at' => $shot->created_at,
+                'is_unread' => true,
+            ]);
+        }
+
         // Sort by created_at descending
-        $notifications = $notifications->sortByDesc('created_at')->take(20)->values();
+        $notifications = $notifications->sortByDesc('created_at')->take(30)->values();
 
         // Count unread
         $unreadCount = $notifications->where('is_unread', true)->count();

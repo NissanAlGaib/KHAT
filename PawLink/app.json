@@ -2,7 +2,7 @@
   "expo": {
     "name": "PawLink",
     "slug": "PawLink",
-    "version": "1.4.0",
+    "version": "1.6.0",
     "assetBundlePatterns": [
       "**/*"
     ],
@@ -19,7 +19,7 @@
       }
     },
     "android": {
-      "softwareKeyboardLayoutMode": "resize",
+      "softwareKeyboardLayoutMode": "pan",
       "adaptiveIcon": {
         "backgroundColor": "#E6F4FE",
         "foregroundImage": "./assets/images/android-icon-foreground.png",

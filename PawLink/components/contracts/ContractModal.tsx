@@ -266,7 +266,7 @@ export default function ContractModal({
           onChangeText={(text) =>
             updateFormField(
               "shooter_payment",
-              text ? parseFloat(text) : undefined
+              text ? parseFloat(text) : undefined,
             )
           }
           keyboardType="numeric"
@@ -350,7 +350,7 @@ export default function ContractModal({
         onPress={() =>
           updateFormField(
             "include_monetary_amount",
-            !formData.include_monetary_amount
+            !formData.include_monetary_amount,
           )
         }
       >
@@ -378,7 +378,7 @@ export default function ContractModal({
             onChangeText={(text) =>
               updateFormField(
                 "monetary_amount",
-                text ? parseFloat(text) : undefined
+                text ? parseFloat(text) : undefined,
               )
             }
             keyboardType="numeric"
@@ -469,7 +469,7 @@ export default function ContractModal({
             onChangeText={(text) =>
               updateFormField(
                 "offspring_split_value",
-                text ? parseInt(text) : undefined
+                text ? parseInt(text) : undefined,
               )
             }
             keyboardType="numeric"
@@ -555,7 +555,7 @@ export default function ContractModal({
             onChangeText={(text) =>
               updateFormField(
                 "goods_foods_value",
-                text ? parseFloat(text) : undefined
+                text ? parseFloat(text) : undefined,
               )
             }
             keyboardType="numeric"
@@ -713,7 +713,7 @@ export default function ContractModal({
       onRequestClose={handleClose}
     >
       <KeyboardAvoidingView
-        behavior={Platform.OS === "ios" ? "padding" : "height"}
+        behavior={Platform.OS === "ios" ? "padding" : undefined}
         className="flex-1 bg-black/50 justify-center items-center px-4"
       >
         <Animated.View

@@ -374,10 +374,70 @@
                     <input type="search" placeholder="Search..." class="pl-10 pr-4 py-2.5 w-full max-w-xs md:max-w-sm lg:w-72 bg-gray-50 border-0 rounded-full text-sm focus:outline-none focus:bg-white focus:ring-2 focus:ring-[#E75234]/20 transition-all">
                 </div>
 
-                <button class="relative text-gray-500 hover:text-gray-700">
-                    <i data-lucide="bell" class="w-6 h-6"></i>
-                    <span class="absolute top-0 right-0 block h-2.5 w-2.5 rounded-full ring-2 ring-white bg-red-500"></span>
-                </button>
+                <!-- Notification Bell Dropdown -->
+                <div class="relative" id="notifDropdownWrapper">
+                    <button onclick="toggleNotifDropdown()" class="relative text-gray-500 hover:text-gray-700 focus:outline-none transition-colors">
+                        <i data-lucide="bell" class="w-6 h-6"></i>
+                        @if(($adminAlertCount ?? 0) > 0)
+                        <span class="absolute -top-1 -right-1 flex items-center justify-center min-w-[18px] h-[18px] px-1 rounded-full text-[10px] font-bold text-white bg-red-500 ring-2 ring-white">
+                            {{ $adminAlertCount > 99 ? '99+' : $adminAlertCount }}
+                        </span>
+                        @endif
+                    </button>
+
+                    <!-- Dropdown Panel -->
+                    <div id="notifDropdown" class="hidden absolute right-0 mt-2 w-96 bg-white rounded-xl shadow-2xl border border-gray-200 z-50 overflow-hidden">
+                        <div class="px-4 py-3 bg-gradient-to-r from-gray-50 to-white border-b border-gray-100">
+                            <div class="flex items-center justify-between">
+                                <h3 class="text-sm font-bold text-gray-900">Alerts & Action Items</h3>
+                                <a href="{{ route('admin.notifications') }}" class="text-xs font-semibold text-[#E75234] hover:text-[#c03e25] transition-colors">View All</a>
+                            </div>
+                        </div>
+
+                        @if(($adminAlerts ?? collect())->count() > 0)
+                        <div class="max-h-80 overflow-y-auto divide-y divide-gray-50">
+                            @foreach($adminAlerts as $alert)
+                            @php
+                            $alertColors = [
+                            'red' => 'bg-red-100 text-red-600',
+                            'yellow' => 'bg-yellow-100 text-yellow-600',
+                            'orange' => 'bg-orange-100 text-orange-600',
+                            'blue' => 'bg-blue-100 text-blue-600',
+                            'pink' => 'bg-pink-100 text-pink-600',
+                            'green' => 'bg-green-100 text-green-600',
+                            ];
+                            $alertColor = $alertColors[$alert['color']] ?? 'bg-gray-100 text-gray-600';
+                            @endphp
+                            <a href="{{ $alert['url'] }}" class="flex items-start gap-3 px-4 py-3 hover:bg-gray-50 transition-colors group">
+                                <div class="w-8 h-8 rounded-lg {{ $alertColor }} flex items-center justify-center flex-shrink-0 mt-0.5">
+                                    <i data-lucide="{{ $alert['icon'] }}" class="w-4 h-4"></i>
+                                </div>
+                                <div class="flex-1 min-w-0">
+                                    <p class="text-sm font-semibold text-gray-900 group-hover:text-[#E75234] transition-colors">{{ $alert['title'] }}</p>
+                                    <p class="text-xs text-gray-500 mt-0.5">{{ $alert['message'] }}</p>
+                                </div>
+                                <div class="flex-shrink-0">
+                                    <i data-lucide="chevron-right" class="w-4 h-4 text-gray-300 group-hover:text-[#E75234] transition-colors"></i>
+                                </div>
+                            </a>
+                            @endforeach
+                        </div>
+                        @else
+                        <div class="px-4 py-8 text-center">
+                            <i data-lucide="check-circle" class="w-8 h-8 text-green-400 mx-auto mb-2"></i>
+                            <p class="text-sm font-medium text-gray-600">All caught up!</p>
+                            <p class="text-xs text-gray-400 mt-0.5">No pending items require attention</p>
+                        </div>
+                        @endif
+
+                        <div class="px-4 py-2.5 bg-gray-50 border-t border-gray-100">
+                            <a href="{{ route('admin.notifications') }}" class="flex items-center justify-center gap-1.5 text-xs font-semibold text-gray-500 hover:text-[#E75234] transition-colors">
+                                <i data-lucide="inbox" class="w-3.5 h-3.5"></i>
+                                View Full Notification Center
+                            </a>
+                        </div>
+                    </div>
+                </div>
 
                 <div class="w-9 h-9 rounded-full bg-[#F6CFBF] flex items-center justify-center text-[#E75234] font-bold text-sm">
                     {{ strtoupper(substr(Auth::user()->name ?? Auth::user()->email, 0, 2)) }}
@@ -885,6 +945,27 @@
                 mobileMenu.classList.add('hidden');
             });
         }
+
+        // ═══════════════ Notification Dropdown ═══════════════
+        function toggleNotifDropdown() {
+            const dropdown = document.getElementById('notifDropdown');
+            if (!dropdown) return;
+            const isHidden = dropdown.classList.contains('hidden');
+            dropdown.classList.toggle('hidden');
+            if (isHidden) {
+                lucide.createIcons();
+            }
+        }
+
+        // Close notification dropdown when clicking outside
+        document.addEventListener('click', function(e) {
+            const wrapper = document.getElementById('notifDropdownWrapper');
+            const dropdown = document.getElementById('notifDropdown');
+            if (!wrapper || !dropdown) return;
+            if (!wrapper.contains(e.target)) {
+                dropdown.classList.add('hidden');
+            }
+        });
 
         // Initialize Viewer.js
         document.addEventListener('DOMContentLoaded', function() {

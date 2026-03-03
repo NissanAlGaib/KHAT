@@ -21,7 +21,7 @@ interface ShooterContractEditModalProps {
   contract: BreedingContract;
   onSubmit: (
     payment: number,
-    collateral: number
+    collateral: number,
   ) => Promise<{ success: boolean; message: string; data?: BreedingContract }>;
 }
 
@@ -33,7 +33,7 @@ export default function ShooterContractEditModal({
   onSubmit,
 }: ShooterContractEditModalProps) {
   const [shooterPayment, setShooterPayment] = useState(
-    contract.shooter_payment?.toString() || ""
+    contract.shooter_payment?.toString() || "",
   );
   const [shooterCollateral, setShooterCollateral] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -41,7 +41,9 @@ export default function ShooterContractEditModal({
   const scaleAnim = React.useRef(new Animated.Value(0)).current;
 
   // Track the contract id to detect when we switch to a different contract
-  const [lastContractId, setLastContractId] = React.useState<number | null>(null);
+  const [lastContractId, setLastContractId] = React.useState<number | null>(
+    null,
+  );
 
   // Initialize shooter_payment value for when we open with a new contract
   const initialShooterPayment = contract.shooter_payment?.toString() || "";
@@ -111,7 +113,7 @@ export default function ShooterContractEditModal({
       onRequestClose={onClose}
     >
       <KeyboardAvoidingView
-        behavior={Platform.OS === "ios" ? "padding" : "height"}
+        behavior={Platform.OS === "ios" ? "padding" : undefined}
         className="flex-1"
       >
         <View className="flex-1 bg-black/50 justify-center items-center px-4">

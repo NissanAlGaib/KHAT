@@ -330,6 +330,55 @@ class VaccineProtocolController extends Controller
     }
 
     /**
+     * Display all vaccination shots for a specific pet.
+     */
+    public function petShots(Request $request, $petId)
+    {
+        $pet = \App\Models\Pet::with('owner')->findOrFail($petId);
+
+        $query = VaccinationShot::whereHas('card', function ($q) use ($petId) {
+            $q->where('pet_id', $petId);
+        })->with(['card.protocol']);
+
+        // Filter by verification status
+        if ($request->filled('status')) {
+            $query->where('verification_status', $request->status);
+        }
+
+        // Filter by protocol
+        if ($request->filled('protocol')) {
+            $query->whereHas('card', function ($q) use ($request) {
+                $q->where('vaccine_protocol_id', $request->protocol);
+            });
+        }
+
+        $query->orderByDesc('created_at');
+        $perPage = $request->input('per_page', 15);
+        $shots = $query->paginate($perPage)->appends($request->query());
+
+        // Get vaccination cards summary for this pet
+        $cards = \App\Models\VaccinationCard::where('pet_id', $petId)
+            ->with(['protocol', 'shots'])
+            ->get();
+
+        // Stats
+        $totalShots = VaccinationShot::whereHas('card', fn($q) => $q->where('pet_id', $petId))->count();
+        $approvedShots = VaccinationShot::whereHas('card', fn($q) => $q->where('pet_id', $petId))->where('verification_status', 'approved')->count();
+        $pendingShots = VaccinationShot::whereHas('card', fn($q) => $q->where('pet_id', $petId))->where('verification_status', 'pending')->count();
+        $rejectedShots = VaccinationShot::whereHas('card', fn($q) => $q->where('pet_id', $petId))->where('verification_status', 'rejected')->count();
+
+        return view('admin.vaccine-protocols.pet-shots', compact(
+            'pet',
+            'shots',
+            'cards',
+            'totalShots',
+            'approvedShots',
+            'pendingShots',
+            'rejectedShots'
+        ));
+    }
+
+    /**
      * Approve a vaccination shot.
      */
     public function approveShot($shotId)

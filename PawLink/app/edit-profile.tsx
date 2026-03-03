@@ -4,8 +4,6 @@ import {
   Text,
   TouchableOpacity,
   Image,
-  Platform,
-  KeyboardAvoidingView,
   ScrollView,
 } from "react-native";
 import { useRouter } from "expo-router";
@@ -262,10 +260,6 @@ export default function EditProfileScreen() {
       headerTitle="Edit Profile"
       contentContainerStyle={{ paddingBottom: 100 }}
     >
-      <KeyboardAvoidingView
-        behavior={Platform.OS === "ios" ? "padding" : "height"}
-        style={{ flex: 1 }}
-      >
         <View className="mb-6 items-center pt-4">
           <TouchableOpacity onPress={pickImage} activeOpacity={0.8}>
             <View className="relative">
@@ -374,7 +368,6 @@ export default function EditProfileScreen() {
             disabled={loading}
           />
         </View>
-      </KeyboardAvoidingView>
 
       <AlertModal
         visible={visible}

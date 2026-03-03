@@ -99,6 +99,7 @@ Route::prefix('admin')->group(function () {
         Route::get('/vaccination-shots/pending', [VaccineProtocolController::class, 'pendingShots'])->name('admin.vaccination-shots.pending');
         Route::post('/vaccination-shots/{shotId}/approve', [VaccineProtocolController::class, 'approveShot'])->name('admin.vaccination-shots.approve');
         Route::post('/vaccination-shots/{shotId}/reject', [VaccineProtocolController::class, 'rejectShot'])->name('admin.vaccination-shots.reject');
+        Route::get('/pets/{petId}/vaccination-shots', [VaccineProtocolController::class, 'petShots'])->name('admin.vaccination-shots.pet');
 
         // Subscription Tier Management
         Route::resource('subscription-tiers', SubscriptionTierController::class)->only(['index', 'store', 'update', 'destroy'])->names('admin.subscription-tiers');

@@ -261,7 +261,10 @@ const Register = () => {
     const payload = { ...data, address };
     setLoading(true);
     try {
-      await axiosInstance.post("/api/register", payload);
+      await axiosInstance.post("/api/register", {
+        ...payload,
+        email: payload.email.trim().toLowerCase(),
+      });
       showAlert({
         title: "Success",
         message: "Account created successfully!",
@@ -307,6 +310,8 @@ const Register = () => {
               value={data.email ?? ""}
               onChangeText={(t) => handleChange("email", t)}
               error={errors.email}
+              keyboardType="email-address"
+              autoCapitalize="none"
             />
             <CustomInput
               label="Create Username"

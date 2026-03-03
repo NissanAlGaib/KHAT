@@ -3,8 +3,6 @@ import {
   View,
   Text,
   TouchableOpacity,
-  KeyboardAvoidingView,
-  Platform,
 } from "react-native";
 import { useRouter } from "expo-router";
 import { Feather } from "@expo/vector-icons";
@@ -231,10 +229,6 @@ export default function PrivacySecurityScreen() {
 
   return (
     <SettingsLayout headerTitle="Privacy & Security">
-      <KeyboardAvoidingView
-        behavior={Platform.OS === "ios" ? "padding" : "height"}
-        style={{ flex: 1 }}
-      >
         <SettingsSection>
           <SectionHeader
             title="Change Password"
@@ -394,7 +388,6 @@ export default function PrivacySecurityScreen() {
             </View>
           )}
         </SettingsSection>
-      </KeyboardAvoidingView>
 
       <AlertModal {...{ visible, ...alertOptions, onClose: hideAlert }} />
     </SettingsLayout>

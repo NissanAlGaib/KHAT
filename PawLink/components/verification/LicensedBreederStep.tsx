@@ -92,7 +92,7 @@ export default function LicensedBreederStep({
 
   return (
     <KeyboardAvoidingView
-      behavior={Platform.OS === "ios" ? "padding" : "height"}
+      behavior={Platform.OS === "ios" ? "padding" : undefined}
       className="flex-1"
       keyboardVerticalOffset={Platform.OS === "ios" ? 180 : 0}
     >

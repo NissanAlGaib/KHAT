@@ -37,6 +37,10 @@
     <div class="flex justify-between items-start">
         <h1 class="text-3xl font-bold text-gray-900">Pet Profile: {{ $pet->name }}</h1>
         <div class="flex gap-3">
+            <a href="{{ route('admin.vaccination-shots.pet', $pet->pet_id) }}" class="px-4 py-2 bg-amber-50 text-amber-700 text-sm font-medium rounded-lg hover:bg-amber-100 transition border border-amber-200">
+                <i data-lucide="syringe" class="w-4 h-4 inline mr-1"></i>
+                All Vaccination Shots
+            </a>
             <button onclick="openDocumentTrackerModal()" class="px-4 py-2 bg-[#E75234] text-white text-sm font-medium rounded-lg hover:bg-[#d14024] transition">
                 <i data-lucide="file-text" class="w-4 h-4 inline mr-1"></i>
                 Document Tracker

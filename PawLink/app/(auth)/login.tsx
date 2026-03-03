@@ -50,7 +50,10 @@ const Login = () => {
       password: "",
     });
     try {
-      const response = await axiosInstance.post("/api/login", data);
+      const response = await axiosInstance.post("/api/login", {
+        ...data,
+        email: data.email.trim().toLowerCase(),
+      });
       await signIn(response.data.token, response.data.user);
     } catch (error) {
       if (isAxiosError(error)) {
@@ -113,6 +116,7 @@ const Login = () => {
         onChangeText={(text) => handleChange("email", text)}
         label="Email"
         keyboardType="email-address"
+        autoCapitalize="none"
       />
       <CustomInput
         placeholder="Enter Your Password"

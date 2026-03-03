@@ -45,7 +45,9 @@ const ForgotPassword = () => {
     setLoading(true);
     setEmailError("");
     try {
-      await axiosInstance.post("/api/forgot-password", { email });
+      await axiosInstance.post("/api/forgot-password", {
+        email: email.trim().toLowerCase(),
+      });
       showAlert({
         title: "Reset Link Sent",
         message:
@@ -101,8 +103,8 @@ const ForgotPassword = () => {
     setErrors({});
     try {
       await axiosInstance.post("/api/reset-password", {
-        email,
-        token,
+        email: email.trim().toLowerCase(),
+        token: token.trim(),
         password,
         password_confirmation: passwordConfirmation,
       });
@@ -182,6 +184,7 @@ const ForgotPassword = () => {
             }}
             label="Email"
             keyboardType="email-address"
+            autoCapitalize="none"
           />
           <CustomButton
             title="Send Reset Token"

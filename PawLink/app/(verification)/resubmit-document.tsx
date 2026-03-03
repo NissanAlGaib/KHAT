@@ -40,7 +40,8 @@ export default function ResubmitDocumentScreen() {
   const [givenDate, setGivenDate] = useState<Date>(new Date());
   const [expirationDate, setExpirationDate] = useState<Date>(new Date());
   const [showGivenDatePicker, setShowGivenDatePicker] = useState(false);
-  const [showExpirationDatePicker, setShowExpirationDatePicker] = useState(false);
+  const [showExpirationDatePicker, setShowExpirationDatePicker] =
+    useState(false);
 
   const isVaccination = documentType === "vaccination";
   const title = isVaccination
@@ -87,14 +88,14 @@ export default function ResubmitDocumentScreen() {
       // Get file extension from URI
       const uriParts = document.split(".");
       const fileExtension = uriParts[uriParts.length - 1].toLowerCase();
-      
+
       const mimeTypes: Record<string, string> = {
         jpg: "image/jpeg",
         jpeg: "image/jpeg",
         png: "image/png",
         pdf: "application/pdf",
       };
-      
+
       const mimeType = mimeTypes[fileExtension] || "image/jpeg";
       const filename = `document_${Date.now()}.${fileExtension || "jpg"}`;
 
@@ -128,7 +129,8 @@ export default function ResubmitDocumentScreen() {
 
       showAlert({
         title: "Success",
-        message: "Your document has been resubmitted for review. We'll notify you once it's reviewed.",
+        message:
+          "Your document has been resubmitted for review. We'll notify you once it's reviewed.",
         type: "success",
         buttons: [
           {
@@ -190,7 +192,7 @@ export default function ResubmitDocumentScreen() {
       )}
 
       <KeyboardAvoidingView
-        behavior={Platform.OS === "ios" ? "padding" : "height"}
+        behavior={Platform.OS === "ios" ? "padding" : undefined}
         className="flex-1"
         keyboardVerticalOffset={Platform.OS === "ios" ? 100 : 0}
       >
@@ -224,7 +226,8 @@ export default function ResubmitDocumentScreen() {
                   Previous submission was rejected
                 </Text>
                 <Text className="text-sm text-red-700 mt-1">
-                  Please upload a clear, valid document and ensure all information is correct.
+                  Please upload a clear, valid document and ensure all
+                  information is correct.
                 </Text>
               </View>
             </View>
@@ -279,7 +282,10 @@ export default function ResubmitDocumentScreen() {
                   >
                     <View className="flex-row items-center flex-1">
                       <Feather name="calendar" size={16} color="#9CA3AF" />
-                      <Text className="text-sm text-gray-900 ml-2" numberOfLines={1}>
+                      <Text
+                        className="text-sm text-gray-900 ml-2"
+                        numberOfLines={1}
+                      >
                         {formatDate(givenDate)}
                       </Text>
                     </View>
@@ -312,7 +318,10 @@ export default function ResubmitDocumentScreen() {
                   >
                     <View className="flex-row items-center flex-1">
                       <Feather name="calendar" size={16} color="#9CA3AF" />
-                      <Text className="text-sm text-gray-900 ml-2" numberOfLines={1}>
+                      <Text
+                        className="text-sm text-gray-900 ml-2"
+                        numberOfLines={1}
+                      >
                         {formatDate(expirationDate)}
                       </Text>
                     </View>
