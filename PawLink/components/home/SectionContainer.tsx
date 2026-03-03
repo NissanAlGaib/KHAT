@@ -1,11 +1,11 @@
 import React from "react";
 import { View, Text, StyleSheet, TouchableOpacity } from "react-native";
 import { Colors, Shadows, Spacing, BorderRadius } from "@/constants";
-import { Feather } from "@expo/vector-icons";
+import { Feather, MaterialCommunityIcons } from "@expo/vector-icons";
 
 interface SectionContainerProps {
   title: string;
-  icon?: string; // emoji or icon name
+  icon?: string; // feather icon name or 'paw' for MaterialCommunityIcons
   children: React.ReactNode;
   backgroundColor?: string;
   showSeeAll?: boolean;
@@ -14,7 +14,7 @@ interface SectionContainerProps {
 
 export default function SectionContainer({
   title,
-  icon = "🐾",
+  icon = "paw",
   children,
   backgroundColor = "white",
   showSeeAll = false,
@@ -24,7 +24,21 @@ export default function SectionContainer({
     <View style={[styles.container, { backgroundColor }]}>
       <View style={styles.header}>
         <View style={styles.titleContainer}>
-          <Text style={styles.icon}>{icon}</Text>
+          {icon === "paw" ? (
+            <MaterialCommunityIcons
+              name="paw"
+              size={18}
+              color={Colors.primary}
+              style={styles.iconSpacing}
+            />
+          ) : (
+            <Feather
+              name={icon as keyof typeof Feather.glyphMap}
+              size={18}
+              color={Colors.primary}
+              style={styles.iconSpacing}
+            />
+          )}
           <Text style={styles.title}>{title}</Text>
         </View>
 
@@ -65,6 +79,9 @@ const styles = StyleSheet.create({
   },
   icon: {
     fontSize: 20,
+  },
+  iconSpacing: {
+    marginRight: 0,
   },
   title: {
     fontSize: 18,

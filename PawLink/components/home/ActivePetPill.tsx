@@ -9,7 +9,7 @@ import {
   FlatList,
   Pressable,
 } from "react-native";
-import { Feather } from "@expo/vector-icons";
+import { Feather, MaterialCommunityIcons } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
 import { Colors, Shadows, BorderRadius, Spacing } from "@/constants";
 import { getStorageUrl } from "@/utils/imageUrl";
@@ -66,8 +66,9 @@ export default function ActivePetPill({
   onAddPetPress,
 }: ActivePetPillProps) {
   const [showPetPicker, setShowPetPicker] = useState(false);
-  
-  const primaryPhoto = pet?.photos?.find((p) => p.is_primary) || pet?.photos?.[0];
+
+  const primaryPhoto =
+    pet?.photos?.find((p) => p.is_primary) || pet?.photos?.[0];
   // Count available pets (not on cooldown) for determining if switch is needed
   const availablePets = userPets.filter((p) => !p.is_on_cooldown);
   const hasMultiplePets = userPets.length > 1; // Show modal if there are multiple pets (even if some on cooldown)
@@ -111,9 +112,9 @@ export default function ActivePetPill({
     return (
       <TouchableOpacity
         style={[
-          styles.petOption, 
+          styles.petOption,
           isSelected && styles.petOptionSelected,
-          isOnCooldown && styles.petOptionDisabled
+          isOnCooldown && styles.petOptionDisabled,
         ]}
         onPress={() => !isOnCooldown && handleSelectPet(item)}
         activeOpacity={isOnCooldown ? 1 : 0.7}
@@ -122,15 +123,29 @@ export default function ActivePetPill({
         {photo?.photo_url ? (
           <Image
             source={{ uri: getStorageUrl(photo.photo_url)! }}
-            style={[styles.petOptionAvatar, isOnCooldown && styles.avatarDisabled]}
+            style={[
+              styles.petOptionAvatar,
+              isOnCooldown && styles.avatarDisabled,
+            ]}
           />
         ) : (
-          <View style={[styles.petOptionAvatarPlaceholder, isOnCooldown && styles.avatarDisabled]}>
-            <Text style={{ fontSize: 20 }}>🐾</Text>
+          <View
+            style={[
+              styles.petOptionAvatarPlaceholder,
+              isOnCooldown && styles.avatarDisabled,
+            ]}
+          >
+            <MaterialCommunityIcons
+              name="paw"
+              size={20}
+              color={Colors.primary}
+            />
           </View>
         )}
         <View style={styles.petOptionInfo}>
-          <Text style={[styles.petOptionName, isOnCooldown && styles.textDisabled]}>
+          <Text
+            style={[styles.petOptionName, isOnCooldown && styles.textDisabled]}
+          >
             {item.name}
           </Text>
           {isOnCooldown ? (
@@ -141,7 +156,9 @@ export default function ActivePetPill({
               </Text>
             </View>
           ) : (
-            <Text style={styles.petOptionBreed}>{item.breed || "Unknown breed"}</Text>
+            <Text style={styles.petOptionBreed}>
+              {item.breed || "Unknown breed"}
+            </Text>
           )}
         </View>
         {isSelected && !isOnCooldown && (
@@ -181,21 +198,29 @@ export default function ActivePetPill({
               />
             ) : (
               <View style={styles.avatarPlaceholder}>
-                <Text style={styles.avatarEmoji}>🐾</Text>
+                <MaterialCommunityIcons
+                  name="paw"
+                  size={22}
+                  color={Colors.white}
+                />
               </View>
             )}
             {/* Status indicator - shows cooldown status */}
-            <View style={[
-              styles.statusDot,
-              pet.is_on_cooldown && styles.statusDotCooldown
-            ]} />
+            <View
+              style={[
+                styles.statusDot,
+                pet.is_on_cooldown && styles.statusDotCooldown,
+              ]}
+            />
           </View>
 
           {/* Pet Info - More Details */}
           <View style={styles.infoContainer}>
             <Text style={styles.label}>Finding matches for</Text>
-            <Text style={styles.petName} numberOfLines={1}>{pet.name}</Text>
-            
+            <Text style={styles.petName} numberOfLines={1}>
+              {pet.name}
+            </Text>
+
             {/* Details Row */}
             <View style={styles.detailsRow}>
               {pet.breed && (
@@ -212,7 +237,9 @@ export default function ActivePetPill({
               )}
               {pet.birthdate && (
                 <View style={styles.detailChip}>
-                  <Text style={styles.detailText}>{calculateAge(pet.birthdate)}</Text>
+                  <Text style={styles.detailText}>
+                    {calculateAge(pet.birthdate)}
+                  </Text>
                 </View>
               )}
             </View>
@@ -239,7 +266,10 @@ export default function ActivePetPill({
           style={styles.modalOverlay}
           onPress={() => setShowPetPicker(false)}
         >
-          <Pressable style={styles.modalContent} onPress={(e) => e.stopPropagation()}>
+          <Pressable
+            style={styles.modalContent}
+            onPress={(e) => e.stopPropagation()}
+          >
             <View style={styles.modalHeader}>
               <Text style={styles.modalTitle}>Select Your Pet</Text>
               <TouchableOpacity

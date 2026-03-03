@@ -621,11 +621,13 @@ const Matches = () => {
     const pendingIncoming = incomingRequests.filter(
       (r) => r.status === "pending",
     );
-    const pendingOutgoing = outgoingRequests.filter(
+    // Only show pending outgoing requests in the active requests tab.
+    // Non-pending (declined, cancelled, accepted) belong in history.
+    const activeOutgoing = outgoingRequests.filter(
       (r) => r.status === "pending",
     );
 
-    if (pendingIncoming.length === 0 && outgoingRequests.length === 0) {
+    if (pendingIncoming.length === 0 && activeOutgoing.length === 0) {
       return (
         <EmptyState
           icon="inbox"
@@ -659,13 +661,13 @@ const Matches = () => {
         {/* Outgoing Requests Section */}
         <CollapsibleSection
           title="Outgoing"
-          count={pendingOutgoing.length}
+          count={activeOutgoing.length}
           icon="arrow-up-right"
           iconColor="#6366F1"
           defaultOpen={true}
         >
-          {outgoingRequests.length > 0 ? (
-            outgoingRequests.map(renderOutgoingItem)
+          {activeOutgoing.length > 0 ? (
+            activeOutgoing.map(renderOutgoingItem)
           ) : (
             <View className="py-6 items-center">
               <Text className="text-gray-400 text-sm">
@@ -762,6 +764,10 @@ const Matches = () => {
   const pendingIncomingCount = incomingRequests.filter(
     (r) => r.status === "pending",
   ).length;
+  const pendingOutgoingCount = outgoingRequests.filter(
+    (r) => r.status === "pending",
+  ).length;
+  const totalPendingCount = pendingIncomingCount + pendingOutgoingCount;
 
   return (
     <SafeAreaView className="flex-1 bg-[#FFF5F5]" edges={["top"]}>
@@ -774,11 +780,7 @@ const Matches = () => {
 
       {/* Tab Toggle */}
       <View className="flex-row mx-4 mt-4 bg-gray-100 rounded-full p-1">
-        <TabButton
-          label="Requests"
-          tab="REQUESTS"
-          count={pendingIncomingCount}
-        />
+        <TabButton label="Requests" tab="REQUESTS" count={totalPendingCount} />
         <TabButton
           label="Matches"
           tab="MATCHES"

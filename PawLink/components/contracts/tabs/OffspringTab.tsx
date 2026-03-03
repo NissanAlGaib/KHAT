@@ -21,7 +21,15 @@ import {
   ChevronUp,
   User,
   Award,
+  Flag,
+  BarChart2,
+  Calendar,
+  FileText,
+  ClipboardList,
+  Package,
+  Clock,
 } from "lucide-react-native";
+import { MaterialCommunityIcons } from "@expo/vector-icons";
 import dayjs from "dayjs";
 import DateTimePickerModal from "react-native-modal-datetime-picker";
 import {
@@ -120,8 +128,8 @@ export default function ContractOffspringTab({
   if (contract.breeding_status !== "completed" || !contract.has_offspring) {
     return (
       <View className="items-center justify-center py-16 px-6">
-        <Text className="text-4xl mb-3">🐾</Text>
-        <Text className="text-gray-800 font-bold text-lg mb-2 text-center">
+        <MaterialCommunityIcons name="paw" size={40} color="#9CA3AF" />
+        <Text className="text-gray-800 font-bold text-lg mb-2 text-center mt-3">
           Offspring Not Available
         </Text>
         <Text className="text-gray-500 text-sm text-center">
@@ -172,7 +180,7 @@ export default function ContractOffspringTab({
       const result = await storeOffspring(contract.id, data);
       if (result.success) {
         showAlert({
-          title: "Litter Recorded! 🐾",
+          title: "Litter Recorded!",
           message: `${offspring.length} offspring have been recorded.`,
           type: "success",
         });
@@ -200,7 +208,7 @@ export default function ContractOffspringTab({
   // ─── Auto Allocate ───
   const handleAutoAllocate = async () => {
     showAlert({
-      title: "Auto-Allocate 🎲",
+      title: "Auto-Allocate",
       message:
         "This will distribute offspring based on the contract's split terms. Continue?",
       type: "warning",
@@ -216,7 +224,7 @@ export default function ContractOffspringTab({
               const result = await autoAllocateOffspring(contract.id);
               if (result.success) {
                 showAlert({
-                  title: "Allocated! 🎉",
+                  title: "Allocated!",
                   message: "Offspring have been distributed.",
                   type: "success",
                 });
@@ -266,7 +274,7 @@ export default function ContractOffspringTab({
       const result = await allocateOffspring(contract.id, allocations);
       if (result.success) {
         showAlert({
-          title: "Saved! ✅",
+          title: "Saved!",
           message: "Offspring allocations updated.",
           type: "success",
         });
@@ -293,7 +301,7 @@ export default function ContractOffspringTab({
   // ─── Complete Match ───
   const handleCompleteMatch = () => {
     showAlert({
-      title: "Complete Match? 🏁",
+      title: "Complete Match?",
       message:
         "This will archive the conversation and finalize the breeding contract. This action cannot be undone.",
       type: "warning",
@@ -309,7 +317,7 @@ export default function ContractOffspringTab({
               const result = await completeMatch(contract.id);
               if (result.success) {
                 showAlert({
-                  title: "Match Complete! 🎉🎊",
+                  title: "Match Complete!",
                   message:
                     "The breeding match has been completed successfully!",
                   type: "success",
@@ -363,7 +371,7 @@ export default function ContractOffspringTab({
             <Text
               className={`text-center font-semibold text-xs ${activeView === "record" ? "text-[#FF6B6B]" : "text-gray-500"}`}
             >
-              🐾 Litter
+              Litter
             </Text>
           </TouchableOpacity>
           <TouchableOpacity
@@ -373,7 +381,7 @@ export default function ContractOffspringTab({
             <Text
               className={`text-center font-semibold text-xs ${activeView === "allocate" ? "text-[#FF6B6B]" : "text-gray-500"}`}
             >
-              👥 Allocate
+              Allocate
             </Text>
           </TouchableOpacity>
           <TouchableOpacity
@@ -383,7 +391,7 @@ export default function ContractOffspringTab({
             <Text
               className={`text-center font-semibold text-xs ${activeView === "complete" ? "text-[#FF6B6B]" : "text-gray-500"}`}
             >
-              🏁 Complete
+              Complete
             </Text>
           </TouchableOpacity>
         </View>
@@ -445,7 +453,7 @@ export default function ContractOffspringTab({
             <View>
               <View className="bg-blue-50 rounded-xl p-3 mb-4 border border-blue-100">
                 <Text className="text-blue-800 text-sm">
-                  🐾 Record the litter details below. You can add multiple
+                  Record the litter details below. You can add multiple
                   offspring.
                 </Text>
               </View>
@@ -453,7 +461,7 @@ export default function ContractOffspringTab({
               {/* Birth Date */}
               <View className="mb-4">
                 <Text className="font-bold text-gray-800 text-sm mb-1">
-                  📅 Birth Date
+                  Birth Date
                 </Text>
                 <TouchableOpacity
                   onPress={() => setShowDatePicker(true)}
@@ -484,7 +492,7 @@ export default function ContractOffspringTab({
                 >
                   <View className="flex-row items-center justify-between mb-3">
                     <Text className="font-bold text-gray-800">
-                      🐾 Pup #{index + 1}
+                      Pup #{index + 1}
                     </Text>
                     {offspring.length > 1 && (
                       <TouchableOpacity
@@ -583,10 +591,10 @@ export default function ContractOffspringTab({
                             className={`text-center text-xs font-semibold ${o.status === status ? "text-white" : "text-gray-600"}`}
                           >
                             {status === "alive"
-                              ? "✅ Alive"
+                              ? "Alive"
                               : status === "died"
-                                ? "💔 Died"
-                                : "🏠 Adopted"}
+                                ? "Died"
+                                : "Adopted"}
                           </Text>
                         </TouchableOpacity>
                       ))}
@@ -630,14 +638,14 @@ export default function ContractOffspringTab({
                 {isSubmitting ? (
                   <ActivityIndicator color="white" />
                 ) : (
-                  <Text className="text-white font-bold">Record Litter 🐾</Text>
+                  <Text className="text-white font-bold">Record Litter</Text>
                 )}
               </TouchableOpacity>
             </View>
           ) : (
             <View className="items-center py-12 px-6">
-              <Text className="text-4xl mb-3">⏳</Text>
-              <Text className="text-gray-500 text-sm text-center">
+              <Clock size={40} color="#9CA3AF" />
+              <Text className="text-gray-500 text-sm text-center mt-3">
                 Waiting for the{" "}
                 {contract.shooter_user_id ? "shooter" : "sire pet owner"} to
                 record the litter.
@@ -654,7 +662,7 @@ export default function ContractOffspringTab({
           {allocationData && (
             <View className="bg-white rounded-2xl p-4 mb-4 border border-gray-100">
               <Text className="font-bold text-gray-800 text-sm mb-3">
-                📊 Allocation Summary
+                Allocation Summary
               </Text>
 
               <View className="bg-gray-50 rounded-xl p-3 mb-3">
@@ -671,7 +679,7 @@ export default function ContractOffspringTab({
               <View className="flex-row">
                 <View className="flex-1 bg-blue-50 rounded-xl p-3 mr-2">
                   <Text className="text-blue-800 text-xs font-semibold mb-1">
-                    🐕 Sire Owner
+                    Sire Owner
                   </Text>
                   <Text className="text-blue-900 font-bold">
                     {
@@ -690,7 +698,7 @@ export default function ContractOffspringTab({
                 </View>
                 <View className="flex-1 bg-pink-50 rounded-xl p-3">
                   <Text className="text-pink-800 text-xs font-semibold mb-1">
-                    🐕‍🦺 Dam Owner
+                    Dam Owner
                   </Text>
                   <Text className="text-pink-900 font-bold">
                     {allocationData.expected_allocation.dam_owner.current_count}{" "}
@@ -719,7 +727,7 @@ export default function ContractOffspringTab({
               >
                 <Shuffle size={18} color="white" />
                 <Text className="text-white font-bold ml-2">
-                  Auto-Allocate Based on Terms 🎲
+                  Auto-Allocate Based on Terms
                 </Text>
               </TouchableOpacity>
             )}
@@ -772,10 +780,10 @@ export default function ContractOffspringTab({
                         }`}
                       >
                         {o.allocation_status === "assigned"
-                          ? "✅ Assigned"
+                          ? "Assigned"
                           : o.allocation_status === "transferred"
-                            ? "📦 Transferred"
-                            : "⏳ Unassigned"}
+                            ? "Transferred"
+                            : "Unassigned"}
                       </Text>
                     </View>
                   </View>
@@ -802,7 +810,7 @@ export default function ContractOffspringTab({
                           <Text
                             className={`text-center text-xs font-semibold ${currentAssignment === sireOwner.id ? "text-white" : "text-gray-600"}`}
                           >
-                            🐕 {sireOwner.name.split(" ")[0]}
+                            {sireOwner.name.split(" ")[0]}
                           </Text>
                         </TouchableOpacity>
                         <TouchableOpacity
@@ -821,7 +829,7 @@ export default function ContractOffspringTab({
                           <Text
                             className={`text-center text-xs font-semibold ${currentAssignment === damOwner.id ? "text-white" : "text-gray-600"}`}
                           >
-                            🐕‍🦺 {damOwner.name.split(" ")[0]}
+                            {damOwner.name.split(" ")[0]}
                           </Text>
                         </TouchableOpacity>
                       </View>
@@ -852,9 +860,7 @@ export default function ContractOffspringTab({
                 {isSubmitting ? (
                   <ActivityIndicator color="white" />
                 ) : (
-                  <Text className="text-white font-bold">
-                    Save Allocations ✅
-                  </Text>
+                  <Text className="text-white font-bold">Save Allocations</Text>
                 )}
               </TouchableOpacity>
             )}
@@ -867,8 +873,8 @@ export default function ContractOffspringTab({
           {allocationData?.is_fully_allocated ? (
             <View className="items-center py-6">
               <View className="bg-green-50 rounded-2xl p-6 w-full border border-green-200 items-center mb-4">
-                <Text className="text-5xl mb-3">🎉</Text>
-                <Text className="font-bold text-green-800 text-lg text-center">
+                <CheckCircle2 size={48} color="#16a34a" />
+                <Text className="font-bold text-green-800 text-lg text-center mt-3">
                   All Offspring Allocated!
                 </Text>
                 <Text className="text-green-600 text-sm text-center mt-2">
@@ -880,7 +886,7 @@ export default function ContractOffspringTab({
               {/* Final summary */}
               <View className="bg-white rounded-2xl p-4 w-full border border-gray-100 mb-6">
                 <Text className="font-bold text-gray-800 text-sm mb-3">
-                  📋 Final Summary
+                  Final Summary
                 </Text>
                 <View className="flex-row justify-between py-2 border-b border-gray-50">
                   <Text className="text-gray-500 text-sm">
@@ -921,7 +927,7 @@ export default function ContractOffspringTab({
                     <ActivityIndicator color="white" />
                   ) : (
                     <Text className="text-white font-bold text-base">
-                      Complete Match 🏁🎊
+                      Complete Match
                     </Text>
                   )}
                 </TouchableOpacity>
@@ -929,8 +935,8 @@ export default function ContractOffspringTab({
             </View>
           ) : (
             <View className="items-center py-12 px-6">
-              <Text className="text-4xl mb-3">⏳</Text>
-              <Text className="text-gray-800 font-bold text-lg mb-2">
+              <Clock size={40} color="#9CA3AF" />
+              <Text className="text-gray-800 font-bold text-lg mb-2 mt-3">
                 Not Ready Yet
               </Text>
               <Text className="text-gray-500 text-sm text-center">

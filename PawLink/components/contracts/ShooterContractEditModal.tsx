@@ -11,7 +11,7 @@ import {
   Animated,
   ScrollView,
 } from "react-native";
-import { X, DollarSign, Shield } from "lucide-react-native";
+import { X, DollarSign, Shield, Lightbulb } from "lucide-react-native";
 import { BreedingContract } from "@/services/contractService";
 
 interface ShooterContractEditModalProps {
@@ -143,9 +143,16 @@ export default function ShooterContractEditModal({
             >
               {/* Info Box */}
               <View className="bg-blue-50 rounded-xl p-4 mb-4 border border-blue-200">
-                <Text className="text-blue-900 font-semibold text-sm mb-1">
-                  💡 Why Collateral?
-                </Text>
+                <View className="flex-row items-center mb-1">
+                  <Lightbulb
+                    size={14}
+                    color="#1e3a5f"
+                    style={{ marginRight: 4 }}
+                  />
+                  <Text className="text-blue-900 font-semibold text-sm">
+                    Why Collateral?
+                  </Text>
+                </View>
                 <Text className="text-blue-800 text-xs leading-5">
                   To ensure the safety and trust of both pet owners, you must
                   provide collateral when updating your payment terms. This

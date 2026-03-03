@@ -1,5 +1,6 @@
 import React, { useEffect } from "react";
 import { View, Text, ActivityIndicator } from "react-native";
+import { Feather } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
 
 /**
@@ -28,7 +29,19 @@ export default function PaymentCancelRedirect() {
         padding: 24,
       }}
     >
-      <Text style={{ fontSize: 40, marginBottom: 12 }}>❌</Text>
+      <View
+        style={{
+          width: 56,
+          height: 56,
+          borderRadius: 28,
+          backgroundColor: "#FEE2E2",
+          alignItems: "center",
+          justifyContent: "center",
+          marginBottom: 12,
+        }}
+      >
+        <Feather name="x-circle" size={32} color="#EF4444" />
+      </View>
       <Text
         style={{
           fontSize: 18,

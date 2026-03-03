@@ -125,7 +125,7 @@ export default function SubscriptionScreen() {
           }
 
           showAlert({
-            title: "Welcome Aboard! 🎉",
+            title: "Welcome Aboard!",
             message:
               "Your subscription is now active. Enjoy all the premium features!",
             type: "success",

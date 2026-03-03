@@ -44,43 +44,38 @@ const TOTAL_STEPS = 5;
 const STEP_META = [
   {
     title: "Compensation Type",
-    subtitle: "What's the deal? 🤝",
+    subtitle: "What's the deal?",
     description:
       "Choose how you and your breeding partner will compensate each other.",
     icon: DollarSign,
-    emoji: "💰",
   },
   {
     title: "Compensation Details",
-    subtitle: "Let's talk numbers 📊",
+    subtitle: "Let's talk numbers",
     description:
       "Set the specific amounts and terms for your agreed compensation.",
     icon: FileText,
-    emoji: "📝",
   },
   {
     title: "Shooter (Optional)",
-    subtitle: "Need a helping paw? 🐾",
+    subtitle: "Need a helping hand?",
     description:
       "A shooter is a professional who assists with the breeding process. Skip this if not needed!",
     icon: Users,
-    emoji: "👤",
   },
   {
     title: "Collateral & Timeline",
-    subtitle: "Stay protected! 🛡️",
+    subtitle: "Stay protected",
     description:
       "Set security deposits and contract dates to protect both parties.",
     icon: Shield,
-    emoji: "🔒",
   },
   {
     title: "Review & Submit",
-    subtitle: "Almost there! 🎉",
+    subtitle: "Almost there!",
     description:
       "Review your contract details before sending it to your breeding partner.",
     icon: Check,
-    emoji: "✅",
   },
 ];
 
@@ -261,7 +256,6 @@ export default function CreateContractScreen() {
     onPress,
   }: {
     icon: React.ReactNode;
-    emoji: string;
     label: string;
     description: string;
     active: boolean;
@@ -279,7 +273,7 @@ export default function CreateContractScreen() {
             active ? "bg-[#FF6B6B]/20" : "bg-gray-100"
           }`}
         >
-          <Text className="text-xl">{emoji}</Text>
+          {icon}
         </View>
         <View className="flex-1 ml-3">
           <Text
@@ -314,7 +308,6 @@ export default function CreateContractScreen() {
 
       <CompensationOption
         icon={<DollarSign size={20} color="#FF6B6B" />}
-        emoji="💵"
         label="Money"
         description="One party pays the other a fixed amount"
         active={formData.include_monetary_amount || false}
@@ -328,7 +321,6 @@ export default function CreateContractScreen() {
 
       <CompensationOption
         icon={<Baby size={20} color="#FF6B6B" />}
-        emoji="🐾"
         label="Share Offspring"
         description="Split the puppies/kittens between both parties"
         active={formData.share_offspring || false}
@@ -339,7 +331,6 @@ export default function CreateContractScreen() {
 
       <CompensationOption
         icon={<Package size={20} color="#FF6B6B" />}
-        emoji="📦"
         label="Goods & Food"
         description="Provide pet food, supplies, or other items"
         active={formData.include_goods_foods || false}
@@ -353,7 +344,7 @@ export default function CreateContractScreen() {
         !formData.include_goods_foods && (
           <View className="bg-yellow-50 rounded-xl p-4 mt-2 border border-yellow-200">
             <Text className="text-yellow-800 text-sm text-center">
-              💡 Select at least one compensation type to proceed
+              Select at least one compensation type to proceed
             </Text>
           </View>
         )}
@@ -372,7 +363,7 @@ export default function CreateContractScreen() {
         <View className="mb-5">
           <View className="flex-row items-center mb-3">
             <View className="w-8 h-8 rounded-full bg-[#FF6B6B]/10 items-center justify-center">
-              <Text className="text-sm">💵</Text>
+              <DollarSign size={16} color="#FF6B6B" />
             </View>
             <Text className="font-bold text-gray-800 ml-2 text-base">
               Money Payment
@@ -417,7 +408,7 @@ export default function CreateContractScreen() {
         <View className="mb-5">
           <View className="flex-row items-center mb-3">
             <View className="w-8 h-8 rounded-full bg-[#FF6B6B]/10 items-center justify-center">
-              <Text className="text-sm">🐾</Text>
+              <Baby size={16} color="#FF6B6B" />
             </View>
             <Text className="font-bold text-gray-800 ml-2 text-base">
               Offspring Sharing
@@ -455,7 +446,7 @@ export default function CreateContractScreen() {
                     : "text-gray-700"
                 }`}
               >
-                📊 Percentage
+                Percentage
               </Text>
             </TouchableOpacity>
             <TouchableOpacity
@@ -537,7 +528,7 @@ export default function CreateContractScreen() {
                     : "text-gray-700"
                 }`}
               >
-                🎲 Randomized
+                Randomized
               </Text>
             </TouchableOpacity>
           </View>
@@ -553,7 +544,7 @@ export default function CreateContractScreen() {
         <View className="mb-5">
           <View className="flex-row items-center mb-3">
             <View className="w-8 h-8 rounded-full bg-[#FF6B6B]/10 items-center justify-center">
-              <Text className="text-sm">📦</Text>
+              <Package size={16} color="#FF6B6B" />
             </View>
             <Text className="font-bold text-gray-800 ml-2 text-base">
               Goods & Food Value
@@ -594,7 +585,7 @@ export default function CreateContractScreen() {
         !formData.share_offspring &&
         !formData.include_goods_foods && (
           <View className="items-center justify-center py-12">
-            <Text className="text-4xl mb-4">🤔</Text>
+            <HelpCircle size={40} color="#9CA3AF" />
             <Text className="text-gray-400 text-center">
               Go back to Step 1 and select at least one compensation type
             </Text>
@@ -612,7 +603,7 @@ export default function CreateContractScreen() {
     >
       <View className="bg-blue-50 rounded-2xl p-4 mb-4 border border-blue-100">
         <View className="flex-row items-center mb-2">
-          <Text className="text-lg mr-2">💡</Text>
+          <HelpCircle size={18} color="#a16207" />
           <Text className="text-blue-800 font-bold text-sm">
             What's a Shooter?
           </Text>
@@ -633,7 +624,7 @@ export default function CreateContractScreen() {
         </Text>
         <TextInput
           className="bg-gray-100 rounded-xl px-4 py-3 text-base"
-          placeholder="Anyone is fine 😊"
+          placeholder="Anyone is fine"
           placeholderTextColor="#9CA3AF"
           value={formData.shooter_name}
           onChangeText={(text) => updateFormField("shooter_name", text)}
@@ -757,7 +748,7 @@ export default function CreateContractScreen() {
           >
             {formData.end_contract_date
               ? dayjs(formData.end_contract_date).format("MMMM D, YYYY")
-              : "📅 Pick a date"}
+              : "Pick a date"}
           </Text>
           <Calendar size={18} color="#9CA3AF" />
         </TouchableOpacity>
@@ -827,7 +818,7 @@ export default function CreateContractScreen() {
             </View>
             <View className="border-t border-[#FF6B6B]/10 pt-2 mt-1">
               <Text className="text-xs text-gray-500">
-                🔄 Fully refundable upon contract completion (5% platform fee
+                Fully refundable upon contract completion (5% platform fee
                 deducted)
               </Text>
             </View>
@@ -875,7 +866,7 @@ export default function CreateContractScreen() {
       {/* Compensation Summary */}
       <View className="bg-white rounded-2xl border-2 border-gray-100 p-4 mb-4">
         <Text className="font-bold text-gray-800 text-base mb-3">
-          💰 Compensation
+          Compensation
         </Text>
         {formData.include_monetary_amount && (
           <View className="flex-row justify-between mb-2 pb-2 border-b border-gray-50">
@@ -901,7 +892,7 @@ export default function CreateContractScreen() {
               <Text className="text-gray-900 font-semibold text-sm">
                 {formData.offspring_selection_method === "first_pick"
                   ? "👆 First Pick"
-                  : "🎲 Randomized"}
+                  : "Randomized"}
               </Text>
             </View>
           </>
@@ -927,7 +918,7 @@ export default function CreateContractScreen() {
       {(formData.shooter_payment || formData.shooter_name) && (
         <View className="bg-white rounded-2xl border-2 border-gray-100 p-4 mb-4">
           <Text className="font-bold text-gray-800 text-base mb-3">
-            👤 Shooter
+            Shooter
           </Text>
           {formData.shooter_name ? (
             <View className="flex-row justify-between mb-2">
@@ -967,7 +958,7 @@ export default function CreateContractScreen() {
       {/* Protection Summary */}
       <View className="bg-white rounded-2xl border-2 border-gray-100 p-4 mb-4">
         <Text className="font-bold text-gray-800 text-base mb-3">
-          🛡️ Protection
+          Protection
         </Text>
         {formData.end_contract_date ? (
           <View className="flex-row justify-between mb-2">
@@ -1001,7 +992,7 @@ export default function CreateContractScreen() {
       {formData.custom_terms ? (
         <View className="bg-white rounded-2xl border-2 border-gray-100 p-4 mb-4">
           <Text className="font-bold text-gray-800 text-base mb-2">
-            📝 Custom Terms
+            Custom Terms
           </Text>
           <Text className="text-gray-700 text-sm">{formData.custom_terms}</Text>
         </View>
@@ -1010,7 +1001,7 @@ export default function CreateContractScreen() {
       {/* Standard Policies */}
       <View className="bg-gray-50 rounded-2xl p-4 mb-4">
         <Text className="font-bold text-gray-700 text-sm mb-3">
-          📋 Standard Policies (Auto-included)
+          Standard Policies (Auto-included)
         </Text>
         <View className="mb-3">
           <Text className="text-gray-600 font-semibold text-xs mb-1">
@@ -1073,7 +1064,7 @@ export default function CreateContractScreen() {
         </TouchableOpacity>
         <View className="flex-1">
           <Text className="text-lg font-bold text-gray-900">
-            {isEditing ? "Edit Contract" : "Create Contract"} 📝
+            {isEditing ? "Edit Contract" : "Create Contract"}
           </Text>
           <Text className="text-xs text-gray-500">
             Step {currentStep + 1} of {TOTAL_STEPS}
@@ -1194,7 +1185,7 @@ export default function CreateContractScreen() {
                 <>
                   <Sparkles size={18} color="white" />
                   <Text className="text-white font-bold ml-2">
-                    {isEditing ? "Update Contract" : "Send Contract"} 🐾
+                    {isEditing ? "Update Contract" : "Send Contract"}
                   </Text>
                 </>
               )}

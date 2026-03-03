@@ -8,7 +8,8 @@ import {
   ScrollView,
   ActivityIndicator,
 } from "react-native";
-import { X } from "lucide-react-native";
+import { X, Search } from "lucide-react-native";
+import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { usePet } from "@/context/PetContext";
 import { getStorageUrl } from "@/utils/imageUrl";
 import dayjs from "dayjs";
@@ -36,7 +37,8 @@ export default function PetSelectionModal({
   visible,
   onClose,
 }: PetSelectionModalProps) {
-  const { selectedPet, userPets, setSelectedPet, isLoading, loadUserPets } = usePet();
+  const { selectedPet, userPets, setSelectedPet, isLoading, loadUserPets } =
+    usePet();
 
   // Refresh pets list whenever modal becomes visible
   useEffect(() => {
@@ -61,13 +63,13 @@ export default function PetSelectionModal({
     const bAvailable = b.status === "active" && !b.is_on_cooldown;
     if (aAvailable && !bAvailable) return -1;
     if (!aAvailable && bAvailable) return 1;
-    
+
     // Then cooldown pets
     const aCooldown = a.status === "active" && a.is_on_cooldown;
     const bCooldown = b.status === "active" && b.is_on_cooldown;
     if (aCooldown && !bCooldown) return -1;
     if (!aCooldown && bCooldown) return 1;
-    
+
     return 0;
   });
 
@@ -129,7 +131,7 @@ export default function PetSelectionModal({
                 >
                   <View className="mr-3">
                     <View className="w-16 h-16 rounded-full bg-gray-200 items-center justify-center">
-                      <Text className="text-2xl">🔍</Text>
+                      <Search size={24} color="#9CA3AF" />
                     </View>
                   </View>
                   <View className="flex-1">
@@ -154,96 +156,102 @@ export default function PetSelectionModal({
                 </TouchableOpacity>
 
                 {sortedPets.map((pet) => {
-                const isSelected = selectedPet?.pet_id === pet.pet_id;
-                const primaryPhoto = pet.photos?.find((p) => p.is_primary);
-                const photoUrl = primaryPhoto?.photo_url;
-                const isActive = pet.status === "active";
-                const isPending = pet.status === "pending_verification";
-                const isOnCooldown = pet.is_on_cooldown;
-                const isSelectable = isActive && !isOnCooldown;
+                  const isSelected = selectedPet?.pet_id === pet.pet_id;
+                  const primaryPhoto = pet.photos?.find((p) => p.is_primary);
+                  const photoUrl = primaryPhoto?.photo_url;
+                  const isActive = pet.status === "active";
+                  const isPending = pet.status === "pending_verification";
+                  const isOnCooldown = pet.is_on_cooldown;
+                  const isSelectable = isActive && !isOnCooldown;
 
-                return (
-                  <TouchableOpacity
-                    key={pet.pet_id}
-                    onPress={() => handleSelectPet(pet)}
-                    disabled={!isSelectable}
-                    className={`flex-row items-center p-4 rounded-2xl mb-3 ${
-                      isSelected
-                        ? "bg-[#FFF5F3] border-2 border-[#ea5b3a]"
-                        : !isSelectable
-                        ? "bg-gray-100 opacity-60"
-                        : "bg-gray-50"
-                    }`}
-                  >
-                    {/* Pet Photo */}
-                    <View className="mr-3">
-                      {photoUrl ? (
-                        <Image
-                          source={{
-                            uri: getStorageUrl(photoUrl)!,
-                          }}
-                          className="w-16 h-16 rounded-full"
-                          resizeMode="cover"
-                        />
+                  return (
+                    <TouchableOpacity
+                      key={pet.pet_id}
+                      onPress={() => handleSelectPet(pet)}
+                      disabled={!isSelectable}
+                      className={`flex-row items-center p-4 rounded-2xl mb-3 ${
+                        isSelected
+                          ? "bg-[#FFF5F3] border-2 border-[#ea5b3a]"
+                          : !isSelectable
+                            ? "bg-gray-100 opacity-60"
+                            : "bg-gray-50"
+                      }`}
+                    >
+                      {/* Pet Photo */}
+                      <View className="mr-3">
+                        {photoUrl ? (
+                          <Image
+                            source={{
+                              uri: getStorageUrl(photoUrl)!,
+                            }}
+                            className="w-16 h-16 rounded-full"
+                            resizeMode="cover"
+                          />
+                        ) : (
+                          <View className="w-16 h-16 rounded-full bg-gray-200 items-center justify-center">
+                            <MaterialCommunityIcons
+                              name="paw"
+                              size={24}
+                              color="#EA5B3A"
+                            />
+                          </View>
+                        )}
+                      </View>
+
+                      {/* Pet Info */}
+                      <View className="flex-1">
+                        <Text className="font-baloo text-lg text-[#111111]">
+                          {pet.name}
+                        </Text>
+                        <Text className="text-sm text-gray-500">
+                          {pet.breed} - {calculateAge(pet.birthdate)}
+                        </Text>
+                      </View>
+
+                      {/* Status Badge */}
+                      {isOnCooldown ? (
+                        <View className="bg-amber-100 px-3 py-1 rounded-full mr-3">
+                          <Text className="text-xs text-amber-800 font-semibold">
+                            ⏸ {pet.cooldown_days_remaining}d left
+                          </Text>
+                        </View>
+                      ) : isActive ? (
+                        <View className="bg-green-100 px-3 py-1 rounded-full mr-3">
+                          <Text className="text-xs text-green-800 font-semibold">
+                            Available
+                          </Text>
+                        </View>
+                      ) : isPending ? (
+                        <View className="bg-yellow-100 px-3 py-1 rounded-full mr-3">
+                          <Text className="text-xs text-yellow-800 font-semibold">
+                            Pending
+                          </Text>
+                        </View>
+                      ) : null}
+
+                      {/* Select Button */}
+                      {isSelected ? (
+                        <View className="w-12 h-12 rounded-full bg-[#ea5b3a] items-center justify-center">
+                          <Text className="text-white text-xl font-bold">
+                            ✓
+                          </Text>
+                        </View>
+                      ) : isSelectable ? (
+                        <View className="w-12 h-12 rounded-full bg-[#ea5b3a] items-center justify-center">
+                          <Text className="text-white text-sm font-semibold">
+                            SELECT
+                          </Text>
+                        </View>
                       ) : (
-                        <View className="w-16 h-16 rounded-full bg-gray-200 items-center justify-center">
-                          <Text className="text-2xl">🐾</Text>
+                        <View className="w-12 h-12 rounded-full bg-gray-300 items-center justify-center">
+                          <Text className="text-gray-500 text-xs font-semibold">
+                            N/A
+                          </Text>
                         </View>
                       )}
-                    </View>
-
-                    {/* Pet Info */}
-                    <View className="flex-1">
-                      <Text className="font-baloo text-lg text-[#111111]">
-                        {pet.name}
-                      </Text>
-                      <Text className="text-sm text-gray-500">
-                        {pet.breed} - {calculateAge(pet.birthdate)}
-                      </Text>
-                    </View>
-
-                    {/* Status Badge */}
-                    {isOnCooldown ? (
-                      <View className="bg-amber-100 px-3 py-1 rounded-full mr-3">
-                        <Text className="text-xs text-amber-800 font-semibold">
-                          ⏸ {pet.cooldown_days_remaining}d left
-                        </Text>
-                      </View>
-                    ) : isActive ? (
-                      <View className="bg-green-100 px-3 py-1 rounded-full mr-3">
-                        <Text className="text-xs text-green-800 font-semibold">
-                          Available
-                        </Text>
-                      </View>
-                    ) : isPending ? (
-                      <View className="bg-yellow-100 px-3 py-1 rounded-full mr-3">
-                        <Text className="text-xs text-yellow-800 font-semibold">
-                          Pending
-                        </Text>
-                      </View>
-                    ) : null}
-
-                    {/* Select Button */}
-                    {isSelected ? (
-                      <View className="w-12 h-12 rounded-full bg-[#ea5b3a] items-center justify-center">
-                        <Text className="text-white text-xl font-bold">✓</Text>
-                      </View>
-                    ) : isSelectable ? (
-                      <View className="w-12 h-12 rounded-full bg-[#ea5b3a] items-center justify-center">
-                        <Text className="text-white text-sm font-semibold">
-                          SELECT
-                        </Text>
-                      </View>
-                    ) : (
-                      <View className="w-12 h-12 rounded-full bg-gray-300 items-center justify-center">
-                        <Text className="text-gray-500 text-xs font-semibold">
-                          N/A
-                        </Text>
-                      </View>
-                    )}
-                  </TouchableOpacity>
-                );
-              })}
+                    </TouchableOpacity>
+                  );
+                })}
               </>
             )}
           </ScrollView>

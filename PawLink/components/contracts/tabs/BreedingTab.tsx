@@ -15,6 +15,7 @@ import {
   AlertTriangle,
   Baby,
   Clock,
+  FileText,
 } from "lucide-react-native";
 import dayjs from "dayjs";
 import {
@@ -31,22 +32,22 @@ interface BreedingTabProps {
 
 const statusConfig: Record<
   string,
-  { emoji: string; label: string; color: string; bg: string }
+  { icon: string; label: string; color: string; bg: string }
 > = {
-  pending: { emoji: "⏳", label: "Pending", color: "#eab308", bg: "#fefce8" },
+  pending: { icon: "clock", label: "Pending", color: "#eab308", bg: "#fefce8" },
   in_progress: {
-    emoji: "💕",
+    icon: "heart",
     label: "In Progress",
     color: "#8b5cf6",
     bg: "#f5f3ff",
   },
   completed: {
-    emoji: "✅",
+    icon: "check",
     label: "Completed",
     color: "#16a34a",
     bg: "#f0fdf4",
   },
-  failed: { emoji: "😔", label: "Failed", color: "#ef4444", bg: "#fef2f2" },
+  failed: { icon: "x", label: "Failed", color: "#ef4444", bg: "#fef2f2" },
 };
 
 export default function ContractBreedingTab({
@@ -105,7 +106,7 @@ export default function ContractBreedingTab({
                 showAlert({
                   title:
                     formType === "completed"
-                      ? "Breeding Complete! 🎉"
+                      ? "Breeding Complete!"
                       : "Breeding Marked as Failed",
                   message:
                     result.message ||
@@ -144,8 +145,8 @@ export default function ContractBreedingTab({
   if (contract.status !== "accepted" && contract.status !== "fulfilled") {
     return (
       <View className="items-center justify-center py-16 px-6">
-        <Text className="text-4xl mb-3">💕</Text>
-        <Text className="text-gray-800 font-bold text-lg mb-2 text-center">
+        <Heart size={40} color="#8b5cf6" />
+        <Text className="text-gray-800 font-bold text-lg mb-2 text-center mt-3">
           Breeding Not Started
         </Text>
         <Text className="text-gray-500 text-sm text-center">
@@ -182,8 +183,16 @@ export default function ContractBreedingTab({
         style={{ backgroundColor: config.bg, borderColor: `${config.color}30` }}
       >
         <View className="items-center">
-          <Text className="text-4xl mb-2">{config.emoji}</Text>
-          <Text className="font-bold text-lg" style={{ color: config.color }}>
+          {config.icon === "clock" && <Clock size={36} color={config.color} />}
+          {config.icon === "heart" && <Heart size={36} color={config.color} />}
+          {config.icon === "check" && (
+            <CheckCircle2 size={36} color={config.color} />
+          )}
+          {config.icon === "x" && <XCircle size={36} color={config.color} />}
+          <Text
+            className="font-bold text-lg mt-2"
+            style={{ color: config.color }}
+          >
             Breeding {config.label}
           </Text>
           {contract.breeding_completed_at && (
@@ -198,9 +207,12 @@ export default function ContractBreedingTab({
       {/* Breeding Notes (if exists) */}
       {contract.breeding_notes && (
         <View className="bg-white rounded-2xl p-4 mb-4 border border-gray-100">
-          <Text className="font-bold text-gray-800 text-sm mb-1">
-            📝 Breeding Notes
-          </Text>
+          <View className="flex-row items-center mb-1">
+            <FileText size={16} color="#374151" />
+            <Text className="font-bold text-gray-800 text-sm ml-1.5">
+              Breeding Notes
+            </Text>
+          </View>
           <Text className="text-gray-600 text-sm">
             {contract.breeding_notes}
           </Text>
@@ -242,9 +254,9 @@ export default function ContractBreedingTab({
         breedingStatus !== "failed" && (
           <View className="bg-blue-50 rounded-2xl p-4 mb-4 border border-blue-100">
             <Text className="text-blue-800 text-sm">
-              ℹ️ As the {contract.is_shooter ? "shooter" : "sire pet owner"},
-              you can mark the breeding as complete or failed once the process
-              is done.
+              As the {contract.is_shooter ? "shooter" : "sire pet owner"}, you
+              can mark the breeding as complete or failed once the process is
+              done.
             </Text>
           </View>
         )}
@@ -273,7 +285,7 @@ export default function ContractBreedingTab({
             >
               <CheckCircle2 size={20} color="white" />
               <Text className="text-white font-bold text-base ml-2">
-                Mark Breeding as Complete 🎉
+                Mark Breeding as Complete
               </Text>
             </TouchableOpacity>
             <TouchableOpacity
@@ -291,7 +303,7 @@ export default function ContractBreedingTab({
             >
               <XCircle size={20} color="#ef4444" />
               <Text className="text-red-500 font-bold text-base ml-2">
-                Mark as Failed 😔
+                Mark as Failed
               </Text>
             </TouchableOpacity>
           </View>
@@ -301,15 +313,13 @@ export default function ContractBreedingTab({
       {showForm && (
         <View className="bg-white rounded-2xl p-5 border border-gray-100 mb-4">
           <Text className="font-bold text-gray-800 text-base mb-4">
-            {formType === "completed"
-              ? "🎉 Breeding Complete"
-              : "😔 Breeding Failed"}
+            {formType === "completed" ? "Breeding Complete" : "Breeding Failed"}
           </Text>
 
           {formType === "completed" && (
             <View className="mb-4">
               <Text className="font-semibold text-gray-700 text-sm mb-2">
-                Were there any offspring? 🐾
+                Were there any offspring?
               </Text>
               <View className="flex-row">
                 <TouchableOpacity
@@ -323,7 +333,7 @@ export default function ContractBreedingTab({
                   <Text
                     className={`text-center font-semibold ${hasOffspring ? "text-white" : "text-gray-600"}`}
                   >
-                    🐾 Yes
+                    Yes
                   </Text>
                 </TouchableOpacity>
                 <TouchableOpacity
@@ -337,7 +347,7 @@ export default function ContractBreedingTab({
                   <Text
                     className={`text-center font-semibold ${!hasOffspring ? "text-white" : "text-gray-600"}`}
                   >
-                    ❌ No
+                    No
                   </Text>
                 </TouchableOpacity>
               </View>
@@ -392,7 +402,7 @@ export default function ContractBreedingTab({
                 <ActivityIndicator color="white" />
               ) : (
                 <Text className="text-center font-bold text-white">
-                  {formType === "completed" ? "Confirm ✅" : "Confirm ❌"}
+                  {formType === "completed" ? "Confirm" : "Confirm"}
                 </Text>
               )}
             </TouchableOpacity>

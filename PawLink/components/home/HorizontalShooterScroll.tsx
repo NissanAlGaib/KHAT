@@ -8,6 +8,7 @@ import {
   Image,
 } from "react-native";
 import { Colors, Spacing, BorderRadius, Shadows, FontSize } from "@/constants";
+import { Feather } from "@expo/vector-icons";
 import { getStorageUrl } from "@/utils/imageUrl";
 import { ShooterProfile } from "@/services/matchService";
 
@@ -40,21 +41,23 @@ export default function HorizontalShooterScroll({
             <Image source={{ uri: photoUrl }} style={styles.image} />
           ) : (
             <View style={styles.placeholderImage}>
-              <Text style={{ fontSize: 24 }}>👤</Text>
+              <Feather
+                name="user"
+                size={24}
+                color={Colors.textMuted || "#9CA3AF"}
+              />
             </View>
           )}
         </View>
-        
+
         <View style={styles.infoContainer}>
           <Text style={styles.name} numberOfLines={1}>
             {item.name}
           </Text>
-          
+
           <View style={styles.badgeContainer}>
             <View style={styles.expBadge}>
-              <Text style={styles.expText}>
-                {experienceYears}y exp
-              </Text>
+              <Text style={styles.expText}>{experienceYears}y exp</Text>
             </View>
           </View>
         </View>

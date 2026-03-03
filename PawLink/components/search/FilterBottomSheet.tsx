@@ -12,7 +12,7 @@ import {
   KeyboardAvoidingView,
   Platform,
 } from "react-native";
-import { Feather } from "@expo/vector-icons";
+import { Feather, MaterialCommunityIcons } from "@expo/vector-icons";
 import { Colors, Spacing, BorderRadius, FontSize } from "@/constants";
 import { SearchFilters, searchService } from "@/services/searchService";
 
@@ -271,7 +271,14 @@ export default function FilterBottomSheet({
                     setSpecies(species === "dog" ? undefined : "dog")
                   }
                 >
-                  <Text style={styles.chipEmoji}>🐶</Text>
+                  <MaterialCommunityIcons
+                    name="dog"
+                    size={16}
+                    color={
+                      species === "dog" ? Colors.white : Colors.textPrimary
+                    }
+                    style={{ marginRight: 4 }}
+                  />
                   <Text
                     style={[
                       styles.chipLabel,
@@ -290,7 +297,14 @@ export default function FilterBottomSheet({
                     setSpecies(species === "cat" ? undefined : "cat")
                   }
                 >
-                  <Text style={styles.chipEmoji}>🐱</Text>
+                  <MaterialCommunityIcons
+                    name="cat"
+                    size={16}
+                    color={
+                      species === "cat" ? Colors.white : Colors.textPrimary
+                    }
+                    style={{ marginRight: 4 }}
+                  />
                   <Text
                     style={[
                       styles.chipLabel,

@@ -1,7 +1,7 @@
 import React from "react";
 import { View, Text, Image, StyleSheet } from "react-native";
 import { LinearGradient } from "expo-linear-gradient";
-import { Feather } from "@expo/vector-icons";
+import { Feather, MaterialCommunityIcons } from "@expo/vector-icons";
 import { Colors, Shadows } from "@/constants";
 import { getStorageUrl } from "@/utils/imageUrl";
 
@@ -59,7 +59,11 @@ export default function MatchCard({ match, selectedPetId }: MatchCardProps) {
           <Image source={{ uri: photoUrl }} style={styles.photo} />
         ) : (
           <View style={styles.photoPlaceholder}>
-            <Text style={styles.placeholderEmoji}>🐕</Text>
+            <MaterialCommunityIcons
+              name="dog"
+              size={40}
+              color="rgba(255,255,255,0.7)"
+            />
           </View>
         )}
 

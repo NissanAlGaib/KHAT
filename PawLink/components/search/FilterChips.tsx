@@ -6,6 +6,7 @@ import {
   TouchableOpacity,
   ScrollView,
 } from "react-native";
+import { Feather, MaterialCommunityIcons } from "@expo/vector-icons";
 import { Colors, Spacing, BorderRadius, FontSize } from "@/constants";
 
 export type CategoryFilter = "all" | "pets" | "breeders" | "shooters";
@@ -29,11 +30,26 @@ export default function FilterChips({
   onSexChange,
   showSpeciesFilters = false,
 }: FilterChipsProps) {
-  const categories: { key: CategoryFilter; label: string; icon: string }[] = [
-    { key: "all", label: "All", icon: "🔍" },
-    { key: "pets", label: "Pets", icon: "🐕" },
-    { key: "breeders", label: "Breeders", icon: "👤" },
-    { key: "shooters", label: "Shooters", icon: "📸" },
+  const categories: {
+    key: CategoryFilter;
+    label: string;
+    iconName: string;
+    iconType: "feather" | "mci";
+  }[] = [
+    { key: "all", label: "All", iconName: "search", iconType: "feather" },
+    { key: "pets", label: "Pets", iconName: "paw", iconType: "mci" },
+    {
+      key: "breeders",
+      label: "Breeders",
+      iconName: "user",
+      iconType: "feather",
+    },
+    {
+      key: "shooters",
+      label: "Shooters",
+      iconName: "camera",
+      iconType: "feather",
+    },
   ];
 
   return (
@@ -53,7 +69,29 @@ export default function FilterChips({
             ]}
             onPress={() => onCategoryChange(cat.key)}
           >
-            <Text style={styles.chipIcon}>{cat.icon}</Text>
+            <View style={styles.chipIconContainer}>
+              {cat.iconType === "mci" ? (
+                <MaterialCommunityIcons
+                  name={cat.iconName as any}
+                  size={14}
+                  color={
+                    activeCategory === cat.key
+                      ? Colors.white
+                      : Colors.textSecondary
+                  }
+                />
+              ) : (
+                <Feather
+                  name={cat.iconName as any}
+                  size={14}
+                  color={
+                    activeCategory === cat.key
+                      ? Colors.white
+                      : Colors.textSecondary
+                  }
+                />
+              )}
+            </View>
             <Text
               style={[
                 styles.chipText,
@@ -66,86 +104,104 @@ export default function FilterChips({
         ))}
 
         {/* Species/Sex Filters (only when pets category or all) */}
-        {showSpeciesFilters && (activeCategory === "all" || activeCategory === "pets") && (
-          <>
-            <View style={styles.divider} />
-            <TouchableOpacity
-              style={[
-                styles.chip,
-                speciesFilter === "dog" && styles.activeChip,
-              ]}
-              onPress={() =>
-                onSpeciesChange?.(speciesFilter === "dog" ? undefined : "dog")
-              }
-            >
-              <Text style={styles.chipIcon}>🐶</Text>
-              <Text
+        {showSpeciesFilters &&
+          (activeCategory === "all" || activeCategory === "pets") && (
+            <>
+              <View style={styles.divider} />
+              <TouchableOpacity
                 style={[
-                  styles.chipText,
-                  speciesFilter === "dog" && styles.activeChipText,
+                  styles.chip,
+                  speciesFilter === "dog" && styles.activeChip,
                 ]}
+                onPress={() =>
+                  onSpeciesChange?.(speciesFilter === "dog" ? undefined : "dog")
+                }
               >
-                Dogs
-              </Text>
-            </TouchableOpacity>
-            <TouchableOpacity
-              style={[
-                styles.chip,
-                speciesFilter === "cat" && styles.activeChip,
-              ]}
-              onPress={() =>
-                onSpeciesChange?.(speciesFilter === "cat" ? undefined : "cat")
-              }
-            >
-              <Text style={styles.chipIcon}>🐱</Text>
-              <Text
+                <View style={styles.chipIconContainer}>
+                  <MaterialCommunityIcons
+                    name="dog"
+                    size={14}
+                    color={
+                      speciesFilter === "dog"
+                        ? Colors.white
+                        : Colors.textSecondary
+                    }
+                  />
+                </View>
+                <Text
+                  style={[
+                    styles.chipText,
+                    speciesFilter === "dog" && styles.activeChipText,
+                  ]}
+                >
+                  Dogs
+                </Text>
+              </TouchableOpacity>
+              <TouchableOpacity
                 style={[
-                  styles.chipText,
-                  speciesFilter === "cat" && styles.activeChipText,
+                  styles.chip,
+                  speciesFilter === "cat" && styles.activeChip,
                 ]}
+                onPress={() =>
+                  onSpeciesChange?.(speciesFilter === "cat" ? undefined : "cat")
+                }
               >
-                Cats
-              </Text>
-            </TouchableOpacity>
-            <View style={styles.divider} />
-            <TouchableOpacity
-              style={[
-                styles.chip,
-                sexFilter === "male" && styles.activeChip,
-              ]}
-              onPress={() =>
-                onSexChange?.(sexFilter === "male" ? undefined : "male")
-              }
-            >
-              <Text
+                <View style={styles.chipIconContainer}>
+                  <MaterialCommunityIcons
+                    name="cat"
+                    size={14}
+                    color={
+                      speciesFilter === "cat"
+                        ? Colors.white
+                        : Colors.textSecondary
+                    }
+                  />
+                </View>
+                <Text
+                  style={[
+                    styles.chipText,
+                    speciesFilter === "cat" && styles.activeChipText,
+                  ]}
+                >
+                  Cats
+                </Text>
+              </TouchableOpacity>
+              <View style={styles.divider} />
+              <TouchableOpacity
+                style={[styles.chip, sexFilter === "male" && styles.activeChip]}
+                onPress={() =>
+                  onSexChange?.(sexFilter === "male" ? undefined : "male")
+                }
+              >
+                <Text
+                  style={[
+                    styles.chipText,
+                    sexFilter === "male" && styles.activeChipText,
+                  ]}
+                >
+                  ♂ Male
+                </Text>
+              </TouchableOpacity>
+              <TouchableOpacity
                 style={[
-                  styles.chipText,
-                  sexFilter === "male" && styles.activeChipText,
+                  styles.chip,
+                  sexFilter === "female" && styles.activeChip,
                 ]}
+                onPress={() =>
+                  onSexChange?.(sexFilter === "female" ? undefined : "female")
+                }
               >
-                ♂ Male
-              </Text>
-            </TouchableOpacity>
-            <TouchableOpacity
-              style={[
-                styles.chip,
-                sexFilter === "female" && styles.activeChip,
-              ]}
-              onPress={() =>
-                onSexChange?.(sexFilter === "female" ? undefined : "female")
-              }
-            >
-              <Text
-                style={[
-                  styles.chipText,
-                  sexFilter === "female" && styles.activeChipText,
-                ]}
-              >
-                ♀ Female
-              </Text>
-            </TouchableOpacity>
-          </>
-        )}
+                <Text
+                  style={[
+                    styles.chipText,
+                    sexFilter === "female" && styles.activeChipText,
+                  ]}
+                >
+                  ♀ Female
+                </Text>
+              </TouchableOpacity>
+            </>
+          )}
       </ScrollView>
     </View>
   );
@@ -178,6 +234,12 @@ const styles = StyleSheet.create({
   },
   chipIcon: {
     fontSize: 14,
+  },
+  chipIconContainer: {
+    width: 16,
+    height: 16,
+    alignItems: "center",
+    justifyContent: "center",
   },
   chipText: {
     fontSize: FontSize.sm,

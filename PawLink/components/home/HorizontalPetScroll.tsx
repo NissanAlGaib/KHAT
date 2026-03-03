@@ -8,6 +8,7 @@ import {
   Image,
 } from "react-native";
 import { Colors, Spacing, BorderRadius, Shadows, FontSize } from "@/constants";
+import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { getStorageUrl } from "@/utils/imageUrl";
 import { PetMatch } from "@/services/matchService";
 
@@ -39,7 +40,11 @@ export default function HorizontalPetScroll({
             <Image source={{ uri: photoUrl }} style={styles.image} />
           ) : (
             <View style={styles.placeholderImage}>
-              <Text style={{ fontSize: 24 }}>🐾</Text>
+              <MaterialCommunityIcons
+                name="paw"
+                size={24}
+                color={Colors.primary}
+              />
             </View>
           )}
           {item.sex && (

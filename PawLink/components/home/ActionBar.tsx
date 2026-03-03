@@ -39,7 +39,7 @@ export function SidePassButton({
       activeOpacity={0.7}
       disabled={disabled}
     >
-      <Feather name="x" size={22} color={Colors.error} />
+      <Feather name="x" size={26} color={Colors.error} />
     </TouchableOpacity>
   );
 }
@@ -68,7 +68,7 @@ export function SideLikeButton({
       activeOpacity={0.7}
       disabled={disabled}
     >
-      <Feather name="heart" size={20} color={Colors.white} />
+      <Feather name="heart" size={24} color={Colors.white} />
     </TouchableOpacity>
   );
 }
@@ -89,8 +89,8 @@ export default function ActionBar({
   );
 }
 
-const BUTTON_HEIGHT = 56;
-const BUTTON_WIDTH = 32; // half-circle: only this much peeks onto the card
+const BUTTON_HEIGHT = 68;
+const BUTTON_WIDTH = 40; // half-circle: only this much peeks onto the card
 
 const styles = StyleSheet.create({
   overlayWrapper: {

@@ -10,7 +10,7 @@ import {
   ActivityIndicator,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { Feather, Ionicons } from "@expo/vector-icons";
+import { Feather, Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
 import { useRouter, useLocalSearchParams } from "expo-router";
 import { LinearGradient } from "expo-linear-gradient";
 import { getStorageUrl } from "@/utils/imageUrl";
@@ -24,21 +24,25 @@ export default function AIOffspringScreen() {
   const params = useLocalSearchParams();
   const { showAlert } = useAlert();
 
-  const [generatedImage, setGeneratedImage] = React.useState<string | null>(null);
+  const [generatedImage, setGeneratedImage] = React.useState<string | null>(
+    null,
+  );
   const [isGenerating, setIsGenerating] = React.useState(false);
   const [error, setError] = React.useState<string | null>(null);
-  const [remainingGenerations, setRemainingGenerations] = React.useState<number | null>(null);
-  
+  const [remainingGenerations, setRemainingGenerations] = React.useState<
+    number | null
+  >(null);
+
   // Get pet data from params
   const pet1Id = parseInt(params.pet1Id as string, 10);
   const pet2Id = parseInt(params.pet2Id as string, 10);
-  const pet1Name = params.pet1Name as string || "Pet 1";
-  const pet2Name = params.pet2Name as string || "Pet 2";
+  const pet1Name = (params.pet1Name as string) || "Pet 1";
+  const pet2Name = (params.pet2Name as string) || "Pet 2";
   const pet1Photo = params.pet1Photo as string;
   const pet2Photo = params.pet2Photo as string;
-  const pet1Breed = params.pet1Breed as string || "Unknown";
-  const pet2Breed = params.pet2Breed as string || "Unknown";
-  const compatibilityScore = params.compatibilityScore as string || "85";
+  const pet1Breed = (params.pet1Breed as string) || "Unknown";
+  const pet2Breed = (params.pet2Breed as string) || "Unknown";
+  const compatibilityScore = (params.compatibilityScore as string) || "85";
 
   const handleGenerate = async () => {
     if (!pet1Id || !pet2Id) {
@@ -71,7 +75,8 @@ export default function AIOffspringScreen() {
         });
       }
     } catch (err) {
-      const msg = err instanceof Error ? err.message : "An unexpected error occurred.";
+      const msg =
+        err instanceof Error ? err.message : "An unexpected error occurred.";
       setError(msg);
       showAlert({
         title: "Error",
@@ -85,7 +90,8 @@ export default function AIOffspringScreen() {
 
   // Mock offspring traits - in a real app, this would come from an AI service
   const offspringTraits = {
-    predictedBreed: pet1Breed === pet2Breed ? pet1Breed : `${pet1Breed} x ${pet2Breed} Mix`,
+    predictedBreed:
+      pet1Breed === pet2Breed ? pet1Breed : `${pet1Breed} x ${pet2Breed} Mix`,
     coatColor: "Mixed patterns possible",
     size: "Medium",
     temperament: "Friendly & Active",
@@ -133,7 +139,11 @@ export default function AIOffspringScreen() {
                   />
                 ) : (
                   <View style={[styles.parentImage, styles.placeholderImage]}>
-                    <Text style={styles.placeholderText}>🐾</Text>
+                    <MaterialCommunityIcons
+                      name="paw"
+                      size={24}
+                      color="#9CA3AF"
+                    />
                   </View>
                 )}
               </View>
@@ -163,7 +173,11 @@ export default function AIOffspringScreen() {
                   />
                 ) : (
                   <View style={[styles.parentImage, styles.placeholderImage]}>
-                    <Text style={styles.placeholderText}>🐾</Text>
+                    <MaterialCommunityIcons
+                      name="paw"
+                      size={24}
+                      color="#9CA3AF"
+                    />
                   </View>
                 )}
               </View>
@@ -231,11 +245,7 @@ export default function AIOffspringScreen() {
                           {remainingGenerations} generations remaining today
                         </Text>
                       )}
-                      {error && (
-                        <Text style={styles.errorText}>
-                          {error}
-                        </Text>
-                      )}
+                      {error && <Text style={styles.errorText}>{error}</Text>}
                     </>
                   )}
                 </View>
@@ -246,7 +256,7 @@ export default function AIOffspringScreen() {
           {/* Predicted Traits */}
           <View style={styles.traitsCard}>
             <Text style={styles.traitsTitle}>Predicted Traits</Text>
-            
+
             <TraitRow
               icon="paw-outline"
               label="Breed"
@@ -282,10 +292,14 @@ export default function AIOffspringScreen() {
 
           {/* Disclaimer */}
           <View style={styles.disclaimerContainer}>
-            <Ionicons name="information-circle-outline" size={20} color="#888" />
+            <Ionicons
+              name="information-circle-outline"
+              size={20}
+              color="#888"
+            />
             <Text style={styles.disclaimerText}>
-              This prediction is generated by AI and is for entertainment purposes only.
-              Actual offspring characteristics may vary.
+              This prediction is generated by AI and is for entertainment
+              purposes only. Actual offspring characteristics may vary.
             </Text>
           </View>
         </View>

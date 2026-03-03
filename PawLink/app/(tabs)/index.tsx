@@ -165,7 +165,7 @@ export default function Homepage() {
         // Track in active requests set
         activeRequestPetIdsRef.current.add(targetPetId);
         showAlert({
-          title: "Match Request Sent! 💕",
+          title: "Match Request Sent!",
           message: `Your request to match with ${targetPetName} has been sent to their owner.`,
           type: "success",
         });

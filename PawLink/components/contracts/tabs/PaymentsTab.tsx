@@ -8,6 +8,10 @@ import {
   Shield,
   DollarSign,
   Users,
+  Info,
+  RefreshCw,
+  Settings,
+  FileText,
 } from "lucide-react-native";
 import dayjs from "dayjs";
 import { BreedingContract } from "@/services/contractService";
@@ -23,7 +27,7 @@ interface PaymentsTabProps {
 }
 
 interface PaymentCardProps {
-  emoji: string;
+  iconElement: React.ReactNode;
   title: string;
   description: string;
   amount: number;
@@ -33,7 +37,7 @@ interface PaymentCardProps {
 }
 
 function PaymentCard({
-  emoji,
+  iconElement,
   title,
   description,
   amount,
@@ -47,7 +51,7 @@ function PaymentCard({
         <View
           className={`w-12 h-12 rounded-full items-center justify-center ${isPaid ? "bg-green-100" : "bg-[#FF6B6B]/10"}`}
         >
-          <Text className="text-xl">{isPaid ? "✅" : emoji}</Text>
+          {isPaid ? <CheckCircle size={22} color="#10b981" /> : iconElement}
         </View>
         <View className="flex-1 ml-3">
           <Text className="font-bold text-gray-800 text-base">{title}</Text>
@@ -61,7 +65,7 @@ function PaymentCard({
       {isPaid ? (
         <View className="mt-3 bg-green-50 rounded-full py-2.5 flex-row items-center justify-center">
           <CheckCircle size={16} color="#10b981" />
-          <Text className="text-green-700 font-bold ml-2 text-sm">Paid ✓</Text>
+          <Text className="text-green-700 font-bold ml-2 text-sm">Paid</Text>
         </View>
       ) : canPay ? (
         <TouchableOpacity
@@ -122,8 +126,8 @@ export default function ContractPaymentsTab({
   if (contract.status !== "accepted" && contract.status !== "fulfilled") {
     return (
       <View className="items-center justify-center py-16 px-6">
-        <Text className="text-4xl mb-3">💳</Text>
-        <Text className="text-gray-800 font-bold text-lg mb-2 text-center">
+        <CreditCard size={40} color="#9CA3AF" />
+        <Text className="text-gray-800 font-bold text-lg mb-2 text-center mt-3">
           Payments Not Available Yet
         </Text>
         <Text className="text-gray-500 text-sm text-center">
@@ -138,9 +142,12 @@ export default function ContractPaymentsTab({
     <View className="px-4 pt-3">
       {/* Guide banner */}
       <View className="bg-blue-50 rounded-2xl p-4 mb-4 border border-blue-100">
-        <Text className="text-blue-800 font-bold text-sm mb-1">
-          💡 How Payments Work
-        </Text>
+        <View className="flex-row items-center mb-1">
+          <Info size={16} color="#1e40af" />
+          <Text className="text-blue-800 font-bold text-sm ml-1.5">
+            How Payments Work
+          </Text>
+        </View>
         <Text className="text-blue-700 text-xs leading-4">
           Payments are processed securely through PayMongo. Collateral is held
           safely and refunded when the contract is fulfilled. All payments are
@@ -151,7 +158,7 @@ export default function ContractPaymentsTab({
       {/* Collateral Payment */}
       {!contract.is_shooter && contract.collateral_per_owner > 0 && (
         <PaymentCard
-          emoji="🔒"
+          iconElement={<Shield size={22} color="#FF6B6B" />}
           title="Collateral Deposit"
           description="Security bond — refunded when contract is fulfilled (5% platform fee)"
           amount={contract.collateral_per_owner}
@@ -173,7 +180,7 @@ export default function ContractPaymentsTab({
         contract.include_monetary_amount &&
         contract.monetary_amount && (
           <PaymentCard
-            emoji="💵"
+            iconElement={<DollarSign size={22} color="#FF6B6B" />}
             title="Monetary Compensation"
             description="Breeding compensation as agreed in the contract"
             amount={contract.monetary_amount}
@@ -195,7 +202,7 @@ export default function ContractPaymentsTab({
         contract.shooter_status === "accepted_by_owners" &&
         contract.shooter_payment && (
           <PaymentCard
-            emoji="👤"
+            iconElement={<Users size={22} color="#FF6B6B" />}
             title="Shooter Fee"
             description={`Service fee for shooter ${contract.shooter?.name ?? contract.shooter_name ?? "confirmed shooter"}`}
             amount={contract.shooter_payment}
@@ -217,7 +224,7 @@ export default function ContractPaymentsTab({
         contract.shooter_collateral &&
         contract.shooter_collateral > 0 && (
           <PaymentCard
-            emoji="🔒"
+            iconElement={<Shield size={22} color="#FF6B6B" />}
             title="Shooter Collateral"
             description="Security deposit as shooter — refunded after breeding is complete"
             amount={contract.shooter_collateral}
@@ -237,50 +244,53 @@ export default function ContractPaymentsTab({
       {/* Payment History */}
       {payments.length > 0 && (
         <View className="mt-4">
-          <Text className="font-bold text-gray-800 text-base mb-3">
-            📜 Payment History
-          </Text>
+          <View className="flex-row items-center mb-3">
+            <FileText size={18} color="#374151" />
+            <Text className="font-bold text-gray-800 text-base ml-1.5">
+              Payment History
+            </Text>
+          </View>
           {payments.map((payment) => {
-            const statusConfig: Record<
+            const statusIconMap: Record<
               string,
-              { emoji: string; color: string; label: string }
+              { iconComponent: React.ReactNode; color: string; label: string }
             > = {
-              paid: { emoji: "✅", color: "text-green-700", label: "Paid" },
+              paid: { iconComponent: <CheckCircle size={18} color="#15803d" />, color: "text-green-700", label: "Paid" },
               pending: {
-                emoji: "⏳",
+                iconComponent: <Clock size={18} color="#a16207" />,
                 color: "text-yellow-700",
                 label: "Pending",
               },
               awaiting_payment: {
-                emoji: "💳",
+                iconComponent: <CreditCard size={18} color="#1d4ed8" />,
                 color: "text-blue-700",
                 label: "Awaiting",
               },
-              failed: { emoji: "❌", color: "text-red-700", label: "Failed" },
+              failed: { iconComponent: <AlertCircle size={18} color="#dc2626" />, color: "text-red-700", label: "Failed" },
               expired: {
-                emoji: "⏰",
+                iconComponent: <Clock size={18} color="#6b7280" />,
                 color: "text-gray-500",
                 label: "Expired",
               },
               refunded: {
-                emoji: "🔄",
+                iconComponent: <RefreshCw size={18} color="#7c3aed" />,
                 color: "text-purple-700",
                 label: "Refunded",
               },
               processing: {
-                emoji: "⚙️",
+                iconComponent: <Settings size={18} color="#1d4ed8" />,
                 color: "text-blue-700",
                 label: "Processing",
               },
             };
-            const config = statusConfig[payment.status] || statusConfig.pending;
+            const config = statusIconMap[payment.status] || statusIconMap.pending;
 
             return (
               <View
                 key={payment.id}
                 className="bg-gray-50 rounded-xl p-3 mb-2 flex-row items-center"
               >
-                <Text className="text-lg mr-3">{config.emoji}</Text>
+                <View className="mr-3">{config.iconComponent}</View>
                 <View className="flex-1">
                   <Text className="text-gray-800 font-semibold text-sm">
                     {payment.description ||
@@ -313,8 +323,8 @@ export default function ContractPaymentsTab({
         contract.collateral_per_owner <= 0 &&
         !contract.include_monetary_amount && (
           <View className="items-center py-12">
-            <Text className="text-4xl mb-3">💸</Text>
-            <Text className="text-gray-400 text-sm text-center">
+            <DollarSign size={40} color=\"#9CA3AF\" />
+            <Text className="text-gray-400 text-sm text-center mt-3">
               No payments required for this contract
             </Text>
           </View>

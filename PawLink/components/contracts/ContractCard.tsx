@@ -45,6 +45,7 @@ import {
   declineShooterRequest,
   updateShooterTerms,
   completeBreeding,
+  completeMatch,
   getOffspring,
   getOffspringAllocationSummary,
   AllocationSummaryData,
@@ -154,12 +155,61 @@ export default function ContractCard({
   const [allocationSummary, setAllocationSummary] =
     useState<AllocationSummaryData | null>(null);
   const [showDailyReportModal, setShowDailyReportModal] = useState(false);
+  const [isCompletingMatch, setIsCompletingMatch] = useState(false);
   const {
     visible: alertVisible,
     alertOptions,
     showAlert,
     hideAlert,
   } = useAlert();
+
+  // Handle completing the match (no offspring / failed breeding scenario)
+  const handleCompleteMatch = () => {
+    showAlert({
+      title: "Complete Match?",
+      message:
+        "This will finalize the breeding contract, release collateral deposits, and archive the conversation. This action cannot be undone.",
+      type: "warning",
+      buttons: [
+        { text: "Cancel", style: "cancel" },
+        {
+          text: "Complete Match",
+          style: "default",
+          onPress: async () => {
+            hideAlert();
+            setIsCompletingMatch(true);
+            try {
+              const result = await completeMatch(contract.id);
+              if (result.success) {
+                showAlert({
+                  title: "Match Completed!",
+                  message:
+                    result.message ||
+                    "The match has been completed and the conversation archived.",
+                  type: "success",
+                });
+                if (onMatchCompleted) onMatchCompleted();
+              } else {
+                showAlert({
+                  title: "Error",
+                  message: result.message || "Failed to complete match",
+                  type: "error",
+                });
+              }
+            } catch {
+              showAlert({
+                title: "Error",
+                message: "Failed to complete match",
+                type: "error",
+              });
+            } finally {
+              setIsCompletingMatch(false);
+            }
+          },
+        },
+      ],
+    });
+  };
 
   // Payment state
   const [contractPayments, setContractPayments] = useState<Payment[]>([]);
@@ -1203,6 +1253,31 @@ export default function ContractCard({
                       </Text>
                     </TouchableOpacity>
                   )}
+
+                {/* Complete Match Button - show when breeding completed with NO offspring */}
+                {!contract.has_offspring && (
+                  <TouchableOpacity
+                    onPress={handleCompleteMatch}
+                    disabled={isCompletingMatch}
+                    style={{
+                      backgroundColor: isCompletingMatch
+                        ? "#9CA3AF"
+                        : "#059669",
+                    }}
+                    className="mt-3 py-2 rounded-full flex-row items-center justify-center"
+                  >
+                    {isCompletingMatch ? (
+                      <ActivityIndicator color="white" size="small" />
+                    ) : (
+                      <>
+                        <Archive size={16} color="white" />
+                        <Text className="text-white font-semibold ml-1">
+                          Complete Match
+                        </Text>
+                      </>
+                    )}
+                  </TouchableOpacity>
+                )}
               </View>
             )}
             {contract.breeding_status === "failed" && (
@@ -1225,6 +1300,27 @@ export default function ContractCard({
                     Note: {contract.breeding_notes}
                   </Text>
                 )}
+
+                {/* Complete Match Button - allow ending the match even after failed breeding */}
+                <TouchableOpacity
+                  onPress={handleCompleteMatch}
+                  disabled={isCompletingMatch}
+                  style={{
+                    backgroundColor: isCompletingMatch ? "#9CA3AF" : "#6B7280",
+                  }}
+                  className="mt-3 py-2 rounded-full flex-row items-center justify-center"
+                >
+                  {isCompletingMatch ? (
+                    <ActivityIndicator color="white" size="small" />
+                  ) : (
+                    <>
+                      <Archive size={16} color="white" />
+                      <Text className="text-white font-semibold ml-1">
+                        End Match
+                      </Text>
+                    </>
+                  )}
+                </TouchableOpacity>
               </View>
             )}
             {contract.breeding_status === "in_progress" && (

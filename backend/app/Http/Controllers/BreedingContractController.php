@@ -1636,7 +1636,7 @@ class BreedingContractController extends Controller
         // Get the contract with litter
         $contract = BreedingContract::where('id', $contractId)
             ->where('status', 'accepted')
-            ->where('breeding_status', 'completed')
+            ->whereIn('breeding_status', ['completed', 'failed'])
             ->where(function ($query) use ($userPetIds, $user) {
                 $query->whereHas('conversation.matchRequest', function ($q) use ($userPetIds) {
                     $q->whereIn('requester_pet_id', $userPetIds)
@@ -1650,7 +1650,7 @@ class BreedingContractController extends Controller
         if (!$contract) {
             return response()->json([
                 'success' => false,
-                'message' => 'Contract not found or breeding not completed',
+                'message' => 'Contract not found or breeding not yet marked as complete/failed',
             ], 404);
         }
 

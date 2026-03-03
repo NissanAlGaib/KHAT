@@ -7,7 +7,7 @@ import {
   Image,
   Dimensions,
 } from "react-native";
-import { Feather } from "@expo/vector-icons";
+import { Feather, MaterialCommunityIcons } from "@expo/vector-icons";
 import { Colors, Spacing, BorderRadius, FontSize, Shadows } from "@/constants";
 import { getStorageUrl } from "@/utils/imageUrl";
 import { ExplorePetItem } from "@/services/searchService";
@@ -95,9 +95,11 @@ export default function ExploreCard({ item, onPress }: ExploreCardProps) {
 
         {/* Species icon */}
         <View style={styles.speciesIcon}>
-          <Text style={styles.speciesEmoji}>
-            {item.species?.toLowerCase() === "cat" ? "🐱" : "🐶"}
-          </Text>
+          <MaterialCommunityIcons
+            name={item.species?.toLowerCase() === "cat" ? "cat" : "dog"}
+            size={14}
+            color={Colors.textMuted || "#6B7280"}
+          />
         </View>
       </View>
 

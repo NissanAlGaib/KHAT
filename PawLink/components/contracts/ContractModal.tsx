@@ -12,7 +12,7 @@ import {
   Animated,
   Dimensions,
 } from "react-native";
-import { X, ChevronLeft, ChevronRight } from "lucide-react-native";
+import { X, ChevronLeft, ChevronRight, Lightbulb } from "lucide-react-native";
 import DateTimePickerModal from "react-native-modal-datetime-picker";
 import dayjs from "dayjs";
 import {
@@ -226,9 +226,12 @@ export default function ContractModal({
 
       {/* Info box about shooter offer */}
       <View className="bg-[#FFF5F3] rounded-xl p-3 mb-4 border border-[#FF6B6B]/20">
-        <Text className="text-xs text-[#FF6B6B] font-semibold mb-1">
-          💡 Want to hire a professional shooter?
-        </Text>
+        <View className="flex-row items-center mb-1">
+          <Lightbulb size={14} color="#FF6B6B" style={{ marginRight: 4 }} />
+          <Text className="text-xs text-[#FF6B6B] font-semibold">
+            Want to hire a professional shooter?
+          </Text>
+        </View>
         <Text className="text-xs text-gray-600">
           Fill in the shooter payment below, and once this contract is accepted,
           verified shooters will see this offer on their homepage and can apply

@@ -2,7 +2,7 @@ import React from "react";
 import { View, Text, TouchableOpacity, Image, StyleSheet } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useRouter } from "expo-router";
-import { Feather } from "@expo/vector-icons";
+import { Feather, MaterialCommunityIcons } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
 import { Colors } from "@/constants";
 
@@ -35,7 +35,7 @@ export default function MinimalHeader({ onSettingsPress }: MinimalHeaderProps) {
         {/* Logo */}
         <View style={styles.logoContainer}>
           <View style={styles.logoIcon}>
-            <Text style={styles.logoIconText}>🐾</Text>
+            <MaterialCommunityIcons name="paw" size={18} color={Colors.white} />
           </View>
           <Text style={styles.logoText}>PawLink</Text>
         </View>

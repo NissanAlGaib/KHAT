@@ -18,8 +18,9 @@ export interface MatchRequest {
   requester_pet: MatchRequestPet;
   target_pet: MatchRequestPet;
   owner: MatchRequestOwner;
-  status: "pending" | "accepted" | "declined";
+  status: "pending" | "accepted" | "declined" | "cancelled";
   created_at: string;
+  updated_at: string;
 }
 
 export interface AcceptedMatch {
