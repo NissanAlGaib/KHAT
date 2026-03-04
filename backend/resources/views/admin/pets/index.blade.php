@@ -186,10 +186,21 @@
                                     <i data-lucide="user" class="w-4 h-4 text-gray-500"></i>
                                     View Profile
                                 </a>
+                                @if(in_array($pet->status, ['disabled', 'banned']))
+                                <form action="{{ route('admin.pets.status.update', $pet->pet_id) }}" method="POST" class="w-full">
+                                    @csrf
+                                    <input type="hidden" name="status" value="active">
+                                    <button type="submit" class="w-full flex items-center gap-3 px-4 py-3 text-sm font-medium text-green-700 hover:bg-green-50 transition-colors text-left">
+                                        <i data-lucide="play-circle" class="w-4 h-4 text-green-600"></i>
+                                        {{ $pet->status === 'banned' ? 'Lift Ban' : 'Lift Suspension' }}
+                                    </button>
+                                </form>
+                                @else
                                 <button onclick="openSuspendModal({{ $pet->pet_id }}, '{{ $pet->name }}')" class="w-full flex items-center gap-3 px-4 py-3 text-sm font-medium text-gray-600 hover:bg-gray-50 hover:text-gray-900 transition-colors text-left">
                                     <i data-lucide="pause-circle" class="w-4 h-4 text-gray-500"></i>
                                     Suspend
                                 </button>
+                                @endif
                                 <div class="border-t border-gray-100 my-1"></div>
                                 <button onclick="confirmDelete('{{ $pet->name }}', {{ $pet->pet_id }})" class="w-full flex items-center gap-3 px-4 py-3 text-sm font-medium text-red-500 hover:bg-red-50 transition-colors">
                                     <i data-lucide="triangle-alert" class="w-4 h-4"></i>

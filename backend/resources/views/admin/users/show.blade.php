@@ -223,6 +223,105 @@
             </div>
         </div>
 
+        <!-- Reviews Summary -->
+        <div class="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
+            <div class="px-6 py-4 border-b border-gray-100 flex justify-between items-center">
+                <h2 class="text-lg font-bold text-gray-900">Reviews Summary</h2>
+                <a href="{{ route('admin.reviews.index', ['search' => $user->name]) }}" class="text-xs text-[#E75234] font-semibold hover:underline">View All Reviews</a>
+            </div>
+            <div class="p-6">
+                @if($reviewStats['total'] > 0)
+                <!-- Review Stats Row -->
+                <div class="grid grid-cols-4 gap-3 mb-5">
+                    <div class="text-center p-3 bg-gray-50 rounded-lg">
+                        <p class="text-2xl font-bold text-gray-900">{{ $reviewStats['total'] }}</p>
+                        <p class="text-[10px] text-gray-500 uppercase font-bold">Total</p>
+                    </div>
+                    <div class="text-center p-3 bg-amber-50 rounded-lg">
+                        <div class="flex items-center justify-center gap-1">
+                            <i data-lucide="star" class="w-4 h-4 text-amber-400 fill-current"></i>
+                            <p class="text-2xl font-bold text-amber-600">{{ number_format($reviewStats['average'], 1) }}</p>
+                        </div>
+                        <p class="text-[10px] text-gray-500 uppercase font-bold">Average</p>
+                    </div>
+                    <div class="text-center p-3 bg-green-50 rounded-lg">
+                        <p class="text-2xl font-bold text-green-600">{{ $reviewStats['positive'] }}</p>
+                        <p class="text-[10px] text-gray-500 uppercase font-bold">Positive</p>
+                    </div>
+                    <div class="text-center p-3 bg-red-50 rounded-lg">
+                        <p class="text-2xl font-bold text-red-600">{{ $reviewStats['negative'] }}</p>
+                        <p class="text-[10px] text-gray-500 uppercase font-bold">Negative</p>
+                    </div>
+                </div>
+
+                <!-- Rating Distribution -->
+                <div class="mb-5">
+                    <p class="text-xs font-semibold text-gray-600 mb-2">Rating Distribution</p>
+                    @for($star = 5; $star >= 1; $star--)
+                    @php
+                    $count = $reviewDistribution[$star] ?? 0;
+                    $pct = $reviewStats['total'] > 0 ? round(($count / $reviewStats['total']) * 100) : 0;
+                    @endphp
+                    <div class="flex items-center gap-2 mb-1">
+                        <span class="text-[10px] font-semibold text-gray-500 w-8">{{ $star }}★</span>
+                        <div class="flex-1 h-2 bg-gray-100 rounded-full overflow-hidden">
+                            <div class="h-full rounded-full {{ $star >= 4 ? 'bg-green-400' : ($star === 3 ? 'bg-amber-400' : 'bg-red-400') }}" style="width: {{ $pct }}%"></div>
+                        </div>
+                        <span class="text-[10px] text-gray-400 w-6 text-right">{{ $count }}</span>
+                    </div>
+                    @endfor
+                </div>
+
+                <!-- Recent Reviews -->
+                <p class="text-xs font-semibold text-gray-600 mb-2">Recent Reviews</p>
+                <div class="space-y-3">
+                    @foreach($recentReviews as $review)
+                    <div class="bg-gray-50 rounded-lg p-3 border border-gray-100">
+                        <div class="flex justify-between items-start mb-1.5">
+                            <div class="flex items-center gap-2">
+                                <div class="w-6 h-6 rounded-full bg-gradient-to-br from-blue-400 to-indigo-500 flex items-center justify-center text-white font-bold text-[10px]">
+                                    {{ strtoupper(substr($review->reviewer->name ?? 'U', 0, 1)) }}
+                                </div>
+                                <span class="text-xs font-bold text-gray-800">{{ $review->reviewer->name }}</span>
+                                @if($review->review_type === 'shooter')
+                                <span class="text-[9px] font-bold px-1.5 py-0.5 bg-blue-100 text-blue-600 rounded uppercase">Shooter</span>
+                                @else
+                                <span class="text-[9px] font-bold px-1.5 py-0.5 bg-orange-100 text-orange-600 rounded uppercase">Breeder</span>
+                                @endif
+                            </div>
+                            <div class="flex items-center gap-1">
+                                <div class="flex text-amber-400">
+                                    @for($i = 1; $i <= 5; $i++)
+                                        @if($review->average_rating >= $i)
+                                        <i data-lucide="star" class="w-3 h-3 fill-current"></i>
+                                        @elseif($review->average_rating >= $i - 0.5)
+                                        <i data-lucide="star-half" class="w-3 h-3 fill-current"></i>
+                                        @else
+                                        <i data-lucide="star" class="w-3 h-3 text-gray-200"></i>
+                                        @endif
+                                        @endfor
+                                </div>
+                                <span class="text-xs font-bold text-gray-600">{{ number_format($review->average_rating, 1) }}</span>
+                            </div>
+                        </div>
+                        @if($review->comment)
+                        <p class="text-xs text-gray-600 italic leading-relaxed">"{{ Str::limit($review->comment, 120) }}"</p>
+                        @endif
+                        <p class="text-[10px] text-gray-400 mt-1">{{ $review->created_at->format('M d, Y') }}</p>
+                    </div>
+                    @endforeach
+                </div>
+                @else
+                <div class="text-center py-6">
+                    <div class="w-12 h-12 bg-gray-50 rounded-full flex items-center justify-center mx-auto mb-2">
+                        <i data-lucide="star-off" class="w-6 h-6 text-gray-300"></i>
+                    </div>
+                    <p class="text-sm text-gray-400">No reviews received yet.</p>
+                </div>
+                @endif
+            </div>
+        </div>
+
         <!-- Pets List -->
         <div class="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
             <div class="px-6 py-4 border-b border-gray-100 flex justify-between items-center">
@@ -497,33 +596,33 @@
         }).then((result) => {
             if (result.isConfirmed) {
                 fetch(`/admin/users/${id}`, {
-                    method: 'DELETE',
-                    headers: {
-                        'X-CSRF-TOKEN': '{{ csrf_token() }}',
-                        'Accept': 'application/json',
-                        'X-Requested-With': 'XMLHttpRequest'
-                    }
-                })
-                .then(response => response.json())
-                .then(data => {
-                    if (data.success) {
-                        Swal.fire({
-                            title: 'Deleted!',
-                            text: data.message || 'User account deleted successfully.',
-                            icon: 'success',
-                            confirmButtonColor: '#E75234',
-                            timer: 2000,
-                            timerProgressBar: true
-                        }).then(() => {
-                            window.location.href = '{{ route("admin.users.index") }}';
-                        });
-                    } else {
-                        Swal.fire('Error', data.message || 'Failed to delete user.', 'error');
-                    }
-                })
-                .catch(error => {
-                    Swal.fire('Error', 'An unexpected error occurred while deleting the user.', 'error');
-                });
+                        method: 'DELETE',
+                        headers: {
+                            'X-CSRF-TOKEN': '{{ csrf_token() }}',
+                            'Accept': 'application/json',
+                            'X-Requested-With': 'XMLHttpRequest'
+                        }
+                    })
+                    .then(response => response.json())
+                    .then(data => {
+                        if (data.success) {
+                            Swal.fire({
+                                title: 'Deleted!',
+                                text: data.message || 'User account deleted successfully.',
+                                icon: 'success',
+                                confirmButtonColor: '#E75234',
+                                timer: 2000,
+                                timerProgressBar: true
+                            }).then(() => {
+                                window.location.href = '{{ route("admin.users.index") }}';
+                            });
+                        } else {
+                            Swal.fire('Error', data.message || 'Failed to delete user.', 'error');
+                        }
+                    })
+                    .catch(error => {
+                        Swal.fire('Error', 'An unexpected error occurred while deleting the user.', 'error');
+                    });
             }
         });
     }

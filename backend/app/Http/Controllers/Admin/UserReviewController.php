@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\UserReview;
 use App\Models\AuditLog;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 
 class UserReviewController extends Controller
 {
@@ -14,11 +15,17 @@ class UserReviewController extends Controller
      */
     public function index(Request $request)
     {
-        $query = UserReview::with(['reviewer', 'subject', 'match']);
+        $query = UserReview::with(['reviewer', 'subject', 'match', 'ratings']);
 
         // Filter by rating
         if ($request->filled('rating')) {
-            $query->where('rating', $request->rating);
+            $query->where('average_rating', '>=', $request->rating)
+                ->where('average_rating', '<', $request->rating + 1);
+        }
+
+        // Filter by review type
+        if ($request->filled('review_type')) {
+            $query->where('review_type', $request->review_type);
         }
 
         // Search by reviewer or subject name
@@ -34,7 +41,7 @@ class UserReviewController extends Controller
             });
         }
 
-        // Date filtering (using manual check since model might not have trait yet)
+        // Date filtering
         if ($request->filled('start_date')) {
             $query->whereDate('created_at', '>=', $request->start_date);
         }
@@ -45,7 +52,57 @@ class UserReviewController extends Controller
         $perPage = $request->input('per_page', 15);
         $reviews = $query->orderBy('created_at', 'desc')->paginate($perPage)->appends($request->query());
 
-        return view('admin.reviews.index', compact('reviews'));
+        // Summary statistics
+        $totalReviews = UserReview::count();
+        $averageRating = UserReview::whereNotNull('average_rating')->avg('average_rating');
+        $positiveReviews = UserReview::where('average_rating', '>=', 4)->count();
+        $negativeReviews = UserReview::where('average_rating', '<=', 2)->count();
+
+        // Rating distribution
+        $ratingDistribution = UserReview::select(
+            DB::raw('FLOOR(average_rating) as star_bucket'),
+            DB::raw('COUNT(*) as count')
+        )
+            ->whereNotNull('average_rating')
+            ->groupBy('star_bucket')
+            ->orderBy('star_bucket')
+            ->pluck('count', 'star_bucket')
+            ->toArray();
+
+        // Fill in missing buckets
+        for ($i = 1; $i <= 5; $i++) {
+            if (!isset($ratingDistribution[$i])) {
+                $ratingDistribution[$i] = 0;
+            }
+        }
+        ksort($ratingDistribution);
+
+        // Reviews this month vs last month for trend
+        $reviewsThisMonth = UserReview::where('created_at', '>=', now()->startOfMonth())->count();
+        $reviewsLastMonth = UserReview::whereBetween('created_at', [
+            now()->subMonth()->startOfMonth(),
+            now()->subMonth()->endOfMonth()
+        ])->count();
+        $reviewTrend = $reviewsLastMonth > 0
+            ? round((($reviewsThisMonth - $reviewsLastMonth) / $reviewsLastMonth) * 100, 1)
+            : ($reviewsThisMonth > 0 ? 100 : 0);
+
+        // Type breakdown
+        $breederReviews = UserReview::where('review_type', 'breeder')->count();
+        $shooterReviews = UserReview::where('review_type', 'shooter')->count();
+
+        return view('admin.reviews.index', compact(
+            'reviews',
+            'totalReviews',
+            'averageRating',
+            'positiveReviews',
+            'negativeReviews',
+            'ratingDistribution',
+            'reviewsThisMonth',
+            'reviewTrend',
+            'breederReviews',
+            'shooterReviews'
+        ));
     }
 
     /**

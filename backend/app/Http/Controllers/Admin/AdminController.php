@@ -693,7 +693,31 @@ class AdminController extends Controller
 
         $subscriptionTiers = SubscriptionTier::where('is_active', true)->get();
 
-        return view('admin.users.show', compact('user', 'subscriptionTiers'));
+        // Reviews data for this user (as subject)
+        $reviewsAsSubject = \App\Models\UserReview::with(['reviewer', 'ratings'])
+            ->where('subject_id', $userId)
+            ->orderBy('created_at', 'desc')
+            ->get();
+
+        $reviewStats = [
+            'total' => $reviewsAsSubject->count(),
+            'average' => $reviewsAsSubject->avg('average_rating'),
+            'positive' => $reviewsAsSubject->where('average_rating', '>=', 4)->count(),
+            'negative' => $reviewsAsSubject->where('average_rating', '<=', 2)->count(),
+        ];
+
+        // Rating distribution
+        $reviewDistribution = [];
+        for ($i = 1; $i <= 5; $i++) {
+            $reviewDistribution[$i] = $reviewsAsSubject->filter(function ($r) use ($i) {
+                return floor($r->average_rating) == $i;
+            })->count();
+        }
+
+        // Latest 5 reviews
+        $recentReviews = $reviewsAsSubject->take(5);
+
+        return view('admin.users.show', compact('user', 'subscriptionTiers', 'reviewStats', 'reviewDistribution', 'recentReviews'));
     }
 
     /**
@@ -1221,6 +1245,53 @@ class AdminController extends Controller
                 : 0;
         }
 
+        // Review analytics
+        $totalReviews = \App\Models\UserReview::count();
+        $avgPlatformRating = \App\Models\UserReview::whereNotNull('average_rating')->avg('average_rating');
+        $reviewsThisMonth = \App\Models\UserReview::where('created_at', '>=', $now->copy()->startOfMonth())->count();
+        $reviewsLastMonth = \App\Models\UserReview::whereBetween('created_at', [
+            $now->copy()->subMonth()->startOfMonth(),
+            $now->copy()->subMonth()->endOfMonth()
+        ])->count();
+        $reviewGrowth = $reviewsLastMonth > 0
+            ? $this->calculateGrowth($reviewsThisMonth, $reviewsLastMonth)
+            : ($reviewsThisMonth > 0 ? 100 : 0);
+
+        // Rating distribution for chart
+        $ratingDistribution = \App\Models\UserReview::select(
+            DB::raw('FLOOR(average_rating) as star_bucket'),
+            DB::raw('COUNT(*) as count')
+        )
+            ->whereNotNull('average_rating')
+            ->groupBy('star_bucket')
+            ->orderBy('star_bucket')
+            ->pluck('count', 'star_bucket')
+            ->toArray();
+
+        for ($i = 1; $i <= 5; $i++) {
+            if (!isset($ratingDistribution[$i])) {
+                $ratingDistribution[$i] = 0;
+            }
+        }
+        ksort($ratingDistribution);
+
+        // Monthly review trend for chart
+        $monthlyReviews = \App\Models\UserReview::select(
+            DB::raw('DATE_FORMAT(created_at, "%Y-%m") as month'),
+            DB::raw('COUNT(*) as reviews'),
+            DB::raw('ROUND(AVG(average_rating), 1) as avg_rating')
+        )
+            ->whereBetween('created_at', [$chartStart, $chartEnd])
+            ->groupBy('month')
+            ->orderBy('month')
+            ->get();
+
+        // Filtered review count if date filter is active
+        $filteredReviews = null;
+        if ($hasDateFilter) {
+            $filteredReviews = \App\Models\UserReview::whereBetween('created_at', [$chartStart, $chartEnd])->count();
+        }
+
         return view('admin.analytics', compact(
             'totalRevenue',
             'revenueGrowth',
@@ -1236,7 +1307,13 @@ class AdminController extends Controller
             'filteredRevenue',
             'filteredActiveUsers',
             'filteredMatches',
-            'filteredConversionRate'
+            'filteredConversionRate',
+            'totalReviews',
+            'avgPlatformRating',
+            'reviewGrowth',
+            'ratingDistribution',
+            'monthlyReviews',
+            'filteredReviews'
         ));
     }
 

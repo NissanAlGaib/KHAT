@@ -17,7 +17,7 @@
 'perPage' => false,
 ])
 
-<div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-6 mb-6">
+<div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-5 gap-6 mb-6">
     <div class="bg-white p-5 rounded-xl shadow-sm border border-gray-50 hover:shadow-md transition-all cursor-pointer group" onclick="openStatsDetail('total_revenue')">
         <div class="flex justify-between items-start mb-2">
             <span class="text-sm font-semibold text-gray-500">Total Revenue</span>
@@ -73,6 +73,23 @@
         <p class="text-xs text-blue-500 font-semibold mt-1">{{ $filteredConversionRate }}% in selected period</p>
         @endif
     </div>
+
+    <div class="bg-white p-5 rounded-xl shadow-sm border border-gray-50 hover:shadow-md transition-all group">
+        <div class="flex justify-between items-start mb-2">
+            <span class="text-sm font-semibold text-gray-500">User Reviews</span>
+            <div class="w-10 h-10 rounded-lg bg-amber-100 flex items-center justify-center group-hover:scale-110 transition-transform"><i data-lucide="star" class="w-5 h-5 text-amber-600"></i></div>
+        </div>
+        <p class="text-3xl font-bold text-gray-900 mb-1">{{ number_format($totalReviews) }}</p>
+        <span class="text-sm {{ $reviewGrowth >= 0 ? 'text-green-500' : 'text-red-500' }} font-medium">
+            {{ $reviewGrowth >= 0 ? '+' : '' }}{{ $reviewGrowth }}% from last month
+        </span>
+        <div class="flex items-center gap-1.5 mt-1">
+            <span class="text-xs text-amber-600 font-semibold">Avg: {{ $avgPlatformRating ? number_format($avgPlatformRating, 1) : '—' }}★</span>
+            @if($hasDateFilter && $filteredReviews !== null)
+            <span class="text-xs text-blue-500 font-semibold">· {{ number_format($filteredReviews) }} in period</span>
+            @endif
+        </div>
+    </div>
 </div>
 
 <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
@@ -89,6 +106,25 @@
         <h3 class="font-semibold text-gray-800 mb-4">Match Performance</h3>
         <div class="h-72">
             <canvas id="matchPerformanceChart"></canvas>
+        </div>
+    </div>
+</div>
+
+<!-- Review Analytics Row -->
+<div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
+    <!-- Rating Distribution Chart (Pie/Doughnut) -->
+    <div class="bg-white p-6 rounded-xl shadow-sm border border-gray-100">
+        <h3 class="font-semibold text-gray-800 mb-4">Rating Distribution</h3>
+        <div class="h-72">
+            <canvas id="ratingDistributionChart"></canvas>
+        </div>
+    </div>
+
+    <!-- Review Trend Chart -->
+    <div class="bg-white p-6 rounded-xl shadow-sm border border-gray-100">
+        <h3 class="font-semibold text-gray-800 mb-4">Review Trend & Average Rating</h3>
+        <div class="h-72">
+            <canvas id="reviewTrendChart"></canvas>
         </div>
     </div>
 </div>
@@ -206,6 +242,119 @@
                 scales: {
                     y: {
                         beginAtZero: true
+                    }
+                }
+            }
+        });
+    }
+
+    // Rating Distribution Chart (Doughnut)
+    const ratingDistribution = @json($ratingDistribution);
+    const ratingDistCtx = document.getElementById('ratingDistributionChart');
+    if (ratingDistCtx) {
+        new Chart(ratingDistCtx.getContext('2d'), {
+            type: 'doughnut',
+            data: {
+                labels: ['1 Star', '2 Stars', '3 Stars', '4 Stars', '5 Stars'],
+                datasets: [{
+                    data: [
+                        ratingDistribution[1] || 0,
+                        ratingDistribution[2] || 0,
+                        ratingDistribution[3] || 0,
+                        ratingDistribution[4] || 0,
+                        ratingDistribution[5] || 0
+                    ],
+                    backgroundColor: [
+                        '#EF4444', // red
+                        '#F97316', // orange
+                        '#F59E0B', // amber
+                        '#84CC16', // lime
+                        '#22C55E', // green
+                    ],
+                    borderWidth: 2,
+                    borderColor: '#fff'
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: {
+                        position: 'right',
+                        labels: {
+                            padding: 16,
+                            usePointStyle: true,
+                            pointStyle: 'circle',
+                            font: {
+                                size: 12,
+                                weight: '600'
+                            }
+                        }
+                    }
+                },
+                cutout: '60%'
+            }
+        });
+    }
+
+    // Review Trend Chart (Combo: bar for count + line for avg rating)
+    const monthlyReviews = @json($monthlyReviews);
+    const reviewTrendCtx = document.getElementById('reviewTrendChart');
+    if (reviewTrendCtx) {
+        new Chart(reviewTrendCtx.getContext('2d'), {
+            type: 'bar',
+            data: {
+                labels: monthlyReviews.map(item => item.month),
+                datasets: [{
+                    label: 'Reviews',
+                    data: monthlyReviews.map(item => item.reviews),
+                    backgroundColor: 'rgba(245, 158, 11, 0.3)',
+                    borderColor: '#F59E0B',
+                    borderWidth: 1,
+                    borderRadius: 4,
+                    yAxisID: 'y'
+                }, {
+                    label: 'Avg Rating',
+                    data: monthlyReviews.map(item => item.avg_rating),
+                    type: 'line',
+                    borderColor: '#E75234',
+                    backgroundColor: 'rgba(231, 82, 52, 0.1)',
+                    tension: 0.4,
+                    fill: false,
+                    pointRadius: 4,
+                    pointBackgroundColor: '#E75234',
+                    yAxisID: 'y1'
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                scales: {
+                    y: {
+                        beginAtZero: true,
+                        position: 'left',
+                        title: {
+                            display: true,
+                            text: 'Review Count',
+                            font: {
+                                size: 11
+                            }
+                        }
+                    },
+                    y1: {
+                        min: 0,
+                        max: 5,
+                        position: 'right',
+                        grid: {
+                            drawOnChartArea: false
+                        },
+                        title: {
+                            display: true,
+                            text: 'Avg Rating',
+                            font: {
+                                size: 11
+                            }
+                        }
                     }
                 }
             }

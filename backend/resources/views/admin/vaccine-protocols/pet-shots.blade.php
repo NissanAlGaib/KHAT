@@ -24,10 +24,12 @@
             <div>
                 <h1 class="text-2xl font-bold text-gray-900">{{ $pet->name }}'s Vaccination Shots</h1>
                 <div class="flex items-center gap-2 mt-0.5">
-                    @if($pet->species === 'dog')
+                    @if(strtolower($pet->species) === 'dog')
                     <span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-amber-100 text-amber-800">Dog</span>
-                    @else
+                    @elseif(strtolower($pet->species) === 'cat')
                     <span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-purple-100 text-purple-800">Cat</span>
+                    @else
+                    <span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-800">{{ ucfirst($pet->species) }}</span>
                     @endif
                     <span class="text-sm text-gray-500">{{ $pet->breed ?? 'Unknown breed' }}</span>
                     <span class="text-gray-300">·</span>
