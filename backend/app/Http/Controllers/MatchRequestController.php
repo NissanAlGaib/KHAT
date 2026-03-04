@@ -137,7 +137,7 @@ class MatchRequestController extends Controller
 
         // Check if an active (pending/accepted) match request already exists between these pets
         // Completed or declined match requests should NOT block re-matching
-        $existingRequest = MatchRequest::where(function ($query) use ($validated) {
+        $pairQuery = function ($query) use ($validated) {
             $query->where(function ($q) use ($validated) {
                 $q->where('requester_pet_id', $validated['requester_pet_id'])
                     ->where('target_pet_id', $validated['target_pet_id']);
@@ -145,7 +145,11 @@ class MatchRequestController extends Controller
                 $q->where('requester_pet_id', $validated['target_pet_id'])
                     ->where('target_pet_id', $validated['requester_pet_id']);
             });
-        })->whereIn('status', ['pending', 'accepted'])->first();
+        };
+
+        $existingRequest = MatchRequest::where($pairQuery)
+            ->whereIn('status', ['pending', 'accepted'])
+            ->first();
 
         if ($existingRequest) {
             return response()->json([
@@ -181,6 +185,13 @@ class MatchRequestController extends Controller
         // }
 
         try {
+            // Clean up old cancelled/declined requests between this pair so they
+            // don't accumulate and (if the unique index hasn't been dropped yet)
+            // don't block the new insert.
+            MatchRequest::where($pairQuery)
+                ->whereIn('status', ['cancelled', 'declined'])
+                ->delete();
+
             $matchRequest = MatchRequest::create([
                 'requester_pet_id' => $validated['requester_pet_id'],
                 'target_pet_id' => $validated['target_pet_id'],
