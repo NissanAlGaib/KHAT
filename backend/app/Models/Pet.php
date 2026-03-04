@@ -85,6 +85,14 @@ class Pet extends Model
     ];
 
     /**
+     * Ensure species is always stored with proper title case (e.g. "Dog", "Cat").
+     */
+    public function setSpeciesAttribute($value): void
+    {
+        $this->attributes['species'] = ucfirst(strtolower(trim($value)));
+    }
+
+    /**
      * Get the owner of the pet
      */
     public function owner(): BelongsTo
