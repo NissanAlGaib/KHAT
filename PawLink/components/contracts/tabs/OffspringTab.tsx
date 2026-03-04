@@ -126,6 +126,10 @@ export default function ContractOffspringTab({
 
   // ─── Not Available Guard ───
   if (contract.breeding_status !== "completed" || !contract.has_offspring) {
+    const canComplete =
+      (contract.breeding_status === "completed" && !contract.has_offspring) ||
+      contract.breeding_status === "failed";
+
     return (
       <View className="items-center justify-center py-16 px-6">
         <MaterialCommunityIcons name="paw" size={40} color="#9CA3AF" />
@@ -134,9 +138,25 @@ export default function ContractOffspringTab({
         </Text>
         <Text className="text-gray-500 text-sm text-center">
           {contract.breeding_status === "completed" && !contract.has_offspring
-            ? "No offspring were reported for this breeding."
+            ? "No offspring were reported for this breeding. You can complete the match from the Breeding tab."
             : "Breeding must be marked as complete with offspring before you can record them."}
         </Text>
+        {canComplete && (
+          <TouchableOpacity
+            onPress={() => {
+              // Navigate user to breeding tab
+              showAlert({
+                title: "Complete Match",
+                message:
+                  "Go to the Breeding tab to finalize and complete this match.",
+                type: "info",
+              });
+            }}
+            className="mt-4 bg-[#059669] px-6 py-3 rounded-full flex-row items-center"
+          >
+            <Text className="text-white font-semibold">Go to Breeding Tab</Text>
+          </TouchableOpacity>
+        )}
       </View>
     );
   }

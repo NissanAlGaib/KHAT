@@ -38,6 +38,8 @@ class User extends Authenticatable
         'warning_count',
         'average_rating',
         'review_count',
+        'shooter_average_rating',
+        'shooter_review_count',
         'status',
         'suspension_reason',
         'suspended_at',
@@ -165,7 +167,7 @@ class User extends Authenticatable
     }
 
     /**
-     * Get reviews received by the user
+     * Get reviews received by the user (as a breeder).
      */
     public function reviewsReceived()
     {
@@ -173,7 +175,7 @@ class User extends Authenticatable
     }
 
     /**
-     * Get reviews given by the user
+     * Get reviews given by the user.
      */
     public function reviewsGiven()
     {
@@ -181,12 +183,41 @@ class User extends Authenticatable
     }
 
     /**
-     * Recalculate and update the user's average rating and review count
+     * Get breeder reviews received.
+     */
+    public function breederReviewsReceived()
+    {
+        return $this->reviewsReceived()->where('review_type', 'breeder');
+    }
+
+    /**
+     * Get shooter reviews received.
+     */
+    public function shooterReviewsReceived()
+    {
+        return $this->reviewsReceived()->where('review_type', 'shooter');
+    }
+
+    /**
+     * Recalculate and update the user's breeder average rating and review count.
+     * Uses the cached average_rating on each UserReview (derived from category ratings).
      */
     public function recalculateRating()
     {
-        $this->average_rating = $this->reviewsReceived()->avg('rating') ?? 0.00;
-        $this->review_count = $this->reviewsReceived()->count();
+        $reviews = $this->breederReviewsReceived()->whereNotNull('average_rating');
+        $this->average_rating = round($reviews->avg('average_rating') ?? 0, 2);
+        $this->review_count = $reviews->count();
+        $this->save();
+    }
+
+    /**
+     * Recalculate and update the user's shooter average rating and review count.
+     */
+    public function recalculateShooterRating()
+    {
+        $reviews = $this->shooterReviewsReceived()->whereNotNull('average_rating');
+        $this->shooter_average_rating = round($reviews->avg('average_rating') ?? 0, 1);
+        $this->shooter_review_count = $reviews->count();
         $this->save();
     }
 

@@ -1,4 +1,10 @@
-import React, { useState, useEffect, useCallback, useMemo } from "react";
+import React, {
+  useState,
+  useEffect,
+  useCallback,
+  useMemo,
+  useRef,
+} from "react";
 import {
   View,
   Text,
@@ -6,6 +12,7 @@ import {
   ScrollView,
   ActivityIndicator,
   RefreshControl,
+  Alert,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import {
@@ -24,6 +31,7 @@ import {
   DollarSign,
   Handshake,
   Activity,
+  Star,
 } from "lucide-react-native";
 import { useRouter, useLocalSearchParams } from "expo-router";
 import dayjs from "dayjs";
@@ -36,6 +44,14 @@ import {
 } from "@/services/contractService";
 import { getContractPayments, Payment } from "@/services/paymentService";
 import { useSession } from "@/context/AuthContext";
+import { ReviewModal } from "@/components/reviews";
+import {
+  submitBreederReview,
+  submitShooterReview,
+  submitBreederReviewAsShooter,
+  getReviewStatus,
+} from "@/services/reviewService";
+import type { ReviewStatus } from "@/types/Review";
 
 // Tab components
 import ContractOverviewTab from "@/components/contracts/tabs/OverviewTab";
@@ -139,12 +155,12 @@ const LIFECYCLE_STAGES: LifecycleStage[] = [
     id: "complete",
     label: "Complete",
     Icon: Award,
-    description: "Record offspring & finalize match",
+    description: "Finalize match",
     isComplete: (ctx) => ctx.c.status === "fulfilled",
     isActive: (ctx) =>
       ctx.c.breeding_status === "completed" ||
       ctx.c.breeding_status === "failed",
-    tab: "offspring",
+    tab: "breeding",
   },
 ];
 
@@ -193,6 +209,14 @@ export default function ContractDetailScreen() {
     useState<AllocationSummaryData | null>(null);
   const [hasAutoSelectedTab, setHasAutoSelectedTab] = useState(false);
 
+  // ─── Review modal state ──────────────────────────────
+  const [showBreederReview, setShowBreederReview] = useState(false);
+  const [showShooterReview, setShowShooterReview] = useState(false);
+  const [reviewStatus, setReviewStatus] = useState<ReviewStatus | null>(null);
+  const [reviewSubmitting, setReviewSubmitting] = useState(false);
+  // Track whether we just completed a match (triggers auto-pop)
+  const justCompleted = useRef(false);
+
   const fetchAll = useCallback(async () => {
     try {
       const contractData = await getContract(parseInt(conversationId));
@@ -234,6 +258,19 @@ export default function ContractDetailScreen() {
             setAllocationSummary(allocResult.data);
           }
         }
+
+        // Fetch review status for completed matches
+        if (
+          contractData.status === "fulfilled" &&
+          contractData.match_request_id
+        ) {
+          try {
+            const status = await getReviewStatus(contractData.match_request_id);
+            setReviewStatus(status);
+          } catch {
+            // silent – review status is non-critical
+          }
+        }
       }
     } catch (error) {
       console.error("Error fetching contract data:", error);
@@ -262,6 +299,131 @@ export default function ContractDetailScreen() {
     setContract(updated);
     fetchAll();
   };
+
+  // ─── Review handlers ─────────────────────────────────
+  /**
+   * Called by BreedingTab / OffspringTab when match is marked complete.
+   * Instead of immediately navigating away, we auto-pop the review modal.
+   */
+  const handleMatchCompleted = useCallback(() => {
+    justCompleted.current = true;
+    // Re-fetch to get updated contract status + review status
+    fetchAll();
+  }, [fetchAll]);
+
+  // Auto-pop breeder review modal right after match completes
+  useEffect(() => {
+    if (
+      justCompleted.current &&
+      contract?.status === "fulfilled" &&
+      reviewStatus &&
+      !reviewStatus.breeder_reviewed
+    ) {
+      justCompleted.current = false;
+      setShowBreederReview(true);
+    } else if (
+      justCompleted.current &&
+      contract?.status === "fulfilled" &&
+      reviewStatus?.breeder_reviewed
+    ) {
+      // Already reviewed — just navigate back
+      justCompleted.current = false;
+      router.back();
+    }
+  }, [contract?.status, reviewStatus, router]);
+
+  const handleBreederReviewSubmit = useCallback(
+    async (data: { ratings: Record<string, number>; comment?: string }) => {
+      if (!contract?.match_request_id) return;
+      setReviewSubmitting(true);
+      try {
+        if (contract.is_shooter) {
+          // Shooter reviewing a breeder
+          await submitBreederReviewAsShooter(contract.id, {
+            subject_id: contract.partner_id!,
+            ratings: data.ratings,
+            comment: data.comment,
+          });
+        } else {
+          // Breeder reviewing the other breeder
+          await submitBreederReview(contract.match_request_id, {
+            ratings: data.ratings,
+            comment: data.comment,
+          });
+        }
+        setShowBreederReview(false);
+        // Refresh review status
+        const status = await getReviewStatus(contract.match_request_id);
+        setReviewStatus(status);
+
+        // If there's a shooter to review and we haven't yet, pop that modal next
+        if (
+          status.has_shooter &&
+          !status.shooter_reviewed &&
+          !contract.is_shooter
+        ) {
+          setTimeout(() => setShowShooterReview(true), 400);
+        } else {
+          Alert.alert("Thank you!", "Your review has been submitted.");
+        }
+      } catch (err: any) {
+        Alert.alert(
+          "Error",
+          err?.response?.data?.message || "Failed to submit review.",
+        );
+      } finally {
+        setReviewSubmitting(false);
+      }
+    },
+    [contract],
+  );
+
+  const handleShooterReviewSubmit = useCallback(
+    async (data: { ratings: Record<string, number>; comment?: string }) => {
+      if (!contract) return;
+      setReviewSubmitting(true);
+      try {
+        await submitShooterReview(contract.id, {
+          ratings: data.ratings,
+          comment: data.comment,
+        });
+        setShowShooterReview(false);
+        // Refresh review status
+        if (contract.match_request_id) {
+          const status = await getReviewStatus(contract.match_request_id);
+          setReviewStatus(status);
+        }
+        Alert.alert("Thank you!", "Your shooter review has been submitted.");
+      } catch (err: any) {
+        Alert.alert(
+          "Error",
+          err?.response?.data?.message || "Failed to submit review.",
+        );
+      } finally {
+        setReviewSubmitting(false);
+      }
+    },
+    [contract],
+  );
+
+  const handleReviewSkip = useCallback(
+    (type: "breeder" | "shooter") => {
+      if (type === "breeder") {
+        setShowBreederReview(false);
+        // If there's a shooter to review, prompt that next
+        if (
+          reviewStatus?.has_shooter &&
+          !reviewStatus?.shooter_reviewed &&
+          !contract?.is_shooter
+        ) {
+          setTimeout(() => setShowShooterReview(true), 400);
+        }
+      } else {
+        setShowShooterReview(false);
+      }
+    },
+    [reviewStatus, contract],
+  );
 
   // ─── Computed stage context ────────────────────────────
   const stageCtx: StageContext | null = contract
@@ -613,6 +775,7 @@ export default function ContractDetailScreen() {
             contract={contract}
             onContractUpdate={handleContractUpdate}
             bothCollateralPaid={bothCollateralPaid}
+            onMatchCompleted={handleMatchCompleted}
           />
         )}
         {activeTab === "offspring" && (
@@ -621,11 +784,61 @@ export default function ContractDetailScreen() {
             hasOffspringRecorded={hasOffspringRecorded}
             allocationSummary={allocationSummary}
             onContractUpdate={handleContractUpdate}
-            onMatchCompleted={() => router.back()}
+            onMatchCompleted={handleMatchCompleted}
             onRefresh={fetchAll}
           />
         )}
       </ScrollView>
+
+      {/* ─── Rate buttons for completed matches ─── */}
+      {contract.status === "fulfilled" && reviewStatus && (
+        <View className="bg-white border-t border-gray-100 px-4 py-3">
+          <View className="flex-row items-center justify-center gap-3">
+            {!reviewStatus.breeder_reviewed && (
+              <TouchableOpacity
+                className="flex-1 flex-row items-center justify-center bg-[#FF6B6B] py-3 rounded-xl"
+                onPress={() => setShowBreederReview(true)}
+              >
+                <Star size={16} color="#fff" />
+                <Text className="text-white font-bold ml-2">
+                  Rate {contract.is_shooter ? "Breeder" : "Partner"}
+                </Text>
+              </TouchableOpacity>
+            )}
+            {reviewStatus.has_shooter &&
+              !reviewStatus.shooter_reviewed &&
+              !contract.is_shooter && (
+                <TouchableOpacity
+                  className="flex-1 flex-row items-center justify-center bg-[#6B8AFF] py-3 rounded-xl"
+                  onPress={() => setShowShooterReview(true)}
+                >
+                  <Star size={16} color="#fff" />
+                  <Text className="text-white font-bold ml-2">
+                    Rate Shooter
+                  </Text>
+                </TouchableOpacity>
+              )}
+          </View>
+        </View>
+      )}
+
+      {/* ─── Review Modals ─── */}
+      <ReviewModal
+        visible={showBreederReview}
+        type="breeder"
+        subjectName={contract.partner_name || "Your Partner"}
+        onSubmit={handleBreederReviewSubmit}
+        onSkip={() => handleReviewSkip("breeder")}
+        loading={reviewSubmitting}
+      />
+      <ReviewModal
+        visible={showShooterReview}
+        type="shooter"
+        subjectName={contract.shooter?.name || "Shooter"}
+        onSubmit={handleShooterReviewSubmit}
+        onSkip={() => handleReviewSkip("shooter")}
+        loading={reviewSubmitting}
+      />
     </SafeAreaView>
   );
 }

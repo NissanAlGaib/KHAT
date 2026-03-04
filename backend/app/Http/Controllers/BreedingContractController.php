@@ -860,7 +860,7 @@ class BreedingContractController extends Controller
      */
     private function formatContract(BreedingContract $contract, $user): array
     {
-        $contract->load('shooter', 'conversation.matchRequest.requesterPet', 'conversation.matchRequest.targetPet');
+        $contract->load('shooter', 'conversation.matchRequest.requesterPet.owner', 'conversation.matchRequest.targetPet.owner');
 
         // Determine if user is owner1 or owner2 or shooter
         $matchRequest = $contract->conversation->matchRequest;
@@ -874,6 +874,7 @@ class BreedingContractController extends Controller
         return [
             'id' => $contract->id,
             'conversation_id' => $contract->conversation_id,
+            'match_request_id' => $matchRequest->id,
             'created_by' => $contract->created_by,
             'last_edited_by' => $contract->last_edited_by,
             'status' => $contract->status,
@@ -936,6 +937,13 @@ class BreedingContractController extends Controller
             'current_user_accepted_shooter' => $currentUserAcceptedShooter,
             'can_mark_breeding_complete' => $contract->canMarkBreedingComplete($user),
             'can_input_offspring' => $contract->canInputOffspring($user),
+            // Partner info for reviews
+            'partner_name' => $isOwner1
+                ? ($matchRequest->targetPet->owner->name ?? 'Your Partner')
+                : ($matchRequest->requesterPet->owner->name ?? 'Your Partner'),
+            'partner_id' => $isOwner1
+                ? $matchRequest->targetPet->user_id
+                : $matchRequest->requesterPet->user_id,
         ];
     }
 
@@ -1630,6 +1638,10 @@ class BreedingContractController extends Controller
      */
     public function completeMatch(Request $request, $contractId)
     {
+        $validated = $request->validate([
+            'skip_offspring' => 'sometimes|boolean',
+        ]);
+
         $user = $request->user();
         $userPetIds = Pet::where('user_id', $user->id)->pluck('pet_id');
 
@@ -1652,6 +1664,14 @@ class BreedingContractController extends Controller
                 'success' => false,
                 'message' => 'Contract not found or breeding not yet marked as complete/failed',
             ], 404);
+        }
+
+        // If skip_offspring is requested, update has_offspring to false
+        // This allows completing the match when breeding was initially marked with offspring
+        // but no offspring were actually produced
+        if (!empty($validated['skip_offspring'])) {
+            $contract->update(['has_offspring' => false]);
+            $contract->refresh();
         }
 
         // Check if contract has offspring and they are allocated

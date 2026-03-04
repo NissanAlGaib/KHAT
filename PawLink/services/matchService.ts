@@ -49,6 +49,7 @@ export interface ShooterProfile {
   breeds_handled: string[];
   pets: ShooterPet[];
   rating?: number;
+  reviews_count?: number;
   completed_sessions?: number;
   breeders_handled?: number;
   successful_shoots?: number;

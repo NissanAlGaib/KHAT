@@ -67,7 +67,8 @@ class ShooterController extends Controller
                     'specialization' => null, // TODO: Add specialization field to users table
                     'is_pet_owner' => $isPetOwner,
                     'pet_breed' => $petBreed,
-                    'rating' => null, // TODO: Implement rating system
+                    'rating' => $user->shooter_average_rating > 0 ? (float) $user->shooter_average_rating : null,
+                    'reviews_count' => $user->shooter_review_count,
                     'completed_sessions' => null, // TODO: Implement session tracking
                 ];
             });
@@ -677,7 +678,8 @@ class ShooterController extends Controller
                 'is_pet_owner' => $isPetOwner,
                 'breeds_handled' => $breedsHandled->unique()->filter()->values()->toArray(),
                 'pets' => $petsData,
-                'rating' => null, // TODO: Implement rating system
+                'rating' => $shooter->shooter_average_rating > 0 ? (float) $shooter->shooter_average_rating : null,
+                'reviews_count' => $shooter->shooter_review_count,
                 'completed_sessions' => $completedContracts,
                 'breeders_handled' => $totalContracts,
                 'successful_shoots' => $completedContracts,

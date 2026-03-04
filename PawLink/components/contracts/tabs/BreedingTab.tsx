@@ -16,18 +16,21 @@ import {
   Baby,
   Clock,
   FileText,
+  Archive,
 } from "lucide-react-native";
 import dayjs from "dayjs";
 import {
   BreedingContract,
   BreedingCompletionData,
   completeBreeding,
+  completeMatch,
 } from "@/services/contractService";
 
 interface BreedingTabProps {
   contract: BreedingContract;
   onContractUpdate: (updated: BreedingContract) => void;
   bothCollateralPaid?: boolean;
+  onMatchCompleted?: () => void;
 }
 
 const statusConfig: Record<
@@ -54,12 +57,14 @@ export default function ContractBreedingTab({
   contract,
   onContractUpdate,
   bothCollateralPaid = true,
+  onMatchCompleted,
 }: BreedingTabProps) {
   const [showForm, setShowForm] = useState(false);
   const [formType, setFormType] = useState<"completed" | "failed">("completed");
   const [hasOffspring, setHasOffspring] = useState(true);
   const [breedingNotes, setBreedingNotes] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isCompletingMatch, setIsCompletingMatch] = useState(false);
 
   const {
     visible: alertVisible,
@@ -248,6 +253,34 @@ export default function ContractBreedingTab({
         </View>
       )}
 
+      {/* Complete Match Button — when breeding is done and no offspring to record */}
+      {(breedingStatus === "completed" && !contract.has_offspring) ||
+      breedingStatus === "failed" ? (
+        <View className="mb-4">
+          <TouchableOpacity
+            onPress={handleCompleteMatch}
+            disabled={isCompletingMatch}
+            className={`py-4 rounded-2xl flex-row items-center justify-center ${
+              isCompletingMatch ? "bg-gray-400" : breedingStatus === "failed" ? "bg-gray-600" : "bg-[#059669]"
+            }`}
+          >
+            {isCompletingMatch ? (
+              <ActivityIndicator color="white" />
+            ) : (
+              <>
+                <Archive size={20} color="white" />
+                <Text className="text-white font-bold text-base ml-2">
+                  {breedingStatus === "failed" ? "End Match" : "Complete Match"}
+                </Text>
+              </>
+            )}
+          </TouchableOpacity>
+          <Text className="text-gray-400 text-xs text-center mt-2">
+            This will finalize the contract, release deposits, and archive the conversation.
+          </Text>
+        </View>
+      ) : null}
+
       {/* Info Card for who can mark */}
       {contract.can_mark_breeding_complete &&
         breedingStatus !== "completed" &&
@@ -433,4 +466,55 @@ export default function ContractBreedingTab({
       />
     </View>
   );
+
+  // ─── Complete Match handler ───
+  function handleCompleteMatch() {
+    showAlert({
+      title: breedingStatus === "failed" ? "End Match?" : "Complete Match?",
+      message:
+        "This will finalize the breeding contract, release collateral deposits, and archive the conversation. This action cannot be undone.",
+      type: "warning",
+      buttons: [
+        { text: "Cancel", style: "cancel" },
+        {
+          text: breedingStatus === "failed" ? "End Match" : "Complete Match",
+          style: "default",
+          onPress: async () => {
+            hideAlert();
+            setIsCompletingMatch(true);
+            try {
+              const skipData = contract.has_offspring
+                ? { skip_offspring: true }
+                : undefined;
+              const result = await completeMatch(contract.id, skipData);
+              if (result.success) {
+                showAlert({
+                  title: "Match Completed!",
+                  message:
+                    result.message ||
+                    "The match has been completed and the conversation archived.",
+                  type: "success",
+                });
+                if (onMatchCompleted) onMatchCompleted();
+              } else {
+                showAlert({
+                  title: "Error",
+                  message: result.message || "Failed to complete match",
+                  type: "error",
+                });
+              }
+            } catch {
+              showAlert({
+                title: "Error",
+                message: "Failed to complete match",
+                type: "error",
+              });
+            } finally {
+              setIsCompletingMatch(false);
+            }
+          },
+        },
+      ],
+    });
+  }
 }

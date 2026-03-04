@@ -142,6 +142,12 @@ Route::middleware(['auth:sanctum'])
         Route::put('/match-requests/{id}/cancel', [MatchRequestController::class, 'cancel']);
         Route::get('/match-requests/history', [MatchRequestController::class, 'history']);
         Route::post('/match-requests/{match}/review', [UserReviewController::class, 'store']);
+        Route::get('/match-requests/{match}/review-status', [UserReviewController::class, 'reviewStatus']);
+
+        // Review routes (shooter & profile)
+        Route::post('/contracts/{contract}/review-shooter', [UserReviewController::class, 'storeShooterReview']);
+        Route::post('/contracts/{contract}/review-breeder', [UserReviewController::class, 'storeBreederReviewAsShooter']);
+        Route::get('/users/{user}/reviews', [UserReviewController::class, 'userReviews']);
 
         // Conversation routes
         Route::get('/conversations', [MatchRequestController::class, 'getConversations']);
