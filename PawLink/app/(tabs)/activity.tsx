@@ -459,9 +459,20 @@ export default function NotificationsTab() {
         break;
       case "shooter_request":
       case "shooter_accepted":
-      case "contract_completed":
         if (data.contract_id) {
-          router.push(`/(shooter)/contract-details?id=${data.contract_id}`);
+          router.push(`/(shooter)/offer-details?contractId=${data.contract_id}`);
+        } else {
+          router.push("/(tabs)/matches");
+        }
+        break;
+      case "contract_completed":
+        if (data.conversation_id) {
+          router.push(
+            `/(chat)/contract-detail?conversationId=${data.conversation_id}`,
+          );
+        } else if (data.contract_id) {
+          // Fallback: go to matches tab
+          router.push("/(tabs)/matches");
         } else {
           router.push("/(tabs)/matches");
         }

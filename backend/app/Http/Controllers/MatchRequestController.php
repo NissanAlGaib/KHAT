@@ -752,10 +752,10 @@ class MatchRequestController extends Controller
         $query = MatchRequest::where(function ($q) use ($userPetIds) {
             $q->whereIn('requester_pet_id', $userPetIds)
                 ->orWhereIn('target_pet_id', $userPetIds);
-        })->whereIn('status', ['declined', 'cancelled']);
+        })->whereIn('status', ['declined', 'cancelled', 'completed']);
 
         // Optional status filter
-        if ($request->has('status') && in_array($request->status, ['declined', 'cancelled'])) {
+        if ($request->has('status') && in_array($request->status, ['declined', 'cancelled', 'completed'])) {
             $query->where('status', $request->status);
         }
 
@@ -774,6 +774,7 @@ class MatchRequestController extends Controller
             'targetPet' => function ($q) {
                 $q->with(['owner:id,name,profile_image', 'photos']);
             },
+            'conversation',
         ])
             ->orderBy('updated_at', 'desc')
             ->paginate(20);
@@ -805,6 +806,7 @@ class MatchRequestController extends Controller
                     'profile_image' => $otherPet->owner->profile_image,
                 ],
                 'status' => $matchRequest->status,
+                'conversation_id' => $matchRequest->conversation?->id,
                 'created_at' => $matchRequest->created_at,
                 'updated_at' => $matchRequest->updated_at,
             ];

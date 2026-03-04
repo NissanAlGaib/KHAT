@@ -315,20 +315,17 @@ export default function ContractDetailScreen() {
   useEffect(() => {
     if (
       justCompleted.current &&
-      contract?.status === "fulfilled" &&
-      reviewStatus &&
-      !reviewStatus.breeder_reviewed
+      contract?.status === "fulfilled"
     ) {
       justCompleted.current = false;
+      // If we have review status and already reviewed, skip
+      if (reviewStatus?.breeder_reviewed) {
+        router.back();
+        return;
+      }
+      // Show review modal regardless of whether reviewStatus loaded
+      // (migrations may not be run yet — modal handles errors on submit)
       setShowBreederReview(true);
-    } else if (
-      justCompleted.current &&
-      contract?.status === "fulfilled" &&
-      reviewStatus?.breeder_reviewed
-    ) {
-      // Already reviewed — just navigate back
-      justCompleted.current = false;
-      router.back();
     }
   }, [contract?.status, reviewStatus, router]);
 

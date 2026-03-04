@@ -40,7 +40,7 @@ if (
 }
 
 type TabType = "REQUESTS" | "MATCHES" | "HISTORY";
-type HistoryFilter = "all" | "declined" | "cancelled";
+type HistoryFilter = "all" | "completed" | "declined" | "cancelled";
 
 // ─── Collapsible Section Component ──────────────────────────────
 const CollapsibleSection = ({
@@ -116,6 +116,11 @@ const StatusBadge = ({ status }: { status: string }) => {
       bg: "bg-gray-100",
       text: "text-gray-600",
       label: "Cancelled",
+    },
+    completed: {
+      bg: "bg-purple-100",
+      text: "text-purple-700",
+      label: "Completed",
     },
   };
   const c = config[status] || config.pending;
@@ -518,36 +523,56 @@ const Matches = () => {
   );
 
   // ─── History Card ─────────────────────────────────────────────
-  const renderHistoryItem = (item: HistoryItem) => (
-    <View key={item.id} className="bg-white rounded-2xl p-4 mb-2.5 shadow-sm">
-      <View className="flex-row items-center">
-        <PetAvatar photoUrl={item.other_pet.photo_url} />
-        <View className="flex-1 ml-3">
-          <View className="flex-row items-center">
-            <Text className="text-gray-500 text-xs">{item.owner.name}</Text>
-            <View className="mx-1.5 w-1 h-1 rounded-full bg-gray-300" />
-            <Text className="text-gray-400 text-xs">
-              {item.direction === "outgoing" ? "Sent" : "Received"}
+  const renderHistoryItem = (item: HistoryItem) => {
+    const isCompleted = item.status === "completed";
+    const Wrapper = isCompleted ? TouchableOpacity : View;
+    const wrapperProps = isCompleted && item.conversation_id
+      ? {
+          onPress: () =>
+            router.push(
+              `/(chat)/contract-detail?conversationId=${item.conversation_id}`,
+            ),
+        }
+      : {};
+
+    return (
+      <Wrapper
+        key={item.id}
+        className="bg-white rounded-2xl p-4 mb-2.5 shadow-sm"
+        {...wrapperProps}
+      >
+        <View className="flex-row items-center">
+          <PetAvatar photoUrl={item.other_pet.photo_url} />
+          <View className="flex-1 ml-3">
+            <View className="flex-row items-center">
+              <Text className="text-gray-500 text-xs">{item.owner.name}</Text>
+              <View className="mx-1.5 w-1 h-1 rounded-full bg-gray-300" />
+              <Text className="text-gray-400 text-xs">
+                {item.direction === "outgoing" ? "Sent" : "Received"}
+              </Text>
+            </View>
+            <Text className="font-bold text-base text-gray-800">
+              {item.other_pet.name}
             </Text>
+            {item.other_pet.breed && (
+              <Text className="text-gray-400 text-xs">
+                {item.other_pet.breed}
+              </Text>
+            )}
+            <View className="flex-row items-center mt-1">
+              <StatusBadge status={item.status} />
+              <Text className="text-gray-400 text-xs ml-2">
+                {formatTimeAgo(item.updated_at)}
+              </Text>
+            </View>
           </View>
-          <Text className="font-bold text-base text-gray-800">
-            {item.other_pet.name}
-          </Text>
-          {item.other_pet.breed && (
-            <Text className="text-gray-400 text-xs">
-              {item.other_pet.breed}
-            </Text>
+          {isCompleted && (
+            <Feather name="chevron-right" size={18} color="#D1D5DB" />
           )}
-          <View className="flex-row items-center mt-1">
-            <StatusBadge status={item.status} />
-            <Text className="text-gray-400 text-xs ml-2">
-              {formatTimeAgo(item.updated_at)}
-            </Text>
-          </View>
         </View>
-      </View>
-    </View>
-  );
+      </Wrapper>
+    );
+  };
 
   // ─── Empty State Component ────────────────────────────────────
   const EmptyState = ({
@@ -700,7 +725,7 @@ const Matches = () => {
     <>
       {/* Filter pills */}
       <View className="flex-row mb-4 gap-2">
-        {(["all", "declined", "cancelled"] as HistoryFilter[]).map((filter) => {
+        {(["all", "completed", "declined", "cancelled"] as HistoryFilter[]).map((filter) => {
           const isActive = historyFilter === filter;
           return (
             <TouchableOpacity
@@ -745,7 +770,7 @@ const Matches = () => {
         <EmptyState
           icon="clock"
           title="No history"
-          subtitle="Past declined and cancelled requests will appear here"
+          subtitle="Past completed, declined and cancelled requests will appear here"
         />
       )}
     </>

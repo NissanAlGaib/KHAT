@@ -341,7 +341,8 @@ export interface HistoryItem {
   user_pet: MatchRequestPet;
   other_pet: MatchRequestPet;
   owner: MatchRequestOwner;
-  status: "declined" | "cancelled";
+  status: "declined" | "cancelled" | "completed";
+  conversation_id?: number;
   created_at: string;
   updated_at: string;
 }
@@ -356,11 +357,11 @@ export interface HistoryResponse {
 }
 
 /**
- * Get match request history (declined, cancelled)
+ * Get match request history (declined, cancelled, completed)
  */
 export const getMatchHistory = async (
   page: number = 1,
-  status?: "declined" | "cancelled",
+  status?: "declined" | "cancelled" | "completed",
 ): Promise<HistoryResponse> => {
   try {
     const params: Record<string, any> = { page };

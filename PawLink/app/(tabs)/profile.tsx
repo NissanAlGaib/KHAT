@@ -344,6 +344,13 @@ export default function ProfileScreen() {
         iconBg: "#8B5CF6",
         onPress: () => router.push("/my-payments"),
       },
+      {
+        icon: "award" as const,
+        label: "Breeding History",
+        subtitle: "Completed breeding contracts",
+        iconBg: "#EC4899",
+        onPress: () => router.push("/completed-matches"),
+      },
     ];
 
     return (

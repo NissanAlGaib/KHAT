@@ -1067,6 +1067,7 @@ class BreedingContractController extends Controller
                         $petName,
                         [
                             'contract_id' => $contract->id,
+                            'conversation_id' => $contract->conversation->id ?? null,
                             'breeding_status' => $validated['breeding_status'],
                         ]
                     );
