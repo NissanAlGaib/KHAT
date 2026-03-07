@@ -30,6 +30,127 @@ export interface ReleaseEntry {
  */
 export const releases: ReleaseEntry[] = [
   {
+    version: "1.6.7",
+    title: "Pet Selector Revamp & Rich Animations",
+    date: "March 7, 2026",
+    items: [
+      {
+        text: "Completely redesigned the Pet Selection modal — gradient header, responsive sizing, and consistent theme styling",
+        category: "improved",
+      },
+      {
+        text: "Search bar added to pet selector — quickly find your pet by name",
+        category: "new",
+      },
+      {
+        text: "Quick-add pet button in the selector — jump straight to pet registration without leaving the modal",
+        category: "new",
+      },
+      {
+        text: "Swipe left/right on the floating pet button to cycle through your pets without opening the modal",
+        category: "new",
+      },
+      {
+        text: "Pet name now displayed below the floating tab bar button so you always know which pet is active",
+        category: "new",
+      },
+      {
+        text: "Rich animations throughout — bouncy button press, staggered list entry, animated selection checkmarks, and smooth photo crossfade on swipe",
+        category: "improved",
+      },
+      {
+        text: "Pet selector now uses the app's design system (theme colors, spacing, typography) instead of hardcoded values",
+        category: "fixed",
+      },
+      {
+        text: "New rating and review system — rate breeders and shooters with category-based scores after contract completion",
+        category: "new",
+      },
+      {
+        text: "Review modal with category rating rows and detailed review breakdown component",
+        category: "new",
+      },
+      {
+        text: "Completed matches archive — view all past completed matches from profile",
+        category: "new",
+      },
+      {
+        text: "Admin reviews page revamped with expanded analytics and user review details",
+        category: "improved",
+      },
+      {
+        text: "Contract completion flow fixed — breeding contracts now properly finalize and trigger ratings",
+        category: "fixed",
+      },
+      {
+        text: "Matching logic hotfix — dropped unique constraint to allow rematching between pets",
+        category: "fixed",
+      },
+      {
+        text: "Pet species casing normalized in the database for consistent filtering",
+        category: "fixed",
+      },
+    ],
+  },
+  {
+    version: "1.6.5",
+    title: "Icon Refactoring & Admin Improvements",
+    date: "March 4, 2026",
+    items: [
+      {
+        text: "Icons refactored across contract tabs, payment screens, and search filters for consistency",
+        category: "improved",
+      },
+      {
+        text: "Admin detail page for individual admins with activity and role info",
+        category: "new",
+      },
+      {
+        text: "Admin management page enhanced with expanded admin profiles",
+        category: "improved",
+      },
+      {
+        text: "Match completion hotfix — resolved issue preventing matches from completing correctly",
+        category: "fixed",
+      },
+      {
+        text: "Admin pool transactions and protocol categories pages polished",
+        category: "improved",
+      },
+    ],
+  },
+  {
+    version: "1.6.4",
+    title: "Keyboard Handling & Admin Notifications",
+    date: "March 3, 2026",
+    items: [
+      {
+        text: "New KeyboardAwareScrollView component — forms automatically scroll focused inputs into view",
+        category: "new",
+      },
+      {
+        text: "Auth screens (login, register, forgot password) and verification forms now use keyboard-aware scrolling",
+        category: "improved",
+      },
+      {
+        text: "Admin notification bell with real-time pending shot count and alerts",
+        category: "new",
+      },
+      {
+        text: "Admin pending shots verification page redesigned with improved layout and pet-specific shot history view",
+        category: "improved",
+      },
+      {
+        text: "Import history screen restructured with better data display",
+        category: "improved",
+      },
+      {
+        text: "Custom password reset email notification with PawLink branding",
+        category: "improved",
+      },
+    ],
+  },
+  {
     version: "1.6.2",
     title: "Reports Form Revamp & UI Polish",
     date: "March 3, 2026",
