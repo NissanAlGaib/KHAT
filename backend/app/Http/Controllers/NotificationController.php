@@ -7,6 +7,7 @@ use App\Models\UserAuth;
 use App\Models\Pet;
 use App\Models\Vaccination;
 use App\Models\HealthRecord;
+use App\Models\SafetyReport;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Log;
 
@@ -92,6 +93,51 @@ class NotificationController extends Controller
                 }
             }
 
+            // Get admin warnings from UserWarning model (direct warnings)
+            $directWarnings = \App\Models\UserWarning::where('user_id', $userId)
+                ->whereNull('acknowledged_at')
+                ->orderBy('created_at', 'desc')
+                ->get();
+
+            foreach ($directWarnings as $warning) {
+                $notifications[] = [
+                    'id' => 'user_warning_' . $warning->id,
+                    'type' => 'user_warning',
+                    'status' => 'warning',
+                    'warning_id' => $warning->id,
+                    'reason' => $warning->type,
+                    'reason_label' => $warning->type, // e.g. "Harassment"
+                    'admin_notes' => $warning->message,
+                    'created_at' => $warning->created_at,
+                    'updated_at' => $warning->updated_at,
+                    'message' => "Warning: {$warning->type}. {$warning->message}",
+                ];
+            }
+
+            // Get admin warnings from safety reports (legacy/report-based)
+            $adminWarnings = SafetyReport::where('reported_id', $userId)
+                ->where('resolution_action', SafetyReport::ACTION_WARNING)
+                ->whereIn('status', [SafetyReport::STATUS_REVIEWED, SafetyReport::STATUS_RESOLVED])
+                ->orderBy('reviewed_at', 'desc')
+                ->get();
+
+            foreach ($adminWarnings as $warning) {
+                $reasonLabel = SafetyReport::getReasonLabel($warning->reason);
+
+                $notifications[] = [
+                    'id' => 'admin_warning_' . $warning->id,
+                    'type' => 'admin_warning',
+                    'status' => 'warning',
+                    'report_id' => $warning->id,
+                    'reason' => $warning->reason,
+                    'reason_label' => $reasonLabel,
+                    'admin_notes' => $warning->admin_notes,
+                    'created_at' => $warning->reviewed_at ?? $warning->updated_at,
+                    'updated_at' => $warning->reviewed_at ?? $warning->updated_at,
+                    'message' => "You have received a warning for {$reasonLabel}. Please review our community guidelines.",
+                ];
+            }
+
             // Sort all notifications by updated_at desc
             usort($notifications, function ($a, $b) {
                 return strtotime($b['updated_at']) - strtotime($a['updated_at']);
@@ -100,6 +146,7 @@ class NotificationController extends Controller
             // Count unread/actionable items
             $pendingCount = count(array_filter($notifications, fn($n) => $n['status'] === 'pending'));
             $rejectedCount = count(array_filter($notifications, fn($n) => $n['status'] === 'rejected'));
+            $warningCount = count(array_filter($notifications, fn($n) => $n['status'] === 'warning'));
 
             return response()->json([
                 'success' => true,
@@ -110,7 +157,8 @@ class NotificationController extends Controller
                         'total' => count($notifications),
                         'pending' => $pendingCount,
                         'rejected' => $rejectedCount,
-                        'approved' => count($notifications) - $pendingCount - $rejectedCount,
+                        'warnings' => $warningCount,
+                        'approved' => count($notifications) - $pendingCount - $rejectedCount - $warningCount,
                     ]
                 ]
             ], 200);
@@ -148,13 +196,20 @@ class NotificationController extends Controller
                 ->where('status', 'rejected')
                 ->count();
 
-            $totalRejected = $rejectedUserVerifications + $rejectedVaccinations + $rejectedHealthRecords;
+            // Count admin warnings
+            $warningCount = SafetyReport::where('reported_id', $userId)
+                ->where('resolution_action', SafetyReport::ACTION_WARNING)
+                ->whereIn('status', [SafetyReport::STATUS_REVIEWED, SafetyReport::STATUS_RESOLVED])
+                ->count();
+
+            $totalActionable = $rejectedUserVerifications + $rejectedVaccinations + $rejectedHealthRecords + $warningCount;
 
             return response()->json([
                 'success' => true,
                 'data' => [
-                    'count' => $totalRejected,
-                    'has_rejected' => $totalRejected > 0,
+                    'count' => $totalActionable,
+                    'has_rejected' => ($rejectedUserVerifications + $rejectedVaccinations + $rejectedHealthRecords) > 0,
+                    'has_warnings' => $warningCount > 0,
                 ]
             ], 200);
         } catch (\Exception $e) {

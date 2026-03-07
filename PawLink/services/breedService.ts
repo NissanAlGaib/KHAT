@@ -8,48 +8,154 @@ import axiosInstance from "@/config/axiosConfig";
 // Comprehensive dog breeds list
 export const DOG_BREEDS = [
   // Popular breeds
-  "Labrador Retriever", "German Shepherd", "Golden Retriever", "French Bulldog",
-  "Bulldog", "Poodle", "Beagle", "Rottweiler", "German Shorthaired Pointer",
-  "Siberian Husky", "Dachshund", "Doberman Pinscher", "Shih Tzu", "Boxer",
-  "Great Dane", "Yorkshire Terrier", "Australian Shepherd", "Cavalier King Charles Spaniel",
-  "Miniature Schnauzer", "Pembroke Welsh Corgi", "Pomeranian", "Boston Terrier",
-  "Havanese", "Bernese Mountain Dog", "Maltese", "English Springer Spaniel",
-  "Shetland Sheepdog", "Brittany", "Cocker Spaniel", "Border Collie",
-  "Chihuahua", "Pug", "Mastiff", "Akita", "Basset Hound", "Bloodhound",
-  "Bull Terrier", "Chow Chow", "Dalmatian", "Great Pyrenees", "Greyhound",
-  "Irish Setter", "Jack Russell Terrier", "Lhasa Apso", "Newfoundland",
-  "Old English Sheepdog", "Papillon", "Rhodesian Ridgeback", "Saint Bernard",
-  "Samoyed", "Scottish Terrier", "Shiba Inu", "Weimaraner", "Whippet",
-  "American Pit Bull Terrier", "American Staffordshire Terrier", "Australian Cattle Dog",
-  "Belgian Malinois", "Bichon Frise", "Cairn Terrier", "Cane Corso",
-  "English Cocker Spaniel", "English Mastiff", "French Mastiff", "German Spitz",
-  "Giant Schnauzer", "Irish Wolfhound", "Italian Greyhound", "Japanese Chin",
-  "Keeshond", "Kerry Blue Terrier", "Komondor", "Leonberger", "Miniature Pinscher",
-  "Norwegian Elkhound", "Pharaoh Hound", "Portuguese Water Dog", "Saluki",
-  "Schipperke", "Schnauzer", "Soft Coated Wheaten Terrier", "Staffordshire Bull Terrier",
-  "Tibetan Mastiff", "Tibetan Terrier", "Vizsla", "Welsh Corgi", "West Highland White Terrier",
+  "Labrador Retriever",
+  "German Shepherd",
+  "Golden Retriever",
+  "French Bulldog",
+  "Bulldog",
+  "Poodle",
+  "Beagle",
+  "Rottweiler",
+  "German Shorthaired Pointer",
+  "Siberian Husky",
+  "Dachshund",
+  "Doberman Pinscher",
+  "Shih Tzu",
+  "Boxer",
+  "Great Dane",
+  "Yorkshire Terrier",
+  "Australian Shepherd",
+  "Cavalier King Charles Spaniel",
+  "Miniature Schnauzer",
+  "Pembroke Welsh Corgi",
+  "Pomeranian",
+  "Boston Terrier",
+  "Havanese",
+  "Bernese Mountain Dog",
+  "Maltese",
+  "English Springer Spaniel",
+  "Shetland Sheepdog",
+  "Brittany",
+  "Cocker Spaniel",
+  "Border Collie",
+  "Chihuahua",
+  "Pug",
+  "Mastiff",
+  "Akita",
+  "Basset Hound",
+  "Bloodhound",
+  "Bull Terrier",
+  "Chow Chow",
+  "Dalmatian",
+  "Great Pyrenees",
+  "Greyhound",
+  "Irish Setter",
+  "Jack Russell Terrier",
+  "Lhasa Apso",
+  "Newfoundland",
+  "Old English Sheepdog",
+  "Papillon",
+  "Rhodesian Ridgeback",
+  "Saint Bernard",
+  "Samoyed",
+  "Scottish Terrier",
+  "Shiba Inu",
+  "Weimaraner",
+  "Whippet",
+  "American Pit Bull Terrier",
+  "American Staffordshire Terrier",
+  "Australian Cattle Dog",
+  "Belgian Malinois",
+  "Bichon Frise",
+  "Cairn Terrier",
+  "Cane Corso",
+  "English Cocker Spaniel",
+  "English Mastiff",
+  "French Mastiff",
+  "German Spitz",
+  "Giant Schnauzer",
+  "Irish Wolfhound",
+  "Italian Greyhound",
+  "Japanese Chin",
+  "Keeshond",
+  "Kerry Blue Terrier",
+  "Komondor",
+  "Leonberger",
+  "Miniature Pinscher",
+  "Norwegian Elkhound",
+  "Pharaoh Hound",
+  "Portuguese Water Dog",
+  "Saluki",
+  "Schipperke",
+  "Schnauzer",
+  "Soft Coated Wheaten Terrier",
+  "Staffordshire Bull Terrier",
+  "Tibetan Mastiff",
+  "Tibetan Terrier",
+  "Vizsla",
+  "Welsh Corgi",
+  "West Highland White Terrier",
   // Philippine breeds
-  "Aspin", "Askal", "Philippine Native Dog",
+  "Aspin",
+  "Askal",
+  "Philippine Native Dog",
   // General
-  "Mixed Breed", "Unknown",
+  "Mixed Breed",
+  "Unknown",
 ];
 
 // Comprehensive cat breeds list
 export const CAT_BREEDS = [
   // Popular breeds
-  "Siamese", "Persian", "Maine Coon", "Ragdoll", "British Shorthair",
-  "Sphynx", "Scottish Fold", "Bengal", "Abyssinian", "Russian Blue",
-  "Norwegian Forest Cat", "Birman", "Oriental Shorthair", "Devon Rex",
-  "American Shorthair", "Exotic Shorthair", "Burmese", "Himalayan",
-  "Cornish Rex", "Balinese", "Tonkinese", "Chartreux", "Egyptian Mau",
-  "Turkish Angora", "Turkish Van", "Somali", "Manx", "Bombay",
-  "Savannah", "Ocicat", "Singapura", "Korat", "Japanese Bobtail",
-  "American Bobtail", "American Curl", "LaPerm", "Munchkin", "Nebelung",
-  "Ragamuffin", "Selkirk Rex", "Siberian", "Snowshoe", "Toyger",
+  "Siamese",
+  "Persian",
+  "Maine Coon",
+  "Ragdoll",
+  "British Shorthair",
+  "Sphynx",
+  "Scottish Fold",
+  "Bengal",
+  "Abyssinian",
+  "Russian Blue",
+  "Norwegian Forest Cat",
+  "Birman",
+  "Oriental Shorthair",
+  "Devon Rex",
+  "American Shorthair",
+  "Exotic Shorthair",
+  "Burmese",
+  "Himalayan",
+  "Cornish Rex",
+  "Balinese",
+  "Tonkinese",
+  "Chartreux",
+  "Egyptian Mau",
+  "Turkish Angora",
+  "Turkish Van",
+  "Somali",
+  "Manx",
+  "Bombay",
+  "Savannah",
+  "Ocicat",
+  "Singapura",
+  "Korat",
+  "Japanese Bobtail",
+  "American Bobtail",
+  "American Curl",
+  "LaPerm",
+  "Munchkin",
+  "Nebelung",
+  "Ragamuffin",
+  "Selkirk Rex",
+  "Siberian",
+  "Snowshoe",
+  "Toyger",
   // Philippine breeds
-  "Puspin", "Philippine Shorthair",
+  "Puspin",
+  "Philippine Shorthair",
   // General
-  "Mixed Breed", "Unknown",
+  "Mixed Breed",
+  "Unknown",
 ];
 
 export interface BreedSearchResult {
@@ -66,23 +172,39 @@ export interface BreedIdentificationResult {
   topConfidence: number;
 }
 
+export interface BreedPrediction {
+  breed: string;
+  breed_raw: string;
+  species: "cat" | "dog";
+  confidence: number;
+}
+
+export interface BreedIdentifyApiResponse {
+  success: boolean;
+  prediction: BreedPrediction;
+  top_3: BreedPrediction[];
+}
+
 /**
  * Search breeds by query
  * @param query Search query string
  * @param species "Dog" or "Cat"
  * @returns Filtered and scored breed results
  */
-export const searchBreeds = (query: string, species: "Dog" | "Cat"): BreedSearchResult[] => {
+export const searchBreeds = (
+  query: string,
+  species: "Dog" | "Cat",
+): BreedSearchResult[] => {
   const breeds = species === "Cat" ? CAT_BREEDS : DOG_BREEDS;
-  
+
   if (!query.trim()) {
-    return breeds.map(breed => ({ breed, matchScore: 1 }));
+    return breeds.map((breed) => ({ breed, matchScore: 1 }));
   }
 
   const queryLower = query.toLowerCase().trim();
   const results: BreedSearchResult[] = [];
 
-  breeds.forEach(breed => {
+  breeds.forEach((breed) => {
     const breedLower = breed.toLowerCase();
     let matchScore = 0;
 
@@ -95,7 +217,9 @@ export const searchBreeds = (query: string, species: "Dog" | "Cat"): BreedSearch
       matchScore = 80;
     }
     // Word starts with query
-    else if (breedLower.split(' ').some(word => word.startsWith(queryLower))) {
+    else if (
+      breedLower.split(" ").some((word) => word.startsWith(queryLower))
+    ) {
       matchScore = 60;
     }
     // Contains query
@@ -106,7 +230,11 @@ export const searchBreeds = (query: string, species: "Dog" | "Cat"): BreedSearch
     else {
       let matchedChars = 0;
       let queryIndex = 0;
-      for (let i = 0; i < breedLower.length && queryIndex < queryLower.length; i++) {
+      for (
+        let i = 0;
+        i < breedLower.length && queryIndex < queryLower.length;
+        i++
+      ) {
         if (breedLower[i] === queryLower[queryIndex]) {
           matchedChars++;
           queryIndex++;
@@ -135,67 +263,60 @@ export const searchBreeds = (query: string, species: "Dog" | "Cat"): BreedSearch
 export const getBreedSuggestions = (
   query: string,
   species: "Dog" | "Cat",
-  limit: number = 10
+  limit: number = 10,
 ): string[] => {
   const results = searchBreeds(query, species);
-  return results.slice(0, limit).map(r => r.breed);
+  return results.slice(0, limit).map((r) => r.breed);
 };
 
 /**
- * Identify breed from image using AI
- * NOTE: This is a placeholder for future AI integration.
- * You can integrate with services like:
- * - Google Cloud Vision AI
- * - AWS Rekognition
- * - Custom TensorFlow/PyTorch model
- * - Third-party pet breed identification APIs
- * 
+ * Identify breed from image using the PawLink AI classifier.
+ * Sends the image to the Laravel backend which proxies to the Python breed classifier API.
+ *
  * @param imageUri Local URI of the image
- * @param species "Dog" or "Cat"
+ * @param species "Dog" or "Cat" (used for fallback only; the model detects species automatically)
  * @returns Promise with breed predictions
  */
 export const identifyBreedFromImage = async (
   imageUri: string,
-  species: "Dog" | "Cat"
+  species: "Dog" | "Cat",
 ): Promise<BreedIdentificationResult> => {
-  // TODO: Implement actual AI breed identification
-  // For now, return a placeholder response
-  
   try {
-    // Create form data for image upload
     const formData = new FormData();
     formData.append("image", {
       uri: imageUri,
-      name: "pet_image.jpg",
+      name: `breed_photo_${Date.now()}.jpg`,
       type: "image/jpeg",
     } as any);
-    formData.append("species", species);
 
-    // Uncomment when backend endpoint is ready:
-    // const response = await axiosInstance.post("/api/breed-identification", formData, {
-    //   headers: {
-    //     "Content-Type": "multipart/form-data",
-    //   },
-    // });
-    // return response.data;
+    const response = await axiosInstance.post("/api/breed-identify", formData, {
+      headers: {
+        "Content-Type": "multipart/form-data",
+      },
+      timeout: 30000, // 30s timeout for model inference
+    });
 
-    // Placeholder response for now
-    const breeds = species === "Cat" ? CAT_BREEDS : DOG_BREEDS;
-    const randomBreeds = breeds
-      .filter(b => b !== "Mixed Breed" && b !== "Unknown")
-      .sort(() => Math.random() - 0.5)
-      .slice(0, 3);
+    const data: BreedIdentifyApiResponse = response.data;
+
+    if (!data.success || !data.top_3) {
+      throw new Error("Invalid response from breed identifier");
+    }
 
     return {
-      predictions: [
-        { breed: randomBreeds[0], confidence: 0.65 },
-        { breed: randomBreeds[1], confidence: 0.20 },
-        { breed: randomBreeds[2], confidence: 0.10 },
-      ],
-      topBreed: randomBreeds[0],
-      topConfidence: 0.65,
+      predictions: data.top_3.map((p) => ({
+        breed: p.breed,
+        confidence: p.confidence / 100, // Convert from percentage to decimal
+      })),
+      topBreed: data.prediction.breed,
+      topConfidence: data.prediction.confidence / 100,
     };
-  } catch (error) {
+  } catch (error: any) {
+    // If the breed API is unavailable, throw a descriptive error
+    if (error.response?.status === 503) {
+      throw new Error(
+        "Breed identification service is currently unavailable. Please try again later.",
+      );
+    }
     console.error("Breed identification error:", error);
     throw error;
   }
@@ -206,7 +327,10 @@ export const identifyBreedFromImage = async (
  * @param breed Breed name
  * @param species "Dog" or "Cat"
  */
-export const getBreedInfo = (breed: string, species: "Dog" | "Cat"): {
+export const getBreedInfo = (
+  breed: string,
+  species: "Dog" | "Cat",
+): {
   name: string;
   description: string;
   characteristics: string[];
@@ -215,32 +339,36 @@ export const getBreedInfo = (breed: string, species: "Dog" | "Cat"): {
 } | null => {
   // This is a simplified breed info database
   // In production, you would fetch this from a comprehensive database or API
-  
+
   const dogBreedInfo: Record<string, any> = {
     "Labrador Retriever": {
       name: "Labrador Retriever",
-      description: "Friendly, active, and outgoing. Labs are excellent family dogs.",
+      description:
+        "Friendly, active, and outgoing. Labs are excellent family dogs.",
       characteristics: ["Water-resistant coat", "Otter-like tail", "Kind eyes"],
       sizeCategory: "large",
       temperament: ["Friendly", "Active", "Outgoing", "Gentle"],
     },
     "German Shepherd": {
       name: "German Shepherd",
-      description: "Confident, courageous, and smart. One of the most versatile breeds.",
+      description:
+        "Confident, courageous, and smart. One of the most versatile breeds.",
       characteristics: ["Double coat", "Pointed ears", "Muscular build"],
       sizeCategory: "large",
       temperament: ["Confident", "Courageous", "Smart", "Loyal"],
     },
     "Golden Retriever": {
       name: "Golden Retriever",
-      description: "Devoted, friendly, and intelligent. Great with families and children.",
+      description:
+        "Devoted, friendly, and intelligent. Great with families and children.",
       characteristics: ["Golden coat", "Feathered fur", "Soft mouth"],
       sizeCategory: "large",
       temperament: ["Friendly", "Reliable", "Trustworthy", "Kind"],
     },
-    "Aspin": {
+    Aspin: {
       name: "Aspin (Asong Pinoy)",
-      description: "Native Philippine mixed breed dogs known for their resilience and adaptability.",
+      description:
+        "Native Philippine mixed breed dogs known for their resilience and adaptability.",
       characteristics: ["Varied appearance", "Weather-resistant", "Adaptable"],
       sizeCategory: "medium",
       temperament: ["Loyal", "Alert", "Adaptable", "Friendly"],
@@ -248,21 +376,23 @@ export const getBreedInfo = (breed: string, species: "Dog" | "Cat"): {
   };
 
   const catBreedInfo: Record<string, any> = {
-    "Siamese": {
+    Siamese: {
       name: "Siamese",
-      description: "Vocal, social, and intelligent cats with striking blue eyes.",
+      description:
+        "Vocal, social, and intelligent cats with striking blue eyes.",
       characteristics: ["Blue almond eyes", "Color points", "Sleek body"],
       sizeCategory: "medium",
       temperament: ["Vocal", "Social", "Intelligent", "Affectionate"],
     },
-    "Persian": {
+    Persian: {
       name: "Persian",
-      description: "Calm, sweet, and gentle cats known for their luxurious coats.",
+      description:
+        "Calm, sweet, and gentle cats known for their luxurious coats.",
       characteristics: ["Long coat", "Flat face", "Round eyes"],
       sizeCategory: "medium",
       temperament: ["Calm", "Sweet", "Gentle", "Quiet"],
     },
-    "Puspin": {
+    Puspin: {
       name: "Puspin (Pusang Pinoy)",
       description: "Native Philippine mixed breed cats, hardy and adaptable.",
       characteristics: ["Varied appearance", "Hardy constitution", "Adaptable"],
@@ -280,9 +410,24 @@ export const getBreedInfo = (breed: string, species: "Dog" | "Cat"): {
  * @param breed Breed name to validate
  * @param species "Dog" or "Cat"
  */
-export const isValidBreed = (breed: string, species: "Dog" | "Cat"): boolean => {
+export const isValidBreed = (
+  breed: string,
+  species: "Dog" | "Cat",
+): boolean => {
   const breeds = species === "Cat" ? CAT_BREEDS : DOG_BREEDS;
-  return breeds.some(b => b.toLowerCase() === breed.toLowerCase());
+  // Direct match against preset list
+  if (breeds.some((b) => b.toLowerCase() === breed.toLowerCase())) return true;
+  // Support mixed breed format ("Breed1 × Breed2 Mix") — valid if both parents are valid breeds
+  if (breed.includes("×")) {
+    const parts = breed.split("×").map((p) => p.replace(/\s*Mix$/i, "").trim());
+    return (
+      parts.length === 2 &&
+      parts.every((part) =>
+        breeds.some((b) => b.toLowerCase() === part.toLowerCase()),
+      )
+    );
+  }
+  return false;
 };
 
 /**
@@ -290,9 +435,40 @@ export const isValidBreed = (breed: string, species: "Dog" | "Cat"): boolean => 
  * @param species "Dog" or "Cat"
  * @param limit Number of breeds to return
  */
-export const getPopularBreeds = (species: "Dog" | "Cat", limit: number = 6): string[] => {
+export const getPopularBreeds = (
+  species: "Dog" | "Cat",
+  limit: number = 6,
+): string[] => {
   if (species === "Cat") {
-    return ["Siamese", "Persian", "Maine Coon", "Ragdoll", "British Shorthair", "Puspin"].slice(0, limit);
+    return [
+      "Siamese",
+      "Persian",
+      "Maine Coon",
+      "Ragdoll",
+      "British Shorthair",
+      "Puspin",
+    ].slice(0, limit);
   }
-  return ["Labrador Retriever", "German Shepherd", "Golden Retriever", "Bulldog", "Beagle", "Aspin"].slice(0, limit);
+  return [
+    "Labrador Retriever",
+    "German Shepherd",
+    "Golden Retriever",
+    "Bulldog",
+    "Beagle",
+    "Aspin",
+  ].slice(0, limit);
+};
+
+/**
+ * Check if the breed identification AI service is available.
+ */
+export const checkBreedServiceHealth = async (): Promise<boolean> => {
+  try {
+    const response = await axiosInstance.get("/api/breed-identify/health", {
+      timeout: 5000,
+    });
+    return response.data?.available === true;
+  } catch {
+    return false;
+  }
 };

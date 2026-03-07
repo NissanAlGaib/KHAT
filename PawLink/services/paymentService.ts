@@ -1,5 +1,13 @@
 import axiosInstance from "@/config/axiosConfig";
 
+export type PoolStatus =
+  | "not_pooled"
+  | "in_pool"
+  | "released"
+  | "refunded"
+  | "frozen"
+  | "partially_refunded";
+
 export interface Payment {
   id: number;
   user_id: number;
@@ -12,6 +20,7 @@ export interface Payment {
   paymongo_checkout_url: string | null;
   paymongo_payment_id: string | null;
   status: PaymentStatus;
+  pool_status: PoolStatus | null;
   paid_at: string | null;
   expires_at: string | null;
   created_at: string;
@@ -65,7 +74,7 @@ export interface VerifyPaymentResponse {
  * Create a PayMongo checkout session for payment
  */
 export const createCheckout = async (
-  params: CreateCheckoutParams
+  params: CreateCheckoutParams,
 ): Promise<ApiResponse<CheckoutResponse>> => {
   try {
     const response = await axiosInstance.post("/api/payments/checkout", params);
@@ -85,11 +94,11 @@ export const createCheckout = async (
  * Verify a payment status
  */
 export const verifyPayment = async (
-  paymentId: number
+  paymentId: number,
 ): Promise<ApiResponse<VerifyPaymentResponse>> => {
   try {
     const response = await axiosInstance.get(
-      `/api/payments/${paymentId}/verify`
+      `/api/payments/${paymentId}/verify`,
     );
     return {
       success: true,
@@ -125,11 +134,11 @@ export const getPayments = async (): Promise<ApiResponse<Payment[]>> => {
  * Get payments for a specific contract
  */
 export const getContractPayments = async (
-  contractId: number
+  contractId: number,
 ): Promise<ApiResponse<Payment[]>> => {
   try {
     const response = await axiosInstance.get(
-      `/api/contracts/${contractId}/payments`
+      `/api/contracts/${contractId}/payments`,
     );
     return {
       success: true,
@@ -172,7 +181,7 @@ export const getPaymentTypeLabel = (type: PaymentType): string => {
  * Helper function to get status color for UI
  */
 export const getPaymentStatusColor = (
-  status: PaymentStatus
+  status: PaymentStatus,
 ): { bg: string; text: string } => {
   const colors: Record<PaymentStatus, { bg: string; text: string }> = {
     pending: { bg: "bg-yellow-100", text: "text-yellow-800" },

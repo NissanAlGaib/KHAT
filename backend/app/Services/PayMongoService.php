@@ -307,6 +307,130 @@ class PayMongoService
     }
 
     /**
+     * Create a refund for a payment
+     *
+     * @param string $paymentId The PayMongo payment ID (pay_xxx)
+     * @param int $amountInCentavos Amount to refund in centavos
+     * @param string $reason Reason for the refund
+     * @return array{success: bool, refund_id?: string, status?: string, error?: string}
+     */
+    public function createRefund(string $paymentId, int $amountInCentavos, string $reason = 'requested_by_customer'): array
+    {
+        if (! $this->isConfigured()) {
+            Log::warning('PayMongo API keys not configured for refund');
+
+            return [
+                'success' => false,
+                'error' => 'Payment service not configured.',
+            ];
+        }
+
+        $payload = [
+            'data' => [
+                'attributes' => [
+                    'amount' => $amountInCentavos,
+                    'payment_id' => $paymentId,
+                    'reason' => $reason,
+                    'notes' => 'PawLink pool refund',
+                ],
+            ],
+        ];
+
+        try {
+            $response = $this->getHttpClient()
+                ->post("{$this->baseUrl}/refunds", $payload);
+
+            if ($response->successful()) {
+                $data = $response->json()['data'];
+
+                Log::info('PayMongo refund created', [
+                    'refund_id' => $data['id'],
+                    'payment_id' => $paymentId,
+                    'amount' => $amountInCentavos,
+                    'status' => $data['attributes']['status'],
+                ]);
+
+                return [
+                    'success' => true,
+                    'refund_id' => $data['id'],
+                    'status' => $data['attributes']['status'],
+                ];
+            }
+
+            Log::error('PayMongo refund creation failed', [
+                'payment_id' => $paymentId,
+                'status' => $response->status(),
+                'body' => $response->body(),
+            ]);
+
+            $errorMessage = 'Failed to create refund';
+            $responseData = $response->json();
+            if (isset($responseData['errors'][0]['detail'])) {
+                $errorMessage = $responseData['errors'][0]['detail'];
+            }
+
+            return [
+                'success' => false,
+                'error' => $errorMessage,
+            ];
+        } catch (\Exception $e) {
+            Log::error('PayMongo refund exception', [
+                'payment_id' => $paymentId,
+                'message' => $e->getMessage(),
+            ]);
+
+            return [
+                'success' => false,
+                'error' => 'Payment service temporarily unavailable. Please try again later.',
+            ];
+        }
+    }
+
+    /**
+     * Retrieve a refund by ID
+     *
+     * @param string $refundId The PayMongo refund ID (ref_xxx)
+     * @return array{success: bool, data?: array, error?: string}
+     */
+    public function getRefund(string $refundId): array
+    {
+        try {
+            $response = $this->getHttpClient()
+                ->get("{$this->baseUrl}/refunds/{$refundId}");
+
+            if ($response->successful()) {
+                $data = $response->json()['data'];
+
+                return [
+                    'success' => true,
+                    'data' => [
+                        'id' => $data['id'],
+                        'amount' => $data['attributes']['amount'] / 100, // Convert from centavos
+                        'status' => $data['attributes']['status'],
+                        'reason' => $data['attributes']['reason'] ?? null,
+                        'payment_id' => $data['attributes']['payment_id'] ?? null,
+                    ],
+                ];
+            }
+
+            return [
+                'success' => false,
+                'error' => 'Refund not found',
+            ];
+        } catch (\Exception $e) {
+            Log::error('PayMongo get refund exception', [
+                'refund_id' => $refundId,
+                'message' => $e->getMessage(),
+            ]);
+
+            return [
+                'success' => false,
+                'error' => 'Payment service unavailable',
+            ];
+        }
+    }
+
+    /**
      * Get the public key for frontend use
      */
     public function getPublicKey(): string

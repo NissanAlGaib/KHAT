@@ -6,104 +6,132 @@ import {
   ScrollView,
   ActivityIndicator,
   Linking,
-  StyleSheet,
   AppState,
   AppStateStatus,
+  Dimensions,
+  FlatList,
+  StyleSheet,
+  Animated as RNAnimated,
 } from "react-native";
-import { SafeAreaView } from "react-native-safe-area-context";
 import { useRouter } from "expo-router";
 import { Feather } from "@expo/vector-icons";
+import { LinearGradient } from "expo-linear-gradient";
+import { SafeAreaView } from "react-native-safe-area-context";
+import { StatusBar } from "react-native";
 import { useAlert } from "@/hooks/useAlert";
 import AlertModal from "@/components/core/AlertModal";
-import axiosInstance from "@/config/axiosConfig";
+import { API_BASE_URL } from "@/config/env";
 import { useSession } from "@/context/AuthContext";
+import { Colors, Shadows } from "@/constants";
+import {
+  getSubscriptionPlans,
+  createSubscriptionCheckout,
+  verifyPayment,
+  type SubscriptionPlan,
+} from "@/services/subscriptionService";
+import axiosInstance from "@/config/axiosConfig";
 
-interface SubscriptionPlan {
-  id: string;
-  name: string;
-  monthlyPrice: number;
-  yearlyPrice: number;
-  features: string[];
-  highlighted?: boolean;
-}
+const { width: SCREEN_WIDTH } = Dimensions.get("window");
+const CARD_WIDTH = SCREEN_WIDTH * 0.82;
+const CARD_SPACING = 12;
 
-const SUBSCRIPTION_PLANS: SubscriptionPlan[] = [
-  {
-    id: "standard",
-    name: "Standard",
-    monthlyPrice: 199,
-    yearlyPrice: 1990,
-    features: [
-      "Up to 3 pet profiles",
-      "Basic matching algorithm",
-      "Standard support",
-      "Access to all pets",
-      "View shooter profiles",
-    ],
-  },
-  {
-    id: "premium",
-    name: "Premium",
-    monthlyPrice: 499,
-    yearlyPrice: 4990,
-    features: [
-      "Unlimited pet profiles",
-      "Advanced AI matching",
-      "Priority support",
-      "Featured pet listings",
-      "Verified badge",
-      "Analytics dashboard",
-      "Contract templates",
-      "Direct shooter booking",
-    ],
-    highlighted: true,
-  },
+// ─── Gradient accents per plan (header strip only) ────────────────
+const PLAN_HEADER_GRADIENTS: Record<string, readonly [string, string]> = {
+  standard: ["#2563EB", "#60A5FA"] as const,
+  premium: ["#D97706", "#FBBF24"] as const,
+};
+
+const PLAN_ACCENT: Record<string, string> = {
+  standard: "#2563EB",
+  premium: "#D97706",
+};
+
+// ─── Free plan card config ────────────────────────────────────────
+const FREE_PLAN_FEATURES = [
+  "1 pet profile",
+  "3 matches per month",
+  "1 AI generation per day",
+  "Community support",
 ];
 
+// ═══════════════════════════════════════════════════════════════════
+// MAIN SCREEN
+// ═══════════════════════════════════════════════════════════════════
 export default function SubscriptionScreen() {
   const router = useRouter();
   const { visible, alertOptions, showAlert, hideAlert } = useAlert();
-  const { updateUser } = useSession();
+  const { user, updateUser } = useSession();
+
+  // Data state
+  const [plans, setPlans] = useState<SubscriptionPlan[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [currentTier, setCurrentTier] = useState<string>("free");
+  const [expiresAt, setExpiresAt] = useState<string | null>(null);
+
+  // Billing & payment state
   const [billingCycle, setBillingCycle] = useState<"monthly" | "yearly">(
-    "monthly"
+    "monthly",
   );
   const [loadingPlan, setLoadingPlan] = useState<string | null>(null);
   const [pendingPaymentId, setPendingPaymentId] = useState<number | null>(null);
   const [checkingPayment, setCheckingPayment] = useState(false);
+
+  // Carousel state
+  const [activeIndex, setActiveIndex] = useState(0);
+  const flatListRef = useRef<FlatList>(null);
+  const scrollX = useRef(new RNAnimated.Value(0)).current;
   const appState = useRef(AppState.currentState);
 
+  // ─── Fetch plans from API ────────────────────────────────────────
+  useEffect(() => {
+    (async () => {
+      try {
+        const res = await getSubscriptionPlans();
+        if (res.success) {
+          setPlans(res.data);
+          if (res.current_subscription) {
+            setCurrentTier(res.current_subscription.tier);
+            setExpiresAt(res.current_subscription.expires_at ?? null);
+          }
+        }
+      } catch (e) {
+        console.error("Error fetching subscription plans:", e);
+        showAlert({
+          title: "Error",
+          message: "Could not load subscription plans. Please try again.",
+          type: "error",
+          buttons: [{ text: "Retry", onPress: () => router.back() }],
+        });
+      } finally {
+        setLoading(false);
+      }
+    })();
+  }, []);
+
+  // ─── Payment verification ───────────────────────────────────────
   const checkPaymentStatus = useCallback(
     async (paymentId: number) => {
       setCheckingPayment(true);
       try {
-        const response = await axiosInstance.get(
-          `/api/payments/${paymentId}/verify`
-        );
+        const response = await verifyPayment(paymentId);
 
-        if (response.data.success && response.data.data?.status === "paid") {
+        if (response.success && response.data?.status === "paid") {
           setPendingPaymentId(null);
-
-          // Refresh user data to get updated subscription tier
           try {
             const userResponse = await axiosInstance.get("/api/user");
             await updateUser(userResponse.data);
-          } catch (error) {
-            console.error("Error refreshing user data:", error);
+          } catch (err) {
+            console.error("Error refreshing user data:", err);
           }
 
           showAlert({
-            title: "Payment Successful! 🎉",
+            title: "Welcome Aboard!",
             message:
-              "Your subscription has been activated. Enjoy your premium features!",
+              "Your subscription is now active. Enjoy all the premium features!",
             type: "success",
-            buttons: [
-              {
-                text: "OK",
-                onPress: () => router.back(),
-              },
-            ],
+            buttons: [{ text: "Let's Go!", onPress: () => router.back() }],
           });
-        } else if (response.data.data?.status === "expired") {
+        } else if (response.data?.status === "expired") {
           setPendingPaymentId(null);
           showAlert({
             title: "Payment Expired",
@@ -115,7 +143,7 @@ export default function SubscriptionScreen() {
           showAlert({
             title: "Payment Pending",
             message:
-              "We haven't received your payment yet. If you completed the payment, it may take a moment to process.",
+              "We haven't received your payment yet. It may take a moment to process.",
             type: "info",
             buttons: [
               { text: "Check Again" },
@@ -124,10 +152,10 @@ export default function SubscriptionScreen() {
           });
         }
       } catch (error) {
-        console.error("Error checking payment status:", error);
+        console.error("Error checking payment:", error);
         showAlert({
           title: "Error",
-          message: "Unable to verify payment status. Please try again.",
+          message: "Unable to verify payment. Please try again.",
           type: "error",
           buttons: [{ text: "OK" }],
         });
@@ -135,10 +163,10 @@ export default function SubscriptionScreen() {
         setCheckingPayment(false);
       }
     },
-    [router, showAlert, updateUser]
+    [router, showAlert, updateUser],
   );
 
-  // Check payment status when app comes back to foreground
+  // Auto-check on app foreground
   useEffect(() => {
     const handleAppStateChange = async (nextAppState: AppStateStatus) => {
       if (
@@ -146,90 +174,67 @@ export default function SubscriptionScreen() {
         nextAppState === "active" &&
         pendingPaymentId
       ) {
-        // App has come to the foreground, check payment status
         await checkPaymentStatus(pendingPaymentId);
       }
       appState.current = nextAppState;
     };
-
-    const subscription = AppState.addEventListener(
-      "change",
-      handleAppStateChange
-    );
-    return () => {
-      subscription.remove();
-    };
+    const sub = AppState.addEventListener("change", handleAppStateChange);
+    return () => sub.remove();
   }, [pendingPaymentId, checkPaymentStatus]);
 
-  const formatPrice = (price: number) => {
-    return new Intl.NumberFormat("en-PH", {
+  // ─── Helpers ─────────────────────────────────────────────────────
+  const formatPrice = (price: number) =>
+    new Intl.NumberFormat("en-PH", {
       style: "currency",
       currency: "PHP",
       minimumFractionDigits: 0,
     }).format(price);
-  };
 
-  const getYearlySavings = (plan: SubscriptionPlan) => {
-    const monthlyTotal = plan.monthlyPrice * 12;
-    const savings = monthlyTotal - plan.yearlyPrice;
-    return savings;
-  };
+  const getYearlySavings = (plan: SubscriptionPlan) =>
+    plan.monthly_price * 12 - plan.yearly_price;
 
-  const getMaxSavingsPercentage = () => {
-    // Calculate the maximum savings percentage across all plans
-    let maxSavings = 0;
-    SUBSCRIPTION_PLANS.forEach((plan) => {
-      const monthlyTotal = plan.monthlyPrice * 12;
-      const savingsPercent =
-        ((monthlyTotal - plan.yearlyPrice) / monthlyTotal) * 100;
-      if (savingsPercent > maxSavings) {
-        maxSavings = savingsPercent;
-      }
+  const getMaxSavingsPercent = () => {
+    let max = 0;
+    plans.forEach((p) => {
+      const pct =
+        ((p.monthly_price * 12 - p.yearly_price) / (p.monthly_price * 12)) *
+        100;
+      if (pct > max) max = pct;
     });
-    return Math.round(maxSavings);
+    return Math.round(max);
   };
 
+  // ─── Subscribe handler ──────────────────────────────────────────
   const handleSubscribe = async (plan: SubscriptionPlan) => {
     setLoadingPlan(plan.id);
-
     try {
       const amount =
-        billingCycle === "monthly" ? plan.monthlyPrice : plan.yearlyPrice;
+        billingCycle === "monthly" ? plan.monthly_price : plan.yearly_price;
+      const successUrl = `${API_BASE_URL}/payment/redirect?status=success`;
+      const cancelUrl = `${API_BASE_URL}/payment/redirect?status=cancel`;
 
-      // PayMongo requires HTTPS URLs for success/cancel redirects
-      // For mobile apps, we use placeholder URLs since the actual redirect
-      // happens in a browser and we verify payment status via API
-      const successUrl = "https://pawlink.app/payment/success";
-      const cancelUrl = "https://pawlink.app/payment/cancel";
-
-      // Create a checkout session via the backend
-      const response = await axiosInstance.post("/api/subscriptions/checkout", {
+      const res = await createSubscriptionCheckout({
         plan_id: plan.id,
         billing_cycle: billingCycle,
-        amount: amount,
+        amount,
         success_url: successUrl,
         cancel_url: cancelUrl,
       });
 
-      if (response.data.success && response.data.data?.checkout_url) {
-        // Open the PayMongo checkout URL in the browser
-        const canOpen = await Linking.canOpenURL(
-          response.data.data.checkout_url
-        );
+      if (res.success && res.data?.checkout_url) {
+        const canOpen = await Linking.canOpenURL(res.data.checkout_url);
         if (canOpen) {
-          // Store the payment ID for status checking
-          const paymentId = response.data.data.payment_id;
+          const paymentId = res.data.payment_id;
           setPendingPaymentId(paymentId);
-
-          await Linking.openURL(response.data.data.checkout_url);
+          await Linking.openURL(res.data.checkout_url);
           showAlert({
             title: "Complete Your Payment",
             message:
-              "You've been redirected to PayMongo to complete your payment. After paying, return to the app and we'll verify your subscription.",
+              "You've been redirected to PayMongo. Return here after paying to verify your subscription.",
             type: "info",
             buttons: [
               {
-                text: "I've Completed Payment",
+                text: "I've Paid",
                 onPress: () => checkPaymentStatus(paymentId),
               },
               { text: "Cancel" },
@@ -239,18 +244,14 @@ export default function SubscriptionScreen() {
           throw new Error("Cannot open payment URL");
         }
       } else {
-        throw new Error(response.data.message || "Failed to create checkout");
+        throw new Error(res.message || "Failed to create checkout");
       }
     } catch (error: any) {
-      console.error("Subscription error:", error);
-
-      // Extract error message from response
-      const errorMessage =
+      const msg =
         error.response?.data?.message || error.message || "An error occurred";
-
       showAlert({
         title: "Subscription Error",
-        message: errorMessage,
+        message: msg,
         type: "error",
         buttons: [{ text: "OK" }],
       });
@@ -259,166 +260,422 @@ export default function SubscriptionScreen() {
     }
   };
 
-  return (
-    <SafeAreaView style={styles.container} edges={["top"]}>
-      {/* Pending Payment Banner */}
-      {pendingPaymentId && (
-        <View style={styles.pendingBanner}>
-          <View style={styles.pendingBannerContent}>
-            <Feather name="clock" size={20} color="#fff" />
-            <Text style={styles.pendingBannerText}>
-              Payment pending verification
-            </Text>
+  // ─── Pagination dot component ───────────────────────────────────
+  const renderDots = () => (
+    <View style={s.dotsContainer}>
+      {plans.map((_, i) => {
+        const inputRange = [
+          (i - 1) * (CARD_WIDTH + CARD_SPACING),
+          i * (CARD_WIDTH + CARD_SPACING),
+          (i + 1) * (CARD_WIDTH + CARD_SPACING),
+        ];
+        const dotWidth = scrollX.interpolate({
+          inputRange,
+          outputRange: [8, 24, 8],
+          extrapolate: "clamp",
+        });
+        const dotOpacity = scrollX.interpolate({
+          inputRange,
+          outputRange: [0.25, 1, 0.25],
+          extrapolate: "clamp",
+        });
+        return (
+          <RNAnimated.View
+            key={i}
+            style={{
+              width: dotWidth,
+              height: 6,
+              borderRadius: 3,
+              backgroundColor: Colors.primary,
+              opacity: dotOpacity,
+              marginHorizontal: 3,
+            }}
+          />
+        );
+      })}
+    </View>
+  );
+
+  // ─── Current-plan badge ─────────────────────────────────────────
+  const renderCurrentPlanBadge = () => {
+    const tierLabel =
+      currentTier.charAt(0).toUpperCase() + currentTier.slice(1);
+    const isFreeTier = currentTier === "free";
+
+    return (
+      <View style={s.sectionPadding}>
+        <View style={s.currentPlanCard}>
+          <View style={s.currentPlanRow}>
+            <View style={s.currentPlanLeft}>
+              <View
+                style={[
+                  s.currentPlanIcon,
+                  {
+                    backgroundColor: isFreeTier
+                      ? Colors.bgTertiary
+                      : Colors.warningLight,
+                  },
+                ]}
+              >
+                <Feather
+                  name={isFreeTier ? "user" : "award"}
+                  size={18}
+                  color={isFreeTier ? Colors.textMuted : Colors.warning}
+                />
+              </View>
+              <View style={{ marginLeft: 12, flex: 1 }}>
+                <Text style={s.currentPlanLabel}>CURRENT PLAN</Text>
+                <Text style={s.currentPlanTier}>{tierLabel}</Text>
+              </View>
+            </View>
+            {!isFreeTier && expiresAt ? (
+              <View style={s.activeBadge}>
+                <Text style={s.activeBadgeText}>Active</Text>
+              </View>
+            ) : isFreeTier ? (
+              <View style={s.freeBadge}>
+                <Text style={s.freeBadgeText}>Free Tier</Text>
+              </View>
+            ) : null}
           </View>
+        </View>
+      </View>
+    );
+  };
+
+  // ─── Pending-payment banner ─────────────────────────────────────
+  const renderPendingBanner = () => {
+    if (!pendingPaymentId) return null;
+    return (
+      <View style={s.sectionPadding}>
+        <View style={s.pendingBanner}>
+          <Feather name="clock" size={20} color={Colors.warning} />
+          <Text style={s.pendingText}>Payment pending verification</Text>
           <TouchableOpacity
-            style={styles.verifyButton}
+            style={s.pendingVerifyBtn}
             onPress={() => checkPaymentStatus(pendingPaymentId)}
             disabled={checkingPayment}
           >
             {checkingPayment ? (
-              <ActivityIndicator color="#ea5b3a" size="small" />
+              <ActivityIndicator color={Colors.warning} size="small" />
             ) : (
-              <Text style={styles.verifyButtonText}>Verify Payment</Text>
+              <Text style={s.pendingVerifyText}>Verify</Text>
             )}
           </TouchableOpacity>
         </View>
-      )}
-
-      {/* Header */}
-      <View style={styles.header}>
-        <TouchableOpacity
-          onPress={() => router.back()}
-          style={styles.backButton}
-        >
-          <Feather name="arrow-left" size={24} color="#333" />
-        </TouchableOpacity>
-        <Text style={styles.headerTitle}>Subscription Plans</Text>
-        <View style={{ width: 40 }} />
       </View>
+    );
+  };
 
-      <ScrollView
-        style={styles.content}
-        contentContainerStyle={styles.scrollContent}
-        showsVerticalScrollIndicator={false}
-      >
-        {/* Billing Toggle */}
-        <View style={styles.toggleContainer}>
-          <TouchableOpacity
+  // ─── Billing toggle ─────────────────────────────────────────────
+  const renderBillingToggle = () => (
+    <View style={s.sectionPadding}>
+      <View style={s.toggleContainer}>
+        <TouchableOpacity
+          style={[
+            s.toggleOption,
+            billingCycle === "monthly" && s.toggleOptionActive,
+          ]}
+          onPress={() => setBillingCycle("monthly")}
+        >
+          <Text
             style={[
-              styles.toggleButton,
-              billingCycle === "monthly" && styles.toggleButtonActive,
+              s.toggleText,
+              billingCycle === "monthly" && s.toggleTextActive,
             ]}
-            onPress={() => setBillingCycle("monthly")}
           >
-            <Text
-              style={[
-                styles.toggleText,
-                billingCycle === "monthly" && styles.toggleTextActive,
-              ]}
-            >
-              Monthly
-            </Text>
-          </TouchableOpacity>
-          <TouchableOpacity
+            Monthly
+          </Text>
+        </TouchableOpacity>
+
+        <TouchableOpacity
+          style={[
+            s.toggleOption,
+            s.toggleOptionRight,
+            billingCycle === "yearly" && s.toggleOptionActive,
+          ]}
+          onPress={() => setBillingCycle("yearly")}
+        >
+          <Text
             style={[
-              styles.toggleButton,
-              billingCycle === "yearly" && styles.toggleButtonActive,
+              s.toggleText,
+              billingCycle === "yearly" && s.toggleTextActive,
             ]}
-            onPress={() => setBillingCycle("yearly")}
           >
-            <Text
-              style={[
-                styles.toggleText,
-                billingCycle === "yearly" && styles.toggleTextActive,
-              ]}
-            >
-              Yearly
-            </Text>
-            <View style={styles.saveBadge}>
-              <Text style={styles.saveBadgeText}>
-                Save up to {getMaxSavingsPercentage()}%
-              </Text>
+            Yearly
+          </Text>
+          {plans.length > 0 && (
+            <View style={s.savingsBadge}>
+              <Text style={s.savingsText}>-{getMaxSavingsPercent()}%</Text>
             </View>
-          </TouchableOpacity>
-        </View>
+          )}
+        </TouchableOpacity>
+      </View>
+    </View>
+  );
 
-        {/* Subscription Plans */}
-        {SUBSCRIPTION_PLANS.map((plan) => (
-          <View
-            key={plan.id}
-            style={[
-              styles.planCard,
-              plan.highlighted && styles.planCardHighlighted,
-            ]}
+  // ─── Single plan card ───────────────────────────────────────────
+  const renderPlanCard = ({
+    item: plan,
+    index,
+  }: {
+    item: SubscriptionPlan;
+    index: number;
+  }) => {
+    const headerGradient = PLAN_HEADER_GRADIENTS[plan.id] ?? [
+      "#6B7280",
+      "#9CA3AF",
+    ];
+    const accent = PLAN_ACCENT[plan.id] ?? Colors.textSecondary;
+    const isCurrentPlan =
+      currentTier === plan.id ||
+      (currentTier === "basic" && plan.id === "standard");
+    const price =
+      billingCycle === "monthly" ? plan.monthly_price : plan.yearly_price;
+    const perMonthPrice =
+      billingCycle === "yearly"
+        ? Math.round(plan.yearly_price / 12)
+        : plan.monthly_price;
+
+    return (
+      <View style={{ width: CARD_WIDTH, marginHorizontal: CARD_SPACING / 2 }}>
+        <View
+          style={[
+            s.planCard,
+            plan.highlighted && {
+              borderColor: PLAN_ACCENT[plan.id] || Colors.borderLight,
+              borderWidth: 2,
+            },
+          ]}
+        >
+          {/* Gradient header strip */}
+          <LinearGradient
+            colors={headerGradient as unknown as string[]}
+            start={{ x: 0, y: 0 }}
+            end={{ x: 1, y: 0 }}
+            style={s.planHeader}
           >
-            {plan.highlighted && (
-              <View style={styles.popularBadge}>
-                <Text style={styles.popularBadgeText}>MOST POPULAR</Text>
+            <View style={s.planHeaderRow}>
+              <View style={s.planIconCircle}>
+                <Feather name={plan.icon as any} size={18} color="#fff" />
+              </View>
+              <Text style={s.planHeaderName}>{plan.name}</Text>
+            </View>
+            {plan.highlighted && !isCurrentPlan && (
+              <View style={s.bestValueBadge}>
+                <Text style={s.bestValueText}>BEST VALUE</Text>
               </View>
             )}
+            {isCurrentPlan && (
+              <View style={s.currentBadge}>
+                <Text style={s.currentBadgeText}>CURRENT</Text>
+              </View>
+            )}
+          </LinearGradient>
 
-            <Text style={styles.planName}>{plan.name}</Text>
-
-            <View style={styles.priceContainer}>
-              <Text style={styles.priceAmount}>
-                {formatPrice(
-                  billingCycle === "monthly"
-                    ? plan.monthlyPrice
-                    : plan.yearlyPrice
-                )}
+          {/* White body */}
+          <View style={s.planBody}>
+            {/* Price */}
+            <View style={s.priceRow}>
+              <Text style={[s.priceAmount, { color: accent }]}>
+                {formatPrice(price)}
               </Text>
-              <Text style={styles.pricePeriod}>
-                /{billingCycle === "monthly" ? "month" : "year"}
+              <Text style={s.pricePeriod}>
+                /{billingCycle === "monthly" ? "mo" : "yr"}
               </Text>
             </View>
-
             {billingCycle === "yearly" && (
-              <Text style={styles.savingsText}>
-                Save {formatPrice(getYearlySavings(plan))} per year
+              <Text style={s.priceSaving}>
+                {formatPrice(perMonthPrice)}/mo · Save{" "}
+                <Text style={{ color: Colors.success }}>
+                  {formatPrice(getYearlySavings(plan))}
+                </Text>
               </Text>
             )}
 
-            <View style={styles.featuresContainer}>
-              {plan.features.map((feature, index) => (
-                <View key={index} style={styles.featureRow}>
-                  <Feather
-                    name="check-circle"
-                    size={18}
-                    color={plan.highlighted ? "#ea5b3a" : "#10b981"}
-                  />
-                  <Text style={styles.featureText}>{feature}</Text>
+            {/* Divider */}
+            <View style={s.divider} />
+
+            {/* Features list */}
+            <View style={s.featuresList}>
+              <Text style={s.featuresLabel}>WHAT'S INCLUDED</Text>
+              {plan.features.map((feature, idx) => (
+                <View key={idx} style={s.featureRow}>
+                  <View
+                    style={[s.featureCheck, { backgroundColor: accent + "15" }]}
+                  >
+                    <Feather name="check" size={13} color={accent} />
+                  </View>
+                  <Text style={s.featureText}>{feature}</Text>
                 </View>
               ))}
             </View>
 
+            {/* CTA button */}
             <TouchableOpacity
               style={[
-                styles.subscribeButton,
-                plan.highlighted && styles.subscribeButtonHighlighted,
+                s.ctaButton,
+                isCurrentPlan
+                  ? s.ctaButtonDisabled
+                  : { backgroundColor: accent },
               ]}
-              onPress={() => handleSubscribe(plan)}
-              disabled={loadingPlan !== null}
+              activeOpacity={0.8}
+              onPress={() => !isCurrentPlan && handleSubscribe(plan)}
+              disabled={isCurrentPlan || loadingPlan === plan.id}
             >
               {loadingPlan === plan.id ? (
-                <ActivityIndicator color="white" size="small" />
+                <ActivityIndicator
+                  color={isCurrentPlan ? Colors.textDisabled : "#fff"}
+                  size="small"
+                />
               ) : (
-                <Text style={styles.subscribeButtonText}>
-                  Subscribe to {plan.name}
+                <Text
+                  style={[
+                    s.ctaText,
+                    isCurrentPlan
+                      ? { color: Colors.textDisabled }
+                      : { color: "#fff" },
+                  ]}
+                >
+                  {isCurrentPlan ? "Current Plan" : `Get ${plan.name}`}
                 </Text>
               )}
             </TouchableOpacity>
           </View>
-        ))}
-
-        {/* Info Section */}
-        <View style={styles.infoSection}>
-          <Feather name="info" size={20} color="#666" />
-          <Text style={styles.infoText}>
-            All plans include a 7-day free trial. Cancel anytime. Payments are
-            processed securely via PayMongo.
-          </Text>
         </View>
-      </ScrollView>
+      </View>
+    );
+  };
+
+  // ─── Loading state ──────────────────────────────────────────────
+  if (loading) {
+    return (
+      <View style={s.screen}>
+        <SafeAreaView style={s.loadingCenter}>
+          <ActivityIndicator color={Colors.primary} size="large" />
+          <Text style={s.loadingText}>Loading plans...</Text>
+        </SafeAreaView>
+      </View>
+    );
+  }
+
+  // ─── Main render ────────────────────────────────────────────────
+  return (
+    <View style={s.screen}>
+      <SafeAreaView style={{ flex: 1 }} edges={["top"]}>
+        <StatusBar barStyle="dark-content" backgroundColor={Colors.bgApp} />
+
+        {/* ── Header ─────────────────────────────────────────── */}
+        <View style={s.header}>
+          <TouchableOpacity
+            onPress={() => router.back()}
+            style={s.backButton}
+            activeOpacity={0.7}
+            hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+          >
+            <Feather name="arrow-left" size={22} color={Colors.textPrimary} />
+          </TouchableOpacity>
+          <View style={{ flex: 1, marginLeft: 12 }}>
+            <Text style={s.headerTitle}>Subscription</Text>
+            <Text style={s.headerSubtitle}>
+              Choose the plan that fits your needs
+            </Text>
+          </View>
+        </View>
+
+        <ScrollView
+          style={{ flex: 1 }}
+          contentContainerStyle={{ paddingBottom: 40 }}
+          showsVerticalScrollIndicator={false}
+        >
+          {/* ── Current plan badge ─────────────────────────────── */}
+          {renderCurrentPlanBadge()}
+
+          {/* ── Pending payment banner ─────────────────────────── */}
+          {renderPendingBanner()}
+
+          {/* ── Billing toggle ─────────────────────────────────── */}
+          {renderBillingToggle()}
+
+          {/* ── Plan cards carousel ────────────────────────────── */}
+          <RNAnimated.FlatList
+            ref={flatListRef}
+            data={plans}
+            keyExtractor={(item) => item.id}
+            horizontal
+            pagingEnabled={false}
+            snapToInterval={CARD_WIDTH + CARD_SPACING}
+            snapToAlignment="center"
+            decelerationRate="fast"
+            showsHorizontalScrollIndicator={false}
+            contentContainerStyle={{
+              paddingHorizontal:
+                (SCREEN_WIDTH - CARD_WIDTH) / 2 - CARD_SPACING / 2,
+            }}
+            renderItem={renderPlanCard}
+            onScroll={RNAnimated.event(
+              [{ nativeEvent: { contentOffset: { x: scrollX } } }],
+              { useNativeDriver: false },
+            )}
+            onMomentumScrollEnd={(e) => {
+              const idx = Math.round(
+                e.nativeEvent.contentOffset.x / (CARD_WIDTH + CARD_SPACING),
+              );
+              setActiveIndex(idx);
+            }}
+          />
+
+          {/* ── Pagination dots ────────────────────────────────── */}
+          {plans.length > 1 && renderDots()}
+
+          {/* ── Free plan section ──────────────────────────────── */}
+          <View style={s.sectionPadding}>
+            <View style={s.freePlanCard}>
+              <View style={s.freePlanHeader}>
+                <View style={s.freePlanLeft}>
+                  <View style={s.freePlanIconCircle}>
+                    <Feather
+                      name="heart"
+                      size={16}
+                      color={Colors.textDisabled}
+                    />
+                  </View>
+                  <Text style={s.freePlanTitle}>Free Plan</Text>
+                </View>
+                <Text style={s.freePlanPrice}>₱0</Text>
+              </View>
+              <View style={s.freePlanFeatures}>
+                {FREE_PLAN_FEATURES.map((f, i) => (
+                  <View key={i} style={s.freePlanFeatureRow}>
+                    <Feather
+                      name="check"
+                      size={12}
+                      color={Colors.textDisabled}
+                    />
+                    <Text style={s.freePlanFeatureText}>{f}</Text>
+                  </View>
+                ))}
+              </View>
+            </View>
+          </View>
+
+          {/* ── Footer info ────────────────────────────────────── */}
+          <View style={s.sectionPadding}>
+            <View style={s.footerCard}>
+              <Feather
+                name="shield"
+                size={16}
+                color={Colors.textDisabled}
+                style={{ marginTop: 2 }}
+              />
+              <Text style={s.footerText}>
+                Payments are processed securely via PayMongo. Cancel anytime
+                from your account settings.
+              </Text>
+            </View>
+          </View>
+        </ScrollView>
+      </SafeAreaView>
 
       <AlertModal
         visible={visible}
@@ -428,227 +685,403 @@ export default function SubscriptionScreen() {
         buttons={alertOptions.buttons}
         onClose={hideAlert}
       />
-    </SafeAreaView>
+    </View>
   );
 }
 
-const styles = StyleSheet.create({
-  container: {
+// ═══════════════════════════════════════════════════════════════════
+// STYLES
+// ═══════════════════════════════════════════════════════════════════
+const s = StyleSheet.create({
+  screen: {
     flex: 1,
-    backgroundColor: "#FFF5F5",
+    backgroundColor: Colors.bgApp,
   },
-  header: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    paddingHorizontal: 16,
-    paddingVertical: 16,
-    backgroundColor: "white",
-    borderBottomLeftRadius: 24,
-    borderBottomRightRadius: 24,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 3,
-  },
-  backButton: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: "#f3f4f6",
+  loadingCenter: {
+    flex: 1,
     alignItems: "center",
     justifyContent: "center",
   },
-  headerTitle: {
-    fontSize: 20,
-    fontWeight: "bold",
-    color: "#333",
+  loadingText: {
+    color: Colors.textSecondary,
+    marginTop: 16,
+    fontSize: 15,
   },
-  content: {
-    flex: 1,
-  },
-  scrollContent: {
-    padding: 16,
-    paddingBottom: 32,
-  },
-  toggleContainer: {
+
+  // Header
+  header: {
+    paddingHorizontal: 20,
+    paddingTop: 8,
+    paddingBottom: 16,
     flexDirection: "row",
-    backgroundColor: "white",
-    borderRadius: 16,
-    padding: 4,
-    marginBottom: 24,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.1,
-    shadowRadius: 2,
-    elevation: 2,
-  },
-  toggleButton: {
-    flex: 1,
-    paddingVertical: 12,
-    paddingHorizontal: 16,
-    borderRadius: 12,
     alignItems: "center",
-    position: "relative",
+    borderBottomWidth: 1,
+    borderBottomColor: Colors.borderLight,
+    backgroundColor: Colors.bgPrimary,
   },
-  toggleButtonActive: {
-    backgroundColor: "#ea5b3a",
-  },
-  toggleText: {
-    fontSize: 16,
-    fontWeight: "600",
-    color: "#666",
-  },
-  toggleTextActive: {
-    color: "white",
-  },
-  saveBadge: {
-    position: "absolute",
-    top: -8,
-    right: 4,
-    backgroundColor: "#10b981",
-    paddingHorizontal: 6,
-    paddingVertical: 2,
-    borderRadius: 8,
-  },
-  saveBadgeText: {
-    fontSize: 10,
-    color: "white",
-    fontWeight: "bold",
-  },
-  planCard: {
-    backgroundColor: "white",
+  backButton: {
+    padding: 8,
+    marginLeft: -8,
     borderRadius: 20,
-    padding: 24,
+    backgroundColor: Colors.bgTertiary,
+  },
+  headerTitle: {
+    color: Colors.textPrimary,
+    fontSize: 20,
+    fontWeight: "700",
+  },
+  headerSubtitle: {
+    color: Colors.textMuted,
+    fontSize: 12,
+    marginTop: 2,
+  },
+
+  // Sections
+  sectionPadding: {
+    paddingHorizontal: 20,
     marginBottom: 16,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 3,
-    borderWidth: 2,
-    borderColor: "transparent",
   },
-  planCardHighlighted: {
-    borderColor: "#ea5b3a",
-    shadowColor: "#ea5b3a",
-    shadowOpacity: 0.2,
+
+  // Current plan
+  currentPlanCard: {
+    backgroundColor: Colors.bgPrimary,
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: Colors.borderLight,
+    padding: 16,
+    ...Shadows.sm,
   },
-  popularBadge: {
-    position: "absolute",
-    top: -12,
-    right: 20,
-    backgroundColor: "#ea5b3a",
+  currentPlanRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+  },
+  currentPlanLeft: {
+    flexDirection: "row",
+    alignItems: "center",
+    flex: 1,
+  },
+  currentPlanIcon: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  currentPlanLabel: {
+    fontSize: 10,
+    fontWeight: "600",
+    color: Colors.textMuted,
+    letterSpacing: 0.5,
+  },
+  currentPlanTier: {
+    fontSize: 16,
+    fontWeight: "700",
+    color: Colors.textPrimary,
+    marginTop: 2,
+  },
+  activeBadge: {
     paddingHorizontal: 12,
     paddingVertical: 4,
     borderRadius: 12,
+    backgroundColor: Colors.successLight,
   },
-  popularBadgeText: {
-    color: "white",
+  activeBadgeText: {
     fontSize: 12,
-    fontWeight: "bold",
+    fontWeight: "600",
+    color: Colors.success,
   },
-  planName: {
-    fontSize: 24,
-    fontWeight: "bold",
-    color: "#333",
-    marginBottom: 8,
+  freeBadge: {
+    paddingHorizontal: 12,
+    paddingVertical: 4,
+    borderRadius: 12,
+    backgroundColor: Colors.bgTertiary,
   },
-  priceContainer: {
+  freeBadgeText: {
+    fontSize: 12,
+    fontWeight: "500",
+    color: Colors.textMuted,
+  },
+
+  // Pending banner
+  pendingBanner: {
+    backgroundColor: Colors.warningLight,
+    borderRadius: 16,
+    flexDirection: "row",
+    alignItems: "center",
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    borderWidth: 1,
+    borderColor: "rgba(245, 158, 11, 0.2)",
+  },
+  pendingText: {
+    flex: 1,
+    marginLeft: 12,
+    fontSize: 13,
+    fontWeight: "500",
+    color: Colors.warning,
+  },
+  pendingVerifyBtn: {
+    paddingHorizontal: 14,
+    paddingVertical: 6,
+    borderRadius: 12,
+    backgroundColor: "rgba(245, 158, 11, 0.15)",
+  },
+  pendingVerifyText: {
+    color: Colors.warning,
+    fontSize: 12,
+    fontWeight: "700",
+  },
+
+  // Billing toggle
+  toggleContainer: {
+    flexDirection: "row",
+    backgroundColor: Colors.bgTertiary,
+    borderRadius: 16,
+    padding: 4,
+    borderWidth: 1,
+    borderColor: Colors.borderLight,
+  },
+  toggleOption: {
+    flex: 1,
+    paddingVertical: 12,
+    borderRadius: 12,
+    alignItems: "center",
+    justifyContent: "center",
+    flexDirection: "row",
+  },
+  toggleOptionRight: {
+    flexDirection: "row",
+  },
+  toggleOptionActive: {
+    backgroundColor: Colors.bgPrimary,
+    ...Shadows.sm,
+  },
+  toggleText: {
+    fontWeight: "600",
+    fontSize: 14,
+    color: Colors.textMuted,
+  },
+  toggleTextActive: {
+    color: Colors.textPrimary,
+  },
+  savingsBadge: {
+    marginLeft: 6,
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 8,
+    backgroundColor: Colors.successLight,
+  },
+  savingsText: {
+    fontSize: 10,
+    fontWeight: "700",
+    color: Colors.success,
+  },
+
+  // Plan card
+  planCard: {
+    backgroundColor: Colors.bgPrimary,
+    borderRadius: 24,
+    overflow: "hidden",
+    borderWidth: 1,
+    borderColor: Colors.borderLight,
+    ...Shadows.md,
+  },
+  planHeader: {
+    paddingHorizontal: 20,
+    paddingVertical: 16,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+  },
+  planHeaderRow: {
+    flexDirection: "row",
+    alignItems: "center",
+  },
+  planIconCircle: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: "rgba(255,255,255,0.25)",
+    alignItems: "center",
+    justifyContent: "center",
+    marginRight: 10,
+  },
+  planHeaderName: {
+    color: "#fff",
+    fontSize: 20,
+    fontWeight: "700",
+  },
+  bestValueBadge: {
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 10,
+    backgroundColor: "rgba(255,255,255,0.25)",
+  },
+  bestValueText: {
+    color: "#fff",
+    fontSize: 10,
+    fontWeight: "800",
+    letterSpacing: 0.5,
+  },
+  currentBadge: {
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 10,
+    backgroundColor: "rgba(255,255,255,0.25)",
+  },
+  currentBadgeText: {
+    color: "#fff",
+    fontSize: 10,
+    fontWeight: "800",
+    letterSpacing: 0.5,
+  },
+  planBody: {
+    padding: 20,
+  },
+  priceRow: {
     flexDirection: "row",
     alignItems: "baseline",
-    marginBottom: 4,
   },
   priceAmount: {
     fontSize: 36,
-    fontWeight: "bold",
-    color: "#ea5b3a",
+    fontWeight: "800",
   },
   pricePeriod: {
-    fontSize: 16,
-    color: "#666",
+    fontSize: 15,
+    color: Colors.textMuted,
     marginLeft: 4,
   },
-  savingsText: {
-    fontSize: 14,
-    color: "#10b981",
-    fontWeight: "600",
-    marginBottom: 16,
+  priceSaving: {
+    fontSize: 13,
+    color: Colors.textMuted,
+    marginTop: 4,
   },
-  featuresContainer: {
-    marginTop: 16,
+  divider: {
+    height: 1,
+    backgroundColor: Colors.borderLight,
+    marginVertical: 16,
+  },
+  featuresList: {
     marginBottom: 20,
+  },
+  featuresLabel: {
+    fontSize: 10,
+    fontWeight: "700",
+    color: Colors.textMuted,
+    letterSpacing: 1,
+    marginBottom: 12,
   },
   featureRow: {
     flexDirection: "row",
     alignItems: "center",
-    marginBottom: 12,
+    marginBottom: 10,
   },
-  featureText: {
-    fontSize: 15,
-    color: "#444",
-    marginLeft: 12,
-  },
-  subscribeButton: {
-    backgroundColor: "#333",
-    paddingVertical: 16,
+  featureCheck: {
+    width: 24,
+    height: 24,
     borderRadius: 12,
     alignItems: "center",
+    justifyContent: "center",
   },
-  subscribeButtonHighlighted: {
-    backgroundColor: "#ea5b3a",
-  },
-  subscribeButtonText: {
-    color: "white",
-    fontSize: 16,
-    fontWeight: "bold",
-  },
-  infoSection: {
-    flexDirection: "row",
-    alignItems: "flex-start",
-    backgroundColor: "white",
-    padding: 16,
-    borderRadius: 12,
-    marginTop: 8,
-  },
-  infoText: {
-    flex: 1,
-    fontSize: 14,
-    color: "#666",
+  featureText: {
     marginLeft: 12,
-    lineHeight: 20,
+    fontSize: 14,
+    color: Colors.textSecondary,
+    flex: 1,
   },
-  pendingBanner: {
-    backgroundColor: "#ea5b3a",
-    paddingHorizontal: 16,
-    paddingVertical: 12,
+  ctaButton: {
+    borderRadius: 14,
+    paddingVertical: 14,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  ctaButtonDisabled: {
+    backgroundColor: Colors.bgTertiary,
+  },
+  ctaText: {
+    fontSize: 15,
+    fontWeight: "700",
+  },
+
+  // Pagination dots
+  dotsContainer: {
+    flexDirection: "row",
+    justifyContent: "center",
+    alignItems: "center",
+    marginTop: 20,
+    marginBottom: 8,
+  },
+
+  // Free plan
+  freePlanCard: {
+    backgroundColor: Colors.bgPrimary,
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: Colors.borderLight,
+    padding: 16,
+  },
+  freePlanHeader: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
+    marginBottom: 12,
   },
-  pendingBannerContent: {
+  freePlanLeft: {
     flexDirection: "row",
     alignItems: "center",
-    flex: 1,
   },
-  pendingBannerText: {
-    color: "white",
-    fontSize: 14,
-    fontWeight: "600",
-    marginLeft: 8,
-  },
-  verifyButton: {
-    backgroundColor: "white",
-    paddingHorizontal: 16,
-    paddingVertical: 8,
-    borderRadius: 8,
-    minWidth: 100,
+  freePlanIconCircle: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: Colors.bgTertiary,
     alignItems: "center",
+    justifyContent: "center",
+    marginRight: 10,
   },
-  verifyButtonText: {
-    color: "#ea5b3a",
-    fontSize: 14,
-    fontWeight: "bold",
+  freePlanTitle: {
+    fontSize: 15,
+    fontWeight: "600",
+    color: Colors.textMuted,
+  },
+  freePlanPrice: {
+    fontSize: 18,
+    fontWeight: "700",
+    color: Colors.textDisabled,
+  },
+  freePlanFeatures: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+  },
+  freePlanFeatureRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginRight: 16,
+    marginBottom: 6,
+  },
+  freePlanFeatureText: {
+    marginLeft: 6,
+    fontSize: 12,
+    color: Colors.textMuted,
+  },
+
+  // Footer
+  footerCard: {
+    backgroundColor: Colors.bgSecondary,
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: Colors.borderLight,
+    flexDirection: "row",
+    alignItems: "flex-start",
+    paddingHorizontal: 16,
+    paddingVertical: 14,
+  },
+  footerText: {
+    marginLeft: 12,
+    fontSize: 12,
+    lineHeight: 18,
+    color: Colors.textDisabled,
+    flex: 1,
   },
 });

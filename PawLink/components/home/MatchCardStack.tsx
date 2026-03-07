@@ -1,7 +1,7 @@
 import React from "react";
-import { View, Text, StyleSheet, TouchableOpacity, Dimensions } from "react-native";
+import { View, Text, StyleSheet, TouchableOpacity } from "react-native";
 import { Feather } from "@expo/vector-icons";
-import { Colors, Shadows, Spacing, BorderRadius } from "@/constants";
+import { Colors, Shadows } from "@/constants";
 import MatchCard from "./MatchCard";
 import { TopMatch } from "@/services/matchService";
 import { Gesture, GestureDetector } from "react-native-gesture-handler";
@@ -14,19 +14,14 @@ import Animated, {
   interpolate,
 } from "react-native-reanimated";
 import * as Haptics from "expo-haptics";
-import { LinearGradient } from "expo-linear-gradient";
 
-const { width: SCREEN_WIDTH } = Dimensions.get("window");
-const CARD_WIDTH = SCREEN_WIDTH - 32;
-const CARD_HEIGHT = 400;
-const SWIPE_THRESHOLD = 100;
+const SWIPE_THRESHOLD = 120;
 
 interface MatchCardStackProps {
   matches: TopMatch[];
   selectedPetId?: number;
   onPass: (match: TopMatch) => void;
   onLike: (match: TopMatch) => void;
-  onMessage: (match: TopMatch) => void;
   onCardPress: (match: TopMatch) => void;
 }
 
@@ -35,18 +30,19 @@ export default function MatchCardStack({
   selectedPetId,
   onPass,
   onLike,
-  onMessage,
   onCardPress,
 }: MatchCardStackProps) {
-  // If no matches, show empty state
+  // Empty state
   if (!matches || matches.length === 0) {
     return (
       <View style={styles.emptyContainer}>
         <View style={styles.emptyContent}>
-          <Text style={styles.emptyEmoji}>🐕💔🐕</Text>
+          <View style={styles.emptyIconCircle}>
+            <Feather name="search" size={40} color={Colors.textDisabled} />
+          </View>
           <Text style={styles.emptyTitle}>No matches yet</Text>
           <Text style={styles.emptySubtitle}>
-            Check back later or update your preferences
+            Check back later or update your pet's profile to find more matches
           </Text>
         </View>
       </View>
@@ -72,180 +68,164 @@ export default function MatchCardStack({
     .onEnd((event) => {
       if (Math.abs(event.translationX) > SWIPE_THRESHOLD) {
         const direction = event.translationX > 0 ? 1 : -1;
-        translateX.value = withTiming(direction * 500, { duration: 200 }, () => {
-          runOnJS(handleSwipeComplete)(direction);
-        });
+        translateX.value = withTiming(
+          direction * 500,
+          { duration: 250 },
+          () => {
+            runOnJS(handleSwipeComplete)(direction);
+          },
+        );
         runOnJS(Haptics.impactAsync)(Haptics.ImpactFeedbackStyle.Medium);
       } else {
-        translateX.value = withSpring(0);
+        translateX.value = withSpring(0, { damping: 15 });
       }
     });
 
   const cardAnimatedStyle = useAnimatedStyle(() => ({
     transform: [
       { translateX: translateX.value },
-      { rotate: `${interpolate(translateX.value, [-200, 0, 200], [-15, 0, 15])}deg` },
+      {
+        rotate: `${interpolate(
+          translateX.value,
+          [-250, 0, 250],
+          [-12, 0, 12],
+        )}deg`,
+      },
     ],
   }));
 
-  const handlePassPress = () => {
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    translateX.value = withTiming(-500, { duration: 200 }, () => {
-      runOnJS(handleSwipeComplete)(-1);
-    });
-  };
+  // Swipe overlay indicators
+  const likeOverlayStyle = useAnimatedStyle(() => ({
+    opacity: interpolate(translateX.value, [0, SWIPE_THRESHOLD], [0, 1]),
+  }));
 
-  const handleLikePress = () => {
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    translateX.value = withTiming(500, { duration: 200 }, () => {
-      runOnJS(handleSwipeComplete)(1);
-    });
-  };
-
-  const handleMessagePress = () => {
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    onMessage(topMatch);
-  };
+  const passOverlayStyle = useAnimatedStyle(() => ({
+    opacity: interpolate(translateX.value, [0, -SWIPE_THRESHOLD], [0, 1]),
+  }));
 
   return (
     <View style={styles.container}>
-      {/* Warm Gradient Background Area */}
-      <LinearGradient
-        colors={[Colors.bgCoral, Colors.bgCoralLight]}
-        style={styles.gradientBackground}
-      />
+      {/* Background cards for stack depth */}
+      {matches.length > 2 && (
+        <View style={[styles.stackCard, styles.stackCard3]} />
+      )}
+      {matches.length > 1 && (
+        <View style={[styles.stackCard, styles.stackCard2]} />
+      )}
 
-      {/* Card Stack */}
-      <View style={styles.stackContainer}>
-        {/* Background Card 2 (Smallest) */}
-        <View style={[styles.cardBack, styles.cardBack2]} />
-        
-        {/* Background Card 1 (Middle) */}
-        <View style={[styles.cardBack, styles.cardBack1]} />
-        
-        {/* Top Card (Active) */}
-        <GestureDetector gesture={panGesture}>
-          <Animated.View style={[styles.cardFront, cardAnimatedStyle]}>
-            <TouchableOpacity
-              activeOpacity={1}
-              onPress={() => onCardPress(topMatch)}
-              style={{ flex: 1 }}
+      {/* Top card */}
+      <GestureDetector gesture={panGesture}>
+        <Animated.View style={[styles.topCard, cardAnimatedStyle]}>
+          <TouchableOpacity
+            activeOpacity={1}
+            onPress={() => onCardPress(topMatch)}
+            style={{ flex: 1 }}
+          >
+            <MatchCard match={topMatch} selectedPetId={selectedPetId} />
+
+            {/* LIKE overlay indicator */}
+            <Animated.View
+              style={[
+                styles.swipeIndicator,
+                styles.likeIndicator,
+                likeOverlayStyle,
+              ]}
             >
-              <MatchCard match={topMatch} selectedPetId={selectedPetId} />
-            </TouchableOpacity>
-          </Animated.View>
-        </GestureDetector>
-      </View>
+              <Text
+                style={[styles.swipeIndicatorText, { color: Colors.success }]}
+              >
+                LIKE
+              </Text>
+            </Animated.View>
 
-      {/* Action Buttons */}
-      <View style={styles.actionButtonsContainer}>
-        {/* Pass Button */}
-        <TouchableOpacity
-          style={[styles.actionButton, styles.passButton]}
-          onPress={handlePassPress}
-        >
-          <Feather name="x" size={32} color={Colors.textSecondary} />
-        </TouchableOpacity>
-
-        {/* Message Button */}
-        <TouchableOpacity
-          style={[styles.actionButton, styles.messageButton]}
-          onPress={handleMessagePress}
-        >
-          <Feather name="message-circle" size={24} color={Colors.white} />
-        </TouchableOpacity>
-
-        {/* Like Button */}
-        <TouchableOpacity
-          style={[styles.actionButton, styles.likeButton]}
-          onPress={handleLikePress}
-        >
-          <Feather name="check" size={32} color={Colors.success} />
-        </TouchableOpacity>
-      </View>
+            {/* PASS overlay indicator */}
+            <Animated.View
+              style={[
+                styles.swipeIndicator,
+                styles.passIndicator,
+                passOverlayStyle,
+              ]}
+            >
+              <Text
+                style={[styles.swipeIndicatorText, { color: Colors.error }]}
+              >
+                PASS
+              </Text>
+            </Animated.View>
+          </TouchableOpacity>
+        </Animated.View>
+      </GestureDetector>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
-    alignItems: "center",
-    marginBottom: Spacing.xl,
+    flex: 1,
     position: "relative",
   },
-  gradientBackground: {
-    position: "absolute",
-    top: -20,
-    left: -20,
-    right: -20,
-    bottom: -20,
-    borderRadius: 40,
-    opacity: 0.5,
-    zIndex: -1,
-  },
   emptyContainer: {
-    height: 400,
+    flex: 1,
     alignItems: "center",
     justifyContent: "center",
     backgroundColor: Colors.bgSecondary,
-    marginHorizontal: Spacing.lg,
-    borderRadius: BorderRadius["2xl"],
+    marginHorizontal: 16,
+    borderRadius: 24,
     borderWidth: 1,
     borderColor: Colors.borderLight,
     borderStyle: "dashed",
   },
   emptyContent: {
     alignItems: "center",
-    padding: Spacing.xl,
+    padding: 32,
   },
-  emptyEmoji: {
-    fontSize: 48,
-    marginBottom: Spacing.md,
+  emptyIconCircle: {
+    width: 80,
+    height: 80,
+    borderRadius: 40,
+    backgroundColor: Colors.bgTertiary,
+    alignItems: "center",
+    justifyContent: "center",
+    marginBottom: 16,
   },
   emptyTitle: {
-    fontSize: 18,
-    fontWeight: "bold",
+    fontSize: 20,
+    fontWeight: "700",
     color: Colors.textPrimary,
-    marginBottom: Spacing.xs,
+    marginBottom: 8,
   },
   emptySubtitle: {
     fontSize: 14,
     color: Colors.textSecondary,
     textAlign: "center",
+    lineHeight: 20,
   },
-  stackContainer: {
-    width: CARD_WIDTH,
-    height: CARD_HEIGHT,
-    position: "relative",
-    marginBottom: Spacing.xl,
-  },
-  cardBack: {
+  stackCard: {
     position: "absolute",
-    backgroundColor: Colors.matchCardBg, // Warm tint
-    borderRadius: BorderRadius["2xl"],
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: Colors.cardBg,
+    borderRadius: 24,
     borderWidth: 1,
-    borderColor: Colors.matchCardBorder,
-    ...Shadows.sm,
+    borderColor: Colors.cardBorder,
   },
-  cardBack2: {
-    top: 16,
-    left: 24,
-    right: 24,
-    bottom: -16,
-    opacity: 0.5,
-    transform: [{ scale: 0.9 }],
-    zIndex: 1,
+  stackCard3: {
+    top: 12,
+    left: 20,
+    right: 20,
+    opacity: 0.4,
+    transform: [{ scale: 0.92 }],
   },
-  cardBack1: {
-    top: 8,
-    left: 12,
-    right: 12,
-    bottom: -8,
-    opacity: 0.8,
-    transform: [{ scale: 0.95 }],
-    zIndex: 2,
+  stackCard2: {
+    top: 6,
+    left: 10,
+    right: 10,
+    opacity: 0.7,
+    transform: [{ scale: 0.96 }],
   },
-  cardFront: {
+  topCard: {
     position: "absolute",
     top: 0,
     left: 0,
@@ -253,39 +233,27 @@ const styles = StyleSheet.create({
     bottom: 0,
     zIndex: 3,
   },
-  actionButtonsContainer: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
-    gap: 32,
-    marginTop: Spacing.md,
+  swipeIndicator: {
+    position: "absolute",
+    top: 60,
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    borderRadius: 8,
+    borderWidth: 3,
   },
-  actionButton: {
-    alignItems: "center",
-    justifyContent: "center",
-    backgroundColor: Colors.white,
-    ...Shadows.lg,
+  likeIndicator: {
+    right: 24,
+    borderColor: Colors.success,
+    transform: [{ rotate: "-15deg" }],
   },
-  passButton: {
-    width: 60,
-    height: 60,
-    borderRadius: 30,
-    borderWidth: 1,
-    borderColor: Colors.coralBorder, // Subtle coral border
+  passIndicator: {
+    left: 24,
+    borderColor: Colors.error,
+    transform: [{ rotate: "15deg" }],
   },
-  messageButton: {
-    width: 52,
-    height: 52,
-    borderRadius: 26,
-    backgroundColor: Colors.primary,
-    // Removed translateY
-  },
-  likeButton: {
-    width: 60,
-    height: 60,
-    borderRadius: 30,
-    borderWidth: 1,
-    borderColor: Colors.successLight,
-    backgroundColor: Colors.successBg,
+  swipeIndicatorText: {
+    fontSize: 28,
+    fontWeight: "900",
+    letterSpacing: 2,
   },
 });

@@ -9,8 +9,10 @@
 
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://unpkg.com/lucide@latest"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
 
     <style>
+        body { font-family: 'Inter', sans-serif; }
         .fade-enter {
             opacity: 0;
             transition: opacity 0.3s ease-in-out;
@@ -19,6 +21,12 @@
         .fade-enter-active {
             opacity: 1;
         }
+        
+        @keyframes slideUp {
+            from { opacity: 0; transform: translateY(20px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        .animate-slide-up { animation: slideUp 0.5s ease-out forwards; }
     </style>
 </head>
 
@@ -27,7 +35,7 @@
     <div class="flex h-screen">
         <div class="w-full lg:w-1/2 flex flex-col h-full bg-white">
 
-            <div class="flex-grow flex flex-col justify-center px-8 md:px-16 lg:px-24">
+            <div class="flex-grow flex flex-col justify-center px-8 md:px-16 lg:px-24 animate-slide-up">
                 <div class="w-full max-w-md mx-auto">
 
                     <h1 class="text-3xl font-bold text-gray-900 mb-2">Admin Login</h1>
@@ -100,7 +108,7 @@
 
                         <button
                             type="submit"
-                            class="w-full bg-[#E75234] hover:bg-[#c03e25] text-white py-3 rounded-xl font-bold text-base shadow-lg shadow-[#E75234]/20 transition-all active:scale-[0.98]">
+                            class="w-full bg-[#E75234] hover:bg-[#d14024] text-white py-3 rounded-xl font-bold text-base shadow-lg shadow-[#E75234]/30 transition-all active:scale-[0.98]">
                             Login
                         </button>
                     </form>
@@ -109,6 +117,9 @@
         </div>
 
         <div class="hidden lg:flex w-1/2 bg-[#FDF4F2] flex-col items-center justify-center relative overflow-hidden">
+            <!-- Decorative Blobs -->
+            <div class="absolute top-0 right-0 -mr-20 -mt-20 w-80 h-80 rounded-full bg-[#E75234] opacity-10 blur-3xl"></div>
+            <div class="absolute bottom-0 left-0 -ml-20 -mb-20 w-80 h-80 rounded-full bg-[#E75234] opacity-10 blur-3xl"></div>
 
             <div class="relative z-10 text-center">
 

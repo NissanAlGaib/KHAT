@@ -2,6 +2,8 @@
 
 namespace App\Models;
 
+use App\Traits\FiltersByDate;
+use App\Traits\TracksUpdates;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
@@ -10,7 +12,7 @@ use Carbon\Carbon;
 
 class Pet extends Model
 {
-    use SoftDeletes;
+    use SoftDeletes, FiltersByDate, TracksUpdates;
 
     protected $primaryKey = 'pet_id';
 
@@ -18,6 +20,11 @@ class Pet extends Model
      * Default cooldown period in days after successful breeding
      */
     const DEFAULT_COOLDOWN_DAYS = 90; // 3 months
+
+    /**
+     * Cooldown period in days after failed breeding (rest period for female)
+     */
+    const FAILED_BREEDING_COOLDOWN_DAYS = 14; // 2 weeks
 
     /**
      * Pet status constants
@@ -57,6 +64,10 @@ class Pet extends Model
         'attributes',
         'profile_image',
         'date_added',
+        'suspension_reason',
+        'suspended_at',
+        'suspension_end_date',
+        'updated_by',
     ];
 
     protected $casts = [
@@ -69,7 +80,17 @@ class Pet extends Model
         'weight' => 'decimal:2',
         'behaviors' => 'array',
         'attributes' => 'array',
+        'suspended_at' => 'datetime',
+        'suspension_end_date' => 'datetime',
     ];
+
+    /**
+     * Ensure species is always stored with proper title case (e.g. "Dog", "Cat").
+     */
+    public function setSpeciesAttribute($value): void
+    {
+        $this->attributes['species'] = ucfirst(strtolower(trim($value)));
+    }
 
     /**
      * Get the owner of the pet
@@ -295,13 +316,12 @@ class Pet extends Model
     public function getPrimaryPhotoUrlAttribute(): ?string
     {
         $primaryPhoto = $this->photos->firstWhere('is_primary', true);
+        $path = $primaryPhoto ? $primaryPhoto->photo_url : $this->photos->first()?->photo_url;
 
-        if ($primaryPhoto) {
-            return $primaryPhoto->photo_url;
+        if ($path) {
+            return \Illuminate\Support\Facades\Storage::disk('do_spaces')->url($path);
         }
 
-        $firstPhoto = $this->photos->first();
-
-        return $firstPhoto?->photo_url;
+        return null;
     }
 }

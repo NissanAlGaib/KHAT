@@ -33,6 +33,7 @@ return [
             'features' => [
                 'max_pets' => 1,
                 'max_matches_per_month' => 3,
+                'max_ai_generations_per_day' => 1,
             ],
         ],
         'basic' => [
@@ -41,6 +42,7 @@ return [
             'features' => [
                 'max_pets' => 5,
                 'max_matches_per_month' => 20,
+                'max_ai_generations_per_day' => 5,
             ],
         ],
         'premium' => [
@@ -49,6 +51,7 @@ return [
             'features' => [
                 'max_pets' => null, // unlimited
                 'max_matches_per_month' => null, // unlimited
+                'max_ai_generations_per_day' => 20,
             ],
         ],
     ],

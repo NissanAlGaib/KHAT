@@ -1,6 +1,7 @@
-import { View, Text, TextInput, TextInputProps } from "react-native";
+import { View, Text, TextInput, TextInputProps, Platform } from "react-native";
 import React from "react";
 import cn from "clsx";
+import { useKeyboardScroll } from "./KeyboardAwareScrollView";
 
 interface CustomInputProps extends Omit<TextInputProps, "onChangeText"> {
   placeholder?: string;
@@ -15,7 +16,7 @@ interface CustomInputProps extends Omit<TextInputProps, "onChangeText"> {
 
 /**
  * CustomInput - Unified input component
- * VERSION 1.1 - Default to contained style for better touch targets
+ * VERSION 1.2 - Auto-scrolls into view on focus when inside KeyboardAwareScrollView
  */
 const CustomInput = ({
   placeholder = "Enter Text",
@@ -31,6 +32,15 @@ const CustomInput = ({
   ...props
 }: CustomInputProps) => {
   const [isFocused, setIsFocused] = React.useState(false);
+  const inputRef = React.useRef<TextInput>(null);
+  const scrollToInput = useKeyboardScroll();
+
+  const handleFocus = React.useCallback(() => {
+    setIsFocused(true);
+    if (scrollToInput && inputRef.current) {
+      scrollToInput(inputRef.current);
+    }
+  }, [scrollToInput]);
 
   const getVariantClasses = () => {
     switch (variant) {
@@ -67,12 +77,14 @@ const CustomInput = ({
           </View>
         )}
         <TextInput
+          ref={inputRef}
           value={value}
           onChangeText={onChangeText}
           placeholder={placeholder}
           secureTextEntry={secureTextEntry}
           keyboardType={keyboardType}
-          onFocus={() => setIsFocused(true)}
+          autoCapitalize={keyboardType === "email-address" ? "none" : props.autoCapitalize}
+          onFocus={handleFocus}
           onBlur={() => setIsFocused(false)}
           placeholderTextColor="#9CA3AF"
           className={cn(

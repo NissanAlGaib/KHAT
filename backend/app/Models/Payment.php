@@ -4,6 +4,7 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class Payment extends Model
 {
@@ -18,7 +19,9 @@ class Payment extends Model
         'paymongo_checkout_url',
         'paymongo_payment_id',
         'paymongo_payment_intent_id',
+        'paymongo_refund_id',
         'status',
+        'pool_status',
         'metadata',
         'paid_at',
         'expires_at',
@@ -64,6 +67,21 @@ class Payment extends Model
     const STATUS_REFUNDED = 'refunded';
 
     /**
+     * Pool status constants
+     */
+    const POOL_NOT_POOLED = 'not_pooled';
+
+    const POOL_IN_POOL = 'in_pool';
+
+    const POOL_RELEASED = 'released';
+
+    const POOL_REFUNDED = 'refunded';
+
+    const POOL_FROZEN = 'frozen';
+
+    const POOL_PARTIALLY_REFUNDED = 'partially_refunded';
+
+    /**
      * Get the user who made this payment
      */
     public function user(): BelongsTo
@@ -77,6 +95,14 @@ class Payment extends Model
     public function contract(): BelongsTo
     {
         return $this->belongsTo(BreedingContract::class, 'contract_id');
+    }
+
+    /**
+     * Get the pool transactions for this payment
+     */
+    public function poolTransactions(): HasMany
+    {
+        return $this->hasMany(PoolTransaction::class);
     }
 
     /**
@@ -108,6 +134,43 @@ class Payment extends Model
             'status' => self::STATUS_PAID,
             'paid_at' => now(),
             'paymongo_payment_id' => $paymentId ?? $this->paymongo_payment_id,
+        ]);
+    }
+
+    /**
+     * Check if payment is currently in the pool
+     */
+    public function isInPool(): bool
+    {
+        return $this->pool_status === self::POOL_IN_POOL;
+    }
+
+    /**
+     * Check if payment has been released from the pool
+     */
+    public function isReleased(): bool
+    {
+        return $this->pool_status === self::POOL_RELEASED;
+    }
+
+    /**
+     * Check if payment is frozen in the pool
+     */
+    public function isFrozen(): bool
+    {
+        return $this->pool_status === self::POOL_FROZEN;
+    }
+
+    /**
+     * Check if this is a contract-related (poolable) payment type
+     */
+    public function isPoolable(): bool
+    {
+        return in_array($this->payment_type, [
+            self::TYPE_COLLATERAL,
+            self::TYPE_SHOOTER_COLLATERAL,
+            self::TYPE_SHOOTER_PAYMENT,
+            self::TYPE_MONETARY_COMPENSATION,
         ]);
     }
 }

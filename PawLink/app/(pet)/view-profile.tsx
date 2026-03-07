@@ -18,13 +18,21 @@ import { useRouter, useLocalSearchParams } from "expo-router";
 import {
   getPetPublicProfile,
   getPetLitters,
+  getCompatibilityScore,
   type PetPublicProfile,
   type Litter,
+  type PublicVaccinationCard,
+  type CompatibilityResult,
 } from "@/services/petService";
-import { sendMatchRequest, createMatchPayment } from "@/services/matchRequestService";
+import {
+  sendMatchRequest,
+  createMatchPayment,
+} from "@/services/matchRequestService";
 import { verifyPayment } from "@/services/paymentService";
+import { API_BASE_URL } from "@/config/env";
 import { usePet } from "@/context/PetContext";
 import { getStorageUrl } from "@/utils/imageUrl";
+import { ReadOnlyVaccinationCard } from "@/components/pet";
 import dayjs from "dayjs";
 import { LinearGradient } from "expo-linear-gradient";
 
@@ -45,8 +53,10 @@ const getStatusColor = (status: DocumentStatus): string => {
 };
 
 const getStatusBadge = (status: DocumentStatus) => {
-  if (status === "expired") return { bg: "bg-red-100", text: "text-red-700", label: "Expired" };
-  if (status === "expiring_soon") return { bg: "bg-yellow-100", text: "text-yellow-700", label: "Expiring" };
+  if (status === "expired")
+    return { bg: "bg-red-100", text: "text-red-700", label: "Expired" };
+  if (status === "expiring_soon")
+    return { bg: "bg-yellow-100", text: "text-yellow-700", label: "Expiring" };
   return { bg: "bg-green-100", text: "text-green-700", label: "Valid" };
 };
 
@@ -61,9 +71,18 @@ export default function ViewPetProfileScreen() {
   const [litters, setLitters] = useState<Litter[]>([]);
   const [loading, setLoading] = useState(true);
   const [sendingRequest, setSendingRequest] = useState(false);
-  const [activeTab, setActiveTab] = useState<"about" | "health" | "gallery" | "litters">("about");
+  const [activeTab, setActiveTab] = useState<
+    "about" | "health" | "gallery" | "litters" | "compatibility"
+  >("about");
   const [pendingPaymentId, setPendingPaymentId] = useState<number | null>(null);
-  const [pendingMatchData, setPendingMatchData] = useState<{requesterPetId: number, targetPetId: number} | null>(null);
+  const [pendingMatchData, setPendingMatchData] = useState<{
+    requesterPetId: number;
+    targetPetId: number;
+  } | null>(null);
+  const [compatData, setCompatData] = useState<CompatibilityResult | null>(
+    null,
+  );
+  const [compatLoading, setCompatLoading] = useState(false);
 
   const fetchPetData = useCallback(async () => {
     try {
@@ -92,6 +111,17 @@ export default function ViewPetProfileScreen() {
     }
   }, [petId, fetchPetData]);
 
+  // Fetch compatibility score when selectedPet + petData are available
+  useEffect(() => {
+    if (selectedPet && petData) {
+      setCompatLoading(true);
+      getCompatibilityScore(selectedPet.pet_id, petData.pet_id)
+        .then(setCompatData)
+        .catch(() => setCompatData(null))
+        .finally(() => setCompatLoading(false));
+    }
+  }, [selectedPet, petData]);
+
   const getImageUrl = (path: string | null | undefined) => {
     if (!path) return undefined;
     return getStorageUrl(path) ?? undefined;
@@ -107,7 +137,11 @@ export default function ViewPetProfileScreen() {
     return `${months} Month${months > 1 ? "s" : ""}`;
   };
 
-  const handlePaymentForMatch = async (requesterPetId: number, targetPetId: number, amount: number) => {
+  const handlePaymentForMatch = async (
+    requesterPetId: number,
+    targetPetId: number,
+    amount: number,
+  ) => {
     try {
       // Show payment confirmation dialog
       showAlert({
@@ -115,17 +149,17 @@ export default function ViewPetProfileScreen() {
         message: `As a free tier user, you need to pay ₱${amount} to send a match request. This helps ensure quality matches.`,
         type: "info",
         buttons: [
-          { 
-            text: "Pay Now", 
+          {
+            text: "Pay Now",
             onPress: async () => {
               await initiateMatchPayment(requesterPetId, targetPetId);
-            }
+            },
           },
-          { 
-            text: "Upgrade", 
+          {
+            text: "Upgrade",
             onPress: () => {
               router.push("/subscription");
-            }
+            },
           },
           { text: "Cancel" },
         ],
@@ -140,38 +174,47 @@ export default function ViewPetProfileScreen() {
     }
   };
 
-  const initiateMatchPayment = async (requesterPetId: number, targetPetId: number) => {
+  const initiateMatchPayment = async (
+    requesterPetId: number,
+    targetPetId: number,
+  ) => {
     try {
-      const successUrl = "https://pawlink.app/match/payment/success";
-      const cancelUrl = "https://pawlink.app/match/payment/cancel";
+      const successUrl = `${API_BASE_URL}/payment/redirect?status=success`;
+      const cancelUrl = `${API_BASE_URL}/payment/redirect?status=cancel`;
 
       const paymentResult = await createMatchPayment(
         requesterPetId,
         targetPetId,
         successUrl,
-        cancelUrl
+        cancelUrl,
       );
 
       if (paymentResult.success && paymentResult.data?.checkout_url) {
         setPendingPaymentId(paymentResult.data.payment_id);
         setPendingMatchData({ requesterPetId, targetPetId });
-        
-        const canOpen = await Linking.canOpenURL(paymentResult.data.checkout_url);
+
+        const canOpen = await Linking.canOpenURL(
+          paymentResult.data.checkout_url,
+        );
         if (canOpen) {
           await Linking.openURL(paymentResult.data.checkout_url);
           showAlert({
             title: "Complete Your Payment",
-            message: "After completing payment, tap 'Verify Payment' to send your match request.",
+            message:
+              "After completing payment, tap 'Verify Payment' to send your match request.",
             type: "info",
             buttons: [
-              { 
-                text: "Verify Payment", 
-                onPress: () => verifyMatchPayment()
+              {
+                text: "Verify Payment",
+                onPress: () => verifyMatchPayment(),
               },
-              { text: "Cancel", onPress: () => {
-                setPendingPaymentId(null);
-                setPendingMatchData(null);
-              }},
+              {
+                text: "Cancel",
+                onPress: () => {
+                  setPendingPaymentId(null);
+                  setPendingMatchData(null);
+                },
+              },
             ],
           });
         } else {
@@ -199,16 +242,19 @@ export default function ViewPetProfileScreen() {
 
     try {
       const verifyResult = await verifyPayment(pendingPaymentId);
-      
+
       console.log("Payment verification result:", verifyResult);
-      
+
       if (verifyResult.success && verifyResult.data?.status === "paid") {
         // Payment successful, now send the match request
-        console.log("Payment verified as paid, sending match request:", pendingMatchData);
-        
+        console.log(
+          "Payment verified as paid, sending match request:",
+          pendingMatchData,
+        );
+
         const matchResult = await sendMatchRequest(
           pendingMatchData.requesterPetId,
-          pendingMatchData.targetPetId
+          pendingMatchData.targetPetId,
         );
 
         console.log("Match request result:", matchResult);
@@ -218,8 +264,8 @@ export default function ViewPetProfileScreen() {
 
         showAlert({
           title: matchResult.success ? "Request Sent!" : "Request Failed",
-          message: matchResult.success 
-            ? "Payment verified and match request sent successfully!" 
+          message: matchResult.success
+            ? "Payment verified and match request sent successfully!"
             : matchResult.message,
           type: matchResult.success ? "success" : "error",
         });
@@ -240,21 +286,25 @@ export default function ViewPetProfileScreen() {
             message: "Please wait while we verify your payment.",
             type: "info",
           });
-          
+
           setTimeout(() => {
             verifyMatchPayment(retryCount + 1);
           }, 2000);
         } else {
           showAlert({
             title: "Payment Pending",
-            message: "We haven't received your payment confirmation yet. Please wait a moment and try again.",
+            message:
+              "We haven't received your payment confirmation yet. Please wait a moment and try again.",
             type: "info",
             buttons: [
               { text: "Check Again", onPress: () => verifyMatchPayment(0) },
-              { text: "Cancel", onPress: () => {
-                setPendingPaymentId(null);
-                setPendingMatchData(null);
-              }},
+              {
+                text: "Cancel",
+                onPress: () => {
+                  setPendingPaymentId(null);
+                  setPendingMatchData(null);
+                },
+              },
             ],
           });
         }
@@ -267,10 +317,13 @@ export default function ViewPetProfileScreen() {
         type: "error",
         buttons: [
           { text: "Retry", onPress: () => verifyMatchPayment(0) },
-          { text: "Cancel", onPress: () => {
-            setPendingPaymentId(null);
-            setPendingMatchData(null);
-          }},
+          {
+            text: "Cancel",
+            onPress: () => {
+              setPendingPaymentId(null);
+              setPendingMatchData(null);
+            },
+          },
         ],
       });
     }
@@ -288,14 +341,17 @@ export default function ViewPetProfileScreen() {
     if (sendingRequest) return;
     setSendingRequest(true);
     try {
-      const result = await sendMatchRequest(selectedPet.pet_id, parseInt(petId));
-      
+      const result = await sendMatchRequest(
+        selectedPet.pet_id,
+        parseInt(petId),
+      );
+
       // Check if payment is required (free tier user)
       if (result.requires_payment && result.payment_amount) {
         await handlePaymentForMatch(
           result.requester_pet_id!,
           result.target_pet_id!,
-          result.payment_amount
+          result.payment_amount,
         );
       } else {
         showAlert({
@@ -339,7 +395,9 @@ export default function ViewPetProfileScreen() {
   const renderAbout = () => (
     <View style={styles.tabContent}>
       <InfoCard icon="information-circle-outline" title="About Me">
-        <Text style={styles.cardText}>{petData.description || "No description available."}</Text>
+        <Text style={styles.cardText}>
+          {petData.description || "No description available."}
+        </Text>
       </InfoCard>
 
       <InfoCard icon="person-outline" title="Owner">
@@ -361,18 +419,143 @@ export default function ViewPetProfileScreen() {
         <DetailRow label="Sex" value={petData.sex} />
         <DetailRow label="Weight" value={`${petData.weight} kg`} />
         <DetailRow label="Height" value={`${petData.height} cm`} />
+        {petData.microchip_id && (
+          <DetailRow label="Microchip ID" value={petData.microchip_id} />
+        )}
+        <DetailRow
+          label="Has Been Bred"
+          value={petData.has_been_bred ? "Yes" : "No"}
+        />
+        {petData.has_been_bred && (
+          <DetailRow
+            label="Times Bred"
+            value={String(petData.breeding_count || 0)}
+          />
+        )}
+        <DetailRow label="Litters" value={String(petData.litter_count || 0)} />
       </InfoCard>
-      
-      <InfoCard icon="heart-outline" title="Preferences">
-          {petData.preferences && petData.preferences.length > 0 ? (
-              <View style={styles.tagContainer}>
-                  {petData.preferences.map((item: string, index: number) => (
-                      <Tag key={`pref-${index}`} label={item} color="green" />
-                  ))}
-              </View>
-          ) : (
-              <Text style={styles.cardText}>No preferences listed.</Text>
-          )}
+
+      {/* Behaviors */}
+      <InfoCard icon="happy-outline" title="Behavior & Temperament">
+        {petData.behaviors && petData.behaviors.length > 0 ? (
+          <View style={styles.tagContainer}>
+            {petData.behaviors.map((item: string, index: number) => (
+              <Tag key={`beh-${index}`} label={item} color="blue" />
+            ))}
+          </View>
+        ) : (
+          <Text style={styles.cardText}>No behaviors listed.</Text>
+        )}
+      </InfoCard>
+
+      {/* Attributes */}
+      <InfoCard icon="color-palette-outline" title="Physical Attributes">
+        {petData.attributes && petData.attributes.length > 0 ? (
+          <View style={styles.tagContainer}>
+            {petData.attributes.map((item: string, index: number) => (
+              <Tag key={`attr-${index}`} label={item} color="red" />
+            ))}
+          </View>
+        ) : (
+          <Text style={styles.cardText}>No attributes listed.</Text>
+        )}
+      </InfoCard>
+
+      <InfoCard icon="heart-outline" title="Breeding Preferences">
+        {petData.preferences && petData.preferences.length > 0 ? (
+          <View style={styles.tagContainer}>
+            {petData.preferences.map((item: string, index: number) => (
+              <Tag key={`pref-${index}`} label={item} color="green" />
+            ))}
+          </View>
+        ) : (
+          <Text style={styles.cardText}>No preferences listed.</Text>
+        )}
+      </InfoCard>
+
+      {/* Trust & Verification Card */}
+      <InfoCard icon="shield-checkmark-outline" title="Trust & Verification">
+        <View style={styles.verificationDetailRow}>
+          <View style={styles.verificationIconContainer}>
+            <Ionicons
+              name={
+                petData.owner.is_verified ? "checkmark-circle" : "close-circle"
+              }
+              size={22}
+              color={petData.owner.is_verified ? "#22C55E" : "#9CA3AF"}
+            />
+          </View>
+          <View style={{ flex: 1 }}>
+            <Text style={styles.verificationLabel}>Owner Identity</Text>
+            <Text
+              style={[
+                styles.verificationStatus,
+                { color: petData.owner.is_verified ? "#22C55E" : "#9CA3AF" },
+              ]}
+            >
+              {petData.owner.is_verified
+                ? "Verified"
+                : petData.owner.verification_status === "pending"
+                  ? "Pending Review"
+                  : "Not Verified"}
+            </Text>
+          </View>
+        </View>
+        <View style={styles.verificationDetailRow}>
+          <View style={styles.verificationIconContainer}>
+            <Ionicons
+              name={petData.microchip_id ? "checkmark-circle" : "close-circle"}
+              size={22}
+              color={petData.microchip_id ? "#22C55E" : "#9CA3AF"}
+            />
+          </View>
+          <View style={{ flex: 1 }}>
+            <Text style={styles.verificationLabel}>Microchip Registered</Text>
+            <Text
+              style={[
+                styles.verificationStatus,
+                { color: petData.microchip_id ? "#22C55E" : "#9CA3AF" },
+              ]}
+            >
+              {petData.microchip_id ? "Yes" : "No"}
+            </Text>
+          </View>
+        </View>
+        <View style={styles.verificationDetailRow}>
+          <View style={styles.verificationIconContainer}>
+            <Ionicons
+              name={
+                (petData.vaccination_cards?.required?.length ?? 0) > 0
+                  ? "checkmark-circle"
+                  : "close-circle"
+              }
+              size={22}
+              color={
+                (petData.vaccination_cards?.required?.length ?? 0) > 0
+                  ? "#22C55E"
+                  : "#9CA3AF"
+              }
+            />
+          </View>
+          <View style={{ flex: 1 }}>
+            <Text style={styles.verificationLabel}>Health Documents</Text>
+            <Text
+              style={[
+                styles.verificationStatus,
+                {
+                  color:
+                    (petData.vaccination_cards?.required?.length ?? 0) > 0
+                      ? "#22C55E"
+                      : "#9CA3AF",
+                },
+              ]}
+            >
+              {(petData.vaccination_cards?.required?.length ?? 0) > 0
+                ? "On File"
+                : "None"}
+            </Text>
+          </View>
+        </View>
       </InfoCard>
     </View>
   );
@@ -382,27 +565,69 @@ export default function ViewPetProfileScreen() {
       <InfoCard icon="shield-checkmark-outline" title="Health Overview">
         <StatusSummaryRow
           label="Microchipped"
-          status={petData.microchip_id ? 'valid' : 'missing'}
+          status={petData.microchip_id ? "valid" : "missing"}
         />
       </InfoCard>
-      
-      <InfoCard icon="eyedrop-outline" title="Vaccinations">
-        {(petData.vaccinations && petData.vaccinations.length > 0) ? (
-          petData.vaccinations.map((v, i) => (
-            <DocumentRow
-              key={`vacc-${i}`}
-              title={v.vaccine_name}
-              expiry={v.expiration_date}
-              status={getDocumentStatus(v.status)}
-            />
-          ))
-        ) : (
-          <Text style={styles.cardText}>No vaccination records available.</Text>
+
+      {/* Required Vaccinations - Card Based View */}
+      {petData.vaccination_cards?.required &&
+        petData.vaccination_cards.required.length > 0 && (
+          <View style={styles.vaccinationSection}>
+            <View style={styles.vaccinationSectionHeader}>
+              <Ionicons name="shield-checkmark" size={20} color="#FF6B4A" />
+              <Text style={styles.vaccinationSectionTitle}>
+                Required Vaccinations
+              </Text>
+            </View>
+            {petData.vaccination_cards.required.map(
+              (card: PublicVaccinationCard) => (
+                <ReadOnlyVaccinationCard key={card.card_id} card={card} />
+              ),
+            )}
+          </View>
         )}
-      </InfoCard>
-      
+
+      {/* Optional Vaccinations - Card Based View */}
+      {petData.vaccination_cards?.optional &&
+        petData.vaccination_cards.optional.length > 0 && (
+          <View style={styles.vaccinationSection}>
+            <View style={styles.vaccinationSectionHeader}>
+              <Ionicons name="add-circle" size={20} color="#6B7280" />
+              <Text style={styles.vaccinationSectionTitle}>
+                Optional Vaccinations
+              </Text>
+            </View>
+            {petData.vaccination_cards.optional.map(
+              (card: PublicVaccinationCard) => (
+                <ReadOnlyVaccinationCard key={card.card_id} card={card} />
+              ),
+            )}
+          </View>
+        )}
+
+      {/* Fallback: Legacy Vaccinations (if no cards available) */}
+      {!petData.vaccination_cards?.required?.length &&
+        !petData.vaccination_cards?.optional?.length && (
+          <InfoCard icon="eyedrop-outline" title="Vaccinations">
+            {petData.vaccinations && petData.vaccinations.length > 0 ? (
+              petData.vaccinations.map((v, i) => (
+                <DocumentRow
+                  key={`vacc-${i}`}
+                  title={v.vaccine_name}
+                  expiry={v.expiration_date}
+                  status={getDocumentStatus(v.status)}
+                />
+              ))
+            ) : (
+              <Text style={styles.cardText}>
+                No vaccination records available.
+              </Text>
+            )}
+          </InfoCard>
+        )}
+
       <InfoCard icon="document-text-outline" title="Health Records">
-        {(petData.health_records && petData.health_records.length > 0) ? (
+        {petData.health_records && petData.health_records.length > 0 ? (
           petData.health_records.map((r, i) => (
             <DocumentRow
               key={`rec-${i}`}
@@ -420,21 +645,23 @@ export default function ViewPetProfileScreen() {
 
   const renderGallery = () => (
     <View style={styles.galleryContainer}>
-      {(petData.photos && petData.photos.length > 0) ? (
-          <View style={styles.photoGrid}>
-              {petData.photos.map((photo, index) => (
-                  <View key={`photo-${index}`} style={styles.photoContainer}>
-                      <Image
-                          source={{ uri: getImageUrl(photo.photo_url) }}
-                          style={styles.photo}
-                      />
-                  </View>
-              ))}
-          </View>
+      {petData.photos && petData.photos.length > 0 ? (
+        <View style={styles.photoGrid}>
+          {petData.photos.map((photo, index) => (
+            <View key={`photo-${index}`} style={styles.photoContainer}>
+              <Image
+                source={{ uri: getImageUrl(photo.photo_url) }}
+                style={styles.photo}
+              />
+            </View>
+          ))}
+        </View>
       ) : (
         <View style={styles.center}>
           <Ionicons name="images-outline" size={50} color="#999" />
-          <Text style={styles.emptyGalleryText}>This pet has no photos yet.</Text>
+          <Text style={styles.emptyGalleryText}>
+            This pet has no photos yet.
+          </Text>
         </View>
       )}
     </View>
@@ -442,14 +669,58 @@ export default function ViewPetProfileScreen() {
 
   const renderLitters = () => (
     <View style={styles.tabContent}>
+      {/* Breeding Partners */}
+      {petData.breeding_partners && petData.breeding_partners.length > 0 && (
+        <InfoCard icon="people-outline" title="Breeding Partners">
+          {petData.breeding_partners.map((partner) => (
+            <TouchableOpacity
+              key={`partner-${partner.pet_id}`}
+              style={styles.breedingPartnerRow}
+              onPress={() =>
+                router.push(`/(pet)/view-profile?id=${partner.pet_id}`)
+              }
+            >
+              <Image
+                source={{ uri: getImageUrl(partner.photo) }}
+                style={styles.partnerPhoto}
+              />
+              <View style={{ flex: 1 }}>
+                <Text style={styles.partnerName}>{partner.name}</Text>
+                <Text style={styles.partnerBreed}>{partner.breed}</Text>
+              </View>
+              <View style={styles.litterCountBadge}>
+                <Text style={styles.litterCountText}>
+                  {partner.litter_count} litter
+                  {partner.litter_count !== 1 ? "s" : ""}
+                </Text>
+              </View>
+            </TouchableOpacity>
+          ))}
+        </InfoCard>
+      )}
+
       {litters.length > 0 ? (
         litters.map((litter) => (
-          <InfoCard key={litter.litter_id} icon="list-outline" title={litter.title}>
+          <InfoCard
+            key={litter.litter_id}
+            icon="list-outline"
+            title={litter.title}
+          >
             <DetailRow label="Status" value={litter.status} />
             <DetailRow label="Birth Date" value={litter.birth_date} />
-            <TouchableOpacity 
+            <DetailRow
+              label="Total Offspring"
+              value={String(litter.offspring.total)}
+            />
+            <DetailRow
+              label="Male / Female"
+              value={`${litter.offspring.male} / ${litter.offspring.female}`}
+            />
+            <TouchableOpacity
               style={styles.viewLitterButton}
-              onPress={() => router.push(`/(pet)/litter-detail?id=${litter.litter_id}`)}
+              onPress={() =>
+                router.push(`/(pet)/litter-detail?id=${litter.litter_id}`)
+              }
             >
               <Text style={styles.viewLitterText}>View Litter Details</Text>
               <Ionicons name="arrow-forward" size={16} color="white" />
@@ -463,23 +734,215 @@ export default function ViewPetProfileScreen() {
       )}
     </View>
   );
-  
+
+  const renderCompatibility = () => (
+    <View style={styles.tabContent}>
+      {!selectedPet ? (
+        <InfoCard icon="analytics-outline" title="Compatibility">
+          <View style={styles.compatEmptyContainer}>
+            <Ionicons name="swap-horizontal" size={48} color="#9CA3AF" />
+            <Text style={styles.compatEmptyTitle}>No Pet Selected</Text>
+            <Text style={styles.cardText}>
+              Select one of your pets to see compatibility analysis.
+            </Text>
+          </View>
+        </InfoCard>
+      ) : compatLoading ? (
+        <View style={styles.compatLoadingContainer}>
+          <ActivityIndicator size="large" color="#FF6B4A" />
+          <Text style={styles.loadingText}>Analyzing compatibility...</Text>
+        </View>
+      ) : compatData ? (
+        <>
+          {/* Score Circle */}
+          <View style={styles.compatScoreCard}>
+            <View style={styles.compatScoreRow}>
+              <View style={styles.compatPetInfo}>
+                <Image
+                  source={{ uri: getImageUrl(selectedPet.profile_image) }}
+                  style={styles.compatPetAvatar}
+                />
+                <Text style={styles.compatPetName} numberOfLines={1}>
+                  {selectedPet.name}
+                </Text>
+              </View>
+              <View
+                style={[
+                  styles.compatScoreCircle,
+                  {
+                    borderColor: getCompatScoreColor(
+                      compatData.compatibility_score,
+                    ),
+                  },
+                ]}
+              >
+                <Text
+                  style={[
+                    styles.compatScoreValue,
+                    {
+                      color: getCompatScoreColor(
+                        compatData.compatibility_score,
+                      ),
+                    },
+                  ]}
+                >
+                  {compatData.compatibility_score}%
+                </Text>
+                <Text style={styles.compatScoreLabel}>Match</Text>
+              </View>
+              <View style={styles.compatPetInfo}>
+                <Image
+                  source={{ uri: getImageUrl(petData.profile_image) }}
+                  style={styles.compatPetAvatar}
+                />
+                <Text style={styles.compatPetName} numberOfLines={1}>
+                  {petData.name}
+                </Text>
+              </View>
+            </View>
+          </View>
+
+          {/* Match Reasons */}
+          <InfoCard icon="checkmark-done-outline" title="Why They Match">
+            {compatData.match_reasons.map((reason, i) => (
+              <View key={`reason-${i}`} style={styles.matchReasonRow}>
+                <Ionicons name="checkmark-circle" size={20} color="#22C55E" />
+                <Text style={styles.matchReasonText}>{reason}</Text>
+              </View>
+            ))}
+          </InfoCard>
+
+          {/* Detailed Breakdown */}
+          <InfoCard icon="bar-chart-outline" title="Compatibility Breakdown">
+            <CompatFactorRow
+              label="Breed"
+              matched={compatData.breakdown.breed_match}
+              detail={
+                compatData.breakdown.breed_match
+                  ? "Preferred breed match"
+                  : "Different breed preference"
+              }
+            />
+            <CompatFactorRow
+              label="Sex"
+              matched={compatData.breakdown.sex_match}
+              detail={
+                compatData.breakdown.sex_match
+                  ? "Sex preference met"
+                  : "Sex preference not met"
+              }
+            />
+            <CompatFactorRow
+              label="Age"
+              matched={compatData.breakdown.age_in_range}
+              detail={
+                compatData.breakdown.age_in_range
+                  ? "Within preferred age range"
+                  : "Outside preferred age range"
+              }
+            />
+            {compatData.breakdown.behavior_matches.length > 0 && (
+              <View style={styles.compatMatchesSection}>
+                <Text style={styles.compatMatchesSectionTitle}>
+                  Matching Behaviors
+                </Text>
+                <View style={styles.tagContainer}>
+                  {compatData.breakdown.behavior_matches.map((b, i) => (
+                    <Tag key={`bm-${i}`} label={b} color="green" />
+                  ))}
+                </View>
+              </View>
+            )}
+            {compatData.breakdown.attribute_matches.length > 0 && (
+              <View style={styles.compatMatchesSection}>
+                <Text style={styles.compatMatchesSectionTitle}>
+                  Matching Attributes
+                </Text>
+                <View style={styles.tagContainer}>
+                  {compatData.breakdown.attribute_matches.map((a, i) => (
+                    <Tag key={`am-${i}`} label={a} color="green" />
+                  ))}
+                </View>
+              </View>
+            )}
+          </InfoCard>
+
+          {/* Reverse Compatibility */}
+          <InfoCard icon="repeat-outline" title={`${petData.name}'s View`}>
+            <View style={styles.reverseScoreContainer}>
+              <Text style={styles.reverseScoreLabel}>
+                How well {petData.name} matches {selectedPet.name}&apos;s
+                preferences:
+              </Text>
+              <View
+                style={[
+                  styles.reverseScoreBadge,
+                  {
+                    backgroundColor:
+                      getCompatScoreColor(compatData.reverse_score) + "20",
+                  },
+                ]}
+              >
+                <Text
+                  style={[
+                    styles.reverseScoreValue,
+                    { color: getCompatScoreColor(compatData.reverse_score) },
+                  ]}
+                >
+                  {compatData.reverse_score}%
+                </Text>
+              </View>
+            </View>
+            {compatData.reverse_reasons.map((reason, i) => (
+              <View key={`rev-${i}`} style={styles.matchReasonRow}>
+                <Ionicons name="checkmark-circle" size={18} color="#6B7280" />
+                <Text style={[styles.matchReasonText, { color: "#6B7280" }]}>
+                  {reason}
+                </Text>
+              </View>
+            ))}
+          </InfoCard>
+        </>
+      ) : (
+        <InfoCard icon="analytics-outline" title="Compatibility">
+          <Text style={styles.cardText}>
+            Unable to calculate compatibility. This pet or your pet may not have
+            preferences set.
+          </Text>
+        </InfoCard>
+      )}
+    </View>
+  );
+
   const renderTabContent = () => {
     switch (activeTab) {
-      case "about": return renderAbout();
-      case "health": return renderHealth();
-      case "gallery": return renderGallery();
-      case "litters": return renderLitters();
-      default: return null;
+      case "about":
+        return renderAbout();
+      case "health":
+        return renderHealth();
+      case "gallery":
+        return renderGallery();
+      case "litters":
+        return renderLitters();
+      case "compatibility":
+        return renderCompatibility();
+      default:
+        return null;
     }
   };
 
   return (
     <SafeAreaView style={styles.flex_1} edges={["top"]}>
       <ScrollView showsVerticalScrollIndicator={false} style={styles.flex_1}>
-        <LinearGradient colors={["#FF6B4A", "#FF9A8B"]} style={styles.headerGradient}>
+        <LinearGradient
+          colors={["#FF6B4A", "#FF9A8B"]}
+          style={styles.headerGradient}
+        >
           <View style={styles.headerContent}>
-            <TouchableOpacity onPress={() => router.back()} style={styles.headerButton}>
+            <TouchableOpacity
+              onPress={() => router.back()}
+              style={styles.headerButton}
+            >
               <Feather name="arrow-left" size={26} color="white" />
             </TouchableOpacity>
             <TouchableOpacity style={styles.headerButton}>
@@ -489,69 +952,186 @@ export default function ViewPetProfileScreen() {
         </LinearGradient>
 
         <View style={styles.profileHeader}>
-            <View style={styles.profilePicContainer}>
-                <Image
-                    source={{ uri: getImageUrl(petData.profile_image) }}
-                    style={styles.profilePic}
+          <View style={styles.profilePicContainer}>
+            <Image
+              source={{ uri: getImageUrl(petData.profile_image) }}
+              style={styles.profilePic}
+            />
+            {/* Compatibility Badge on Avatar */}
+            {compatData && (
+              <View
+                style={[
+                  styles.compatBadge,
+                  {
+                    backgroundColor: getCompatScoreColor(
+                      compatData.compatibility_score,
+                    ),
+                  },
+                ]}
+              >
+                <Text style={styles.compatBadgeText}>
+                  {compatData.compatibility_score}%
+                </Text>
+              </View>
+            )}
+          </View>
+          <Text style={styles.petName}>{petData.name}</Text>
+
+          {/* Verification badges row */}
+          <View style={styles.verificationBadgesRow}>
+            {petData.owner.is_verified && (
+              <View style={styles.verifiedBadge}>
+                <Ionicons name="checkmark-circle" size={14} color="#22C55E" />
+                <Text style={styles.verifiedBadgeText}>Verified Owner</Text>
+              </View>
+            )}
+            {petData.microchip_id && (
+              <View style={styles.verifiedBadge}>
+                <Ionicons
+                  name="hardware-chip-outline"
+                  size={14}
+                  color="#3B82F6"
                 />
+                <Text style={[styles.verifiedBadgeText, { color: "#3B82F6" }]}>
+                  Microchipped
+                </Text>
+              </View>
+            )}
+            {(petData.vaccination_cards?.required?.length ?? 0) > 0 && (
+              <View style={styles.verifiedBadge}>
+                <Ionicons name="shield-checkmark" size={14} color="#8B5CF6" />
+                <Text style={[styles.verifiedBadgeText, { color: "#8B5CF6" }]}>
+                  Health Docs
+                </Text>
+              </View>
+            )}
+          </View>
+
+          {/* Quick Stats Chips */}
+          <View style={styles.statsChipsRow}>
+            <View style={styles.statChip}>
+              <Ionicons name="paw" size={14} color="#FF6B4A" />
+              <Text style={styles.statChipText}>{petData.breed}</Text>
             </View>
-            <Text style={styles.petName}>{petData.name}</Text>
-            
-            <View style={styles.actionButtonsContainer}>
-                <TouchableOpacity style={styles.actionButton}>
-                    <Feather name="star" size={24} color="#FF6B4A" />
-                </TouchableOpacity>
-                <TouchableOpacity 
-                  style={[styles.actionButton, styles.mainActionButton]}
-                  onPress={handleMatchRequest}
-                  disabled={sendingRequest}
-                >
-                  {sendingRequest ? <ActivityIndicator size="small" color="white" /> : <Feather name="heart" size={28} color="white" />}
-                </TouchableOpacity>
-                <TouchableOpacity 
-                  style={styles.actionButton}
-                  onPress={() => {
-                    if (!selectedPet) {
-                      showAlert({
-                        title: "No Pet Selected",
-                        message: "Please select one of your pets to see AI offspring prediction.",
-                        type: "warning",
-                      });
-                      return;
-                    }
-                    const primaryPhoto = selectedPet.photos?.find((p) => p.is_primary) || selectedPet.photos?.[0];
-                    router.push({
-                      pathname: "/(pet)/ai-offspring",
-                      params: {
-                        pet1Name: selectedPet.name,
-                        pet2Name: petData?.name || "Unknown",
-                        pet1Photo: primaryPhoto?.photo_url || "",
-                        pet2Photo: petData?.profile_image || "",
-                        pet1Breed: selectedPet.breed || "Unknown",
-                        pet2Breed: petData?.breed || "Unknown",
-                        compatibilityScore: "85",
-                      },
-                    });
-                  }}
-                >
-                  <Image
-                    source={require("@/assets/images/AI_Rec.png")}
-                    style={styles.aiRecButtonIcon}
-                  />
-                </TouchableOpacity>
-                <TouchableOpacity style={styles.actionButton}>
-                    <Feather name="message-circle" size={24} color="#4B5563" />
-                </TouchableOpacity>
+            <View style={styles.statChip}>
+              <Ionicons name="calendar-outline" size={14} color="#FF6B4A" />
+              <Text style={styles.statChipText}>
+                {calculateAge(petData.birthdate)}
+              </Text>
             </View>
+            <View style={styles.statChip}>
+              <Ionicons
+                name={petData.sex === "male" ? "male" : "female"}
+                size={14}
+                color="#FF6B4A"
+              />
+              <Text style={styles.statChipText}>{petData.sex}</Text>
+            </View>
+            <View style={styles.statChip}>
+              <Ionicons name="fitness-outline" size={14} color="#FF6B4A" />
+              <Text style={styles.statChipText}>{petData.weight} kg</Text>
+            </View>
+          </View>
+
+          {/* Availability Status */}
+          {!petData.is_available_for_matching && (
+            <View style={styles.unavailableBanner}>
+              <Ionicons name="information-circle" size={16} color="#92400E" />
+              <Text style={styles.unavailableBannerText}>
+                {petData.is_on_cooldown
+                  ? `On cooldown for ${petData.cooldown_days_remaining} more days`
+                  : "Not available for matching"}
+              </Text>
+            </View>
+          )}
+
+          <View style={styles.actionButtonsContainer}>
+            <TouchableOpacity style={styles.actionButton}>
+              <Feather name="star" size={24} color="#FF6B4A" />
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={[styles.actionButton, styles.mainActionButton]}
+              onPress={handleMatchRequest}
+              disabled={sendingRequest}
+            >
+              {sendingRequest ? (
+                <ActivityIndicator size="small" color="white" />
+              ) : (
+                <Feather name="heart" size={28} color="white" />
+              )}
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={styles.actionButton}
+              onPress={() => {
+                if (!selectedPet) {
+                  showAlert({
+                    title: "No Pet Selected",
+                    message:
+                      "Please select one of your pets to see AI offspring prediction.",
+                    type: "warning",
+                  });
+                  return;
+                }
+                const primaryPhoto =
+                  selectedPet.photos?.find((p) => p.is_primary) ||
+                  selectedPet.photos?.[0];
+                router.push({
+                  pathname: "/(pet)/ai-offspring",
+                  params: {
+                    pet1Id: selectedPet.pet_id,
+                    pet2Id: petData?.pet_id,
+                    pet1Name: selectedPet.name,
+                    pet2Name: petData?.name || "Unknown",
+                    pet1Photo: primaryPhoto?.photo_url || "",
+                    pet2Photo: petData?.profile_image || "",
+                    pet1Breed: selectedPet.breed || "Unknown",
+                    pet2Breed: petData?.breed || "Unknown",
+                    compatibilityScore: String(
+                      compatData?.compatibility_score ?? "85",
+                    ),
+                  },
+                });
+              }}
+            >
+              <Image
+                source={require("@/assets/images/AI_Rec.png")}
+                style={styles.aiRecButtonIcon}
+              />
+            </TouchableOpacity>
+            <TouchableOpacity style={styles.actionButton}>
+              <Feather name="message-circle" size={24} color="#4B5563" />
+            </TouchableOpacity>
+          </View>
         </View>
 
         <View style={styles.tabContainer}>
-          <TabButton title="About" isActive={activeTab === "about"} onPress={() => setActiveTab("about")} />
-          <TabButton title="Health" isActive={activeTab === "health"} onPress={() => setActiveTab("health")} />
-          <TabButton title="Gallery" isActive={activeTab === "gallery"} onPress={() => setActiveTab("gallery")} />
-          <TabButton title="Litters" isActive={activeTab === "litters"} onPress={() => setActiveTab("litters")} />
+          <TabButton
+            title="About"
+            isActive={activeTab === "about"}
+            onPress={() => setActiveTab("about")}
+          />
+          <TabButton
+            title="Health"
+            isActive={activeTab === "health"}
+            onPress={() => setActiveTab("health")}
+          />
+          <TabButton
+            title="Gallery"
+            isActive={activeTab === "gallery"}
+            onPress={() => setActiveTab("gallery")}
+          />
+          <TabButton
+            title="Litters"
+            isActive={activeTab === "litters"}
+            onPress={() => setActiveTab("litters")}
+          />
+          <TabButton
+            title="Match"
+            isActive={activeTab === "compatibility"}
+            onPress={() => setActiveTab("compatibility")}
+          />
         </View>
-        
+
         {renderTabContent()}
       </ScrollView>
 
@@ -561,30 +1141,64 @@ export default function ViewPetProfileScreen() {
 }
 
 // Reusable Components
-const InfoCard = ({ icon, title, children }: { icon: any, title: string, children: React.ReactNode }) => (
+const getCompatScoreColor = (score: number): string => {
+  if (score >= 80) return "#22C55E"; // green
+  if (score >= 60) return "#F59E0B"; // amber
+  if (score >= 40) return "#F97316"; // orange
+  return "#EF4444"; // red
+};
+
+const InfoCard = ({
+  icon,
+  title,
+  children,
+}: {
+  icon: any;
+  title: string;
+  children: React.ReactNode;
+}) => (
   <View style={styles.card}>
-      <View style={styles.cardHeader}>
-          <Ionicons name={icon} size={22} color="#FF6B4A" />
-          <Text style={styles.cardTitle}>{title}</Text>
-      </View>
-      {children}
+    <View style={styles.cardHeader}>
+      <Ionicons name={icon} size={22} color="#FF6B4A" />
+      <Text style={styles.cardTitle}>{title}</Text>
+    </View>
+    {children}
   </View>
 );
 
-const DetailRow = ({ label, value }: { label: string, value: string }) => (
+const DetailRow = ({ label, value }: { label: string; value: string }) => (
   <View style={styles.detailRow}>
-      <Text style={styles.detailLabel}>{label}</Text>
-      <Text style={styles.detailValue}>{value}</Text>
+    <Text style={styles.detailLabel}>{label}</Text>
+    <Text style={styles.detailValue}>{value}</Text>
   </View>
 );
 
-const TabButton = ({ title, isActive, onPress }: { title: string, isActive: boolean, onPress: () => void }) => (
-  <TouchableOpacity onPress={onPress} style={[styles.tabButton, isActive && styles.tabActive]}>
-      <Text style={[styles.tabText, isActive && styles.tabTextActive]}>{title}</Text>
+const TabButton = ({
+  title,
+  isActive,
+  onPress,
+}: {
+  title: string;
+  isActive: boolean;
+  onPress: () => void;
+}) => (
+  <TouchableOpacity
+    onPress={onPress}
+    style={[styles.tabButton, isActive && styles.tabActive]}
+  >
+    <Text style={[styles.tabText, isActive && styles.tabTextActive]}>
+      {title}
+    </Text>
   </TouchableOpacity>
 );
 
-const Tag = ({ label, color }: { label: string, color: 'blue' | 'red' | 'green' }) => {
+const Tag = ({
+  label,
+  color,
+}: {
+  label: string;
+  color: "blue" | "red" | "green";
+}) => {
   const colorStyles = {
     blue: "bg-blue-100 border-blue-200 text-blue-800",
     red: "bg-red-100 border-red-200 text-red-800",
@@ -592,96 +1206,571 @@ const Tag = ({ label, color }: { label: string, color: 'blue' | 'red' | 'green' 
   };
   const style = colorStyles[color] || colorStyles.blue;
   return (
-    <View className={`rounded-full px-3 py-1.5 border ${style.split(' ')[0]} ${style.split(' ')[1]}`}>
-      <Text className={`text-xs font-medium ${style.split(' ')[2]}`}>{label}</Text>
+    <View
+      className={`rounded-full px-3 py-1.5 border ${style.split(" ")[0]} ${style.split(" ")[1]}`}
+    >
+      <Text className={`text-xs font-medium ${style.split(" ")[2]}`}>
+        {label}
+      </Text>
     </View>
   );
 };
 
-const StatusSummaryRow = ({ label, count, status }: { label: string, count?: number, status: 'valid' | 'missing' | 'expired' | 'expiring' }) => {
-    const info = {
-        valid: { icon: 'checkmark-circle', color: '#22C55E', text: 'Yes' },
-        missing: { icon: 'close-circle', color: '#6B7280', text: 'Not Present' },
-        expired: { icon: 'alert-circle', color: '#EF4444', text: `${count} Expired` },
-        expiring: { icon: 'time', color: '#F59E0B', text: `${count} Expiring` },
-    }[status];
+const StatusSummaryRow = ({
+  label,
+  count,
+  status,
+}: {
+  label: string;
+  count?: number;
+  status: "valid" | "missing" | "expired" | "expiring";
+}) => {
+  const info = {
+    valid: { icon: "checkmark-circle", color: "#22C55E", text: "Yes" },
+    missing: { icon: "close-circle", color: "#6B7280", text: "Not Present" },
+    expired: {
+      icon: "alert-circle",
+      color: "#EF4444",
+      text: `${count} Expired`,
+    },
+    expiring: { icon: "time", color: "#F59E0B", text: `${count} Expiring` },
+  }[status];
 
-    return (
-        <View style={styles.summaryRow}>
-            <Text style={styles.detailLabel}>{label}</Text>
-            <View style={styles.summaryStatus}>
-                <Ionicons name={info.icon as any} size={20} color={info.color} />
-                <Text style={[styles.summaryStatusText, { color: info.color }]}>{info.text}</Text>
-            </View>
-        </View>
-    );
+  return (
+    <View style={styles.summaryRow}>
+      <Text style={styles.detailLabel}>{label}</Text>
+      <View style={styles.summaryStatus}>
+        <Ionicons name={info.icon as any} size={20} color={info.color} />
+        <Text style={[styles.summaryStatusText, { color: info.color }]}>
+          {info.text}
+        </Text>
+      </View>
+    </View>
+  );
 };
 
-const DocumentRow = ({ title, expiry, given, status }: { title: string, expiry?: string, given?: string, status: DocumentStatus }) => {
-    const badge = getStatusBadge(status);
-    return (
-        <View style={styles.documentRow}>
-            <View style={styles.documentTouchable}>
-                <View style={[styles.statusDot, { backgroundColor: getStatusColor(status) }]} />
-                <View style={styles.flex_1}>
-                    <Text style={styles.documentTitle}>{title}</Text>
-                    {expiry && <Text style={styles.documentSubtitle}>Expires: {dayjs(expiry).format("MMMM D, YYYY")}</Text>}
-                    {given && <Text style={styles.documentSubtitle}>Given: {dayjs(given).format("MMMM D, YYYY")}</Text>}
-                </View>
-                <View className={`${badge.bg} rounded-full px-3 py-1`}>
-                    <Text className={`${badge.text} text-xs font-semibold`}>{badge.label}</Text>
-                </View>
-            </View>
+const DocumentRow = ({
+  title,
+  expiry,
+  given,
+  status,
+}: {
+  title: string;
+  expiry?: string;
+  given?: string;
+  status: DocumentStatus;
+}) => {
+  const badge = getStatusBadge(status);
+  return (
+    <View style={styles.documentRow}>
+      <View style={styles.documentTouchable}>
+        <View
+          style={[
+            styles.statusDot,
+            { backgroundColor: getStatusColor(status) },
+          ]}
+        />
+        <View style={styles.flex_1}>
+          <Text style={styles.documentTitle}>{title}</Text>
+          {expiry && (
+            <Text style={styles.documentSubtitle}>
+              Expires: {dayjs(expiry).format("MMMM D, YYYY")}
+            </Text>
+          )}
+          {given && (
+            <Text style={styles.documentSubtitle}>
+              Given: {dayjs(given).format("MMMM D, YYYY")}
+            </Text>
+          )}
         </View>
-    );
-}
+        <View className={`${badge.bg} rounded-full px-3 py-1`}>
+          <Text className={`${badge.text} text-xs font-semibold`}>
+            {badge.label}
+          </Text>
+        </View>
+      </View>
+    </View>
+  );
+};
+
+const CompatFactorRow = ({
+  label,
+  matched,
+  detail,
+}: {
+  label: string;
+  matched: boolean;
+  detail: string;
+}) => (
+  <View style={styles.compatFactorRow}>
+    <Ionicons
+      name={matched ? "checkmark-circle" : "close-circle"}
+      size={20}
+      color={matched ? "#22C55E" : "#EF4444"}
+    />
+    <View style={{ flex: 1, marginLeft: 10 }}>
+      <Text style={styles.compatFactorLabel}>{label}</Text>
+      <Text style={styles.compatFactorDetail}>{detail}</Text>
+    </View>
+  </View>
+);
 
 const styles = StyleSheet.create({
   flex_1: { flex: 1, backgroundColor: "#FDF4F4" },
   center: { flex: 1, justifyContent: "center", alignItems: "center" },
-  loadingText: { marginTop: 10, color: '#555' },
-  errorText: { color: '#B91C1C' },
-  headerGradient: { height: 160, borderBottomLeftRadius: 30, borderBottomRightRadius: 30 },
-  headerContent: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", paddingTop: 40, paddingHorizontal: 20 },
+  loadingText: { marginTop: 10, color: "#555" },
+  errorText: { color: "#B91C1C" },
+  headerGradient: {
+    height: 160,
+    borderBottomLeftRadius: 30,
+    borderBottomRightRadius: 30,
+  },
+  headerContent: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    paddingTop: 40,
+    paddingHorizontal: 20,
+  },
   headerButton: { padding: 8 },
   profileHeader: { alignItems: "center", marginTop: -80 },
-  profilePicContainer: { width: 140, height: 140, borderRadius: 70, backgroundColor: "white", justifyContent: "center", alignItems: "center", elevation: 10, shadowColor: "#000", shadowOffset: { width: 0, height: 5 }, shadowOpacity: 0.3, shadowRadius: 5 },
+  profilePicContainer: {
+    width: 140,
+    height: 140,
+    borderRadius: 70,
+    backgroundColor: "white",
+    justifyContent: "center",
+    alignItems: "center",
+    elevation: 10,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 5 },
+    shadowOpacity: 0.3,
+    shadowRadius: 5,
+  },
   profilePic: { width: 130, height: 130, borderRadius: 65 },
-  petName: { fontSize: 28, fontWeight: "bold", color: "#2C2C2C", marginTop: 12, marginBottom: 4 },
-  actionButtonsContainer: { flexDirection: 'row', alignItems: 'center', gap: 16, marginVertical: 12 },
-  actionButton: { width: 56, height: 56, borderRadius: 28, justifyContent: 'center', alignItems: 'center', backgroundColor: 'white', elevation: 3, shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.15, shadowRadius: 3 },
-  mainActionButton: { width: 64, height: 64, borderRadius: 32, backgroundColor: '#FF6B4A' },
-  tabContainer: { flexDirection: "row", justifyContent: "space-around", marginHorizontal: 20, marginTop: 10, backgroundColor: 'white', borderRadius: 25, padding: 6, elevation: 2, shadowColor: "#000", shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.1, shadowRadius: 2 },
-  tabButton: { flex: 1, paddingVertical: 10, alignItems: "center", borderRadius: 20 },
+  petName: {
+    fontSize: 28,
+    fontWeight: "bold",
+    color: "#2C2C2C",
+    marginTop: 12,
+    marginBottom: 4,
+  },
+  actionButtonsContainer: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 16,
+    marginVertical: 12,
+  },
+  actionButton: {
+    width: 56,
+    height: 56,
+    borderRadius: 28,
+    justifyContent: "center",
+    alignItems: "center",
+    backgroundColor: "white",
+    elevation: 3,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.15,
+    shadowRadius: 3,
+  },
+  mainActionButton: {
+    width: 64,
+    height: 64,
+    borderRadius: 32,
+    backgroundColor: "#FF6B4A",
+  },
+  tabContainer: {
+    flexDirection: "row",
+    justifyContent: "space-around",
+    marginHorizontal: 20,
+    marginTop: 10,
+    backgroundColor: "white",
+    borderRadius: 25,
+    padding: 6,
+    elevation: 2,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.1,
+    shadowRadius: 2,
+  },
+  tabButton: {
+    flex: 1,
+    paddingVertical: 10,
+    alignItems: "center",
+    borderRadius: 20,
+  },
   tabActive: { backgroundColor: "#FF6B4A" },
-  tabText: { fontSize: 14, fontWeight: "600", color: "#555" },
+  tabText: { fontSize: 13, fontWeight: "600", color: "#555" },
   tabTextActive: { color: "white" },
   tabContent: { padding: 20 },
-  card: { backgroundColor: 'white', borderRadius: 20, padding: 20, marginBottom: 16, elevation: 2, shadowColor: "#000", shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.08, shadowRadius: 5 },
-  cardHeader: { flexDirection: 'row', alignItems: 'center', marginBottom: 12 },
-  cardTitle: { fontSize: 18, fontWeight: 'bold', color: '#333', marginLeft: 8 },
-  cardText: { fontSize: 15, color: '#666', lineHeight: 22 },
-  ownerContainer: { flexDirection: 'row', alignItems: 'center' },
+  card: {
+    backgroundColor: "white",
+    borderRadius: 20,
+    padding: 20,
+    marginBottom: 16,
+    elevation: 2,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.08,
+    shadowRadius: 5,
+  },
+  cardHeader: { flexDirection: "row", alignItems: "center", marginBottom: 12 },
+  cardTitle: { fontSize: 18, fontWeight: "bold", color: "#333", marginLeft: 8 },
+  cardText: { fontSize: 15, color: "#666", lineHeight: 22 },
+  ownerContainer: { flexDirection: "row", alignItems: "center" },
   ownerImage: { width: 60, height: 60, borderRadius: 15, marginRight: 12 },
-  ownerName: { fontSize: 16, fontWeight: 'bold', color: '#333' },
-  detailRow: { flexDirection: 'row', justifyContent: 'space-between', paddingVertical: 8, borderBottomWidth: 1, borderBottomColor: '#F3F4F6' },
-  detailLabel: { fontSize: 15, color: '#555' },
-  detailValue: { fontSize: 15, color: '#111', fontWeight: 'bold' },
-  tagContainer: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
-  summaryRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: '#F3F4F6' },
-  summaryStatus: { flexDirection: 'row', alignItems: 'center' },
-  summaryStatusText: { marginLeft: 8, fontWeight: '600' },
-  documentRow: { paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: '#F3F4F6' },
-  documentTouchable: { flexDirection: 'row', alignItems: 'center' },
+  ownerName: { fontSize: 16, fontWeight: "bold", color: "#333" },
+  detailRow: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    paddingVertical: 8,
+    borderBottomWidth: 1,
+    borderBottomColor: "#F3F4F6",
+  },
+  detailLabel: { fontSize: 15, color: "#555" },
+  detailValue: { fontSize: 15, color: "#111", fontWeight: "bold" },
+  tagContainer: { flexDirection: "row", flexWrap: "wrap", gap: 8 },
+  summaryRow: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    paddingVertical: 10,
+    borderBottomWidth: 1,
+    borderBottomColor: "#F3F4F6",
+  },
+  summaryStatus: { flexDirection: "row", alignItems: "center" },
+  summaryStatusText: { marginLeft: 8, fontWeight: "600" },
+  documentRow: {
+    paddingVertical: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: "#F3F4F6",
+  },
+  documentTouchable: { flexDirection: "row", alignItems: "center" },
   statusDot: { width: 10, height: 10, borderRadius: 5, marginRight: 12 },
-  documentTitle: { fontSize: 16, fontWeight: '600', color: '#333' },
-  documentSubtitle: { fontSize: 13, color: '#777', marginTop: 2 },
+  documentTitle: { fontSize: 16, fontWeight: "600", color: "#333" },
+  documentSubtitle: { fontSize: 13, color: "#777", marginTop: 2 },
   galleryContainer: { padding: 10 },
-  photoGrid: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'flex-start', gap: 10 },
-  photoContainer: { width: (width - 40) / 2 - 5, aspectRatio: 1, borderRadius: 15, backgroundColor: '#fff', elevation: 2, overflow: 'hidden' },
-  photo: { width: '100%', height: '100%' },
-  emptyGalleryText: { marginTop: 15, fontSize: 16, color: '#888', textAlign: 'center' },
-  viewLitterButton: { backgroundColor: '#FF6B4A', borderRadius: 20, paddingVertical: 12, paddingHorizontal: 20, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', marginTop: 10 },
-  viewLitterText: { color: 'white', fontWeight: 'bold', marginRight: 8 },
-  aiRecButtonIcon: { width: 32, height: 32 }
+  photoGrid: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    justifyContent: "flex-start",
+    gap: 10,
+  },
+  photoContainer: {
+    width: (width - 40) / 2 - 5,
+    aspectRatio: 1,
+    borderRadius: 15,
+    backgroundColor: "#fff",
+    elevation: 2,
+    overflow: "hidden",
+  },
+  photo: { width: "100%", height: "100%" },
+  emptyGalleryText: {
+    marginTop: 15,
+    fontSize: 16,
+    color: "#888",
+    textAlign: "center",
+  },
+  viewLitterButton: {
+    backgroundColor: "#FF6B4A",
+    borderRadius: 20,
+    paddingVertical: 12,
+    paddingHorizontal: 20,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    marginTop: 10,
+  },
+  viewLitterText: { color: "white", fontWeight: "bold", marginRight: 8 },
+  aiRecButtonIcon: { width: 32, height: 32 },
+  vaccinationSection: { marginBottom: 16 },
+  vaccinationSectionHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginBottom: 12,
+  },
+  vaccinationSectionTitle: {
+    fontSize: 18,
+    fontWeight: "bold",
+    color: "#1F2937",
+    marginLeft: 8,
+  },
+  // Stat chips
+  statsChipsRow: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    justifyContent: "center",
+    gap: 8,
+    marginTop: 8,
+    marginBottom: 4,
+    paddingHorizontal: 20,
+  },
+  statChip: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "#FFF5F3",
+    borderRadius: 20,
+    paddingVertical: 6,
+    paddingHorizontal: 12,
+    gap: 4,
+    borderWidth: 1,
+    borderColor: "#FFE0D9",
+  },
+  statChipText: {
+    fontSize: 13,
+    fontWeight: "600",
+    color: "#333",
+    textTransform: "capitalize",
+  },
+  // Verification badges
+  verificationBadgesRow: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    justifyContent: "center",
+    gap: 6,
+    marginTop: 6,
+    marginBottom: 2,
+  },
+  verifiedBadge: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 4,
+    backgroundColor: "#F0FDF4",
+    borderRadius: 12,
+    paddingVertical: 4,
+    paddingHorizontal: 10,
+    borderWidth: 1,
+    borderColor: "#BBF7D0",
+  },
+  verifiedBadgeText: {
+    fontSize: 11,
+    fontWeight: "600",
+    color: "#22C55E",
+  },
+  // Compatibility badge on avatar
+  compatBadge: {
+    position: "absolute",
+    bottom: 0,
+    right: 0,
+    borderRadius: 14,
+    paddingVertical: 3,
+    paddingHorizontal: 8,
+    borderWidth: 2,
+    borderColor: "white",
+  },
+  compatBadgeText: {
+    fontSize: 11,
+    fontWeight: "bold",
+    color: "white",
+  },
+  // Unavailable banner
+  unavailableBanner: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "#FEF3C7",
+    borderRadius: 12,
+    paddingVertical: 8,
+    paddingHorizontal: 14,
+    marginTop: 8,
+    gap: 6,
+  },
+  unavailableBannerText: {
+    fontSize: 13,
+    fontWeight: "600",
+    color: "#92400E",
+  },
+  // Trust & Verification detail
+  verificationDetailRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    paddingVertical: 10,
+    borderBottomWidth: 1,
+    borderBottomColor: "#F3F4F6",
+  },
+  verificationIconContainer: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: "#F9FAFB",
+    justifyContent: "center",
+    alignItems: "center",
+    marginRight: 12,
+  },
+  verificationLabel: {
+    fontSize: 15,
+    fontWeight: "600",
+    color: "#333",
+  },
+  verificationStatus: {
+    fontSize: 13,
+    marginTop: 2,
+  },
+  // Breeding partners & litters
+  breedingPartnerRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    paddingVertical: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: "#F3F4F6",
+  },
+  partnerPhoto: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    marginRight: 12,
+  },
+  partnerName: {
+    fontSize: 16,
+    fontWeight: "600",
+    color: "#333",
+  },
+  partnerBreed: {
+    fontSize: 13,
+    color: "#777",
+    marginTop: 2,
+  },
+  litterCountBadge: {
+    backgroundColor: "#FFF5F3",
+    borderRadius: 12,
+    paddingVertical: 4,
+    paddingHorizontal: 10,
+  },
+  litterCountText: {
+    fontSize: 12,
+    fontWeight: "600",
+    color: "#FF6B4A",
+  },
+  // Compatibility tab styles
+  compatEmptyContainer: {
+    alignItems: "center",
+    paddingVertical: 24,
+    gap: 8,
+  },
+  compatEmptyTitle: {
+    fontSize: 18,
+    fontWeight: "bold",
+    color: "#333",
+  },
+  compatLoadingContainer: {
+    alignItems: "center",
+    justifyContent: "center",
+    paddingVertical: 60,
+  },
+  compatScoreCard: {
+    backgroundColor: "white",
+    borderRadius: 20,
+    padding: 24,
+    marginBottom: 16,
+    elevation: 2,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.08,
+    shadowRadius: 5,
+  },
+  compatScoreRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-around",
+  },
+  compatPetInfo: {
+    alignItems: "center",
+    width: 80,
+  },
+  compatPetAvatar: {
+    width: 56,
+    height: 56,
+    borderRadius: 28,
+    marginBottom: 6,
+  },
+  compatPetName: {
+    fontSize: 13,
+    fontWeight: "600",
+    color: "#333",
+    textAlign: "center",
+  },
+  compatScoreCircle: {
+    width: 90,
+    height: 90,
+    borderRadius: 45,
+    borderWidth: 4,
+    justifyContent: "center",
+    alignItems: "center",
+    backgroundColor: "white",
+  },
+  compatScoreValue: {
+    fontSize: 24,
+    fontWeight: "bold",
+  },
+  compatScoreLabel: {
+    fontSize: 11,
+    color: "#9CA3AF",
+    fontWeight: "600",
+  },
+  matchReasonRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
+    paddingVertical: 8,
+    borderBottomWidth: 1,
+    borderBottomColor: "#F3F4F6",
+  },
+  matchReasonText: {
+    fontSize: 15,
+    color: "#333",
+    flex: 1,
+  },
+  compatFactorRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    paddingVertical: 10,
+    borderBottomWidth: 1,
+    borderBottomColor: "#F3F4F6",
+  },
+  compatFactorLabel: {
+    fontSize: 15,
+    fontWeight: "600",
+    color: "#333",
+  },
+  compatFactorDetail: {
+    fontSize: 13,
+    color: "#777",
+    marginTop: 2,
+  },
+  compatMatchesSection: {
+    marginTop: 12,
+    paddingTop: 12,
+    borderTopWidth: 1,
+    borderTopColor: "#F3F4F6",
+  },
+  compatMatchesSectionTitle: {
+    fontSize: 14,
+    fontWeight: "600",
+    color: "#555",
+    marginBottom: 8,
+  },
+  reverseScoreContainer: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    paddingVertical: 10,
+    borderBottomWidth: 1,
+    borderBottomColor: "#F3F4F6",
+    marginBottom: 8,
+  },
+  reverseScoreLabel: {
+    fontSize: 14,
+    color: "#555",
+    flex: 1,
+    marginRight: 12,
+  },
+  reverseScoreBadge: {
+    borderRadius: 16,
+    paddingVertical: 6,
+    paddingHorizontal: 14,
+  },
+  reverseScoreValue: {
+    fontSize: 18,
+    fontWeight: "bold",
+  },
 });

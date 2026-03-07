@@ -28,17 +28,52 @@ interface PetContextType {
   setSelectedPet: (pet: Pet | null) => void;
   loadUserPets: () => Promise<void>;
   isLoading: boolean;
+  pinnedPetIds: number[];
+  togglePinnedPet: (petId: number) => Promise<void>;
+  isPetPinned: (petId: number) => boolean;
 }
 
 const PetContext = createContext<PetContextType | undefined>(undefined);
 
 const SELECTED_PET_KEY = "selected_pet_id";
+const PINNED_PETS_KEY = "pinned_pet_ids";
 
 export function PetProvider({ children }: { children: React.ReactNode }) {
   const [selectedPet, setSelectedPetState] = useState<Pet | null>(null);
   const [userPets, setUserPets] = useState<Pet[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [pinnedPetIds, setPinnedPetIds] = useState<number[]>([]);
   const { session } = useSession();
+
+  // Load pinned pets from storage
+  const loadPinnedPets = async () => {
+    try {
+      const stored = await SecureStore.getItemAsync(PINNED_PETS_KEY);
+      if (stored) {
+        setPinnedPetIds(JSON.parse(stored));
+      }
+    } catch (error) {
+      console.error("Error loading pinned pets:", error);
+    }
+  };
+
+  // Toggle a pet as pinned (max 3)
+  const togglePinnedPet = async (petId: number) => {
+    setPinnedPetIds((prev) => {
+      let updated: number[];
+      if (prev.includes(petId)) {
+        updated = prev.filter((id) => id !== petId);
+      } else {
+        // Max 3 pinned pets — drop the oldest if at limit
+        updated =
+          prev.length >= 3 ? [...prev.slice(1), petId] : [...prev, petId];
+      }
+      SecureStore.setItemAsync(PINNED_PETS_KEY, JSON.stringify(updated));
+      return updated;
+    });
+  };
+
+  const isPetPinned = (petId: number) => pinnedPetIds.includes(petId);
 
   // Load pets and restore selected pet from storage
   const loadUserPets = async () => {
@@ -48,7 +83,9 @@ export function PetProvider({ children }: { children: React.ReactNode }) {
       setUserPets(pets);
 
       // Filter to only active pets not on cooldown for auto-selection
-      const availablePets = pets.filter((p: Pet) => !p.is_on_cooldown && p.status === 'active');
+      const availablePets = pets.filter(
+        (p: Pet) => !p.is_on_cooldown && p.status === "active",
+      );
 
       // Restore selected pet from SecureStore
       const storedPetId = await SecureStore.getItemAsync(SELECTED_PET_KEY);
@@ -90,6 +127,7 @@ export function PetProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     if (session) {
       loadUserPets();
+      loadPinnedPets();
     } else {
       setIsLoading(false);
     }
@@ -103,6 +141,9 @@ export function PetProvider({ children }: { children: React.ReactNode }) {
         setSelectedPet,
         loadUserPets,
         isLoading,
+        pinnedPetIds,
+        togglePinnedPet,
+        isPetPinned,
       }}
     >
       {children}

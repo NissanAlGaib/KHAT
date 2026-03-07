@@ -7,7 +7,6 @@ import {
   ActivityIndicator,
   StyleSheet,
   RefreshControl,
-  TextInput,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Feather, Ionicons } from "@expo/vector-icons";
@@ -15,22 +14,27 @@ import { useRouter, useLocalSearchParams } from "expo-router";
 import { LinearGradient } from "expo-linear-gradient";
 import { useAlert } from "@/hooks/useAlert";
 import AlertModal from "@/components/core/AlertModal";
+import StyledModal from "@/components/core/StyledModal";
 import VaccinationCardComponent from "@/components/pet/VaccinationCard";
 import AddShotModal from "@/components/pet/AddShotModal";
+import AddVaccineSheet from "@/components/pet/AddVaccineSheet";
 import {
   getPet,
   getVaccinationCards,
   addVaccinationShot,
-  createCustomVaccinationCard,
-  deleteVaccinationCard,
+  getAvailableProtocols,
+  optInToProtocol,
+  changeProtocol,
   VaccinationCard,
   VaccinationCardsResponse,
+  AvailableProtocolsResponse,
 } from "@/services/petService";
 
 export default function VaccinationsScreen() {
   const router = useRouter();
   const params = useLocalSearchParams();
   const petId = params.petId as string;
+  const showImportBanner = params.showImportBanner === "true";
   const { visible, alertOptions, showAlert, hideAlert } = useAlert();
 
   const [petName, setPetName] = useState("");
@@ -43,24 +47,30 @@ export default function VaccinationsScreen() {
 
   // Modal states
   const [showAddShotModal, setShowAddShotModal] = useState(false);
-  const [showAddCustomModal, setShowAddCustomModal] = useState(false);
+  const [showOptInModal, setShowOptInModal] = useState(false);
   const [selectedCard, setSelectedCard] = useState<VaccinationCard | null>(null);
   const [addingShotLoading, setAddingShotLoading] = useState(false);
 
-  // Custom card form state
-  const [customVaccineName, setCustomVaccineName] = useState("");
-  const [customTotalShots, setCustomTotalShots] = useState("1");
-  const [customRecurrence, setCustomRecurrence] = useState<"none" | "recurring">("none");
-  const [creatingCustomCard, setCreatingCustomCard] = useState(false);
+  const [availableProtocols, setAvailableProtocols] = useState<AvailableProtocolsResponse>({
+    enrolled: [],
+    available: [],
+  });
+
+  // Edit Protocol state
+  const [showEditProtocolModal, setShowEditProtocolModal] = useState(false);
+  const [editingCard, setEditingCard] = useState<VaccinationCard | null>(null);
+  const [changingProtocol, setChangingProtocol] = useState(false);
 
   const fetchData = useCallback(async () => {
     try {
-      const [pet, cards] = await Promise.all([
+      const [pet, cards, protocols] = await Promise.all([
         getPet(parseInt(petId)),
         getVaccinationCards(parseInt(petId)),
+        getAvailableProtocols(parseInt(petId)),
       ]);
       setPetName(pet.name);
       setVaccinationCards(cards);
+      setAvailableProtocols(protocols);
     } catch (error) {
       console.error("Error fetching vaccination data:", error);
       showAlert({
@@ -100,6 +110,7 @@ export default function VaccinationsScreen() {
     veterinarian_name: string;
     date_administered: string;
     expiration_date: string;
+    shot_number: number;
   }) => {
     if (!selectedCard) return;
     setAddingShotLoading(true);
@@ -123,83 +134,63 @@ export default function VaccinationsScreen() {
     }
   };
 
-  const handleCreateCustomCard = async () => {
-    if (!customVaccineName.trim()) {
-      showAlert({
-        title: "Error",
-        message: "Please enter a vaccine name",
-        type: "error",
-      });
-      return;
-    }
-
-    setCreatingCustomCard(true);
+  const handleOptIn = async (protocolId: number) => {
     try {
-      await createCustomVaccinationCard(parseInt(petId), {
-        vaccine_name: customVaccineName.trim(),
-        total_shots: parseInt(customTotalShots) || 1,
-        recurrence_type: customRecurrence,
-      });
+      await optInToProtocol(parseInt(petId), protocolId);
       await fetchData();
-      setShowAddCustomModal(false);
-      setCustomVaccineName("");
-      setCustomTotalShots("1");
-      setCustomRecurrence("none");
       showAlert({
         title: "Success",
-        message: "Custom vaccination card created!",
+        message: "Vaccine added to your pet's schedule!",
         type: "success",
       });
     } catch (error: any) {
       showAlert({
         title: "Error",
-        message: error.response?.data?.message || "Failed to create vaccination card",
+        message: error.response?.data?.message || "Failed to add vaccine",
         type: "error",
       });
-    } finally {
-      setCreatingCustomCard(false);
     }
   };
 
-  const handleDeleteCard = (cardId: number) => {
-    const card = vaccinationCards.optional.find((c) => c.card_id === cardId);
-    if (!card) return;
+  const handleOpenEditProtocolModal = (cardId: number) => {
+    const allCards = [...vaccinationCards.required, ...vaccinationCards.optional];
+    const card = allCards.find((c) => c.card_id === cardId);
+    if (card) {
+      setEditingCard(card);
+      setShowEditProtocolModal(true);
+    }
+  };
 
-    showAlert({
-      title: "Delete Vaccination Card",
-      message: `Are you sure you want to delete "${card.vaccine_name}"? This action cannot be undone.`,
-      type: "warning",
-      buttons: [
-        { text: "Cancel", style: "cancel" },
-        {
-          text: "Delete",
-          style: "destructive",
-          onPress: async () => {
-            try {
-              await deleteVaccinationCard(parseInt(petId), cardId);
-              await fetchData();
-              showAlert({
-                title: "Deleted",
-                message: "Vaccination card deleted successfully",
-                type: "success",
-              });
-            } catch (error: any) {
-              showAlert({
-                title: "Error",
-                message: error.response?.data?.message || "Failed to delete card",
-                type: "error",
-              });
-            }
-          },
-        },
-      ],
-    });
+  const handleChangeProtocol = async (protocolId: number) => {
+    if (!editingCard) return;
+    setChangingProtocol(true);
+    try {
+      await changeProtocol(parseInt(petId), editingCard.card_id, protocolId);
+      await fetchData();
+      showAlert({
+        title: "Success",
+        message: "Vaccination protocol updated successfully!",
+        type: "success",
+      });
+      setShowEditProtocolModal(false);
+    } catch (error: any) {
+      showAlert({
+        title: "Error",
+        message: error.response?.data?.message || "Failed to update protocol",
+        type: "error",
+      });
+    } finally {
+      setChangingProtocol(false);
+    }
   };
 
   // Calculate overall stats
   const totalCards = vaccinationCards.required.length + vaccinationCards.optional.length;
-  const completedCards = [...vaccinationCards.required, ...vaccinationCards.optional].filter(
+  const verifiedCards = [...vaccinationCards.required, ...vaccinationCards.optional].filter(
     (c) => c.status === "completed"
+  ).length;
+  const pendingCards = [...vaccinationCards.required, ...vaccinationCards.optional].filter(
+    (c) => c.pending_shots_count > 0
   ).length;
   const overdueCards = [...vaccinationCards.required, ...vaccinationCards.optional].filter(
     (c) => c.status === "overdue"
@@ -228,12 +219,14 @@ export default function VaccinationsScreen() {
             <Text style={styles.headerTitle}>Vaccinations</Text>
             <Text style={styles.headerSubtitle}>{petName}</Text>
           </View>
-          <TouchableOpacity
-            onPress={() => setShowAddCustomModal(true)}
-            style={styles.addButton}
-          >
-            <Feather name="plus" size={24} color="white" />
-          </TouchableOpacity>
+          {availableProtocols.available.length > 0 && (
+            <TouchableOpacity
+              onPress={() => setShowOptInModal(true)}
+              style={styles.addButton}
+            >
+              <Feather name="plus" size={24} color="white" />
+            </TouchableOpacity>
+          )}
         </View>
       </LinearGradient>
 
@@ -245,6 +238,26 @@ export default function VaccinationsScreen() {
           <RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={["#FF6B4A"]} />
         }
       >
+        {/* Import History Banner */}
+        {showImportBanner && (
+          <TouchableOpacity
+            style={styles.importBanner}
+            onPress={() => router.push({
+              pathname: "/(pet)/import-history",
+              params: { petId }
+            })}
+          >
+            <Ionicons name="time-outline" size={24} color="#3B82F6" />
+            <View style={styles.importBannerText}>
+              <Text style={styles.importBannerTitle}>Import Past Records</Text>
+              <Text style={styles.importBannerSubtitle}>
+                Add vaccination records from before you started using the app
+              </Text>
+            </View>
+            <Ionicons name="chevron-forward" size={20} color="#3B82F6" />
+          </TouchableOpacity>
+        )}
+
         {/* Stats Summary */}
         <View style={styles.statsContainer}>
           <View style={styles.statCard}>
@@ -254,8 +267,13 @@ export default function VaccinationsScreen() {
           </View>
           <View style={styles.statCard}>
             <Ionicons name="checkmark-circle" size={24} color="#22C55E" />
-            <Text style={[styles.statNumber, { color: "#22C55E" }]}>{completedCards}</Text>
-            <Text style={styles.statLabel}>Completed</Text>
+            <Text style={[styles.statNumber, { color: "#22C55E" }]}>{verifiedCards}</Text>
+            <Text style={styles.statLabel}>Verified</Text>
+          </View>
+          <View style={styles.statCard}>
+            <Ionicons name="hourglass" size={24} color="#F59E0B" />
+            <Text style={[styles.statNumber, { color: "#F59E0B" }]}>{pendingCards}</Text>
+            <Text style={styles.statLabel}>Pending</Text>
           </View>
           <View style={styles.statCard}>
             <Ionicons name="alert-circle" size={24} color="#EF4444" />
@@ -276,6 +294,7 @@ export default function VaccinationsScreen() {
                 key={card.card_id}
                 card={card}
                 onAddShot={handleOpenAddShotModal}
+                onEdit={handleOpenEditProtocolModal}
               />
             ))
           ) : (
@@ -285,34 +304,36 @@ export default function VaccinationsScreen() {
           )}
         </View>
 
-        {/* Optional Vaccinations */}
+        {/* Additional Vaccinations */}
         <View style={styles.section}>
           <View style={styles.sectionHeader}>
             <Ionicons name="add-circle" size={20} color="#6B7280" />
-            <Text style={styles.sectionTitle}>Optional Vaccinations</Text>
+            <Text style={styles.sectionTitle}>Additional Vaccines</Text>
           </View>
           {vaccinationCards.optional.length > 0 ? (
             vaccinationCards.optional.map((card) => (
-              <View key={card.card_id}>
-                <VaccinationCardComponent card={card} onAddShot={handleOpenAddShotModal} />
-                <TouchableOpacity
-                  style={styles.deleteCardButton}
-                  onPress={() => handleDeleteCard(card.card_id)}
-                >
-                  <Feather name="trash-2" size={16} color="#EF4444" />
-                  <Text style={styles.deleteCardText}>Remove</Text>
-                </TouchableOpacity>
-              </View>
+              <VaccinationCardComponent
+                key={card.card_id}
+                card={card}
+                onAddShot={handleOpenAddShotModal}
+                onEdit={handleOpenEditProtocolModal}
+              />
             ))
           ) : (
+            <View style={styles.emptySection}>
+              <Text style={styles.emptyText}>No additional vaccines added</Text>
+            </View>
+          )}
+
+          {availableProtocols.available.length > 0 && (
             <TouchableOpacity
               style={styles.addCustomButton}
-              onPress={() => setShowAddCustomModal(true)}
+              onPress={() => setShowOptInModal(true)}
             >
               <Ionicons name="add-circle-outline" size={32} color="#FF6B4A" />
-              <Text style={styles.addCustomText}>Add Custom Vaccination</Text>
+              <Text style={styles.addCustomText}>Add Vaccine</Text>
               <Text style={styles.addCustomSubtext}>
-                Track additional vaccines not in the required list
+                Select from available vaccine protocols
               </Text>
             </TouchableOpacity>
           )}
@@ -331,115 +352,68 @@ export default function VaccinationsScreen() {
         isLoading={addingShotLoading}
       />
 
-      {/* Add Custom Vaccination Modal */}
-      {showAddCustomModal && (
-        <View style={styles.modalOverlay}>
-          <View style={styles.customModal}>
-            <View style={styles.customModalHeader}>
-              <Text style={styles.customModalTitle}>Add Custom Vaccination</Text>
-              <TouchableOpacity onPress={() => setShowAddCustomModal(false)}>
-                <Feather name="x" size={24} color="#6B7280" />
-              </TouchableOpacity>
-            </View>
+      {/* Add Vaccine Bottom Sheet */}
+      <AddVaccineSheet
+        visible={showOptInModal}
+        onClose={() => setShowOptInModal(false)}
+        protocols={availableProtocols.available}
+        onAdd={handleOptIn}
+      />
 
-            <View style={styles.customModalContent}>
-              <Text style={styles.inputLabel}>Vaccine Name *</Text>
-              <View style={styles.textInput}>
-                <Feather name="edit-3" size={18} color="#9CA3AF" />
-                <TextInput
-                  style={styles.textInputField}
-                  value={customVaccineName}
-                  onChangeText={setCustomVaccineName}
-                  placeholder="Enter vaccine name"
-                  placeholderTextColor="#9CA3AF"
-                  autoCapitalize="words"
-                  returnKeyType="done"
-                />
-              </View>
-
-              <Text style={styles.inputLabel}>Number of Shots</Text>
-              <View style={styles.shotsSelector}>
-                {["1", "2", "3", "4", "5", "6"].map((num) => (
-                  <TouchableOpacity
-                    key={num}
-                    style={[
-                      styles.shotOption,
-                      customTotalShots === num && styles.shotOptionActive,
-                    ]}
-                    onPress={() => setCustomTotalShots(num)}
-                  >
-                    <Text
-                      style={[
-                        styles.shotOptionText,
-                        customTotalShots === num && styles.shotOptionTextActive,
-                      ]}
-                    >
-                      {num}
+      {/* Edit Protocol Modal */}
+      <StyledModal
+        visible={showEditProtocolModal}
+        onClose={() => setShowEditProtocolModal(false)}
+        title="Edit Protocol"
+        content={() => (
+          <View>
+            <Text style={styles.inputLabel}>Select New Protocol</Text>
+            <Text style={styles.inputHelper}>
+              Changing the protocol will update the schedule and requirements for this vaccine.
+            </Text>
+            
+            {availableProtocols.available.length > 0 ? (
+              availableProtocols.available.map((protocol) => (
+                <TouchableOpacity
+                  key={protocol.id}
+                  style={styles.protocolCard}
+                  onPress={() => handleChangeProtocol(protocol.id)}
+                  disabled={changingProtocol}
+                >
+                  <View style={styles.protocolHeader}>
+                    <View style={styles.protocolInfo}>
+                      <Text style={styles.protocolName}>{protocol.name}</Text>
+                      <View style={styles.protocolBadges}>
+                        <View style={styles.typeBadge}>
+                          <Text style={styles.typeBadgeText}>
+                            {protocol.protocol_type_label}
+                          </Text>
+                        </View>
+                      </View>
+                    </View>
+                    {changingProtocol ? (
+                       <ActivityIndicator size="small" color="#FF6B4A" />
+                    ) : (
+                      <Ionicons name="chevron-forward" size={20} color="#9CA3AF" />
+                    )}
+                  </View>
+                  {protocol.description && (
+                    <Text style={styles.protocolDescription}>
+                      {protocol.description}
                     </Text>
-                  </TouchableOpacity>
-                ))}
-              </View>
-
-              <Text style={styles.inputLabel}>Renewal Type</Text>
-              <Text style={styles.inputHelper}>
-                Choose whether this vaccine needs periodic renewal
-              </Text>
-              <View style={styles.recurrenceSelector}>
-                {[
-                  { value: "none", label: "One-time Series", description: "No renewal needed after completion" },
-                  { value: "recurring", label: "Recurring", description: "Renew when expired" },
-                ].map((option) => (
-                  <TouchableOpacity
-                    key={option.value}
-                    style={[
-                      styles.recurrenceOption,
-                      customRecurrence === option.value && styles.recurrenceOptionActive,
-                    ]}
-                    onPress={() => setCustomRecurrence(option.value as any)}
-                  >
-                    <Text
-                      style={[
-                        styles.recurrenceOptionText,
-                        customRecurrence === option.value && styles.recurrenceOptionTextActive,
-                      ]}
-                    >
-                      {option.label}
-                    </Text>
-                    <Text
-                      style={[
-                        styles.recurrenceOptionSubtext,
-                        customRecurrence === option.value && styles.recurrenceOptionSubtextActive,
-                      ]}
-                    >
-                      {option.description}
-                    </Text>
-                  </TouchableOpacity>
-                ))}
-              </View>
-            </View>
-
-            <View style={styles.customModalFooter}>
-              <TouchableOpacity
-                style={styles.cancelButton}
-                onPress={() => setShowAddCustomModal(false)}
-              >
-                <Text style={styles.cancelButtonText}>Cancel</Text>
-              </TouchableOpacity>
-              <TouchableOpacity
-                style={[styles.createButton, creatingCustomCard && styles.createButtonDisabled]}
-                onPress={handleCreateCustomCard}
-                disabled={creatingCustomCard}
-              >
-                {creatingCustomCard ? (
-                  <ActivityIndicator size="small" color="white" />
-                ) : (
-                  <Text style={styles.createButtonText}>Create Card</Text>
-                )}
-              </TouchableOpacity>
-            </View>
+                  )}
+                </TouchableOpacity>
+              ))
+            ) : (
+               <View style={styles.emptyState}>
+                  <Text style={styles.emptyText}>
+                    No other protocols available.
+                  </Text>
+                </View>
+            )}
           </View>
-        </View>
-      )}
+        )}
+      />
 
       <AlertModal
         visible={visible}
@@ -508,6 +482,30 @@ const styles = StyleSheet.create({
     padding: 16,
     paddingBottom: 32,
   },
+  importBanner: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "#EFF6FF",
+    padding: 16,
+    borderRadius: 16,
+    marginBottom: 16,
+    gap: 12,
+    borderWidth: 1,
+    borderColor: "#BFDBFE",
+  },
+  importBannerText: {
+    flex: 1,
+  },
+  importBannerTitle: {
+    fontSize: 15,
+    fontWeight: "700",
+    color: "#1E40AF",
+    marginBottom: 2,
+  },
+  importBannerSubtitle: {
+    fontSize: 12,
+    color: "#3B82F6",
+  },
   statsContainer: {
     flexDirection: "row",
     justifyContent: "space-between",
@@ -561,20 +559,6 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: "#9CA3AF",
   },
-  deleteCardButton: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
-    paddingVertical: 8,
-    marginTop: -8,
-    marginBottom: 8,
-  },
-  deleteCardText: {
-    color: "#EF4444",
-    fontSize: 13,
-    fontWeight: "600",
-    marginLeft: 6,
-  },
   addCustomButton: {
     backgroundColor: "white",
     borderRadius: 16,
@@ -596,40 +580,6 @@ const styles = StyleSheet.create({
     marginTop: 4,
     textAlign: "center",
   },
-  modalOverlay: {
-    position: "absolute",
-    top: 0,
-    left: 0,
-    right: 0,
-    bottom: 0,
-    backgroundColor: "rgba(0,0,0,0.5)",
-    justifyContent: "center",
-    alignItems: "center",
-    padding: 20,
-  },
-  customModal: {
-    backgroundColor: "white",
-    borderRadius: 20,
-    width: "100%",
-    maxWidth: 400,
-    overflow: "hidden",
-  },
-  customModalHeader: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-    padding: 20,
-    borderBottomWidth: 1,
-    borderBottomColor: "#F3F4F6",
-  },
-  customModalTitle: {
-    fontSize: 18,
-    fontWeight: "bold",
-    color: "#1F2937",
-  },
-  customModalContent: {
-    padding: 20,
-  },
   inputLabel: {
     fontSize: 14,
     fontWeight: "600",
@@ -643,113 +593,53 @@ const styles = StyleSheet.create({
     marginBottom: 12,
     marginTop: -4,
   },
-  textInput: {
-    flexDirection: "row",
-    alignItems: "center",
+  protocolCard: {
     backgroundColor: "#F9FAFB",
     borderRadius: 12,
-    paddingHorizontal: 16,
-    paddingVertical: 14,
+    padding: 16,
+    marginBottom: 12,
     borderWidth: 1,
     borderColor: "#E5E7EB",
   },
-  textInputField: {
+  protocolHeader: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "flex-start",
+    marginBottom: 8,
+  },
+  protocolInfo: {
     flex: 1,
-    marginLeft: 12,
+    marginRight: 12,
+  },
+  protocolName: {
     fontSize: 16,
+    fontWeight: "700",
     color: "#1F2937",
+    marginBottom: 6,
   },
-  placeholder: {
-    color: "#9CA3AF",
-  },
-  shotsSelector: {
+  protocolBadges: {
     flexDirection: "row",
     flexWrap: "wrap",
-    gap: 8,
+    gap: 6,
   },
-  shotOption: {
-    width: 48,
-    height: 48,
-    borderRadius: 12,
+  typeBadge: {
     backgroundColor: "#F3F4F6",
-    justifyContent: "center",
-    alignItems: "center",
-  },
-  shotOptionActive: {
-    backgroundColor: "#FF6B4A",
-  },
-  shotOptionText: {
-    fontSize: 16,
-    fontWeight: "600",
-    color: "#6B7280",
-  },
-  shotOptionTextActive: {
-    color: "white",
-  },
-  recurrenceSelector: {
-    flexDirection: "row",
-    gap: 8,
-  },
-  recurrenceOption: {
-    flex: 1,
-    paddingVertical: 12,
     paddingHorizontal: 8,
-    borderRadius: 12,
-    backgroundColor: "#F3F4F6",
-    alignItems: "center",
+    paddingVertical: 2,
+    borderRadius: 4,
   },
-  recurrenceOptionActive: {
-    backgroundColor: "#FF6B4A",
-  },
-  recurrenceOptionText: {
-    fontSize: 13,
-    fontWeight: "600",
-    color: "#6B7280",
-  },
-  recurrenceOptionTextActive: {
-    color: "white",
-  },
-  recurrenceOptionSubtext: {
+  typeBadgeText: {
     fontSize: 10,
-    color: "#9CA3AF",
-    marginTop: 2,
-    textAlign: "center",
-  },
-  recurrenceOptionSubtextActive: {
-    color: "rgba(255,255,255,0.8)",
-  },
-  customModalFooter: {
-    flexDirection: "row",
-    padding: 20,
-    borderTopWidth: 1,
-    borderTopColor: "#F3F4F6",
-    gap: 12,
-  },
-  cancelButton: {
-    flex: 1,
-    paddingVertical: 14,
-    borderRadius: 12,
-    backgroundColor: "#F3F4F6",
-    alignItems: "center",
-  },
-  cancelButtonText: {
-    fontSize: 16,
     fontWeight: "600",
+    color: "#4B5563",
+  },
+  protocolDescription: {
+    fontSize: 13,
     color: "#6B7280",
+    lineHeight: 18,
   },
-  createButton: {
-    flex: 2,
-    paddingVertical: 14,
-    borderRadius: 12,
-    backgroundColor: "#FF6B4A",
+  emptyState: {
+    padding: 24,
     alignItems: "center",
-  },
-  createButtonDisabled: {
-    opacity: 0.6,
-  },
-  createButtonText: {
-    fontSize: 16,
-    fontWeight: "bold",
-    color: "white",
   },
 });

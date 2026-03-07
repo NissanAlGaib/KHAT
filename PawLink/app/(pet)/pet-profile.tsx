@@ -16,10 +16,12 @@ import AlertModal from "@/components/core/AlertModal";
 import { useRouter, useLocalSearchParams } from "expo-router";
 import {
   getPet,
+  getPetLitters,
   getVaccinationCards,
   addVaccinationShot,
   VaccinationCard as VaccinationCardType,
   VaccinationCardsResponse,
+  type Litter,
 } from "@/services/petService";
 import VaccinationCardComponent from "@/components/pet/VaccinationCard";
 import AddShotModal from "@/components/pet/AddShotModal";
@@ -47,7 +49,7 @@ const getDocumentStatus = (expirationDate?: string | null): DocumentStatus => {
 // Count documents by the normalized statuses used in this file
 const countDocumentsByStatus = (
   documents: any[] | undefined,
-  expirationDateField: string = "expiration_date"
+  expirationDateField: string = "expiration_date",
 ): { expired: number; expiringSoon: number } => {
   let expired = 0;
   let expiringSoon = 0;
@@ -102,14 +104,18 @@ export default function PetProfileScreen() {
   const [isEnabled, setIsEnabled] = useState(true);
   const [petData, setPetData] = useState<any>(null);
   const [loading, setLoading] = useState(true);
-const [activeTab, setActiveTab] = useState<"about" | "health" | "gallery">(
-    "about"
-  );
+  const [litters, setLitters] = useState<Litter[]>([]);
+  const [activeTab, setActiveTab] = useState<
+    "about" | "health" | "gallery" | "history"
+  >("about");
 
   // Vaccination card system state
-  const [vaccinationCards, setVaccinationCards] = useState<VaccinationCardsResponse>({ required: [], optional: [] });
+  const [vaccinationCards, setVaccinationCards] =
+    useState<VaccinationCardsResponse>({ required: [], optional: [] });
   const [showAddShotModal, setShowAddShotModal] = useState(false);
-  const [selectedCard, setSelectedCard] = useState<VaccinationCardType | null>(null);
+  const [selectedCard, setSelectedCard] = useState<VaccinationCardType | null>(
+    null,
+  );
   const [addingShotLoading, setAddingShotLoading] = useState(false);
 
   const fetchVaccinationCards = useCallback(async () => {
@@ -139,10 +145,13 @@ const [activeTab, setActiveTab] = useState<"about" | "health" | "gallery">(
     }
   }, [petId, showAlert]);
 
-useEffect(() => {
+  useEffect(() => {
     if (petId) {
       fetchPetData();
       fetchVaccinationCards();
+      getPetLitters(parseInt(petId))
+        .then(setLitters)
+        .catch(() => {});
     }
   }, [petId, fetchPetData, fetchVaccinationCards]);
 
@@ -169,32 +178,35 @@ useEffect(() => {
   const handleEditInfo = () => console.log("Navigate to edit pet info");
   const handleVaccinationPress = (vaccinationName: string) => {
     router.push(
-      `/(pet)/(history)/vaccination-history?vaccine=${vaccinationName}&petId=${petId}`
+      `/(pet)/(history)/vaccination-history?vaccine=${vaccinationName}&petId=${petId}`,
     );
   };
   const handleHealthRecordPress = (recordType: string) => {
     router.push(
-      `/(pet)/(history)/health-history?type=${recordType}&petId=${petId}`
+      `/(pet)/(history)/health-history?type=${recordType}&petId=${petId}`,
     );
   };
   const handleResubmitVaccination = (vaccination: any) => {
     router.push(
-      `/(verification)/resubmit-document?type=vaccination&petId=${petId}&petName=${petData.name}&vaccinationId=${vaccination.vaccination_id}&vaccineName=${vaccination.vaccine_name}`
+      `/(verification)/resubmit-document?type=vaccination&petId=${petId}&petName=${petData.name}&vaccinationId=${vaccination.vaccination_id}&vaccineName=${vaccination.vaccine_name}`,
     );
   };
   const handleResubmitHealthRecord = (record: any) => {
     router.push(
-      `/(verification)/resubmit-document?type=health_record&petId=${petId}&petName=${petData.name}&healthRecordId=${record.health_record_id}&recordType=${record.record_type}`
+      `/(verification)/resubmit-document?type=health_record&petId=${petId}&petName=${petData.name}&healthRecordId=${record.health_record_id}&recordType=${record.record_type}`,
     );
   };
-const handleAddPhoto = () => {
+  const handleAddPhoto = () => {
     console.log("Add photo");
   };
 
   // Vaccination card handlers
   const handleOpenAddShotModal = (cardId: number) => {
-    const allCards = [...vaccinationCards.required, ...vaccinationCards.optional];
-    const card = allCards.find(c => c.card_id === cardId);
+    const allCards = [
+      ...vaccinationCards.required,
+      ...vaccinationCards.optional,
+    ];
+    const card = allCards.find((c) => c.card_id === cardId);
     if (card) {
       setSelectedCard(card);
       setShowAddShotModal(true);
@@ -301,6 +313,25 @@ const handleAddPhoto = () => {
           <Text style={styles.cardText}>No attributes listed.</Text>
         )}
       </InfoCard>
+
+      {/* Breeding Quick Info */}
+      <InfoCard icon="heart-outline" title="Breeding Info">
+        <DetailRow
+          label="Has Been Bred"
+          value={petData.has_been_bred ? "Yes" : "No"}
+        />
+        {petData.has_been_bred && (
+          <DetailRow
+            label="Times Bred"
+            value={String(petData.breeding_count || 0)}
+          />
+        )}
+        <DetailRow label="Total Litters" value={String(litters.length)} />
+        <DetailRow
+          label="Available for Matching"
+          value={petData.status === "active" ? "Yes" : "No"}
+        />
+      </InfoCard>
     </View>
   );
 
@@ -324,12 +355,12 @@ const handleAddPhoto = () => {
         />
       </InfoCard>
 
-{/* Vaccinations - Card-based system */}
+      {/* Vaccinations - Card-based system */}
       <View style={styles.card}>
         <View style={styles.cardHeader}>
           <Ionicons name="eyedrop-outline" size={22} color="#FF6B4A" />
           <Text style={styles.cardTitle}>Vaccinations</Text>
-          <TouchableOpacity 
+          <TouchableOpacity
             onPress={handleViewAllVaccinations}
             style={styles.viewAllButton}
           >
@@ -337,8 +368,9 @@ const handleAddPhoto = () => {
             <Feather name="chevron-right" size={16} color="#FF6B4A" />
           </TouchableOpacity>
         </View>
-        
-        {vaccinationCards.required.length > 0 || vaccinationCards.optional.length > 0 ? (
+
+        {vaccinationCards.required.length > 0 ||
+        vaccinationCards.optional.length > 0 ? (
           <View style={styles.vaccinationCardsContainer}>
             {/* Required Cards */}
             {vaccinationCards.required.slice(0, 3).map((card) => (
@@ -348,15 +380,21 @@ const handleAddPhoto = () => {
                 onAddShot={handleOpenAddShotModal}
               />
             ))}
-            
+
             {/* Show count of additional cards if more than 3 */}
-            {vaccinationCards.required.length + vaccinationCards.optional.length > 3 && (
-              <TouchableOpacity 
+            {vaccinationCards.required.length +
+              vaccinationCards.optional.length >
+              3 && (
+              <TouchableOpacity
                 onPress={handleViewAllVaccinations}
                 style={styles.moreCardsButton}
               >
                 <Text style={styles.moreCardsText}>
-                  +{vaccinationCards.required.length + vaccinationCards.optional.length - 3} more vaccination cards
+                  +
+                  {vaccinationCards.required.length +
+                    vaccinationCards.optional.length -
+                    3}{" "}
+                  more vaccination cards
                 </Text>
                 <Feather name="arrow-right" size={16} color="#FF6B4A" />
               </TouchableOpacity>
@@ -441,6 +479,90 @@ const handleAddPhoto = () => {
     </View>
   );
 
+  const renderHistory = () => (
+    <View style={styles.tabContent}>
+      {/* Breeding Partners */}
+      <InfoCard icon="people-outline" title="Breeding Partners">
+        {petData.breeding_partners && petData.breeding_partners.length > 0 ? (
+          petData.breeding_partners.map((partner: any) => (
+            <TouchableOpacity
+              key={`partner-${partner.pet_id}`}
+              style={styles.breedingPartnerRow}
+              onPress={() =>
+                router.push(`/(pet)/view-profile?id=${partner.pet_id}`)
+              }
+            >
+              <Image
+                source={{ uri: getStorageUrl(partner.photo)! }}
+                style={styles.partnerPhoto}
+              />
+              <View style={{ flex: 1 }}>
+                <Text style={styles.partnerName}>{partner.name}</Text>
+                <Text style={styles.partnerBreed}>{partner.breed}</Text>
+              </View>
+              <View style={styles.litterCountBadge}>
+                <Text style={styles.litterCountText}>
+                  {partner.litter_count} litter
+                  {partner.litter_count !== 1 ? "s" : ""}
+                </Text>
+              </View>
+            </TouchableOpacity>
+          ))
+        ) : (
+          <Text style={styles.cardText}>No breeding partners yet.</Text>
+        )}
+      </InfoCard>
+
+      {/* Litters */}
+      <InfoCard icon="list-outline" title="Litters">
+        {litters.length > 0 ? (
+          litters.map((litter) => (
+            <TouchableOpacity
+              key={litter.litter_id}
+              style={styles.litterRow}
+              onPress={() =>
+                router.push(`/(pet)/litter-detail?id=${litter.litter_id}`)
+              }
+            >
+              <View style={{ flex: 1 }}>
+                <Text style={styles.documentTitle}>{litter.title}</Text>
+                <Text style={styles.documentSubtitle}>
+                  Born: {dayjs(litter.birth_date).format("MMMM D, YYYY")} {"  "}
+                  {litter.offspring.total} offspring ({litter.offspring.male} M
+                  / {litter.offspring.female} F)
+                </Text>
+              </View>
+              <View
+                style={[
+                  styles.litterStatusBadge,
+                  {
+                    backgroundColor:
+                      litter.status === "completed" ? "#D1FAE5" : "#FEF3C7",
+                  },
+                ]}
+              >
+                <Text
+                  style={[
+                    styles.litterStatusText,
+                    {
+                      color:
+                        litter.status === "completed" ? "#065F46" : "#92400E",
+                    },
+                  ]}
+                >
+                  {litter.status}
+                </Text>
+              </View>
+              <Feather name="chevron-right" size={18} color="#9CA3AF" />
+            </TouchableOpacity>
+          ))
+        ) : (
+          <Text style={styles.cardText}>No litters recorded yet.</Text>
+        )}
+      </InfoCard>
+    </View>
+  );
+
   const renderTabContent = () => {
     switch (activeTab) {
       case "about":
@@ -449,6 +571,8 @@ const handleAddPhoto = () => {
         return renderHealth();
       case "gallery":
         return renderGallery();
+      case "history":
+        return renderHistory();
       default:
         return null;
     }
@@ -491,7 +615,33 @@ const handleAddPhoto = () => {
             />
           </View>
           <Text style={styles.petName}>{petData.name}</Text>
-          
+
+          {/* Quick Stats Chips */}
+          <View style={styles.statsChipsRow}>
+            <View style={styles.statChip}>
+              <Ionicons name="paw" size={14} color="#FF6B4A" />
+              <Text style={styles.statChipText}>{petData.breed}</Text>
+            </View>
+            <View style={styles.statChip}>
+              <Ionicons name="calendar-outline" size={14} color="#FF6B4A" />
+              <Text style={styles.statChipText}>
+                {calculateAge(petData.birthdate)}
+              </Text>
+            </View>
+            <View style={styles.statChip}>
+              <Ionicons
+                name={petData.sex === "male" ? "male" : "female"}
+                size={14}
+                color="#FF6B4A"
+              />
+              <Text style={styles.statChipText}>{petData.sex}</Text>
+            </View>
+            <View style={styles.statChip}>
+              <Ionicons name="fitness-outline" size={14} color="#FF6B4A" />
+              <Text style={styles.statChipText}>{petData.weight} kg</Text>
+            </View>
+          </View>
+
           {/* Status and Cooldown Indicators */}
           <View style={styles.statusRow}>
             <View
@@ -509,7 +659,7 @@ const handleAddPhoto = () => {
                 {isEnabled ? "Active" : "Disabled"}
               </Text>
             </View>
-            
+
             {/* Cooldown Badge */}
             {petData.is_on_cooldown && (
               <View style={styles.cooldownIndicator}>
@@ -520,15 +670,22 @@ const handleAddPhoto = () => {
               </View>
             )}
           </View>
-          
+
           {/* Cooldown Info Card */}
           {petData.is_on_cooldown && petData.cooldown_until && (
             <View style={styles.cooldownCard}>
-              <Ionicons name="information-circle-outline" size={20} color="#1D4ED8" />
+              <Ionicons
+                name="information-circle-outline"
+                size={20}
+                color="#1D4ED8"
+              />
               <View style={styles.cooldownCardContent}>
-                <Text style={styles.cooldownCardTitle}>Breeding Cooldown Active</Text>
+                <Text style={styles.cooldownCardTitle}>
+                  Breeding Cooldown Active
+                </Text>
                 <Text style={styles.cooldownCardText}>
-                  This pet cannot be matched until {dayjs(petData.cooldown_until).format("MMMM D, YYYY")}
+                  This pet cannot be matched until{" "}
+                  {dayjs(petData.cooldown_until).format("MMMM D, YYYY")}
                 </Text>
               </View>
             </View>
@@ -552,9 +709,14 @@ const handleAddPhoto = () => {
             isActive={activeTab === "gallery"}
             onPress={() => setActiveTab("gallery")}
           />
+          <TabButton
+            title="History"
+            isActive={activeTab === "history"}
+            onPress={() => setActiveTab("history")}
+          />
         </View>
 
-{renderTabContent()}
+        {renderTabContent()}
       </ScrollView>
 
       <AddShotModal
@@ -1018,7 +1180,7 @@ const styles = StyleSheet.create({
     alignItems: "center",
     padding: 20,
   },
-emptyGalleryText: {
+  emptyGalleryText: {
     marginTop: 15,
     fontSize: 16,
     color: "#888",
@@ -1068,5 +1230,85 @@ emptyGalleryText: {
     color: "#9CA3AF",
     marginTop: 4,
     textAlign: "center",
+  },
+  // Stat chips
+  statsChipsRow: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    justifyContent: "center",
+    gap: 8,
+    marginTop: 8,
+    marginBottom: 4,
+    paddingHorizontal: 20,
+  },
+  statChip: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "#FFF5F3",
+    borderRadius: 20,
+    paddingVertical: 6,
+    paddingHorizontal: 12,
+    gap: 4,
+    borderWidth: 1,
+    borderColor: "#FFE0D9",
+  },
+  statChipText: {
+    fontSize: 13,
+    fontWeight: "600",
+    color: "#333",
+    textTransform: "capitalize",
+  },
+  // History tab styles
+  breedingPartnerRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    paddingVertical: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: "#F3F4F6",
+  },
+  partnerPhoto: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    marginRight: 12,
+  },
+  partnerName: {
+    fontSize: 16,
+    fontWeight: "600",
+    color: "#333",
+  },
+  partnerBreed: {
+    fontSize: 13,
+    color: "#777",
+    marginTop: 2,
+  },
+  litterCountBadge: {
+    backgroundColor: "#FFF5F3",
+    borderRadius: 12,
+    paddingVertical: 4,
+    paddingHorizontal: 10,
+  },
+  litterCountText: {
+    fontSize: 12,
+    fontWeight: "600",
+    color: "#FF6B4A",
+  },
+  litterRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    paddingVertical: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: "#F3F4F6",
+  },
+  litterStatusBadge: {
+    borderRadius: 12,
+    paddingVertical: 4,
+    paddingHorizontal: 10,
+    marginRight: 8,
+  },
+  litterStatusText: {
+    fontSize: 12,
+    fontWeight: "600",
+    textTransform: "capitalize",
   },
 });

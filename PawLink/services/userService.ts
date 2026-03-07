@@ -15,6 +15,41 @@ export interface UserProfile {
   roles?: { role_id: number; role_type: string }[];
 }
 
+export interface BreederProfile {
+  id: number;
+  name: string;
+  profile_image?: string;
+  sex?: string;
+  birthdate?: string;
+  age?: number | null;
+  address?: any;
+  experience_years: number;
+  pet_breeds: string[];
+  pet_count: number;
+  pets: BreederPet[];
+  id_verified: boolean;
+  breeder_verified: boolean;
+  rating: number | null;
+  statistics: {
+    total_pets: number;
+    dog_count: number;
+    cat_count: number;
+  };
+}
+
+export interface BreederPet {
+  pet_id: number;
+  name: string;
+  breed: string;
+  species: string;
+  sex: string;
+  age: number | null;
+  birthdate?: string;
+  profile_image?: string;
+  breeding_price?: number;
+  is_on_cooldown?: boolean;
+}
+
 export interface UserStatistics {
   current_breeding: number;
   total_matches: number;
@@ -191,6 +226,22 @@ export const deleteAccount = async (
   } catch (error: any) {
     console.error(
       "Error deleting account:",
+      error.response?.data || error.message
+    );
+    throw error;
+  }
+};
+
+/**
+ * Get a breeder's public profile by ID
+ */
+export const getBreederProfile = async (breederId: number): Promise<BreederProfile> => {
+  try {
+    const response = await axiosInstance.get(`/api/breeders/${breederId}`);
+    return response.data.data;
+  } catch (error: any) {
+    console.error(
+      "Error getting breeder profile:",
       error.response?.data || error.message
     );
     throw error;

@@ -2,6 +2,9 @@
 
 namespace App\Models;
 
+use App\Notifications\ResetPasswordNotification;
+use App\Traits\FiltersByDate;
+use App\Traits\TracksUpdates;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
@@ -14,9 +17,7 @@ use Laravel\Sanctum\HasApiTokens;
 class User extends Authenticatable
 {
     /** @use HasFactory<\Database\Factories\UserFactory> */
-    use HasFactory, Notifiable;
-
-    use HasApiTokens;
+    use HasFactory, Notifiable, HasApiTokens, FiltersByDate, TracksUpdates;
     /**
      * The attributes that are mass assignable.
      *
@@ -34,6 +35,16 @@ class User extends Authenticatable
         'sex',
         'address',
         'profile_image',
+        'warning_count',
+        'average_rating',
+        'review_count',
+        'shooter_average_rating',
+        'shooter_review_count',
+        'status',
+        'suspension_reason',
+        'suspended_at',
+        'suspension_end_date',
+        'updated_by',
     ];
 
     /**
@@ -58,6 +69,8 @@ class User extends Authenticatable
             'password' => 'hashed',
             'birthday' => 'date',
             'address' => 'array',
+            'suspended_at' => 'datetime',
+            'suspension_end_date' => 'datetime',
         ];
     }
 
@@ -88,5 +101,148 @@ class User extends Authenticatable
     public function userAuth()
     {
         return $this->hasMany(UserAuth::class, 'user_id', 'id');
+    }
+
+    /**
+     * Get users blocked by this user
+     */
+    public function blockedUsers()
+    {
+        return $this->belongsToMany(User::class, 'user_blocks', 'blocker_id', 'blocked_id');
+    }
+
+    /**
+     * Get users who blocked this user
+     */
+    public function blockedByUsers()
+    {
+        return $this->belongsToMany(User::class, 'user_blocks', 'blocked_id', 'blocker_id');
+    }
+
+    /**
+     * Check if this user has blocked another user
+     */
+    public function hasBlocked(User $user): bool
+    {
+        return $this->blockedUsers()->where('blocked_id', $user->id)->exists();
+    }
+
+    /**
+     * Check if this user is blocked by another user
+     */
+    public function isBlockedBy(User $user): bool
+    {
+        return $this->blockedByUsers()->where('blocker_id', $user->id)->exists();
+    }
+
+    /**
+     * Get safety reports filed against this user
+     */
+    public function reportsAgainst()
+    {
+        return $this->hasMany(SafetyReport::class, 'reported_id');
+    }
+
+    /**
+     * Get all user IDs that should be excluded (blocked by me or blocked me)
+     */
+    public function getBlockedUserIds(): array
+    {
+        try {
+            $blockedByMe = $this->blockedUsers()->pluck('users.id')->toArray();
+            $blockedMe = $this->blockedByUsers()->pluck('users.id')->toArray();
+            return array_unique(array_merge($blockedByMe, $blockedMe));
+        } catch (\Exception $e) {
+            // If the user_blocks table doesn't exist or query fails, return empty array
+            return [];
+        }
+    }
+
+    /**
+     * Get warnings issued to the user
+     */
+    public function warnings()
+    {
+        return $this->hasMany(UserWarning::class, 'user_id');
+    }
+
+    /**
+     * Get reviews received by the user (as a breeder).
+     */
+    public function reviewsReceived()
+    {
+        return $this->hasMany(UserReview::class, 'subject_id');
+    }
+
+    /**
+     * Get reviews given by the user.
+     */
+    public function reviewsGiven()
+    {
+        return $this->hasMany(UserReview::class, 'reviewer_id');
+    }
+
+    /**
+     * Get breeder reviews received.
+     */
+    public function breederReviewsReceived()
+    {
+        return $this->reviewsReceived()->where('review_type', 'breeder');
+    }
+
+    /**
+     * Get shooter reviews received.
+     */
+    public function shooterReviewsReceived()
+    {
+        return $this->reviewsReceived()->where('review_type', 'shooter');
+    }
+
+    /**
+     * Recalculate and update the user's breeder average rating and review count.
+     * Uses the cached average_rating on each UserReview (derived from category ratings).
+     */
+    public function recalculateRating()
+    {
+        $reviews = $this->breederReviewsReceived()->whereNotNull('average_rating');
+        $this->average_rating = round($reviews->avg('average_rating') ?? 0, 2);
+        $this->review_count = $reviews->count();
+        $this->save();
+    }
+
+    /**
+     * Recalculate and update the user's shooter average rating and review count.
+     */
+    public function recalculateShooterRating()
+    {
+        $reviews = $this->shooterReviewsReceived()->whereNotNull('average_rating');
+        $this->shooter_average_rating = round($reviews->avg('average_rating') ?? 0, 1);
+        $this->shooter_review_count = $reviews->count();
+        $this->save();
+    }
+
+    /**
+     * Get the count of active (unacknowledged) warnings
+     */
+    public function activeWarnings()
+    {
+        return $this->warnings()->whereNull('acknowledged_at')->count();
+    }
+
+    /**
+     * Increment the user's warning count
+     */
+    public function incrementWarningCount()
+    {
+        $this->increment('warning_count');
+    }
+
+    /**
+     * Send the password reset notification with a plain token
+     * (instead of a URL link that doesn't work for mobile apps).
+     */
+    public function sendPasswordResetNotification($token): void
+    {
+        $this->notify(new ResetPasswordNotification($token));
     }
 }

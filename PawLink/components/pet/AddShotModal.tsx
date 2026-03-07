@@ -9,6 +9,8 @@ import {
   TextInput,
   ActivityIndicator,
   Image,
+  KeyboardAvoidingView,
+  Platform,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
@@ -27,6 +29,7 @@ interface AddShotModalProps {
     veterinarian_name: string;
     date_administered: string;
     expiration_date: string;
+    shot_number: number;
   }) => Promise<void>;
   card: VaccinationCard | null;
   isLoading?: boolean;
@@ -45,11 +48,31 @@ export default function AddShotModal({
   const [dateAdministered, setDateAdministered] = useState("");
   const [expirationDate, setExpirationDate] = useState("");
   const [showDatePicker, setShowDatePicker] = useState(false);
-  const [datePickerField, setDatePickerField] = useState<"administered" | "expiration">("administered");
+  const [datePickerField, setDatePickerField] = useState<
+    "administered" | "expiration"
+  >("administered");
   const [errors, setErrors] = useState<Record<string, string>>({});
 
-  const nextShotNumber = card ? card.completed_shots_count + 1 : 1;
-  const isBoosterShot = card?.total_shots_required && nextShotNumber > card.total_shots_required;
+  // Shot number - user can specify which shot they're adding (for historical records)
+  // The next shot number should be based on total shots (any status), not just approved
+  // The backend auto-calculates this, so we use the total shots count
+  const defaultNextShotNumber = card ? card.shots.length + 1 : 1;
+  const [shotNumber, setShotNumber] = useState<string>(
+    defaultNextShotNumber.toString(),
+  );
+
+  // Update shot number when card changes
+  React.useEffect(() => {
+    if (card) {
+      setShotNumber((card.shots.length + 1).toString());
+    }
+  }, [card]);
+
+  const currentShotNumber = parseInt(shotNumber) || defaultNextShotNumber;
+  const isBoosterShot =
+    card?.is_in_booster_phase ||
+    (card?.total_shots_required &&
+      currentShotNumber > card.total_shots_required);
 
   const resetForm = () => {
     setDocument(null);
@@ -57,6 +80,7 @@ export default function AddShotModal({
     setVeterinarianName("");
     setDateAdministered("");
     setExpirationDate("");
+    setShotNumber(defaultNextShotNumber.toString());
     setErrors({});
   };
 
@@ -110,7 +134,7 @@ export default function AddShotModal({
     if (datePickerField === "administered") {
       setDateAdministered(formattedDate);
       setErrors((prev) => ({ ...prev, dateAdministered: "" }));
-      
+
       // Auto-calculate expiration date based on card configuration
       if (card?.interval_days) {
         const expDate = new Date(date);
@@ -148,6 +172,12 @@ export default function AddShotModal({
       }
     }
 
+    // Validate shot number
+    const shotNum = parseInt(shotNumber);
+    if (!shotNumber || isNaN(shotNum) || shotNum < 1) {
+      newErrors.shotNumber = "Shot number must be at least 1";
+    }
+
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
   };
@@ -162,6 +192,7 @@ export default function AddShotModal({
         veterinarian_name: veterinarianName,
         date_administered: dateAdministered,
         expiration_date: expirationDate,
+        shot_number: parseInt(shotNumber),
       });
       handleClose();
     } catch (error) {
@@ -187,195 +218,359 @@ export default function AddShotModal({
       animationType="slide"
       onRequestClose={handleClose}
     >
-      <View style={styles.overlay}>
-        <View style={styles.modalContainer}>
-          {/* Header */}
-          <LinearGradient
-            colors={[...Gradients.primary]}
-            style={styles.header}
-          >
-            <View>
-              <Text style={styles.headerTitle}>Add Shot Record</Text>
-              <Text style={styles.headerSubtitle}>
-                {card.vaccine_name} - {isBoosterShot ? "Booster Shot" : `Shot ${nextShotNumber}`}
-                {card.total_shots_required && !isBoosterShot ? ` of ${card.total_shots_required}` : ""}
-              </Text>
-            </View>
-            <TouchableOpacity onPress={handleClose} style={styles.closeButton}>
-              <Ionicons name="close" size={24} color={Colors.white} />
-            </TouchableOpacity>
-          </LinearGradient>
-
-          <ScrollView style={styles.content} keyboardShouldPersistTaps="handled">
-            {/* Shot Number Display */}
-            <View style={[styles.shotNumberBadge, isBoosterShot && styles.boosterBadge]}>
-              <Ionicons name={isBoosterShot ? "shield-checkmark" : "medical"} size={24} color={isBoosterShot ? Colors.success : Colors.primary} />
-              <Text style={[styles.shotNumberText, isBoosterShot && styles.boosterText]}>
-                {isBoosterShot ? "Booster Shot" : `Shot ${nextShotNumber}`}
-              </Text>
-            </View>
-
-            {/* Booster Info Note */}
-            {isBoosterShot && (
-              <View style={styles.boosterNote}>
-                <Ionicons name="information-circle-outline" size={18} color={Colors.success} />
-                <Text style={styles.boosterNoteText}>
-                  This is an additional booster shot beyond the required {card.total_shots_required}-shot series.
+      <KeyboardAvoidingView
+        style={{ flex: 1 }}
+        behavior={Platform.OS === "ios" ? "padding" : undefined}
+      >
+        <View style={styles.overlay}>
+          <View style={styles.modalContainer}>
+            {/* Header */}
+            <LinearGradient
+              colors={[...Gradients.primary]}
+              style={styles.header}
+            >
+              <View>
+                <Text style={styles.headerTitle}>Add Shot Record</Text>
+                <Text style={styles.headerSubtitle}>
+                  {card.vaccine_name} -{" "}
+                  {isBoosterShot ? "Booster Shot" : `Shot ${currentShotNumber}`}
+                  {card.total_shots_required && !isBoosterShot
+                    ? ` of ${card.total_shots_required}`
+                    : ""}
                 </Text>
               </View>
-            )}
+              <TouchableOpacity
+                onPress={handleClose}
+                style={styles.closeButton}
+              >
+                <Ionicons name="close" size={24} color={Colors.white} />
+              </TouchableOpacity>
+            </LinearGradient>
 
-            {/* Document Upload */}
-            <View style={styles.inputGroup}>
-              <Text style={styles.label}>Proof Document *</Text>
-              <View style={styles.uploadRow}>
-                <TouchableOpacity
-                  style={[styles.uploadButton, errors.document && styles.inputError]}
-                  onPress={pickDocument}
+            <ScrollView
+              style={styles.content}
+              keyboardShouldPersistTaps="handled"
+            >
+              {/* Shot Number Input */}
+              <View style={styles.inputGroup}>
+                <Text style={styles.label}>Current Shot Number *</Text>
+                <View style={styles.shotNumberInputRow}>
+                  <TouchableOpacity
+                    style={styles.shotNumberButton}
+                    onPress={() => {
+                      const num = parseInt(shotNumber) || 1;
+                      if (num > 1) {
+                        setShotNumber((num - 1).toString());
+                        setErrors((prev) => ({ ...prev, shotNumber: "" }));
+                      }
+                    }}
+                  >
+                    <Ionicons
+                      name="remove"
+                      size={20}
+                      color={Colors.textSecondary}
+                    />
+                  </TouchableOpacity>
+                  <TextInput
+                    style={[
+                      styles.shotNumberInput,
+                      errors.shotNumber && styles.inputError,
+                    ]}
+                    value={shotNumber}
+                    onChangeText={(text) => {
+                      // Only allow numeric input
+                      const numericValue = text.replace(/[^0-9]/g, "");
+                      setShotNumber(numericValue);
+                      setErrors((prev) => ({ ...prev, shotNumber: "" }));
+                    }}
+                    keyboardType="number-pad"
+                    maxLength={2}
+                    textAlign="center"
+                  />
+                  <TouchableOpacity
+                    style={styles.shotNumberButton}
+                    onPress={() => {
+                      const num = parseInt(shotNumber) || 0;
+                      setShotNumber((num + 1).toString());
+                      setErrors((prev) => ({ ...prev, shotNumber: "" }));
+                    }}
+                  >
+                    <Ionicons
+                      name="add"
+                      size={20}
+                      color={Colors.textSecondary}
+                    />
+                  </TouchableOpacity>
+                </View>
+                <Text style={styles.helperText}>
+                  Enter the shot number you're recording (e.g., Shot 1, Shot 2,
+                  etc.)
+                </Text>
+                {errors.shotNumber && (
+                  <Text style={styles.errorText}>{errors.shotNumber}</Text>
+                )}
+              </View>
+
+              {/* Shot Type Badge */}
+              <View
+                style={[
+                  styles.shotNumberBadge,
+                  isBoosterShot && styles.boosterBadge,
+                ]}
+              >
+                <Ionicons
+                  name={isBoosterShot ? "shield-checkmark" : "medical"}
+                  size={24}
+                  color={isBoosterShot ? Colors.success : Colors.primary}
+                />
+                <Text
+                  style={[
+                    styles.shotNumberText,
+                    isBoosterShot && styles.boosterText,
+                  ]}
                 >
-                  <Ionicons name="document-attach-outline" size={24} color={Colors.textMuted} />
-                  <Text style={styles.uploadButtonText}>
-                    {document?.name || "Upload File"}
+                  {isBoosterShot ? "Booster Shot" : `Shot ${currentShotNumber}`}
+                  {card?.total_shots_required && !isBoosterShot
+                    ? ` of ${card.total_shots_required}`
+                    : ""}
+                </Text>
+              </View>
+
+              {/* Booster Info Note */}
+              {isBoosterShot && (
+                <View style={styles.boosterNote}>
+                  <Ionicons
+                    name="information-circle-outline"
+                    size={18}
+                    color={Colors.success}
+                  />
+                  <Text style={styles.boosterNoteText}>
+                    This is an additional booster shot beyond the required{" "}
+                    {card.total_shots_required}-shot series.
+                  </Text>
+                </View>
+              )}
+
+              {/* Document Upload */}
+              <View style={styles.inputGroup}>
+                <Text style={styles.label}>Proof Document *</Text>
+                <View style={styles.uploadRow}>
+                  <TouchableOpacity
+                    style={[
+                      styles.uploadButton,
+                      errors.document && styles.inputError,
+                    ]}
+                    onPress={pickDocument}
+                  >
+                    <Ionicons
+                      name="document-attach-outline"
+                      size={24}
+                      color={Colors.textMuted}
+                    />
+                    <Text style={styles.uploadButtonText}>
+                      {document?.name || "Upload File"}
+                    </Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    style={styles.cameraButton}
+                    onPress={pickImage}
+                  >
+                    <Ionicons name="camera" size={24} color={Colors.white} />
+                  </TouchableOpacity>
+                </View>
+                {document?.uri && document.mimeType?.startsWith("image") && (
+                  <Image
+                    source={{ uri: document.uri }}
+                    style={styles.previewImage}
+                  />
+                )}
+                {errors.document && (
+                  <Text style={styles.errorText}>{errors.document}</Text>
+                )}
+              </View>
+
+              {/* Clinic Name */}
+              <View style={styles.inputGroup}>
+                <Text style={styles.label}>Clinic Name *</Text>
+                <TextInput
+                  style={[styles.input, errors.clinicName && styles.inputError]}
+                  placeholder="e.g., City Veterinary Clinic"
+                  placeholderTextColor={Colors.textMuted}
+                  value={clinicName}
+                  onChangeText={(text) => {
+                    setClinicName(text);
+                    setErrors((prev) => ({ ...prev, clinicName: "" }));
+                  }}
+                />
+                {errors.clinicName && (
+                  <Text style={styles.errorText}>{errors.clinicName}</Text>
+                )}
+              </View>
+
+              {/* Veterinarian Name */}
+              <View style={styles.inputGroup}>
+                <Text style={styles.label}>Veterinarian Name *</Text>
+                <TextInput
+                  style={[
+                    styles.input,
+                    errors.veterinarianName && styles.inputError,
+                  ]}
+                  placeholder="e.g., Dr. Juan dela Cruz"
+                  placeholderTextColor={Colors.textMuted}
+                  value={veterinarianName}
+                  onChangeText={(text) => {
+                    setVeterinarianName(text);
+                    setErrors((prev) => ({ ...prev, veterinarianName: "" }));
+                  }}
+                />
+                {errors.veterinarianName && (
+                  <Text style={styles.errorText}>
+                    {errors.veterinarianName}
+                  </Text>
+                )}
+              </View>
+
+              {/* Date Administered */}
+              <View style={styles.inputGroup}>
+                <Text style={styles.label}>Date Administered *</Text>
+                <TouchableOpacity
+                  style={[
+                    styles.dateInput,
+                    errors.dateAdministered && styles.inputError,
+                  ]}
+                  onPress={() => openDatePicker("administered")}
+                >
+                  <Ionicons
+                    name="calendar-outline"
+                    size={20}
+                    color={Colors.textMuted}
+                  />
+                  <Text
+                    style={[
+                      styles.dateText,
+                      !dateAdministered && styles.placeholder,
+                    ]}
+                  >
+                    {dateAdministered
+                      ? formatDate(dateAdministered)
+                      : "Select date"}
                   </Text>
                 </TouchableOpacity>
-                <TouchableOpacity
-                  style={styles.cameraButton}
-                  onPress={pickImage}
-                >
-                  <Ionicons name="camera" size={24} color={Colors.white} />
-                </TouchableOpacity>
+                {errors.dateAdministered && (
+                  <Text style={styles.errorText}>
+                    {errors.dateAdministered}
+                  </Text>
+                )}
               </View>
-              {document?.uri && document.mimeType?.startsWith("image") && (
-                <Image source={{ uri: document.uri }} style={styles.previewImage} />
-              )}
-              {errors.document && (
-                <Text style={styles.errorText}>{errors.document}</Text>
-              )}
-            </View>
 
-            {/* Clinic Name */}
-            <View style={styles.inputGroup}>
-              <Text style={styles.label}>Clinic Name *</Text>
-              <TextInput
-                style={[styles.input, errors.clinicName && styles.inputError]}
-                placeholder="e.g., City Veterinary Clinic"
-                placeholderTextColor={Colors.textMuted}
-                value={clinicName}
-                onChangeText={(text) => {
-                  setClinicName(text);
-                  setErrors((prev) => ({ ...prev, clinicName: "" }));
-                }}
-              />
-              {errors.clinicName && (
-                <Text style={styles.errorText}>{errors.clinicName}</Text>
-              )}
-            </View>
+              {/* Expiration Date */}
+              <View style={styles.inputGroup}>
+                <Text style={styles.label}>Expiration Date *</Text>
+                <TouchableOpacity
+                  style={[
+                    styles.dateInput,
+                    errors.expirationDate && styles.inputError,
+                  ]}
+                  onPress={() => openDatePicker("expiration")}
+                >
+                  <Ionicons
+                    name="calendar-outline"
+                    size={20}
+                    color={Colors.textMuted}
+                  />
+                  <Text
+                    style={[
+                      styles.dateText,
+                      !expirationDate && styles.placeholder,
+                    ]}
+                  >
+                    {expirationDate
+                      ? formatDate(expirationDate)
+                      : "Select date"}
+                  </Text>
+                </TouchableOpacity>
+                {card.interval_days && dateAdministered && (
+                  <Text style={styles.helperText}>
+                    Auto-calculated based on {card.interval_days}-day interval
+                  </Text>
+                )}
+                {errors.expirationDate && (
+                  <Text style={styles.errorText}>{errors.expirationDate}</Text>
+                )}
+              </View>
 
-            {/* Veterinarian Name */}
-            <View style={styles.inputGroup}>
-              <Text style={styles.label}>Veterinarian Name *</Text>
-              <TextInput
-                style={[styles.input, errors.veterinarianName && styles.inputError]}
-                placeholder="e.g., Dr. Juan dela Cruz"
-                placeholderTextColor={Colors.textMuted}
-                value={veterinarianName}
-                onChangeText={(text) => {
-                  setVeterinarianName(text);
-                  setErrors((prev) => ({ ...prev, veterinarianName: "" }));
-                }}
-              />
-              {errors.veterinarianName && (
-                <Text style={styles.errorText}>{errors.veterinarianName}</Text>
-              )}
-            </View>
+              {/* Approval Info Note */}
+              <View style={styles.approvalNote}>
+                <Ionicons
+                  name="shield-checkmark-outline"
+                  size={20}
+                  color={Colors.warning}
+                />
+                <Text style={styles.approvalNoteText}>
+                  This shot will be submitted for admin review. It will appear
+                  as "Pending Approval" until verified.
+                </Text>
+              </View>
 
-            {/* Date Administered */}
-            <View style={styles.inputGroup}>
-              <Text style={styles.label}>Date Administered *</Text>
+              {/* Info Note */}
+              <View style={styles.infoNote}>
+                <Ionicons
+                  name="information-circle-outline"
+                  size={20}
+                  color={Colors.info}
+                />
+                <Text style={styles.infoText}>
+                  Shot records cannot be edited after submission. Please ensure
+                  all information is correct.
+                </Text>
+              </View>
+            </ScrollView>
+
+            {/* Footer */}
+            <View style={styles.footer}>
               <TouchableOpacity
-                style={[styles.dateInput, errors.dateAdministered && styles.inputError]}
-                onPress={() => openDatePicker("administered")}
+                style={styles.cancelButton}
+                onPress={handleClose}
+                disabled={isLoading}
               >
-                <Ionicons name="calendar-outline" size={20} color={Colors.textMuted} />
-                <Text style={[styles.dateText, !dateAdministered && styles.placeholder]}>
-                  {dateAdministered ? formatDate(dateAdministered) : "Select date"}
-                </Text>
+                <Text style={styles.cancelButtonText}>Cancel</Text>
               </TouchableOpacity>
-              {errors.dateAdministered && (
-                <Text style={styles.errorText}>{errors.dateAdministered}</Text>
-              )}
-            </View>
-
-            {/* Expiration Date */}
-            <View style={styles.inputGroup}>
-              <Text style={styles.label}>Expiration Date *</Text>
               <TouchableOpacity
-                style={[styles.dateInput, errors.expirationDate && styles.inputError]}
-                onPress={() => openDatePicker("expiration")}
+                style={[
+                  styles.submitButton,
+                  isLoading && styles.disabledButton,
+                ]}
+                onPress={handleSubmit}
+                disabled={isLoading}
               >
-                <Ionicons name="calendar-outline" size={20} color={Colors.textMuted} />
-                <Text style={[styles.dateText, !expirationDate && styles.placeholder]}>
-                  {expirationDate ? formatDate(expirationDate) : "Select date"}
-                </Text>
+                {isLoading ? (
+                  <ActivityIndicator size="small" color={Colors.white} />
+                ) : (
+                  <>
+                    <Ionicons name="checkmark" size={20} color={Colors.white} />
+                    <Text style={styles.submitButtonText}>Add Shot</Text>
+                  </>
+                )}
               </TouchableOpacity>
-              {card.interval_days && dateAdministered && (
-                <Text style={styles.helperText}>
-                  Auto-calculated based on {card.interval_days}-day interval
-                </Text>
-              )}
-              {errors.expirationDate && (
-                <Text style={styles.errorText}>{errors.expirationDate}</Text>
-              )}
             </View>
 
-            {/* Info Note */}
-            <View style={styles.infoNote}>
-              <Ionicons name="information-circle-outline" size={20} color={Colors.info} />
-              <Text style={styles.infoText}>
-                Shot records cannot be edited after submission. Please ensure all information is correct.
-              </Text>
-            </View>
-          </ScrollView>
-
-          {/* Footer */}
-          <View style={styles.footer}>
-            <TouchableOpacity
-              style={styles.cancelButton}
-              onPress={handleClose}
-              disabled={isLoading}
-            >
-              <Text style={styles.cancelButtonText}>Cancel</Text>
-            </TouchableOpacity>
-            <TouchableOpacity
-              style={[styles.submitButton, isLoading && styles.disabledButton]}
-              onPress={handleSubmit}
-              disabled={isLoading}
-            >
-              {isLoading ? (
-                <ActivityIndicator size="small" color={Colors.white} />
-              ) : (
-                <>
-                  <Ionicons name="checkmark" size={20} color={Colors.white} />
-                  <Text style={styles.submitButtonText}>Add Shot</Text>
-                </>
-              )}
-            </TouchableOpacity>
+            <DateTimePickerModal
+              isVisible={showDatePicker}
+              mode="date"
+              onConfirm={handleDateConfirm}
+              onCancel={() => setShowDatePicker(false)}
+              maximumDate={
+                datePickerField === "administered" ? new Date() : undefined
+              }
+              minimumDate={
+                datePickerField === "expiration" && dateAdministered
+                  ? new Date(dateAdministered)
+                  : undefined
+              }
+            />
           </View>
-
-          <DateTimePickerModal
-            isVisible={showDatePicker}
-            mode="date"
-            onConfirm={handleDateConfirm}
-            onCancel={() => setShowDatePicker(false)}
-            maximumDate={datePickerField === "administered" ? new Date() : undefined}
-            minimumDate={
-              datePickerField === "expiration" && dateAdministered
-                ? new Date(dateAdministered)
-                : undefined
-            }
-          />
         </View>
-      </View>
+      </KeyboardAvoidingView>
     </Modal>
   );
 }
@@ -433,6 +628,33 @@ const styles = StyleSheet.create({
     fontSize: 18,
     fontWeight: "700",
     color: Colors.primary,
+  },
+  shotNumberInputRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: Spacing.sm,
+  },
+  shotNumberInput: {
+    flex: 1,
+    backgroundColor: Colors.bgTertiary,
+    borderRadius: BorderRadius.lg,
+    paddingHorizontal: Spacing.lg,
+    paddingVertical: Spacing.md,
+    fontSize: 20,
+    fontWeight: "700",
+    color: Colors.textPrimary,
+    borderWidth: 1,
+    borderColor: Colors.borderLight,
+  },
+  shotNumberButton: {
+    width: 44,
+    height: 44,
+    borderRadius: BorderRadius.lg,
+    backgroundColor: Colors.bgTertiary,
+    justifyContent: "center",
+    alignItems: "center",
+    borderWidth: 1,
+    borderColor: Colors.borderLight,
   },
   boosterBadge: {
     backgroundColor: Colors.success + "15",
@@ -539,6 +761,20 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: Colors.error,
     marginTop: 4,
+  },
+  approvalNote: {
+    flexDirection: "row",
+    backgroundColor: Colors.warning + "15",
+    padding: Spacing.md,
+    borderRadius: BorderRadius.lg,
+    marginBottom: Spacing.xl,
+    gap: Spacing.sm,
+    alignItems: "flex-start",
+  },
+  approvalNoteText: {
+    flex: 1,
+    fontSize: 13,
+    color: Colors.warning,
   },
   infoNote: {
     flexDirection: "row",

@@ -8,6 +8,7 @@ use App\Models\User;
 use App\Models\Role;
 use App\Models\BreedingContract;
 use App\Models\Pet;
+use App\Services\ActivityNotificationService;
 use Carbon\Carbon;
 
 class ShooterController extends Controller
@@ -66,7 +67,8 @@ class ShooterController extends Controller
                     'specialization' => null, // TODO: Add specialization field to users table
                     'is_pet_owner' => $isPetOwner,
                     'pet_breed' => $petBreed,
-                    'rating' => null, // TODO: Implement rating system
+                    'rating' => $user->shooter_average_rating > 0 ? (float) $user->shooter_average_rating : null,
+                    'reviews_count' => $user->shooter_review_count,
                     'completed_sessions' => null, // TODO: Implement session tracking
                 ];
             });
@@ -393,6 +395,26 @@ class ShooterController extends Controller
                 'shooter_accepted_at' => now(),
             ]);
 
+            // Notify both pet owners that a shooter accepted
+            $contract->load(['conversation.matchRequest.requesterPet', 'conversation.matchRequest.targetPet']);
+            $matchRequest = $contract->conversation->matchRequest ?? null;
+            if ($matchRequest) {
+                $pet1Name = $matchRequest->requesterPet->name ?? 'Pet 1';
+                $pet2Name = $matchRequest->targetPet->name ?? 'Pet 2';
+                $ownerIds = collect([
+                    $matchRequest->requesterPet->user_id ?? null,
+                    $matchRequest->targetPet->user_id ?? null,
+                ])->filter()->unique();
+
+                foreach ($ownerIds as $ownerId) {
+                    ActivityNotificationService::shooterAccepted(
+                        $ownerId,
+                        $user->name ?? 'A shooter',
+                        ['contract_id' => $contract->id]
+                    );
+                }
+            }
+
             return response()->json([
                 'success' => true,
                 'message' => 'Offer accepted. Waiting for owners to confirm.',
@@ -556,7 +578,7 @@ class ShooterController extends Controller
             foreach ($shooterContracts as $contract) {
                 if ($contract->conversation && $contract->conversation->matchRequest) {
                     $matchRequest = $contract->conversation->matchRequest;
-                    
+
                     // Count pet1
                     if ($matchRequest->requesterPet) {
                         $pet = $matchRequest->requesterPet;
@@ -568,7 +590,7 @@ class ShooterController extends Controller
                             $contractCatCount++;
                         }
                     }
-                    
+
                     // Count pet2
                     if ($matchRequest->targetPet) {
                         $pet = $matchRequest->targetPet;
@@ -595,7 +617,7 @@ class ShooterController extends Controller
 
             // Count active contracts (not completed and not failed)
             $activeContracts = $shooterContracts->filter(function ($contract) {
-                return $contract->breeding_status !== 'completed' 
+                return $contract->breeding_status !== 'completed'
                     && $contract->breeding_status !== 'failed'
                     && !$contract->offsprings_allocated;
             })->count();
@@ -656,7 +678,8 @@ class ShooterController extends Controller
                 'is_pet_owner' => $isPetOwner,
                 'breeds_handled' => $breedsHandled->unique()->filter()->values()->toArray(),
                 'pets' => $petsData,
-                'rating' => null, // TODO: Implement rating system
+                'rating' => $shooter->shooter_average_rating > 0 ? (float) $shooter->shooter_average_rating : null,
+                'reviews_count' => $shooter->shooter_review_count,
                 'completed_sessions' => $completedContracts,
                 'breeders_handled' => $totalContracts,
                 'successful_shoots' => $completedContracts,

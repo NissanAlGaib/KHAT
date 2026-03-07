@@ -59,3 +59,7 @@ services:
         type: SECRET
       - key: PAYMONGO_VERIFY_SSL
         value: "true"
+      - key: GEMINI_API_KEY
+        type: SECRET
+      - key: GEMINI_IMAGE_MODEL
+        value: imagen-3.0-generate-002

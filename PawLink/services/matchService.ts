@@ -49,6 +49,7 @@ export interface ShooterProfile {
   breeds_handled: string[];
   pets: ShooterPet[];
   rating?: number;
+  reviews_count?: number;
   completed_sessions?: number;
   breeders_handled?: number;
   successful_shoots?: number;
@@ -74,6 +75,7 @@ export interface TopMatch {
     name: string;
     photo_url?: string;
     breed?: string;
+    species?: string;
     sex?: string;
     birthdate?: string;
   };
@@ -82,6 +84,7 @@ export interface TopMatch {
     name: string;
     photo_url?: string;
     breed?: string;
+    species?: string;
     sex?: string;
     birthdate?: string;
   };
@@ -100,7 +103,7 @@ export const getAllAvailablePets = async (): Promise<PetMatch[]> => {
   } catch (error: any) {
     console.error(
       "Error getting available pets:",
-      error.response?.data || error.message
+      error.response?.data || error.message,
     );
     return [];
   }
@@ -117,7 +120,7 @@ export const getPotentialMatches = async (): Promise<PetMatch[]> => {
   } catch (error: any) {
     console.error(
       "Error getting potential matches:",
-      error.response?.data || error.message
+      error.response?.data || error.message,
     );
     return [];
   }
@@ -134,7 +137,7 @@ export const getTopMatches = async (): Promise<TopMatch[]> => {
   } catch (error: any) {
     console.error(
       "Error getting top matches:",
-      error.response?.data || error.message
+      error.response?.data || error.message,
     );
     return [];
   }
@@ -150,7 +153,7 @@ export const getShooters = async (): Promise<ShooterProfile[]> => {
   } catch (error: any) {
     console.error(
       "Error getting shooters:",
-      error.response?.data || error.message
+      error.response?.data || error.message,
     );
     return [];
   }
@@ -160,7 +163,7 @@ export const getShooters = async (): Promise<ShooterProfile[]> => {
  * Get detailed shooter profile by ID
  */
 export const getShooterProfile = async (
-  shooterId: number
+  shooterId: number,
 ): Promise<ShooterProfile> => {
   try {
     const response = await axiosInstance.get(`/api/shooters/${shooterId}`);
@@ -168,7 +171,7 @@ export const getShooterProfile = async (
   } catch (error: any) {
     console.error(
       "Error getting shooter profile:",
-      error.response?.data || error.message
+      error.response?.data || error.message,
     );
     throw error;
   }
@@ -177,7 +180,7 @@ export const getShooterProfile = async (
 /**
  * Calculate compatibility score between two pets using MLP-like architecture
  * This is a client-side implementation that mimics the backend logic
- * 
+ *
  * MLP Architecture:
  * - Input layer: Feature extraction and normalization
  * - Hidden layer: Non-linear transformations and feature interactions
@@ -185,7 +188,7 @@ export const getShooterProfile = async (
  */
 export const calculateCompatibility = (
   pet: PetMatch,
-  userPetPreferences?: any
+  userPetPreferences?: any,
 ): number => {
   if (!userPetPreferences) return 0;
 
@@ -220,9 +223,23 @@ interface InputFeatures {
   attributesCount: number;
 }
 
+/**
+ * Check if a breed string (possibly mixed) matches a target breed.
+ * Supports mixed breed format "Breed1 × Breed2 Mix" by checking if either parent matches.
+ */
+const breedMatchesMixed = (petBreed: string, targetBreed: string): boolean => {
+  if (!petBreed || !petBreed.includes("×")) return false;
+  const parts = petBreed
+    .split("×")
+    .map((p) => p.replace(/\s*Mix$/i, "").trim());
+  return parts.some(
+    (parent) => parent.toLowerCase() === targetBreed.toLowerCase(),
+  );
+};
+
 const extractInputFeatures = (
   pet: PetMatch,
-  preferences: any
+  preferences: any,
 ): InputFeatures => {
   const features: InputFeatures = {
     breed: 0,
@@ -234,9 +251,16 @@ const extractInputFeatures = (
     attributesCount: 0,
   };
 
-  // Breed feature (exact match = 1.0, no match = 0)
+  // Breed feature (exact match = 1.0, mixed breed parent match = 0.8, no match = 0)
+  // Supports mixed breeds ("Breed1 × Breed2 Mix") by checking if either parent breed matches
   if (preferences.preferred_breed) {
-    features.breed = pet.breed === preferences.preferred_breed ? 1.0 : 0.0;
+    if (pet.breed === preferences.preferred_breed) {
+      features.breed = 1.0;
+    } else if (breedMatchesMixed(pet.breed, preferences.preferred_breed)) {
+      features.breed = 0.8;
+    } else {
+      features.breed = 0.0;
+    }
   }
 
   // Sex feature (exact match = 1.0, no preference = 0.5, no match = 0)
@@ -252,21 +276,25 @@ const extractInputFeatures = (
 
     if (petAge >= preferences.min_age && petAge <= preferences.max_age) {
       const distanceFromMid = Math.abs(petAge - midAge);
-      const normalizedDistance = ageRange > 0 ? distanceFromMid / (ageRange / 2) : 0;
+      const normalizedDistance =
+        ageRange > 0 ? distanceFromMid / (ageRange / 2) : 0;
       features.age = 1.0 - 0.2 * normalizedDistance;
     } else {
       const distanceOutside = Math.min(
         Math.abs(petAge - preferences.min_age),
-        Math.abs(petAge - preferences.max_age)
+        Math.abs(petAge - preferences.max_age),
       );
-      features.age = Math.max(0.0, 0.4 - (distanceOutside / (ageRange || 12)) * 0.3);
+      features.age = Math.max(
+        0.0,
+        0.4 - (distanceOutside / (ageRange || 12)) * 0.3,
+      );
     }
   }
 
   // Behaviors feature
   if (preferences.preferred_behaviors && pet.behaviors) {
     const matchingBehaviors = preferences.preferred_behaviors.filter(
-      (b: string) => pet.behaviors?.includes(b)
+      (b: string) => pet.behaviors?.includes(b),
     );
     const matchCount = matchingBehaviors.length;
     const totalPreferred = preferences.preferred_behaviors.length;
@@ -280,7 +308,7 @@ const extractInputFeatures = (
   // Attributes feature
   if (preferences.preferred_attributes && pet.attributes) {
     const matchingAttributes = preferences.preferred_attributes.filter(
-      (a: string) => pet.attributes?.includes(a)
+      (a: string) => pet.attributes?.includes(a),
     );
     const matchCount = matchingAttributes.length;
     const totalPreferred = preferences.preferred_attributes.length;
@@ -304,7 +332,9 @@ interface HiddenActivations {
   bonus: number;
 }
 
-const computeHiddenLayer = (inputFeatures: InputFeatures): HiddenActivations => {
+const computeHiddenLayer = (
+  inputFeatures: InputFeatures,
+): HiddenActivations => {
   const weights = {
     breed: 0.35,
     sex: 0.15,
@@ -350,7 +380,7 @@ const computeHiddenLayer = (inputFeatures: InputFeatures): HiddenActivations => 
  */
 const computeOutputLayer = (
   hiddenActivations: HiddenActivations,
-  inputFeatures: InputFeatures
+  inputFeatures: InputFeatures,
 ): number => {
   const outputWeights = {
     primary: 0.45,
@@ -389,7 +419,8 @@ const sigmoid = (x: number): number => 1 / (1 + Math.exp(-x));
  * Softplus activation function (smooth ReLU)
  * Uses numerically stable implementation to avoid overflow
  */
-const softplus = (x: number): number => (x > 20 ? x : Math.log(1 + Math.exp(x)));
+const softplus = (x: number): number =>
+  x > 20 ? x : Math.log(1 + Math.exp(x));
 
 /**
  * Helper to calculate pet age in months

@@ -9,6 +9,8 @@ import {
   ActivityIndicator,
   KeyboardAvoidingView,
   Platform,
+  AppState,
+  AppStateStatus,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Feather } from "@expo/vector-icons";
@@ -22,11 +24,10 @@ import {
 } from "@/services/matchRequestService";
 import { getContract, type BreedingContract } from "@/services/contractService";
 import { getStorageUrl } from "@/utils/imageUrl";
-import {
-  ContractPrompt,
-  ContractModal,
-  ContractCard,
-} from "@/components/contracts";
+import { ContractPrompt } from "@/components/contracts";
+import CompactContractCard from "@/components/contracts/CompactContractCard";
+import BlockReportModal from "@/components/chat/BlockReportModal";
+import MatchTimeline from "@/components/chat/MatchTimeline";
 
 export default function ConversationScreen() {
   const router = useRouter();
@@ -35,7 +36,7 @@ export default function ConversationScreen() {
   const scrollViewRef = useRef<ScrollView>(null);
 
   const [conversation, setConversation] = useState<ConversationDetail | null>(
-    null
+    null,
   );
   const [loading, setLoading] = useState(true);
   const [sending, setSending] = useState(false);
@@ -44,8 +45,9 @@ export default function ConversationScreen() {
   // Contract state
   const [contract, setContract] = useState<BreedingContract | null>(null);
   const [showContractPrompt, setShowContractPrompt] = useState(false);
-  const [showContractModal, setShowContractModal] = useState(false);
-  const [isEditingContract, setIsEditingContract] = useState(false);
+
+  // Block & Report state
+  const [showBlockReportModal, setShowBlockReportModal] = useState(false);
 
   const getImageUrl = (path: string | null | undefined) => {
     return getStorageUrl(path);
@@ -90,20 +92,35 @@ export default function ConversationScreen() {
     return () => clearInterval(interval);
   }, [conversationId, fetchMessages, fetchContract, sending]);
 
+  // Refresh immediately when the app returns to foreground (e.g., after PayMongo payment)
+  useEffect(() => {
+    const appStateRef = AppState.currentState;
+    const sub = AppState.addEventListener(
+      "change",
+      (nextState: AppStateStatus) => {
+        if (
+          appStateRef.match(/inactive|background/) &&
+          nextState === "active" &&
+          conversationId
+        ) {
+          fetchMessages();
+          fetchContract();
+        }
+      },
+    );
+    return () => sub.remove();
+  }, [conversationId, fetchMessages, fetchContract]);
+
   const handleContractSuccess = (newContract: BreedingContract) => {
     setContract(newContract);
-    setIsEditingContract(false);
-  };
-
-  const handleEditContract = () => {
-    setIsEditingContract(true);
-    setShowContractModal(true);
   };
 
   const handleCreateContract = () => {
     setShowContractPrompt(false);
-    setIsEditingContract(false);
-    setShowContractModal(true);
+    router.push({
+      pathname: "/(chat)/create-contract",
+      params: { conversationId },
+    });
   };
 
   const handleSend = async () => {
@@ -321,11 +338,15 @@ export default function ConversationScreen() {
             <TouchableOpacity
               onPress={() =>
                 router.push(
-                  `/(pet)/view-profile?id=${conversation?.matched_pet?.pet_id}`
+                  `/(pet)/view-profile?id=${conversation?.matched_pet?.pet_id}`,
                 )
               }
+              className="mr-2"
             >
               <Feather name="info" size={24} color="#FF6B6B" />
+            </TouchableOpacity>
+            <TouchableOpacity onPress={() => setShowBlockReportModal(true)}>
+              <Feather name="shield" size={24} color="#9CA3AF" />
             </TouchableOpacity>
           </>
         )}
@@ -346,16 +367,39 @@ export default function ConversationScreen() {
             scrollViewRef.current?.scrollToEnd({ animated: false })
           }
         >
+          {/* Match Timeline */}
+          <MatchTimeline
+            matchAcceptedAt={conversation?.match_accepted_at}
+            contract={contract}
+          />
+
           {/* Contract Card */}
           {contract && (
-            <ContractCard
+            <CompactContractCard
               contract={contract}
-              onContractUpdate={handleContractSuccess}
-              onEdit={handleEditContract}
-              onMatchCompleted={() => {
-                // Navigate back to matches/conversations list after match is completed
-                router.back();
-              }}
+              conversationId={parseInt(conversationId)}
+              pet1={
+                conversation?.is_shooter_view
+                  ? conversation.pet1
+                  : conversation?.matched_pet
+                    ? {
+                        pet_id: conversation.matched_pet.pet_id,
+                        name: conversation.matched_pet.name,
+                        photo_url: conversation.matched_pet.photo_url,
+                      }
+                    : null
+              }
+              pet2={
+                conversation?.is_shooter_view
+                  ? conversation.pet2
+                  : conversation?.user_pet
+                    ? {
+                        pet_id: conversation.user_pet.pet_id,
+                        name: conversation.user_pet.name,
+                        photo_url: conversation.user_pet.photo_url,
+                      }
+                    : null
+              }
             />
           )}
 
@@ -412,17 +456,19 @@ export default function ConversationScreen() {
         onAccept={handleCreateContract}
       />
 
-      {/* Contract Creation/Edit Modal */}
-      <ContractModal
-        visible={showContractModal}
-        onClose={() => {
-          setShowContractModal(false);
-          setIsEditingContract(false);
-        }}
-        onSuccess={handleContractSuccess}
-        conversationId={parseInt(conversationId)}
-        existingContract={isEditingContract ? contract : null}
-      />
+      {/* Block & Report Modal */}
+      {conversation?.owner && (
+        <BlockReportModal
+          visible={showBlockReportModal}
+          onClose={() => setShowBlockReportModal(false)}
+          userId={conversation.owner.id}
+          userName={conversation.owner.name}
+          onBlockSuccess={() => {
+            // Navigate back after blocking
+            router.back();
+          }}
+        />
+      )}
     </SafeAreaView>
   );
 }

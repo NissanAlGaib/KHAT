@@ -1,0 +1,8 @@
+/.venv
+/.sisyphus
+.github/prompts/plan-moneyPool.prompt.md
+backend/nul
+chutes_claude_code_env.sh
+nul
+PawLink/nul
+.claude/settings.local.json

@@ -12,6 +12,9 @@ use Carbon\Carbon;
  * Represents an individual vaccination shot within a vaccination card.
  * Shots are ADD-ONLY - they are never edited or deleted once created.
  * Each shot has proof documentation required.
+ * 
+ * New workflow: User uploads proof -> status "pending" -> Admin approves/rejects.
+ * Only "approved" shots count toward completion.
  */
 class VaccinationShot extends Model
 {
@@ -31,6 +34,7 @@ class VaccinationShot extends Model
     const VERIFICATION_PENDING = 'pending';
     const VERIFICATION_APPROVED = 'approved';
     const VERIFICATION_REJECTED = 'rejected';
+    const VERIFICATION_HISTORICAL = 'historical'; // Pre-app records, no verification needed
 
     protected $fillable = [
         'card_id',
@@ -43,6 +47,8 @@ class VaccinationShot extends Model
         'next_shot_date',
         'status',
         'verification_status',
+        'is_historical',
+        'is_booster',
         'rejection_reason',
     ];
 
@@ -51,6 +57,8 @@ class VaccinationShot extends Model
         'date_administered' => 'date',
         'expiration_date' => 'date',
         'next_shot_date' => 'date',
+        'is_historical' => 'boolean',
+        'is_booster' => 'boolean',
     ];
 
     /**
@@ -92,23 +100,27 @@ class VaccinationShot extends Model
      */
     public function getDisplayStatusAttribute(): string
     {
+        // Historical records always show as "historical" regardless of expiration
+        if ($this->verification_status === self::VERIFICATION_HISTORICAL || $this->is_historical) {
+            return 'historical';
+        }
+
         if ($this->verification_status === self::VERIFICATION_REJECTED) {
             return 'rejected';
         }
 
-        if ($this->isExpired()) {
-            return 'expired';
-        }
-
-        if ($this->status === self::STATUS_PENDING) {
-            if ($this->next_shot_date && Carbon::parse($this->next_shot_date)->isPast()) {
-                return 'overdue';
-            }
-            return 'pending';
+        if ($this->verification_status === self::VERIFICATION_PENDING) {
+            return 'pending_approval';
         }
 
         if ($this->verification_status === self::VERIFICATION_APPROVED) {
-            return 'verified';
+            if ($this->isExpired()) {
+                return 'expired';
+            }
+            if ($this->isExpiringSoon()) {
+                return 'expiring_soon';
+            }
+            return 'approved';
         }
 
         return $this->status;
@@ -116,8 +128,8 @@ class VaccinationShot extends Model
 
     /**
      * Create a new shot for a vaccination card
-     * Automatically calculates shot number and dates
-     * Next shot date is based on when this shot expires (user-provided expiration)
+     * Shots start as "pending" verification — only admin approval makes them count.
+     * Concurrent uploads are allowed (user can upload Dose 2 while Dose 1 is pending).
      */
     public static function createForCard(
         VaccinationCard $card,
@@ -125,30 +137,43 @@ class VaccinationShot extends Model
         string $clinicName,
         string $veterinarianName,
         string $dateAdministered,
-        string $expirationDate
+        string $expirationDate,
+        ?int $shotNumber = null
     ): self {
-        $latestShot = $card->latestShot();
-        $nextShotNumber = $latestShot ? $latestShot->shot_number + 1 : 1;
+        // Use provided shot number or auto-calculate
+        $nextShotNumber = $shotNumber ?? $card->getNextShotNumber();
+
+        // Determine if this is a booster shot
+        $isBooster = $card->shouldNextShotBeBooster();
 
         // Calculate next shot date based on expiration
-        // Next shot is due when this shot expires
         $nextShotDate = null;
-        
-        // Determine if more shots will be needed
-        $willNeedMore = true;
-        
-        // For non-recurring vaccines with a fixed series (e.g., Parvo 6-shot)
-        // No next shot after series is complete
-        if ($card->recurrence_type === 'none' && $card->total_shots_required) {
-            if ($nextShotNumber >= $card->total_shots_required) {
-                $willNeedMore = false;
+        $protocol = $card->protocol;
+
+        if ($protocol) {
+            if ($isBooster || $protocol->isPurelyRecurring()) {
+                // Recurring/booster: always has a next shot
+                $nextShotDate = Carbon::parse($expirationDate);
+            } elseif ($protocol->hasSeries()) {
+                // Series: no next shot after series completes
+                if ($nextShotNumber < $protocol->series_doses) {
+                    $nextShotDate = Carbon::parse($expirationDate);
+                } elseif ($protocol->has_booster) {
+                    // Last series dose transitions to booster schedule
+                    $nextShotDate = Carbon::parse($expirationDate);
+                }
             }
-        }
-        
-        // For recurring vaccines (yearly, biannual) or incomplete series,
-        // next shot is due when this one expires
-        if ($willNeedMore) {
-            $nextShotDate = Carbon::parse($expirationDate);
+        } else {
+            // Fallback for cards without protocol
+            $willNeedMore = true;
+            if ($card->recurrence_type === 'none' && $card->total_shots_required) {
+                if ($nextShotNumber >= $card->total_shots_required) {
+                    $willNeedMore = false;
+                }
+            }
+            if ($willNeedMore) {
+                $nextShotDate = Carbon::parse($expirationDate);
+            }
         }
 
         $shot = self::create([
@@ -160,8 +185,75 @@ class VaccinationShot extends Model
             'date_administered' => $dateAdministered,
             'expiration_date' => $expirationDate,
             'next_shot_date' => $nextShotDate,
-            'status' => self::STATUS_COMPLETED,
+            'status' => self::STATUS_PENDING,
             'verification_status' => self::VERIFICATION_PENDING,
+            'is_booster' => $isBooster,
+        ]);
+
+        // Update the card status
+        $card->updateStatus();
+
+        return $shot;
+    }
+
+    /**
+     * Create a historical shot for a vaccination card
+     * Historical shots bypass the verification queue and are marked accordingly
+     */
+    public static function createHistoricalShot(
+        VaccinationCard $card,
+        string $documentPath,
+        string $clinicName,
+        string $veterinarianName,
+        string $dateAdministered,
+        string $expirationDate,
+        int $shotNumber
+    ): self {
+        // Calculate next shot date based on expiration
+        $nextShotDate = null;
+        $willNeedMore = true;
+        $protocol = $card->protocol;
+
+        if ($protocol) {
+            if ($protocol->isPurelyRecurring()) {
+                $nextShotDate = Carbon::parse($expirationDate);
+            } elseif ($protocol->hasSeries()) {
+                if ($shotNumber < $protocol->series_doses) {
+                    $nextShotDate = Carbon::parse($expirationDate);
+                } elseif ($protocol->has_booster) {
+                    $nextShotDate = Carbon::parse($expirationDate);
+                }
+            }
+        } else {
+            if ($card->recurrence_type === 'none' && $card->total_shots_required) {
+                if ($shotNumber >= $card->total_shots_required) {
+                    $willNeedMore = false;
+                }
+            }
+            if ($willNeedMore) {
+                $nextShotDate = Carbon::parse($expirationDate);
+            }
+        }
+
+        // Determine if this is a booster
+        $isBooster = false;
+        if ($protocol && $protocol->hasSeries() && $shotNumber > $protocol->series_doses) {
+            $isBooster = true;
+        }
+
+        $shot = self::create([
+            'card_id' => $card->card_id,
+            'shot_number' => $shotNumber,
+            'vaccination_record' => $documentPath,
+            'clinic_name' => $clinicName,
+            'veterinarian_name' => $veterinarianName,
+            'date_administered' => $dateAdministered,
+            'expiration_date' => $expirationDate,
+            'next_shot_date' => $nextShotDate,
+            'status' => self::STATUS_COMPLETED,
+            'verification_status' => self::VERIFICATION_HISTORICAL,
+            'is_historical' => true,
+            'is_booster' => $isBooster,
         ]);
 
         // Update the card status
@@ -193,6 +285,8 @@ class VaccinationShot extends Model
             'rejection_reason' => $this->rejection_reason,
             'is_expired' => $this->isExpired(),
             'is_expiring_soon' => $this->isExpiringSoon(),
+            'is_historical' => (bool) $this->is_historical,
+            'is_booster' => (bool) $this->is_booster,
         ];
     }
 }

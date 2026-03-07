@@ -8,6 +8,8 @@ use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
+use Illuminate\Http\Exceptions\HttpResponseException;
+use App\Models\User;
 
 class LoginRequest extends FormRequest
 {
@@ -47,6 +49,42 @@ class LoginRequest extends FormRequest
             throw ValidationException::withMessages([
                 'email' => __('auth.failed'),
             ]);
+        }
+
+        /** @var User $user */
+        $user = Auth::user();
+
+        if ($user->status === 'suspended') {
+            // Check if suspension has expired
+            if ($user->suspension_end_date && now()->greaterThan($user->suspension_end_date)) {
+                // Auto-reactivate
+                $user->status = 'active';
+                $user->suspension_reason = null;
+                $user->suspended_at = null;
+                $user->suspension_end_date = null;
+                $user->save();
+            } else {
+                Auth::logout();
+                throw new HttpResponseException(response()->json([
+                    'message' => 'Account Suspended',
+                    'error' => 'account_suspended',
+                    'reason' => $user->suspension_reason,
+                    'suspended_at' => $user->suspended_at,
+                    'end_date' => $user->suspension_end_date,
+                    'support_email' => 'support@pawlink.ph'
+                ], 403));
+            }
+        }
+
+        if ($user->status === 'banned') {
+            Auth::logout();
+            throw new HttpResponseException(response()->json([
+                'message' => 'Account Banned',
+                'error' => 'account_banned',
+                'reason' => $user->suspension_reason,
+                'suspended_at' => $user->suspended_at,
+                'support_email' => 'support@pawlink.ph'
+            ], 403));
         }
 
         RateLimiter::clear($this->throttleKey());
