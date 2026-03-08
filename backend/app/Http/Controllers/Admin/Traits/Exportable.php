@@ -48,7 +48,15 @@ trait Exportable
 
             $callback = function() use ($data, $csvColumns) {
                 $file = fopen('php://output', 'w');
-                
+                 
+                //ITO ANG MGA INADD KO PARA SA HEADER NG CSV
+                fputcsv($file, ['PawLink By KHAT']); 
+                $adminName = auth()->user()->name ?? 'Admin';
+                $exportedAt = now()->format('Y-m-d H:i:s');
+                fputcsv($file, ["Export by: {$adminName}"]);
+                fputcsv($file, ["Exported At:", $exportedAt]);
+                 fputcsv($file, []); // Empty line for spacing
+
                 // Write Header
                 fputcsv($file, array_keys($csvColumns));
 
