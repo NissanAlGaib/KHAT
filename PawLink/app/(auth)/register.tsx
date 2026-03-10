@@ -11,6 +11,7 @@ import { MaterialCommunityIcons, Feather } from "@expo/vector-icons";
 import DropDownPicker from "react-native-dropdown-picker";
 import { useAlert } from "@/hooks/useAlert";
 import AlertModal from "@/components/core/AlertModal";
+import AddressPickerModal from "@/components/core/AddressPickerModal";
 import {
   getRegions,
   getProvinces,
@@ -438,110 +439,105 @@ const Register = () => {
               error={errors["address.street"]}
             />
 
-            {/* Region Dropdown */}
-            <View style={{ zIndex: 4000 }}>
+            {/* Region Picker */}
+            <View>
               <Text className="font-mulish mb-2 text-sm text-text-secondary">
                 Region
               </Text>
-              <DropDownPicker
-                open={regionOpen}
-                value={selectedRegion}
-                items={regionItems}
-                setOpen={setRegionOpen}
-                setValue={setSelectedRegion}
-                listMode="MODAL"
-                modalProps={{ animationType: "slide" }}
-                modalTitle="Select Region"
-                placeholder="Select Region"
-                searchable={true}
-                searchPlaceholder="Search region..."
-                style={{ borderColor: "#d1d5db", minHeight: 48 }}
-                onOpen={() => {
-                  setProvinceOpen(false);
-                  setCityOpen(false);
-                }}
-              />
+              <TouchableOpacity
+                className="border border-gray-300 rounded-lg p-3 flex-row items-center justify-between"
+                style={{ minHeight: 48 }}
+                onPress={() => setRegionOpen(true)}
+              >
+                <Text
+                  className={selectedRegion ? "text-gray-900 font-mulish" : "text-gray-400 font-mulish"}
+                >
+                  {selectedRegion || "Select Region"}
+                </Text>
+                <Feather name="chevron-down" size={18} color="#9CA3AF" />
+              </TouchableOpacity>
               {errors["address.province"] && !selectedRegion && (
                 <Text className="text-red-500 text-sm mt-1 font-roboto-condensed-extralight">
                   Please select a region first.
                 </Text>
               )}
+              <AddressPickerModal
+                visible={regionOpen}
+                onClose={() => setRegionOpen(false)}
+                onSelect={(val) => setSelectedRegion(val)}
+                title="Select Region"
+                items={regionItems}
+                selectedValue={selectedRegion}
+                searchPlaceholder="Search region..."
+              />
             </View>
 
-            {/* Province Dropdown */}
-            <View style={{ zIndex: 3000 }}>
+            {/* Province Picker */}
+            <View>
               <Text className="font-mulish mb-2 text-sm text-text-secondary">
                 Province
               </Text>
-              <DropDownPicker
-                open={provinceOpen}
-                value={selectedProvince}
-                items={provinceItems}
-                setOpen={setProvinceOpen}
-                setValue={setSelectedProvince}
-                listMode="MODAL"
-                modalProps={{ animationType: "slide" }}
-                modalTitle="Select Province"
-                placeholder={
-                  selectedRegion ? "Select Province" : "Select a region first"
-                }
+              <TouchableOpacity
+                className="border border-gray-300 rounded-lg p-3 flex-row items-center justify-between"
+                style={{ minHeight: 48, opacity: selectedRegion ? 1 : 0.5 }}
+                onPress={() => selectedRegion && setProvinceOpen(true)}
                 disabled={!selectedRegion}
-                searchable={true}
-                searchPlaceholder="Search province..."
-                style={{
-                  borderColor: "#d1d5db",
-                  minHeight: 48,
-                  opacity: selectedRegion ? 1 : 0.5,
-                }}
-                onOpen={() => {
-                  setRegionOpen(false);
-                  setCityOpen(false);
-                }}
-              />
+              >
+                <Text
+                  className={selectedProvince ? "text-gray-900 font-mulish" : "text-gray-400 font-mulish"}
+                >
+                  {selectedProvince || (selectedRegion ? "Select Province" : "Select a region first")}
+                </Text>
+                <Feather name="chevron-down" size={18} color="#9CA3AF" />
+              </TouchableOpacity>
               {errors["address.province"] ? (
                 <Text className="text-red-500 text-sm mt-1 font-roboto-condensed-extralight">
                   {errors["address.province"]}
                 </Text>
               ) : null}
+              <AddressPickerModal
+                visible={provinceOpen}
+                onClose={() => setProvinceOpen(false)}
+                onSelect={(val) => setSelectedProvince(val)}
+                title="Select Province"
+                items={provinceItems}
+                selectedValue={selectedProvince}
+                searchPlaceholder="Search province..."
+              />
             </View>
 
-            {/* City Dropdown */}
-            <View style={{ zIndex: 2000 }}>
+            {/* City Picker */}
+            <View>
               <Text className="font-mulish mb-2 text-sm text-text-secondary">
                 City / Municipality
               </Text>
-              <DropDownPicker
-                open={cityOpen}
-                value={selectedCity}
-                items={cityItems}
-                setOpen={setCityOpen}
-                setValue={setSelectedCity}
-                listMode="MODAL"
-                modalProps={{ animationType: "slide" }}
-                modalTitle="Select City / Municipality"
-                placeholder={
-                  selectedProvince
-                    ? "Select City/Municipality"
-                    : "Select a province first"
-                }
+              <TouchableOpacity
+                className="border border-gray-300 rounded-lg p-3 flex-row items-center justify-between"
+                style={{ minHeight: 48, opacity: selectedProvince ? 1 : 0.5 }}
+                onPress={() => selectedProvince && setCityOpen(true)}
                 disabled={!selectedProvince}
-                searchable={true}
-                searchPlaceholder="Search city..."
-                style={{
-                  borderColor: "#d1d5db",
-                  minHeight: 48,
-                  opacity: selectedProvince ? 1 : 0.5,
-                }}
-                onOpen={() => {
-                  setRegionOpen(false);
-                  setProvinceOpen(false);
-                }}
-              />
+              >
+                <Text
+                  className={selectedCity ? "text-gray-900 font-mulish" : "text-gray-400 font-mulish"}
+                >
+                  {selectedCity || (selectedProvince ? "Select City/Municipality" : "Select a province first")}
+                </Text>
+                <Feather name="chevron-down" size={18} color="#9CA3AF" />
+              </TouchableOpacity>
               {errors["address.city"] ? (
                 <Text className="text-red-500 text-sm mt-1 font-roboto-condensed-extralight">
                   {errors["address.city"]}
                 </Text>
               ) : null}
+              <AddressPickerModal
+                visible={cityOpen}
+                onClose={() => setCityOpen(false)}
+                onSelect={(val) => setSelectedCity(val)}
+                title="Select City / Municipality"
+                items={cityItems}
+                selectedValue={selectedCity}
+                searchPlaceholder="Search city..."
+              />
             </View>
 
             <CustomInput

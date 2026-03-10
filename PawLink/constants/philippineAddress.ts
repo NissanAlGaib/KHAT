@@ -1833,10 +1833,34 @@ export const philippineAddress: PhilippineAddressData = {
 /**
  * Get all regions as dropdown options
  */
+/**
+ * Official PSGC region order
+ */
+const PSGC_REGION_ORDER = [
+  "NCR",
+  "CAR",
+  "Region I",
+  "Region II",
+  "Region III",
+  "Region IV-A",
+  "Region IV-B",
+  "Region V",
+  "Region VI",
+  "Region VII",
+  "Region VIII",
+  "Region IX",
+  "Region X",
+  "Region XI",
+  "Region XII",
+  "Region XIII",
+  "BARMM",
+];
+
 export const getRegions = (): AddressOption[] => {
-  return Object.keys(philippineAddress)
-    .sort()
-    .map((r) => ({ label: r, value: r }));
+  return PSGC_REGION_ORDER.filter((r) => r in philippineAddress).map((r) => ({
+    label: r,
+    value: r,
+  }));
 };
 
 /**
