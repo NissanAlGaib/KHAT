@@ -2,11 +2,14 @@
 
 namespace App\Models;
 
+use App\Traits\FiltersByDate;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 class AuditLog extends Model
 {
+    use FiltersByDate;
+
     protected $fillable = [
         'user_id',
         'action',

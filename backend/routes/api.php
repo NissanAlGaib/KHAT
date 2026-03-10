@@ -3,12 +3,15 @@
 use App\Http\Controllers\Auth\AuthenticatedSessionController;
 use App\Http\Controllers\Auth\RegisteredUserController;
 use App\Http\Controllers\BreedingContractController;
+use App\Http\Controllers\DisputeController;
 use App\Http\Controllers\LitterController;
 use App\Http\Controllers\MatchController;
 use App\Http\Controllers\MatchRequestController;
 use App\Http\Controllers\NotificationController;
+use App\Http\Controllers\ActivityNotificationController;
 use App\Http\Controllers\PaymentController;
 use App\Http\Controllers\PetController;
+use App\Http\Controllers\PoolController;
 use App\Http\Controllers\ShooterController;
 use App\Http\Controllers\SubscriptionController;
 use App\Http\Controllers\UserController;
@@ -16,6 +19,11 @@ use App\Http\Controllers\VerificationController;
 use App\Http\Controllers\VaccinationController;
 use App\Http\Controllers\SafetyController;
 use App\Http\Controllers\SearchController;
+use App\Http\Controllers\AiOffspringController;
+use App\Http\Controllers\BreedIdentifierController;
+use App\Http\Controllers\Api\UserReviewController;
+use App\Http\Controllers\Auth\PasswordResetLinkController;
+use App\Http\Controllers\Auth\NewPasswordController;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
 
@@ -27,6 +35,13 @@ Route::middleware("guest")->group(function () {
     Route::post('/login', [AuthenticatedSessionController::class, 'store'])
         ->middleware('guest')
         ->name('login');
+
+    // Password Reset
+    Route::post('/forgot-password', [PasswordResetLinkController::class, 'store'])
+        ->name('password.email');
+
+    Route::post('/reset-password', [NewPasswordController::class, 'store'])
+        ->name('password.store');
 });
 
 // PayMongo webhook (no auth required)
@@ -61,13 +76,15 @@ Route::middleware(['auth:sanctum'])
         // Vaccination card routes (new card-based system)
         // Static routes MUST come before dynamic {cardId} routes
         Route::get('/pets/{petId}/vaccination-cards', [VaccinationController::class, 'getCards']);
-        Route::post('/pets/{petId}/vaccination-cards', [VaccinationController::class, 'createCustomCard']);
+        Route::get('/pets/{petId}/available-protocols', [VaccinationController::class, 'getAvailableProtocols']);
+        Route::post('/pets/{petId}/opt-in/{protocolId}', [VaccinationController::class, 'optInToProtocol']);
         Route::post('/pets/{petId}/vaccination-cards/import-history', [VaccinationController::class, 'importHistory']);
         Route::post('/pets/{petId}/vaccination-cards/initialize', [VaccinationController::class, 'initializeRequiredCards']);
         Route::get('/pets/{petId}/vaccination-summary', [VaccinationController::class, 'getSummary']);
         // Dynamic {cardId} routes come after static routes
         Route::get('/pets/{petId}/vaccination-cards/{cardId}', [VaccinationController::class, 'getCard']);
-        Route::delete('/pets/{petId}/vaccination-cards/{cardId}', [VaccinationController::class, 'deleteCard']);
+        // deleteCard removed — admin controls protocol lifecycle now
+        Route::post('/pets/{petId}/vaccination-cards/{cardId}/change-protocol', [VaccinationController::class, 'changeProtocol']);
         Route::post('/pets/{petId}/vaccination-cards/{cardId}/shots', [VaccinationController::class, 'addShot']);
         Route::post('/pets/{petId}/vaccination-cards/{cardId}/historical-shots', [VaccinationController::class, 'addHistoricalShot']);
 
@@ -79,6 +96,7 @@ Route::middleware(['auth:sanctum'])
         // Match routes
         Route::get('/matches/potential', [MatchController::class, 'getPotentialMatches']);
         Route::get('/matches/top', [MatchController::class, 'getTopMatches']);
+        Route::get('/pets/{petId}/compatibility/{otherPetId}', [MatchController::class, 'getCompatibilityScore']);
 
         // Shooter routes
         Route::get('/shooters', [ShooterController::class, 'index']);
@@ -100,9 +118,18 @@ Route::middleware(['auth:sanctum'])
         Route::put('/verification/{authId}/status', [VerificationController::class, 'updateVerificationStatus']);
         Route::post('/verification/{authId}/resubmit', [VerificationController::class, 'resubmitVerification']);
 
-        // Notification routes
+        // Notifications (verification/admin - legacy)
         Route::get('/notifications', [NotificationController::class, 'getNotifications']);
         Route::get('/notifications/count', [NotificationController::class, 'getNotificationCount']);
+
+        // Activity Notifications (activity feed)
+        Route::get('/activity-notifications', [ActivityNotificationController::class, 'index']);
+        Route::get('/activity-notifications/unread-count', [ActivityNotificationController::class, 'unreadCount']);
+        Route::put('/activity-notifications/{id}/read', [ActivityNotificationController::class, 'markAsRead']);
+        Route::put('/activity-notifications/read-all', [ActivityNotificationController::class, 'markAllAsRead']);
+
+        // User Status & Warnings
+        Route::put('/user/warnings/{id}/acknowledge', [\App\Http\Controllers\Api\UserWarningController::class, 'acknowledge']);
 
         // Match request routes
         Route::post('/match-requests', [MatchRequestController::class, 'store']);
@@ -112,6 +139,15 @@ Route::middleware(['auth:sanctum'])
         Route::get('/match-requests/matches', [MatchRequestController::class, 'matches']);
         Route::put('/match-requests/{id}/accept', [MatchRequestController::class, 'accept']);
         Route::put('/match-requests/{id}/decline', [MatchRequestController::class, 'decline']);
+        Route::put('/match-requests/{id}/cancel', [MatchRequestController::class, 'cancel']);
+        Route::get('/match-requests/history', [MatchRequestController::class, 'history']);
+        Route::post('/match-requests/{match}/review', [UserReviewController::class, 'store']);
+        Route::get('/match-requests/{match}/review-status', [UserReviewController::class, 'reviewStatus']);
+
+        // Review routes (shooter & profile)
+        Route::post('/contracts/{contract}/review-shooter', [UserReviewController::class, 'storeShooterReview']);
+        Route::post('/contracts/{contract}/review-breeder', [UserReviewController::class, 'storeBreederReviewAsShooter']);
+        Route::get('/users/{user}/reviews', [UserReviewController::class, 'userReviews']);
 
         // Conversation routes
         Route::get('/conversations', [MatchRequestController::class, 'getConversations']);
@@ -133,6 +169,7 @@ Route::middleware(['auth:sanctum'])
         Route::put('/contracts/{id}/offspring/allocate', [BreedingContractController::class, 'allocateOffspring']);
         Route::post('/contracts/{id}/offspring/auto-allocate', [BreedingContractController::class, 'autoAllocateOffspring']);
         Route::post('/contracts/{id}/complete-match', [BreedingContractController::class, 'completeMatch']);
+        Route::post('/contracts/{id}/cancel', [BreedingContractController::class, 'cancelContract']);
 
         // Daily report routes
         Route::post('/contracts/{id}/daily-reports', [BreedingContractController::class, 'storeDailyReport']);
@@ -164,6 +201,8 @@ Route::middleware(['auth:sanctum'])
         Route::get('/search/pets', [SearchController::class, 'searchPets']);
         Route::get('/search/breeders', [SearchController::class, 'searchBreeders']);
         Route::get('/search/shooters', [SearchController::class, 'searchShooters']);
+        Route::get('/search/explore', [SearchController::class, 'explore']);
+        Route::get('/search/breeds', [SearchController::class, 'getBreeds']);
 
         // Safety routes (Block & Report)
         Route::post('/users/{id}/block', [SafetyController::class, 'blockUser']);
@@ -172,4 +211,34 @@ Route::middleware(['auth:sanctum'])
         Route::get('/users/{id}/blocked-status', [SafetyController::class, 'isBlocked']);
         Route::post('/users/{id}/report', [SafetyController::class, 'reportUser']);
         Route::get('/report-reasons', [SafetyController::class, 'getReportReasons']);
+
+        // Breed Identifier
+        Route::post('/breed-identify', [BreedIdentifierController::class, 'predict']);
+        Route::get('/breed-identify/health', [BreedIdentifierController::class, 'health']);
+
+        // AI Offspring Generation
+        Route::post('/ai/generate-offspring', [AiOffspringController::class, 'generate']);
+
+        // Money Pool routes
+        Route::get('/pool/my-transactions', [PoolController::class, 'index']);
+        Route::get('/pool/contracts/{contractId}/summary', [PoolController::class, 'contractSummary']);
+        Route::get('/pool/balance', [PoolController::class, 'balance']);
+
+        // Dispute routes
+        Route::post('/disputes', [DisputeController::class, 'store']);
+        Route::get('/disputes', [DisputeController::class, 'index']);
+        Route::get('/disputes/{id}', [DisputeController::class, 'show']);
+
+        // Admin Testing Tools API (requires admin role)
+        Route::prefix('admin/testing-tools')->group(function () {
+            Route::post('/pets/{petId}/clear-cooldown', [\App\Http\Controllers\Admin\TestingToolsController::class, 'clearPetCooldown']);
+            Route::post('/pets/{petId}/fast-forward-cooldown', [\App\Http\Controllers\Admin\TestingToolsController::class, 'fastForwardPetCooldown']);
+            Route::post('/pets/{petId}/reset-breeding', [\App\Http\Controllers\Admin\TestingToolsController::class, 'resetBreedingHistory']);
+            Route::post('/pets/{petId}/reset-full', [\App\Http\Controllers\Admin\TestingToolsController::class, 'resetPetFull']);
+            Route::post('/pets/{petId}/reset-match-requests', [\App\Http\Controllers\Admin\TestingToolsController::class, 'resetAllMatchRequestsForPet']);
+            Route::post('/match-requests/reset', [\App\Http\Controllers\Admin\TestingToolsController::class, 'resetMatchRequests']);
+            Route::post('/users/{userId}/fast-forward-suspension', [\App\Http\Controllers\Admin\TestingToolsController::class, 'fastForwardSuspension']);
+            Route::post('/payments/{paymentId}/fast-forward-expiry', [\App\Http\Controllers\Admin\TestingToolsController::class, 'fastForwardPaymentExpiry']);
+            Route::post('/payments/{paymentId}/expire', [\App\Http\Controllers\Admin\TestingToolsController::class, 'expirePayment']);
+        });
     });

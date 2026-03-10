@@ -3,6 +3,7 @@ import axiosInstance from "@/config/axiosConfig";
 export interface BreedingContract {
   id: number;
   conversation_id: number;
+  match_request_id?: number;
   created_by: number;
   last_edited_by?: number;
   status: "draft" | "pending_review" | "accepted" | "rejected" | "fulfilled";
@@ -76,6 +77,8 @@ export interface BreedingContract {
   current_user_accepted_shooter?: boolean;
   can_mark_breeding_complete?: boolean;
   can_input_offspring?: boolean;
+  partner_name?: string;
+  partner_id?: number;
 }
 
 export interface ShooterRequestStatus {
@@ -130,12 +133,12 @@ export interface ApiResponse<T = void> {
  */
 export const createContract = async (
   conversationId: number,
-  data: ContractFormData
+  data: ContractFormData,
 ): Promise<ApiResponse<BreedingContract>> => {
   try {
     const response = await axiosInstance.post(
       `/api/conversations/${conversationId}/contracts`,
-      data
+      data,
     );
     return {
       success: true,
@@ -153,17 +156,17 @@ export const createContract = async (
  * Get the breeding contract for a conversation
  */
 export const getContract = async (
-  conversationId: number
+  conversationId: number,
 ): Promise<BreedingContract | null> => {
   try {
     const response = await axiosInstance.get(
-      `/api/conversations/${conversationId}/contracts`
+      `/api/conversations/${conversationId}/contracts`,
     );
     return response.data.data || null;
   } catch (error: any) {
     console.error(
       "Error getting contract:",
-      error.response?.data || error.message
+      error.response?.data || error.message,
     );
     return null;
   }
@@ -174,12 +177,12 @@ export const getContract = async (
  */
 export const updateContract = async (
   contractId: number,
-  data: ContractFormData
+  data: ContractFormData,
 ): Promise<ApiResponse<BreedingContract>> => {
   try {
     const response = await axiosInstance.put(
       `/api/contracts/${contractId}`,
-      data
+      data,
     );
     return {
       success: true,
@@ -197,11 +200,11 @@ export const updateContract = async (
  * Accept a breeding contract
  */
 export const acceptContract = async (
-  contractId: number
+  contractId: number,
 ): Promise<ApiResponse<BreedingContract>> => {
   try {
     const response = await axiosInstance.put(
-      `/api/contracts/${contractId}/accept`
+      `/api/contracts/${contractId}/accept`,
     );
     return {
       success: true,
@@ -219,11 +222,11 @@ export const acceptContract = async (
  * Reject a breeding contract (ends the match)
  */
 export const rejectContract = async (
-  contractId: number
+  contractId: number,
 ): Promise<ApiResponse<BreedingContract>> => {
   try {
     const response = await axiosInstance.put(
-      `/api/contracts/${contractId}/reject`
+      `/api/contracts/${contractId}/reject`,
     );
     return {
       success: true,
@@ -241,17 +244,17 @@ export const rejectContract = async (
  * Get shooter request status for a contract
  */
 export const getShooterRequest = async (
-  contractId: number
+  contractId: number,
 ): Promise<ShooterRequestStatus | null> => {
   try {
     const response = await axiosInstance.get(
-      `/api/contracts/${contractId}/shooter-request`
+      `/api/contracts/${contractId}/shooter-request`,
     );
     return response.data.data || null;
   } catch (error: any) {
     console.error(
       "Error getting shooter request:",
-      error.response?.data || error.message
+      error.response?.data || error.message,
     );
     return null;
   }
@@ -261,11 +264,11 @@ export const getShooterRequest = async (
  * Accept a shooter request (by owner)
  */
 export const acceptShooterRequest = async (
-  contractId: number
+  contractId: number,
 ): Promise<ApiResponse<BreedingContract>> => {
   try {
     const response = await axiosInstance.put(
-      `/api/contracts/${contractId}/shooter-request/accept`
+      `/api/contracts/${contractId}/shooter-request/accept`,
     );
     return {
       success: true,
@@ -283,11 +286,11 @@ export const acceptShooterRequest = async (
  * Decline a shooter request (by owner)
  */
 export const declineShooterRequest = async (
-  contractId: number
+  contractId: number,
 ): Promise<ApiResponse<BreedingContract>> => {
   try {
     const response = await axiosInstance.put(
-      `/api/contracts/${contractId}/shooter-request/decline`
+      `/api/contracts/${contractId}/shooter-request/decline`,
     );
     return {
       success: true,
@@ -307,13 +310,13 @@ export const declineShooterRequest = async (
 export const getPendingShooterRequestsCount = async (): Promise<number> => {
   try {
     const response = await axiosInstance.get(
-      `/api/contracts/shooter-requests/count`
+      `/api/contracts/shooter-requests/count`,
     );
     return response.data.data?.count || 0;
   } catch (error: any) {
     console.error(
       "Error getting pending shooter requests count:",
-      error.response?.data || error.message
+      error.response?.data || error.message,
     );
     return 0;
   }
@@ -326,7 +329,7 @@ export const getPendingShooterRequestsCount = async (): Promise<number> => {
 export const updateShooterTerms = async (
   contractId: number,
   shooterPayment: number,
-  shooterCollateral: number
+  shooterCollateral: number,
 ): Promise<ApiResponse<BreedingContract>> => {
   try {
     const response = await axiosInstance.put(
@@ -334,7 +337,7 @@ export const updateShooterTerms = async (
       {
         shooter_payment: shooterPayment,
         shooter_collateral: shooterCollateral,
-      }
+      },
     );
     return {
       success: true,
@@ -485,12 +488,12 @@ export interface CompleteMatchResponse {
  */
 export const completeBreeding = async (
   contractId: number,
-  data: BreedingCompletionData
+  data: BreedingCompletionData,
 ): Promise<ApiResponse<BreedingContract>> => {
   try {
     const response = await axiosInstance.put(
       `/api/contracts/${contractId}/complete-breeding`,
-      data
+      data,
     );
     return {
       success: true,
@@ -510,12 +513,12 @@ export const completeBreeding = async (
  */
 export const storeOffspring = async (
   contractId: number,
-  data: OffspringInputData
+  data: OffspringInputData,
 ): Promise<ApiResponse<{ litter: LitterData; contract: BreedingContract }>> => {
   try {
     const response = await axiosInstance.post(
       `/api/contracts/${contractId}/offspring`,
-      data
+      data,
     );
     return {
       success: true,
@@ -533,11 +536,11 @@ export const storeOffspring = async (
  * Get offspring for a contract
  */
 export const getOffspring = async (
-  contractId: number
+  contractId: number,
 ): Promise<LitterData | null> => {
   try {
     const response = await axiosInstance.get(
-      `/api/contracts/${contractId}/offspring`
+      `/api/contracts/${contractId}/offspring`,
     );
     return response.data.data || null;
   } catch (error: any) {
@@ -553,12 +556,12 @@ export const getOffspring = async (
  */
 export const allocateOffspring = async (
   contractId: number,
-  allocations: OffspringAllocation[]
+  allocations: OffspringAllocation[],
 ): Promise<ApiResponse<{ offspring: Offspring[] }>> => {
   try {
     const response = await axiosInstance.put(
       `/api/contracts/${contractId}/offspring/allocate`,
-      { allocations }
+      { allocations },
     );
     return {
       success: true,
@@ -577,13 +580,13 @@ export const allocateOffspring = async (
  * Uses contract's split type and selection method to distribute
  */
 export const autoAllocateOffspring = async (
-  contractId: number
+  contractId: number,
 ): Promise<
   ApiResponse<{ allocation_summary: AllocationSummary; offspring: Offspring[] }>
 > => {
   try {
     const response = await axiosInstance.post(
-      `/api/contracts/${contractId}/offspring/auto-allocate`
+      `/api/contracts/${contractId}/offspring/auto-allocate`,
     );
     return {
       success: true,
@@ -602,11 +605,11 @@ export const autoAllocateOffspring = async (
  * Shows allocation breakdown based on contract terms
  */
 export const getOffspringAllocationSummary = async (
-  contractId: number
+  contractId: number,
 ): Promise<ApiResponse<AllocationSummaryData>> => {
   try {
     const response = await axiosInstance.get(
-      `/api/contracts/${contractId}/offspring/allocation-summary`
+      `/api/contracts/${contractId}/offspring/allocation-summary`,
     );
     return {
       success: true,
@@ -622,15 +625,18 @@ export const getOffspringAllocationSummary = async (
 };
 
 /**
- * Complete the match after offspring allocation
+ * Complete the match after offspring allocation (or without offspring)
  * Archives the conversation and marks the contract as fulfilled
+ * Pass skip_offspring: true to complete without offspring when has_offspring was initially true
  */
 export const completeMatch = async (
-  contractId: number
+  contractId: number,
+  data?: { skip_offspring?: boolean },
 ): Promise<ApiResponse<CompleteMatchResponse>> => {
   try {
     const response = await axiosInstance.post(
-      `/api/contracts/${contractId}/complete-match`
+      `/api/contracts/${contractId}/complete-match`,
+      data || {},
     );
     return {
       success: true,
@@ -692,7 +698,7 @@ export interface DailyReportsResponse {
  */
 export const submitDailyReport = async (
   contractId: number,
-  data: DailyReportData
+  data: DailyReportData,
 ): Promise<ApiResponse<DailyReport>> => {
   try {
     // Use FormData to support file upload
@@ -701,12 +707,15 @@ export const submitDailyReport = async (
     formData.append("progress_notes", data.progress_notes);
     formData.append("health_status", data.health_status);
     formData.append("breeding_attempted", data.breeding_attempted ? "1" : "0");
-    
+
     if (data.health_notes) {
       formData.append("health_notes", data.health_notes);
     }
     if (data.breeding_successful !== undefined) {
-      formData.append("breeding_successful", data.breeding_successful ? "1" : "0");
+      formData.append(
+        "breeding_successful",
+        data.breeding_successful ? "1" : "0",
+      );
     }
     if (data.additional_notes) {
       formData.append("additional_notes", data.additional_notes);
@@ -726,7 +735,7 @@ export const submitDailyReport = async (
         headers: {
           "Content-Type": "multipart/form-data",
         },
-      }
+      },
     );
     return {
       success: true,
@@ -744,11 +753,11 @@ export const submitDailyReport = async (
  * Get all daily reports for a breeding contract
  */
 export const getDailyReports = async (
-  contractId: number
+  contractId: number,
 ): Promise<ApiResponse<DailyReportsResponse>> => {
   try {
     const response = await axiosInstance.get(
-      `/api/contracts/${contractId}/daily-reports`
+      `/api/contracts/${contractId}/daily-reports`,
     );
     return {
       success: true,

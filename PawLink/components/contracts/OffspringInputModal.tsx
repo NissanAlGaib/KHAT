@@ -7,9 +7,12 @@ import {
   TextInput,
   ScrollView,
   ActivityIndicator,
-  Alert,
   Image,
+  KeyboardAvoidingView,
+  Platform,
 } from "react-native";
+import { useAlert } from "@/hooks/useAlert";
+import AlertModal from "@/components/core/AlertModal";
 import {
   X,
   Plus,
@@ -59,6 +62,12 @@ export default function OffspringInputModal({
   ]);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [expandedIndex, setExpandedIndex] = useState<number | null>(0);
+  const {
+    visible: alertVisible,
+    alertOptions,
+    showAlert,
+    hideAlert,
+  } = useAlert();
 
   const addOffspring = () => {
     const newIndex = offspring.length;
@@ -78,7 +87,7 @@ export default function OffspringInputModal({
   const updateOffspring = (
     index: number,
     field: keyof OffspringDataWithPhoto,
-    value: any
+    value: any,
   ) => {
     const updated = [...offspring];
     updated[index] = { ...updated[index], [field]: value };
@@ -88,10 +97,11 @@ export default function OffspringInputModal({
   const pickImage = async (index: number) => {
     const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
     if (status !== "granted") {
-      Alert.alert(
-        "Permission Needed",
-        "Please grant photo library access to upload images."
-      );
+      showAlert({
+        title: "Permission Needed",
+        message: "Please grant photo library access to upload images.",
+        type: "warning",
+      });
       return;
     }
 
@@ -110,10 +120,11 @@ export default function OffspringInputModal({
   const takePhoto = async (index: number) => {
     const { status } = await ImagePicker.requestCameraPermissionsAsync();
     if (status !== "granted") {
-      Alert.alert(
-        "Permission Needed",
-        "Please grant camera access to take photos."
-      );
+      showAlert({
+        title: "Permission Needed",
+        message: "Please grant camera access to take photos.",
+        type: "warning",
+      });
       return;
     }
 
@@ -134,7 +145,11 @@ export default function OffspringInputModal({
 
   const handleSubmit = async () => {
     if (offspring.length === 0) {
-      Alert.alert("Error", "Please add at least one offspring");
+      showAlert({
+        title: "Error",
+        message: "Please add at least one offspring",
+        type: "error",
+      });
       return;
     }
 
@@ -163,7 +178,7 @@ export default function OffspringInputModal({
           }
           const { photo, ...pupData } = pup;
           return pupData;
-        })
+        }),
       );
 
       const result = await storeOffspring(contract.id, {
@@ -173,19 +188,38 @@ export default function OffspringInputModal({
       });
 
       if (result.success && result.data) {
-        Alert.alert("Success", "Offspring recorded successfully!");
-        onSuccess(result.data.contract);
-        onClose();
-        setBirthDate(new Date());
-        setLitterNotes("");
-        setOffspring([{ sex: "male", status: "alive" }]);
-        setExpandedIndex(0);
+        showAlert({
+          title: "Success",
+          message: "Offspring recorded successfully!",
+          type: "success",
+          buttons: [
+            {
+              text: "OK",
+              onPress: () => {
+                onSuccess(result.data.contract);
+                onClose();
+                setBirthDate(new Date());
+                setLitterNotes("");
+                setOffspring([{ sex: "male", status: "alive" }]);
+                setExpandedIndex(0);
+              },
+            },
+          ],
+        });
       } else {
-        Alert.alert("Error", result.message || "Failed to record offspring");
+        showAlert({
+          title: "Error",
+          message: result.message || "Failed to record offspring",
+          type: "error",
+        });
       }
     } catch (error) {
       console.error("Error recording offspring:", error);
-      Alert.alert("Error", "Failed to record offspring");
+      showAlert({
+        title: "Error",
+        message: "Failed to record offspring",
+        type: "error",
+      });
     } finally {
       setIsSubmitting(false);
     }
@@ -202,151 +236,183 @@ export default function OffspringInputModal({
       transparent
       onRequestClose={onClose}
     >
-      <View className="flex-1 bg-black/50 justify-end">
-        <View className="bg-white rounded-t-3xl" style={{ maxHeight: '95%', flex: 1 }}>
-          {/* Header */}
-          <View className="flex-row items-center justify-between px-6 py-4 border-b border-gray-100">
-            <View className="flex-row items-center">
-              <View className="w-10 h-10 rounded-full bg-pink-100 items-center justify-center mr-3">
-                <Baby size={22} color="#ec4899" />
-              </View>
-              <View>
-                <Text className="text-xl font-bold text-gray-800">Record Offspring</Text>
-                <Text className="text-gray-500 text-sm">Add litter details</Text>
-              </View>
-            </View>
-            <TouchableOpacity
-              onPress={onClose}
-              className="w-10 h-10 rounded-full bg-gray-100 items-center justify-center"
-            >
-              <X size={24} color="#666" />
-            </TouchableOpacity>
-          </View>
-
-          {/* Summary Stats */}
-          <View className="flex-row px-6 py-3 bg-gray-50 border-b border-gray-100">
-            <View className="flex-1 items-center">
-              <Text className="text-2xl font-bold text-gray-800">{offspring.length}</Text>
-              <Text className="text-gray-500 text-xs">Total</Text>
-            </View>
-            <View className="w-px bg-gray-200" />
-            <View className="flex-1 items-center">
-              <Text className="text-2xl font-bold text-blue-500">{maleCount}</Text>
-              <Text className="text-gray-500 text-xs">Males</Text>
-            </View>
-            <View className="w-px bg-gray-200" />
-            <View className="flex-1 items-center">
-              <Text className="text-2xl font-bold text-pink-500">{femaleCount}</Text>
-              <Text className="text-gray-500 text-xs">Females</Text>
-            </View>
-            <View className="w-px bg-gray-200" />
-            <View className="flex-1 items-center">
-              <Text className="text-2xl font-bold text-green-500">{aliveCount}</Text>
-              <Text className="text-gray-500 text-xs">Alive</Text>
-            </View>
-          </View>
-
-          <ScrollView 
-            style={{ flex: 1 }} 
-            showsVerticalScrollIndicator={false}
-            contentContainerStyle={{ paddingBottom: 20 }}
+      <KeyboardAvoidingView
+        style={{ flex: 1 }}
+        behavior={Platform.OS === "ios" ? "padding" : undefined}
+      >
+        <View className="flex-1 bg-black/50 justify-end">
+          <View
+            className="bg-white rounded-t-3xl"
+            style={{ maxHeight: "95%", flex: 1 }}
           >
-            <View className="px-4 py-4">
-              {/* Birth Date Card */}
-              <View className="bg-white rounded-2xl border border-gray-200 p-4 mb-4 shadow-sm">
-                <View className="flex-row items-center mb-3">
-                  <Calendar size={18} color="#FF6B6B" />
-                  <Text className="text-gray-700 font-semibold ml-2">Birth Date</Text>
-                  <Text className="text-red-500 ml-1">*</Text>
+            {/* Header */}
+            <View className="flex-row items-center justify-between px-6 py-4 border-b border-gray-100">
+              <View className="flex-row items-center">
+                <View className="w-10 h-10 rounded-full bg-pink-100 items-center justify-center mr-3">
+                  <Baby size={22} color="#ec4899" />
                 </View>
-                <TouchableOpacity
-                  onPress={() => setShowDatePicker(true)}
-                  className="bg-gray-50 rounded-xl p-4 flex-row items-center justify-between"
-                >
-                  <Text className="text-gray-800 font-medium">
-                    {dayjs(birthDate).format("MMMM D, YYYY")}
+                <View>
+                  <Text className="text-xl font-bold text-gray-800">
+                    Record Offspring
                   </Text>
-                  <Calendar size={20} color="#9ca3af" />
-                </TouchableOpacity>
-              </View>
-
-              {/* Litter Notes Card */}
-              <View className="bg-white rounded-2xl border border-gray-200 p-4 mb-4 shadow-sm">
-                <View className="flex-row items-center mb-3">
-                  <FileText size={18} color="#FF6B6B" />
-                  <Text className="text-gray-700 font-semibold ml-2">Litter Notes</Text>
-                  <Text className="text-gray-400 text-sm ml-2">(Optional)</Text>
+                  <Text className="text-gray-500 text-sm">
+                    Add litter details
+                  </Text>
                 </View>
-                <TextInput
-                  value={litterNotes}
-                  onChangeText={setLitterNotes}
-                  placeholder="Add any notes about the litter..."
-                  placeholderTextColor="#9ca3af"
-                  multiline
-                  numberOfLines={3}
-                  className="bg-gray-50 rounded-xl p-4 text-gray-800"
-                  style={{ textAlignVertical: "top", minHeight: 80 }}
-                />
               </View>
+              <TouchableOpacity
+                onPress={onClose}
+                className="w-10 h-10 rounded-full bg-gray-100 items-center justify-center"
+              >
+                <X size={24} color="#666" />
+              </TouchableOpacity>
+            </View>
 
-              {/* Offspring Section */}
-              <View className="mb-4">
-                <View className="flex-row items-center justify-between mb-3">
-                  <View className="flex-row items-center">
-                    <Heart size={18} color="#FF6B6B" />
-                    <Text className="text-gray-700 font-semibold ml-2">Offspring Details</Text>
+            {/* Summary Stats */}
+            <View className="flex-row px-6 py-3 bg-gray-50 border-b border-gray-100">
+              <View className="flex-1 items-center">
+                <Text className="text-2xl font-bold text-gray-800">
+                  {offspring.length}
+                </Text>
+                <Text className="text-gray-500 text-xs">Total</Text>
+              </View>
+              <View className="w-px bg-gray-200" />
+              <View className="flex-1 items-center">
+                <Text className="text-2xl font-bold text-blue-500">
+                  {maleCount}
+                </Text>
+                <Text className="text-gray-500 text-xs">Males</Text>
+              </View>
+              <View className="w-px bg-gray-200" />
+              <View className="flex-1 items-center">
+                <Text className="text-2xl font-bold text-pink-500">
+                  {femaleCount}
+                </Text>
+                <Text className="text-gray-500 text-xs">Females</Text>
+              </View>
+              <View className="w-px bg-gray-200" />
+              <View className="flex-1 items-center">
+                <Text className="text-2xl font-bold text-green-500">
+                  {aliveCount}
+                </Text>
+                <Text className="text-gray-500 text-xs">Alive</Text>
+              </View>
+            </View>
+
+            <ScrollView
+              style={{ flex: 1 }}
+              showsVerticalScrollIndicator={false}
+              contentContainerStyle={{ paddingBottom: 20 }}
+            >
+              <View className="px-4 py-4">
+                {/* Birth Date Card */}
+                <View className="bg-white rounded-2xl border border-gray-200 p-4 mb-4 shadow-sm">
+                  <View className="flex-row items-center mb-3">
+                    <Calendar size={18} color="#FF6B6B" />
+                    <Text className="text-gray-700 font-semibold ml-2">
+                      Birth Date
+                    </Text>
+                    <Text className="text-red-500 ml-1">*</Text>
                   </View>
                   <TouchableOpacity
-                    onPress={addOffspring}
-                    className="bg-[#FF6B6B] px-4 py-2 rounded-full flex-row items-center"
+                    onPress={() => setShowDatePicker(true)}
+                    className="bg-gray-50 rounded-xl p-4 flex-row items-center justify-between"
                   >
-                    <Plus size={16} color="white" />
-                    <Text className="text-white font-semibold ml-1">Add</Text>
+                    <Text className="text-gray-800 font-medium">
+                      {dayjs(birthDate).format("MMMM D, YYYY")}
+                    </Text>
+                    <Calendar size={20} color="#9ca3af" />
                   </TouchableOpacity>
                 </View>
 
-                {/* Offspring Cards */}
-                {offspring.map((pup, index) => (
-                  <OffspringCard
-                    key={index}
-                    index={index}
-                    pup={pup}
-                    isExpanded={expandedIndex === index}
-                    onToggle={() => setExpandedIndex(expandedIndex === index ? null : index)}
-                    onUpdate={(field, value) => updateOffspring(index, field, value)}
-                    onRemove={() => removeOffspring(index)}
-                    onPickImage={() => pickImage(index)}
-                    onTakePhoto={() => takePhoto(index)}
-                    onRemovePhoto={() => removePhoto(index)}
-                    canRemove={offspring.length > 1}
+                {/* Litter Notes Card */}
+                <View className="bg-white rounded-2xl border border-gray-200 p-4 mb-4 shadow-sm">
+                  <View className="flex-row items-center mb-3">
+                    <FileText size={18} color="#FF6B6B" />
+                    <Text className="text-gray-700 font-semibold ml-2">
+                      Litter Notes
+                    </Text>
+                    <Text className="text-gray-400 text-sm ml-2">
+                      (Optional)
+                    </Text>
+                  </View>
+                  <TextInput
+                    value={litterNotes}
+                    onChangeText={setLitterNotes}
+                    placeholder="Add any notes about the litter..."
+                    placeholderTextColor="#9ca3af"
+                    multiline
+                    numberOfLines={3}
+                    className="bg-gray-50 rounded-xl p-4 text-gray-800"
+                    style={{ textAlignVertical: "top", minHeight: 80 }}
                   />
-                ))}
-              </View>
-            </View>
-          </ScrollView>
+                </View>
 
-          {/* Submit Button */}
-          <View className="px-4 py-4 border-t border-gray-100 bg-white">
-            <TouchableOpacity
-              onPress={handleSubmit}
-              disabled={isSubmitting}
-              className="py-4 rounded-full flex-row items-center justify-center"
-              style={{ backgroundColor: "#16a34a" }}
-            >
-              {isSubmitting ? (
-                <ActivityIndicator color="white" size="small" />
-              ) : (
-                <>
-                  <CheckCircle size={20} color="white" />
-                  <Text className="text-white font-bold text-base ml-2">
-                    Record {offspring.length} Offspring
-                  </Text>
-                </>
-              )}
-            </TouchableOpacity>
+                {/* Offspring Section */}
+                <View className="mb-4">
+                  <View className="flex-row items-center justify-between mb-3">
+                    <View className="flex-row items-center">
+                      <Heart size={18} color="#FF6B6B" />
+                      <Text className="text-gray-700 font-semibold ml-2">
+                        Offspring Details
+                      </Text>
+                    </View>
+                    <TouchableOpacity
+                      onPress={addOffspring}
+                      className="bg-[#FF6B6B] px-4 py-2 rounded-full flex-row items-center"
+                    >
+                      <Plus size={16} color="white" />
+                      <Text className="text-white font-semibold ml-1">Add</Text>
+                    </TouchableOpacity>
+                  </View>
+
+                  {/* Offspring Cards */}
+                  {offspring.map((pup, index) => (
+                    <OffspringCard
+                      key={index}
+                      index={index}
+                      pup={pup}
+                      isExpanded={expandedIndex === index}
+                      onToggle={() =>
+                        setExpandedIndex(expandedIndex === index ? null : index)
+                      }
+                      onUpdate={(field, value) =>
+                        updateOffspring(index, field, value)
+                      }
+                      onRemove={() => removeOffspring(index)}
+                      onPickImage={() => pickImage(index)}
+                      onTakePhoto={() => takePhoto(index)}
+                      onRemovePhoto={() => removePhoto(index)}
+                      canRemove={offspring.length > 1}
+                    />
+                  ))}
+                </View>
+              </View>
+            </ScrollView>
+
+            {/* Submit Button */}
+            <View className="px-4 py-4 border-t border-gray-100 bg-white">
+              <TouchableOpacity
+                onPress={handleSubmit}
+                disabled={isSubmitting}
+                className="py-4 rounded-full flex-row items-center justify-center"
+                style={{ backgroundColor: "#16a34a" }}
+              >
+                {isSubmitting ? (
+                  <ActivityIndicator color="white" size="small" />
+                ) : (
+                  <>
+                    <CheckCircle size={20} color="white" />
+                    <Text className="text-white font-bold text-base ml-2">
+                      Record {offspring.length} Offspring
+                    </Text>
+                  </>
+                )}
+              </TouchableOpacity>
+            </View>
           </View>
         </View>
-      </View>
+      </KeyboardAvoidingView>
 
       <DateTimePickerModal
         isVisible={showDatePicker}
@@ -358,6 +424,11 @@ export default function OffspringInputModal({
         }}
         onCancel={() => setShowDatePicker(false)}
         maximumDate={new Date()}
+      />
+      <AlertModal
+        visible={alertVisible}
+        {...alertOptions}
+        onClose={hideAlert}
       />
     </Modal>
   );
@@ -433,8 +504,12 @@ function OffspringCard({
                   {pup.sex === "male" ? "Male" : "Female"}
                 </Text>
               </View>
-              <View className={`px-2 py-0.5 rounded-full ${statusColors[pup.status].bg}`}>
-                <Text className={`text-xs font-medium capitalize ${statusColors[pup.status].text}`}>
+              <View
+                className={`px-2 py-0.5 rounded-full ${statusColors[pup.status].bg}`}
+              >
+                <Text
+                  className={`text-xs font-medium capitalize ${statusColors[pup.status].text}`}
+                >
                   {pup.status}
                 </Text>
               </View>
@@ -466,7 +541,9 @@ function OffspringCard({
         <View className="px-4 pb-4 border-t border-gray-100 pt-4">
           {/* Name Input */}
           <View className="mb-4">
-            <Text className="text-gray-600 text-sm font-medium mb-2">Name (Optional)</Text>
+            <Text className="text-gray-600 text-sm font-medium mb-2">
+              Name (Optional)
+            </Text>
             <TextInput
               value={pup.name || ""}
               onChangeText={(value) => onUpdate("name", value)}
@@ -478,7 +555,9 @@ function OffspringCard({
 
           {/* Photo Section */}
           <View className="mb-4">
-            <Text className="text-gray-600 text-sm font-medium mb-2">Photo (Optional)</Text>
+            <Text className="text-gray-600 text-sm font-medium mb-2">
+              Photo (Optional)
+            </Text>
             {pup.photo ? (
               <View className="relative">
                 <Image
@@ -507,7 +586,9 @@ function OffspringCard({
                   className="flex-1 bg-gray-50 rounded-xl py-4 flex-row items-center justify-center border border-gray-200"
                 >
                   <ImageIcon size={20} color="#666" />
-                  <Text className="text-gray-600 font-medium ml-2">Gallery</Text>
+                  <Text className="text-gray-600 font-medium ml-2">
+                    Gallery
+                  </Text>
                 </TouchableOpacity>
               </View>
             )}
@@ -515,7 +596,9 @@ function OffspringCard({
 
           {/* Sex Selection */}
           <View className="mb-4">
-            <Text className="text-gray-600 text-sm font-medium mb-2">Sex *</Text>
+            <Text className="text-gray-600 text-sm font-medium mb-2">
+              Sex *
+            </Text>
             <View className="flex-row gap-3">
               <TouchableOpacity
                 onPress={() => onUpdate("sex", "male")}
@@ -558,7 +641,9 @@ function OffspringCard({
           <View className="mb-4">
             <View className="flex-row items-center mb-2">
               <Palette size={16} color="#666" />
-              <Text className="text-gray-600 text-sm font-medium ml-2">Color/Markings (Optional)</Text>
+              <Text className="text-gray-600 text-sm font-medium ml-2">
+                Color/Markings (Optional)
+              </Text>
             </View>
             <TextInput
               value={pup.color || ""}
@@ -571,7 +656,9 @@ function OffspringCard({
 
           {/* Status Selection */}
           <View className="mb-4">
-            <Text className="text-gray-600 text-sm font-medium mb-2">Status *</Text>
+            <Text className="text-gray-600 text-sm font-medium mb-2">
+              Status *
+            </Text>
             <View className="flex-row gap-2">
               {[
                 { value: "alive", label: "Alive", color: "green" },
@@ -585,14 +672,16 @@ function OffspringCard({
                       ? status.color === "green"
                         ? "bg-green-500"
                         : status.color === "gray"
-                        ? "bg-gray-500"
-                        : "bg-purple-500"
+                          ? "bg-gray-500"
+                          : "bg-purple-500"
                       : "bg-gray-50 border border-gray-200"
                   }`}
                 >
                   <Text
                     className={`font-semibold ${
-                      pup.status === status.value ? "text-white" : "text-gray-600"
+                      pup.status === status.value
+                        ? "text-white"
+                        : "text-gray-600"
                     }`}
                   >
                     {status.label}
@@ -605,16 +694,23 @@ function OffspringCard({
           {/* Death Date - Only shown when status is "died" */}
           {pup.status === "died" && (
             <View className="mb-4">
-              <Text className="text-gray-600 text-sm font-medium mb-2">Death Date *</Text>
+              <Text className="text-gray-600 text-sm font-medium mb-2">
+                Death Date *
+              </Text>
               <TouchableOpacity
                 onPress={() => setShowDeathDatePicker(true)}
                 className="bg-gray-50 rounded-xl p-4 flex-row items-center justify-between border border-gray-200"
               >
-                <Text className={pup.death_date ? "text-gray-800 font-medium" : "text-gray-400"}>
-                  {pup.death_date 
-                    ? dayjs(pup.death_date).format("MMMM D, YYYY")
-                    : "Select death date..."
+                <Text
+                  className={
+                    pup.death_date
+                      ? "text-gray-800 font-medium"
+                      : "text-gray-400"
                   }
+                >
+                  {pup.death_date
+                    ? dayjs(pup.death_date).format("MMMM D, YYYY")
+                    : "Select death date..."}
                 </Text>
                 <Calendar size={20} color="#9ca3af" />
               </TouchableOpacity>
@@ -634,7 +730,9 @@ function OffspringCard({
 
           {/* Notes Input */}
           <View>
-            <Text className="text-gray-600 text-sm font-medium mb-2">Notes (Optional)</Text>
+            <Text className="text-gray-600 text-sm font-medium mb-2">
+              Notes (Optional)
+            </Text>
             <TextInput
               value={pup.notes || ""}
               onChangeText={(value) => onUpdate("notes", value)}

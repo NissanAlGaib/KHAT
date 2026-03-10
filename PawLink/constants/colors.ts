@@ -1,8 +1,8 @@
 /**
  * PawLink Color Constants
  * Centralized color palette for the application
- * 
- * VERSION 1.1 - Unified Design System
+ *
+ * VERSION 2.0 - Clean Neutral Design System
  * All components MUST use these colors instead of hardcoded hex values.
  */
 
@@ -10,63 +10,78 @@ export const Colors = {
   // ============================================
   // PRIMARY BRAND COLORS
   // ============================================
-  // Use `primary` for all main action buttons, links, and brand elements
   primary: "#FF6B4A",
   primaryLight: "#FF9A8B",
   primaryDark: "#E4492E",
-  
+
   // ============================================
   // SEMANTIC COLORS
   // ============================================
-  // Use these for status indicators, alerts, and feedback
   success: "#22C55E",
   successLight: "#DCFCE7",
   successBg: "#f0fdf4",
-  
+
   error: "#EF4444",
   errorLight: "#fef2f2",
   errorDark: "#DC2626",
-  
+
   warning: "#F59E0B",
   warningLight: "#FEF3C7",
   warningBg: "#fffbeb",
-  
+
   info: "#3B82F6",
   infoLight: "#eff6ff",
-  
+
   // ============================================
   // GRAY SCALE (Unified)
   // ============================================
-  // Text colors
-  textPrimary: "#111111",      // Main headings, important text
-  textSecondary: "#4B5563",    // Subheadings, secondary text (gray-700)
-  textMuted: "#6B7280",        // Muted text, placeholders (gray-600)
-  textDisabled: "#9CA3AF",     // Disabled text (gray-400)
-  
-  // Border colors
-  borderLight: "#E5E7EB",      // Light borders (gray-200)
-  borderMedium: "#D1D5DB",     // Medium borders (gray-300)
-  borderDark: "#9CA3AF",       // Dark borders (gray-400)
-  
-  // Background colors
-  bgPrimary: "#FFFFFF",        // Main background
-  bgSecondary: "#F9FAFB",      // Secondary background (gray-50)
-  bgTertiary: "#F3F4F6",       // Tertiary background (gray-100)
-  bgMuted: "#E5E7EB",          // Muted background (gray-200)
-  bgWarm: "#FFF8F6",           // Warm off-white with peach tint
-  bgWarmSecondary: "#FFF5F3",  // Slightly warmer for sections
-  coralSubtle: "#FFF1EF",      // Very subtle coral for highlights
-  
-  // Vibrant backgrounds
-  bgCoral: "#FFE0D8",        // Original homepage background
-  bgCoralLight: "#FFF5F3",   // Lighter coral
-  matchCardBg: "#F9DCDC",    // Pink for match sections
-  matchCardBorder: "#FECACA", // Match card border
+  textPrimary: "#111111",
+  textSecondary: "#4B5563",
+  textMuted: "#6B7280",
+  textDisabled: "#9CA3AF",
 
-  // More vibrant accents
-  coralVibrant: "#FF6B4A",   // Primary brand color
-  coralDark: "#DC2626",      // For emphasis text
-  
+  borderLight: "#E5E7EB",
+  borderMedium: "#D1D5DB",
+  borderDark: "#9CA3AF",
+
+  bgPrimary: "#FFFFFF",
+  bgSecondary: "#F9FAFB",
+  bgTertiary: "#F3F4F6",
+  bgMuted: "#E5E7EB",
+  bgWarm: "#FFF8F6",
+  bgWarmSecondary: "#FFF5F3",
+  coralSubtle: "#FFF1EF",
+
+  // ============================================
+  // APP BACKGROUND (v2 neutral base)
+  // ============================================
+  bgApp: "#FAFAFA",
+  cardBg: "#FFFFFF",
+  cardBorder: "#F0F0F0",
+
+  // ============================================
+  // SEX BADGE COLORS (unified across all components)
+  // ============================================
+  femaleBg: "#FFE4E6",
+  femaleTxt: "#BE123C",
+  maleBg: "#E0F2FE",
+  maleTxt: "#0284C7",
+
+  // ============================================
+  // LEGACY CORAL BACKGROUNDS (deprecated — use bgApp/cardBg)
+  // ============================================
+  /** @deprecated Use bgApp instead */
+  bgCoral: "#FFE0D8",
+  /** @deprecated Use bgWarmSecondary instead */
+  bgCoralLight: "#FFF5F3",
+  /** @deprecated Use cardBg instead */
+  matchCardBg: "#F9DCDC",
+  /** @deprecated Use cardBorder instead */
+  matchCardBorder: "#FECACA",
+
+  coralVibrant: "#FF6B4A",
+  coralDark: "#DC2626",
+
   // Legacy gray mappings (for backwards compatibility)
   grayDark: "#333333",
   gray700: "#4B5563",
@@ -77,7 +92,7 @@ export const Colors = {
   gray200: "#E5E7EB",
   gray100: "#F3F4F6",
   gray50: "#F9FAFB",
-  
+
   // ============================================
   // SPECIAL PURPOSE COLORS
   // ============================================
@@ -86,20 +101,29 @@ export const Colors = {
   coralLight: "#F9DCDC",
   coralBorder: "#FECACA",
   coralBg: "#FFF5F5",
-  
+
   // UI Colors
   white: "#FFFFFF",
   black: "#000000",
   transparent: "transparent",
-  
+
   // Overlay colors
   overlay: "rgba(0, 0, 0, 0.5)",
   overlayLight: "rgba(0, 0, 0, 0.3)",
   overlayDark: "rgba(0, 0, 0, 0.7)",
-  
+
   // Shadow colors (for StyleSheet)
   shadow: "#000000",
   shadowRed: "#EF4444",
+
+  // ============================================
+  // TAB BAR COLORS (v2 white bar)
+  // ============================================
+  tabBarBg: "#FFFFFF",
+  tabBarActive: "#FF6B4A",
+  tabBarInactive: "#9CA3AF",
+  tabBarBadgeBg: "#FF6B4A",
+  tabBarBadgeText: "#FFFFFF",
 } as const;
 
 // ============================================

@@ -199,15 +199,15 @@ class SafetyController extends Controller
      */
     public function getReportReasons()
     {
+        $reasons = SafetyReport::getReasonLabels();
+
+        $data = array_map(function ($value, $label) {
+            return ['value' => $value, 'label' => $label];
+        }, array_keys($reasons), array_values($reasons));
+
         return response()->json([
             'success' => true,
-            'data' => [
-                ['value' => SafetyReport::REASON_HARASSMENT, 'label' => 'Harassment'],
-                ['value' => SafetyReport::REASON_SCAM, 'label' => 'Scam or Fraud'],
-                ['value' => SafetyReport::REASON_INAPPROPRIATE, 'label' => 'Inappropriate Content'],
-                ['value' => SafetyReport::REASON_FAKE_PROFILE, 'label' => 'Fake Profile'],
-                ['value' => SafetyReport::REASON_OTHER, 'label' => 'Other'],
-            ],
+            'data' => $data,
         ]);
     }
 }

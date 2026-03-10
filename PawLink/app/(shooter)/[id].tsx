@@ -21,6 +21,9 @@ import {
 } from "@/services/matchService";
 import { getStorageUrl } from "@/utils/imageUrl";
 import { LinearGradient } from "expo-linear-gradient";
+import { ReviewBreakdown } from "@/components/reviews";
+import { getUserReviews } from "@/services/reviewService";
+import type { CategoryAverage } from "@/types/Review";
 
 // Section subtitle text constants
 const SECTION_SUBTITLES = {
@@ -39,12 +42,25 @@ export default function ShooterProfileScreen() {
   const [shooterData, setShooterData] = useState<ShooterProfile | null>(null);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+  const [categoryAverages, setCategoryAverages] = useState<Record<string, CategoryAverage>>({});
+  const [shooterReviewCount, setShooterReviewCount] = useState(0);
+  const [shooterOverallAvg, setShooterOverallAvg] = useState(0);
 
   const fetchShooterData = useCallback(async () => {
     try {
       setLoading(true);
       const profile = await getShooterProfile(parseInt(shooterId));
       setShooterData(profile);
+
+      // Fetch category-based review breakdown
+      try {
+        const reviewData = await getUserReviews(parseInt(shooterId), "shooter");
+        setCategoryAverages(reviewData.category_averages);
+        setShooterReviewCount(reviewData.review_count);
+        setShooterOverallAvg(reviewData.overall_average);
+      } catch {
+        // Reviews endpoint may return 404 if no reviews — non-critical
+      }
     } catch (error: unknown) {
       console.error("Error fetching shooter data:", error);
       const err = error as { response?: { data?: { message?: string } }; message?: string };
@@ -248,22 +264,15 @@ const getImageUrl = (path: string | null | undefined) => {
             </View>
           </View>
 
-          {/* Rating */}
-          {rating > 0 && (
-            <View style={styles.ratingContainer}>
-              <View style={styles.starsContainer}>
-                {[1, 2, 3, 4, 5].map((star) => (
-                  <Feather 
-                    key={star} 
-                    name="star" 
-                    size={16} 
-                    color={star <= Math.round(rating) ? "#F59E0B" : "#E5E7EB"} 
-                  />
-                ))}
-              </View>
-              <Text style={styles.ratingText}>{rating.toFixed(1)}</Text>
-            </View>
-          )}
+          {/* Rating Breakdown */}
+          <View style={{ marginTop: 12, width: '100%' }}>
+            <ReviewBreakdown
+              overallAverage={shooterOverallAvg}
+              reviewCount={shooterReviewCount}
+              categoryAverages={categoryAverages}
+              compact={false}
+            />
+          </View>
         </View>
 
         {/* Quick Stats Banner */}

@@ -21,6 +21,12 @@ import AlertModal from "@/components/core/AlertModal";
 import * as DocumentPicker from "expo-document-picker";
 import * as ImagePicker from "expo-image-picker";
 import { createPet, initializeVaccinationCards } from "@/services/petService";
+import {
+  identifyBreedFromImage,
+  DOG_BREEDS,
+  CAT_BREEDS,
+  BreedIdentificationResult,
+} from "@/services/breedService";
 import DateTimePickerModal from "react-native-modal-datetime-picker";
 import StyledModal from "@/components/core/StyledModal";
 import { LinearGradient } from "expo-linear-gradient";
@@ -30,26 +36,6 @@ import AddShotModal from "@/components/pet/AddShotModal";
 
 const { width: SCREEN_WIDTH } = Dimensions.get("window");
 
-// Dog breeds list for autocomplete
-const DOG_BREEDS = [
-  "Labrador Retriever", "German Shepherd", "Golden Retriever", "French Bulldog",
-  "Bulldog", "Poodle", "Beagle", "Rottweiler", "German Shorthaired Pointer",
-  "Siberian Husky", "Dachshund", "Doberman Pinscher", "Shih Tzu", "Boxer",
-  "Great Dane", "Yorkshire Terrier", "Australian Shepherd", "Cavalier King Charles Spaniel",
-  "Miniature Schnauzer", "Pembroke Welsh Corgi", "Pomeranian", "Boston Terrier",
-  "Havanese", "Bernese Mountain Dog", "Maltese", "English Springer Spaniel",
-  "Shetland Sheepdog", "Brittany", "Cocker Spaniel", "Border Collie",
-  "Aspin", "Askal", "Mixed Breed",
-];
-
-const CAT_BREEDS = [
-  "Siamese", "Persian", "Maine Coon", "Ragdoll", "British Shorthair",
-  "Sphynx", "Scottish Fold", "Bengal", "Abyssinian", "Russian Blue",
-  "Norwegian Forest Cat", "Birman", "Oriental Shorthair", "Devon Rex",
-  "American Shorthair", "Exotic Shorthair", "Burmese", "Himalayan",
-  "Puspin", "Mixed Breed",
-];
-
 interface ValidationErrors {
   [key: string]: string;
 }
@@ -58,12 +44,14 @@ export default function AddPetScreen() {
   const router = useRouter();
   const { visible, alertOptions, showAlert, hideAlert } = useAlert();
   const scrollViewRef = useRef<ScrollView>(null);
-  
+
   // Form state
   const [currentStep, setCurrentStep] = useState(1);
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [validationErrors, setValidationErrors] = useState<ValidationErrors>({});
-  
+  const [validationErrors, setValidationErrors] = useState<ValidationErrors>(
+    {},
+  );
+
   // Modal states
   const [showSpeciesModal, setShowSpeciesModal] = useState(false);
   const [showSexModal, setShowSexModal] = useState(false);
@@ -71,8 +59,33 @@ export default function AddPetScreen() {
   const [datePickerField, setDatePickerField] = useState<string | null>(null);
   const [showBreedSearch, setShowBreedSearch] = useState(false);
   const [breedSearchQuery, setBreedSearchQuery] = useState("");
-  const [activeBreedField, setActiveBreedField] = useState<"breed" | "preferredBreed">("breed");
-  
+  const [activeBreedField, setActiveBreedField] = useState<
+    "breed" | "preferredBreed"
+  >("breed");
+
+  // AI Breed Identification
+  const [isIdentifyingBreed, setIsIdentifyingBreed] = useState(false);
+  const [showPredictionModal, setShowPredictionModal] = useState(false);
+  const [breedPredictions, setBreedPredictions] = useState<
+    Array<{ breed: string; confidence: number }>
+  >([]);
+  const [showImageSourceModal, setShowImageSourceModal] = useState(false);
+  const [showLowConfidenceWarning, setShowLowConfidenceWarning] =
+    useState(false);
+  const [lowConfidenceData, setLowConfidenceData] = useState<{
+    predictions: Array<{ breed: string; confidence: number }>;
+    topConfidence: number;
+  } | null>(null);
+
+  // Mixed breed state
+  const [isMixedBreed, setIsMixedBreed] = useState(false);
+  const [mixedBreed1, setMixedBreed1] = useState("");
+  const [mixedBreed2, setMixedBreed2] = useState("");
+  const [activeMixedBreedField, setActiveMixedBreedField] = useState<1 | 2>(1);
+
+  // Confidence threshold (50%)
+  const CONFIDENCE_THRESHOLD = 0.5;
+
   // Form data
   const [formData, setFormData] = useState<Record<string, any>>({
     // Step 1 - Pet Info
@@ -139,8 +152,8 @@ export default function AddPetScreen() {
   const getFilteredBreeds = () => {
     const breeds = formData.species === "Cat" ? CAT_BREEDS : DOG_BREEDS;
     if (!breedSearchQuery) return breeds;
-    return breeds.filter(breed =>
-      breed.toLowerCase().includes(breedSearchQuery.toLowerCase())
+    return breeds.filter((breed) =>
+      breed.toLowerCase().includes(breedSearchQuery.toLowerCase()),
     );
   };
 
@@ -158,19 +171,28 @@ export default function AddPetScreen() {
         if (!formData.weight.trim()) errors.weight = "Weight is required";
         break;
       case 2:
-        if (formData.behaviors.length === 0) errors.behaviors = "Select at least one behavior";
-        if (formData.attributes.length === 0) errors.attributes = "Select at least one attribute";
-        if (!formData.description.trim()) errors.description = "Description is required";
+        if (formData.behaviors.length === 0)
+          errors.behaviors = "Select at least one behavior";
+        if (formData.attributes.length === 0)
+          errors.attributes = "Select at least one attribute";
+        if (!formData.description.trim())
+          errors.description = "Description is required";
         break;
       case 3:
-        if (!formData.healthCertificate) errors.healthCertificate = "Health certificate is required";
-        if (!formData.healthClinicName.trim()) errors.healthClinicName = "Clinic name is required";
-        if (!formData.healthVeterinarianName.trim()) errors.healthVeterinarianName = "Veterinarian name is required";
-        if (!formData.healthGivenDate) errors.healthGivenDate = "Date given is required";
-        if (!formData.healthExpirationDate) errors.healthExpirationDate = "Expiration date is required";
+        if (!formData.healthCertificate)
+          errors.healthCertificate = "Health certificate is required";
+        if (!formData.healthClinicName.trim())
+          errors.healthClinicName = "Clinic name is required";
+        if (!formData.healthVeterinarianName.trim())
+          errors.healthVeterinarianName = "Veterinarian name is required";
+        if (!formData.healthGivenDate)
+          errors.healthGivenDate = "Date given is required";
+        if (!formData.healthExpirationDate)
+          errors.healthExpirationDate = "Expiration date is required";
         break;
       case 4:
-        if (formData.petPhotos.length < 3) errors.petPhotos = "At least 3 photos are required";
+        if (formData.petPhotos.length < 3)
+          errors.petPhotos = "At least 3 photos are required";
         break;
     }
 
@@ -215,12 +237,14 @@ export default function AddPetScreen() {
       // Reorder photos so primary is first
       const reorderedPhotos = [
         photoFiles[formData.primaryPhotoIndex],
-        ...photoFiles.filter((_: any, i: number) => i !== formData.primaryPhotoIndex),
+        ...photoFiles.filter(
+          (_: any, i: number) => i !== formData.primaryPhotoIndex,
+        ),
       ];
 
       const petData = {
         name: formData.name,
-        species: formData.species,
+        species: formData.species.toLowerCase(),
         breed: formData.breed,
         sex: formData.sex.toLowerCase(),
         birthdate: formData.birthdate,
@@ -255,10 +279,15 @@ export default function AddPetScreen() {
       if (result?.requires_verification) {
         showAlert({
           title: "Verification Required",
-          message: result.message || "Complete identity verification before adding a pet",
+          message:
+            result.message ||
+            "Complete identity verification before adding a pet",
           type: "warning",
           buttons: [
-            { text: "Verify Now", onPress: () => router.push("/(verification)/verify") },
+            {
+              text: "Verify Now",
+              onPress: () => router.push("/(verification)/verify"),
+            },
             { text: "Later" },
           ],
         });
@@ -279,12 +308,13 @@ export default function AddPetScreen() {
         message: `${formData.name} has been registered. Would you like to import past vaccination records?`,
         type: "success",
         buttons: [
-          { 
-            text: "Import History", 
-            onPress: () => router.push({
-              pathname: "/(pet)/import-history",
-              params: { petId: result.pet.pet_id }
-            })
+          {
+            text: "Import History",
+            onPress: () =>
+              router.push({
+                pathname: "/(pet)/import-history",
+                params: { petId: result.pet.pet_id },
+              }),
           },
           { text: "Skip", onPress: () => router.back() },
         ],
@@ -293,7 +323,9 @@ export default function AddPetScreen() {
       console.error("Error submitting pet:", error);
       showAlert({
         title: "Error",
-        message: error.response?.data?.message || "Failed to register pet. Please try again.",
+        message:
+          error.response?.data?.message ||
+          "Failed to register pet. Please try again.",
         type: "error",
       });
     } finally {
@@ -337,7 +369,9 @@ export default function AddPetScreen() {
   };
 
   const removePhoto = (index: number) => {
-    const newPhotos = formData.petPhotos.filter((_: any, i: number) => i !== index);
+    const newPhotos = formData.petPhotos.filter(
+      (_: any, i: number) => i !== index,
+    );
     let newPrimaryIndex = formData.primaryPhotoIndex;
     if (index === formData.primaryPhotoIndex) {
       newPrimaryIndex = 0;
@@ -347,7 +381,10 @@ export default function AddPetScreen() {
     setFormData({
       ...formData,
       petPhotos: newPhotos,
-      primaryPhotoIndex: Math.max(0, Math.min(newPrimaryIndex, newPhotos.length - 1)),
+      primaryPhotoIndex: Math.max(
+        0,
+        Math.min(newPrimaryIndex, newPhotos.length - 1),
+      ),
     });
   };
 
@@ -355,7 +392,14 @@ export default function AddPetScreen() {
     setFormData({ ...formData, primaryPhotoIndex: index });
   };
 
-  const toggleSelection = (field: "behaviors" | "attributes" | "partnerBehaviors" | "partnerAttributes", value: string) => {
+  const toggleSelection = (
+    field:
+      | "behaviors"
+      | "attributes"
+      | "partnerBehaviors"
+      | "partnerAttributes",
+    value: string,
+  ) => {
     setFormData((prev) => ({
       ...prev,
       [field]: prev[field].includes(value)
@@ -389,6 +433,106 @@ export default function AddPetScreen() {
     });
   };
 
+  const handleIdentifyBreed = async () => {
+    if (!formData.species) {
+      showAlert({
+        title: "Select Species",
+        message: "Please select Dog or Cat first.",
+        type: "warning",
+      });
+      return;
+    }
+    // Show source picker (gallery vs camera)
+    setShowImageSourceModal(true);
+  };
+
+  const processBreedImage = async (imageUri: string) => {
+    setIsIdentifyingBreed(true);
+    try {
+      const identification = await identifyBreedFromImage(
+        imageUri,
+        formData.species,
+      );
+
+      // Check if top confidence is below threshold
+      if (identification.topConfidence < CONFIDENCE_THRESHOLD) {
+        setLowConfidenceData({
+          predictions: identification.predictions,
+          topConfidence: identification.topConfidence,
+        });
+        setShowLowConfidenceWarning(true);
+      } else {
+        setBreedPredictions(identification.predictions);
+        setShowPredictionModal(true);
+      }
+    } catch (error: any) {
+      showAlert({
+        title: "Identification Failed",
+        message: error.message || "Could not identify breed from this image.",
+        type: "error",
+      });
+    } finally {
+      setIsIdentifyingBreed(false);
+    }
+  };
+
+  const handlePickFromGallery = async () => {
+    setShowImageSourceModal(false);
+    try {
+      const result = await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: ImagePicker.MediaTypeOptions.Images,
+        allowsEditing: true,
+        quality: 0.8,
+      });
+      if (!result.canceled && result.assets[0]) {
+        await processBreedImage(result.assets[0].uri);
+      }
+    } catch (error) {
+      console.error("Error picking image for identification:", error);
+      setIsIdentifyingBreed(false);
+    }
+  };
+
+  const handleTakePhoto = async () => {
+    setShowImageSourceModal(false);
+    try {
+      const { status } = await ImagePicker.requestCameraPermissionsAsync();
+      if (status !== "granted") {
+        showAlert({
+          title: "Camera Permission",
+          message:
+            "Camera access is needed to take a photo for breed identification.",
+          type: "warning",
+        });
+        return;
+      }
+      const result = await ImagePicker.launchCameraAsync({
+        allowsEditing: true,
+        quality: 0.8,
+      });
+      if (!result.canceled && result.assets[0]) {
+        await processBreedImage(result.assets[0].uri);
+      }
+    } catch (error) {
+      console.error("Error taking photo for identification:", error);
+      setIsIdentifyingBreed(false);
+    }
+  };
+
+  // Helper to update mixed breed into formData
+  const updateMixedBreedValue = (breed1: string, breed2: string) => {
+    const breedValue =
+      breed1 && breed2
+        ? `${breed1} × ${breed2} Mix`
+        : breed1
+          ? `${breed1} Mix`
+          : "";
+    setFormData((prev) => ({ ...prev, breed: breedValue }));
+    if (breedValue) {
+      setValidationErrors((prev) => ({ ...prev, breed: "" }));
+    }
+  };
+
   // Render Progress Header
   const renderProgressHeader = () => (
     <View style={styles.progressHeader}>
@@ -407,7 +551,9 @@ export default function AddPetScreen() {
               <Ionicons
                 name={step.icon as any}
                 size={14}
-                color={index + 1 === currentStep ? Colors.white : Colors.textMuted}
+                color={
+                  index + 1 === currentStep ? Colors.white : Colors.textMuted
+                }
               />
             )}
           </View>
@@ -451,7 +597,9 @@ export default function AddPetScreen() {
             setValidationErrors((prev) => ({ ...prev, name: "" }));
           }}
         />
-        {validationErrors.name && <Text style={styles.errorText}>{validationErrors.name}</Text>}
+        {validationErrors.name && (
+          <Text style={styles.errorText}>{validationErrors.name}</Text>
+        )}
       </View>
 
       {/* Species Selector */}
@@ -474,7 +622,9 @@ export default function AddPetScreen() {
               <MaterialCommunityIcons
                 name={species === "Dog" ? "dog" : "cat"}
                 size={40}
-                color={formData.species === species ? Colors.white : Colors.primary}
+                color={
+                  formData.species === species ? Colors.white : Colors.primary
+                }
               />
               <Text
                 style={[
@@ -487,32 +637,255 @@ export default function AddPetScreen() {
             </TouchableOpacity>
           ))}
         </View>
-        {validationErrors.species && <Text style={styles.errorText}>{validationErrors.species}</Text>}
+        {validationErrors.species && (
+          <Text style={styles.errorText}>{validationErrors.species}</Text>
+        )}
       </View>
 
       {/* Breed with Search */}
       <View style={styles.inputGroup}>
-        <Text style={styles.label}>Breed *</Text>
+        <View
+          style={{
+            flexDirection: "row",
+            justifyContent: "space-between",
+            alignItems: "center",
+            marginBottom: Spacing.sm,
+          }}
+        >
+          <Text
+            style={{
+              fontSize: 14,
+              fontWeight: "600",
+              color: Colors.textSecondary,
+            }}
+          >
+            Breed *
+          </Text>
+          <TouchableOpacity
+            onPress={handleIdentifyBreed}
+            disabled={!formData.species || isIdentifyingBreed}
+            style={{
+              flexDirection: "row",
+              alignItems: "center",
+              opacity: !formData.species ? 0.5 : 1,
+            }}
+          >
+            {isIdentifyingBreed ? (
+              <ActivityIndicator
+                size="small"
+                color={Colors.primary}
+                style={{ marginRight: 4 }}
+              />
+            ) : (
+              <Ionicons
+                name="sparkles"
+                size={14}
+                color={Colors.primary}
+                style={{ marginRight: 4 }}
+              />
+            )}
+            <Text
+              style={{ fontSize: 12, fontWeight: "600", color: Colors.primary }}
+            >
+              {isIdentifyingBreed ? "Identifying..." : "Identify from Photo"}
+            </Text>
+          </TouchableOpacity>
+        </View>
+
+        {/* Mixed Breed Toggle */}
         <TouchableOpacity
-          style={[styles.selectInput, validationErrors.breed && styles.inputError]}
+          style={{
+            flexDirection: "row",
+            alignItems: "center",
+            marginBottom: Spacing.sm,
+            gap: Spacing.sm,
+          }}
           onPress={() => {
-            if (formData.species) {
-              setActiveBreedField("breed");
-              setShowBreedSearch(true);
+            const newMixed = !isMixedBreed;
+            setIsMixedBreed(newMixed);
+            if (!newMixed) {
+              // Switching back to single breed - clear mixed values
+              setMixedBreed1("");
+              setMixedBreed2("");
+              setFormData((prev) => ({ ...prev, breed: "" }));
+            } else {
+              // Switching to mixed - clear single breed
+              setFormData((prev) => ({ ...prev, breed: "" }));
             }
           }}
           disabled={!formData.species}
         >
-          <Ionicons name="search-outline" size={20} color={Colors.textMuted} />
-          <Text style={[styles.selectText, !formData.breed && styles.placeholder]}>
-            {formData.breed || (formData.species ? "Search breed..." : "Select species first")}
+          <View
+            style={{
+              width: 20,
+              height: 20,
+              borderRadius: 4,
+              borderWidth: 2,
+              borderColor: isMixedBreed ? Colors.primary : Colors.borderMedium,
+              backgroundColor: isMixedBreed ? Colors.primary : "transparent",
+              justifyContent: "center",
+              alignItems: "center",
+            }}
+          >
+            {isMixedBreed && (
+              <Ionicons name="checkmark" size={14} color={Colors.white} />
+            )}
+          </View>
+          <Text
+            style={{
+              fontSize: 13,
+              color: Colors.textSecondary,
+              fontWeight: "500",
+            }}
+          >
+            My pet is a mixed breed
           </Text>
-          <Ionicons name="chevron-down" size={20} color={Colors.textMuted} />
         </TouchableOpacity>
+
+        {isMixedBreed ? (
+          /* Mixed Breed - Two breed selectors */
+          <View>
+            <Text
+              style={{
+                fontSize: 12,
+                color: Colors.textMuted,
+                marginBottom: Spacing.sm,
+              }}
+            >
+              Select the two parent breeds of your pet
+            </Text>
+            <TouchableOpacity
+              style={[
+                styles.selectInput,
+                { marginBottom: Spacing.sm },
+                validationErrors.breed && !mixedBreed1 && styles.inputError,
+              ]}
+              onPress={() => {
+                if (formData.species) {
+                  setActiveMixedBreedField(1);
+                  setActiveBreedField("breed");
+                  setShowBreedSearch(true);
+                }
+              }}
+              disabled={!formData.species}
+            >
+              <Ionicons
+                name="search-outline"
+                size={20}
+                color={Colors.textMuted}
+              />
+              <Text
+                style={[styles.selectText, !mixedBreed1 && styles.placeholder]}
+              >
+                {mixedBreed1 || "First parent breed..."}
+              </Text>
+              <Ionicons
+                name="chevron-down"
+                size={20}
+                color={Colors.textMuted}
+              />
+            </TouchableOpacity>
+
+            <View style={{ alignItems: "center", marginBottom: Spacing.sm }}>
+              <Text
+                style={{
+                  fontSize: 13,
+                  fontWeight: "700",
+                  color: Colors.textMuted,
+                }}
+              >
+                ×
+              </Text>
+            </View>
+
+            <TouchableOpacity
+              style={[
+                styles.selectInput,
+                validationErrors.breed && !mixedBreed2 && styles.inputError,
+              ]}
+              onPress={() => {
+                if (formData.species) {
+                  setActiveMixedBreedField(2);
+                  setActiveBreedField("breed");
+                  setShowBreedSearch(true);
+                }
+              }}
+              disabled={!formData.species}
+            >
+              <Ionicons
+                name="search-outline"
+                size={20}
+                color={Colors.textMuted}
+              />
+              <Text
+                style={[styles.selectText, !mixedBreed2 && styles.placeholder]}
+              >
+                {mixedBreed2 || "Second parent breed..."}
+              </Text>
+              <Ionicons
+                name="chevron-down"
+                size={20}
+                color={Colors.textMuted}
+              />
+            </TouchableOpacity>
+
+            {formData.breed ? (
+              <View
+                style={{
+                  marginTop: Spacing.sm,
+                  backgroundColor: Colors.primaryLight + "20",
+                  padding: Spacing.sm,
+                  borderRadius: BorderRadius.lg,
+                  alignItems: "center",
+                }}
+              >
+                <Text
+                  style={{
+                    fontSize: 13,
+                    fontWeight: "600",
+                    color: Colors.primary,
+                  }}
+                >
+                  {formData.breed}
+                </Text>
+              </View>
+            ) : null}
+          </View>
+        ) : (
+          /* Single Breed Selector */
+          <TouchableOpacity
+            style={[
+              styles.selectInput,
+              validationErrors.breed && styles.inputError,
+            ]}
+            onPress={() => {
+              if (formData.species) {
+                setActiveBreedField("breed");
+                setShowBreedSearch(true);
+              }
+            }}
+            disabled={!formData.species}
+          >
+            <Ionicons
+              name="search-outline"
+              size={20}
+              color={Colors.textMuted}
+            />
+            <Text
+              style={[styles.selectText, !formData.breed && styles.placeholder]}
+            >
+              {formData.breed ||
+                (formData.species ? "Search breed..." : "Select species first")}
+            </Text>
+            <Ionicons name="chevron-down" size={20} color={Colors.textMuted} />
+          </TouchableOpacity>
+        )}
         <Text style={styles.helperText}>
-          Can't find your breed? Type it manually or select "Mixed Breed"
+          Can't find your breed? Type it manually in the search box
         </Text>
-        {validationErrors.breed && <Text style={styles.errorText}>{validationErrors.breed}</Text>}
+        {validationErrors.breed && (
+          <Text style={styles.errorText}>{validationErrors.breed}</Text>
+        )}
       </View>
 
       {/* Sex Selector */}
@@ -525,7 +898,8 @@ export default function AddPetScreen() {
               style={[
                 styles.sexCard,
                 formData.sex === sex && styles.sexCardActive,
-                formData.sex === sex && (sex === "Male" ? styles.maleActive : styles.femaleActive),
+                formData.sex === sex &&
+                  (sex === "Male" ? styles.maleActive : styles.femaleActive),
               ]}
               onPress={() => {
                 setFormData({ ...formData, sex });
@@ -535,7 +909,13 @@ export default function AddPetScreen() {
               <Ionicons
                 name={sex === "Male" ? "male" : "female"}
                 size={24}
-                color={formData.sex === sex ? Colors.white : (sex === "Male" ? "#0284C7" : "#BE123C")}
+                color={
+                  formData.sex === sex
+                    ? Colors.white
+                    : sex === "Male"
+                      ? "#0284C7"
+                      : "#BE123C"
+                }
               />
               <Text
                 style={[
@@ -548,22 +928,40 @@ export default function AddPetScreen() {
             </TouchableOpacity>
           ))}
         </View>
-        {validationErrors.sex && <Text style={styles.errorText}>{validationErrors.sex}</Text>}
+        {validationErrors.sex && (
+          <Text style={styles.errorText}>{validationErrors.sex}</Text>
+        )}
       </View>
 
       {/* Birthdate */}
       <View style={styles.inputGroup}>
         <Text style={styles.label}>Birthdate *</Text>
         <TouchableOpacity
-          style={[styles.selectInput, validationErrors.birthdate && styles.inputError]}
+          style={[
+            styles.selectInput,
+            validationErrors.birthdate && styles.inputError,
+          ]}
           onPress={() => openDatePicker("birthdate")}
         >
-          <Ionicons name="calendar-outline" size={20} color={Colors.textMuted} />
-          <Text style={[styles.selectText, !formData.birthdate && styles.placeholder]}>
-            {formData.birthdate ? formatDate(formData.birthdate) : "Select birthdate"}
+          <Ionicons
+            name="calendar-outline"
+            size={20}
+            color={Colors.textMuted}
+          />
+          <Text
+            style={[
+              styles.selectText,
+              !formData.birthdate && styles.placeholder,
+            ]}
+          >
+            {formData.birthdate
+              ? formatDate(formData.birthdate)
+              : "Select birthdate"}
           </Text>
         </TouchableOpacity>
-        {validationErrors.birthdate && <Text style={styles.errorText}>{validationErrors.birthdate}</Text>}
+        {validationErrors.birthdate && (
+          <Text style={styles.errorText}>{validationErrors.birthdate}</Text>
+        )}
       </View>
 
       {/* Height & Weight Row */}
@@ -581,7 +979,9 @@ export default function AddPetScreen() {
               setValidationErrors((prev) => ({ ...prev, height: "" }));
             }}
           />
-          {validationErrors.height && <Text style={styles.errorText}>{validationErrors.height}</Text>}
+          {validationErrors.height && (
+            <Text style={styles.errorText}>{validationErrors.height}</Text>
+          )}
         </View>
         <View style={[styles.inputGroup, { flex: 1 }]}>
           <Text style={styles.label}>Weight (kg) *</Text>
@@ -596,7 +996,9 @@ export default function AddPetScreen() {
               setValidationErrors((prev) => ({ ...prev, weight: "" }));
             }}
           />
-          {validationErrors.weight && <Text style={styles.errorText}>{validationErrors.weight}</Text>}
+          {validationErrors.weight && (
+            <Text style={styles.errorText}>{validationErrors.weight}</Text>
+          )}
         </View>
       </View>
 
@@ -631,19 +1033,25 @@ export default function AddPetScreen() {
               key={behavior.label}
               style={[
                 styles.tagButton,
-                formData.behaviors.includes(behavior.label) && styles.tagButtonActive,
+                formData.behaviors.includes(behavior.label) &&
+                  styles.tagButtonActive,
               ]}
               onPress={() => toggleSelection("behaviors", behavior.label)}
             >
               <Ionicons
                 name={behavior.icon as any}
                 size={18}
-                color={formData.behaviors.includes(behavior.label) ? Colors.white : Colors.primary}
+                color={
+                  formData.behaviors.includes(behavior.label)
+                    ? Colors.white
+                    : Colors.primary
+                }
               />
               <Text
                 style={[
                   styles.tagButtonText,
-                  formData.behaviors.includes(behavior.label) && styles.tagButtonTextActive,
+                  formData.behaviors.includes(behavior.label) &&
+                    styles.tagButtonTextActive,
                 ]}
               >
                 {behavior.label}
@@ -651,7 +1059,9 @@ export default function AddPetScreen() {
             </TouchableOpacity>
           ))}
         </View>
-        {validationErrors.behaviors && <Text style={styles.errorText}>{validationErrors.behaviors}</Text>}
+        {validationErrors.behaviors && (
+          <Text style={styles.errorText}>{validationErrors.behaviors}</Text>
+        )}
       </View>
 
       {/* Attributes */}
@@ -663,19 +1073,25 @@ export default function AddPetScreen() {
               key={attr.label}
               style={[
                 styles.tagButton,
-                formData.attributes.includes(attr.label) && styles.tagButtonActive,
+                formData.attributes.includes(attr.label) &&
+                  styles.tagButtonActive,
               ]}
               onPress={() => toggleSelection("attributes", attr.label)}
             >
               <Ionicons
                 name={attr.icon as any}
                 size={18}
-                color={formData.attributes.includes(attr.label) ? Colors.white : Colors.primary}
+                color={
+                  formData.attributes.includes(attr.label)
+                    ? Colors.white
+                    : Colors.primary
+                }
               />
               <Text
                 style={[
                   styles.tagButtonText,
-                  formData.attributes.includes(attr.label) && styles.tagButtonTextActive,
+                  formData.attributes.includes(attr.label) &&
+                    styles.tagButtonTextActive,
                 ]}
               >
                 {attr.label}
@@ -683,14 +1099,20 @@ export default function AddPetScreen() {
             </TouchableOpacity>
           ))}
         </View>
-        {validationErrors.attributes && <Text style={styles.errorText}>{validationErrors.attributes}</Text>}
+        {validationErrors.attributes && (
+          <Text style={styles.errorText}>{validationErrors.attributes}</Text>
+        )}
       </View>
 
       {/* Description */}
       <View style={styles.inputGroup}>
         <Text style={styles.label}>Description *</Text>
         <TextInput
-          style={[styles.input, styles.textArea, validationErrors.description && styles.inputError]}
+          style={[
+            styles.input,
+            styles.textArea,
+            validationErrors.description && styles.inputError,
+          ]}
           placeholder="Tell us about your pet's personality, quirks, and what makes them special..."
           placeholderTextColor={Colors.textMuted}
           multiline
@@ -705,7 +1127,9 @@ export default function AddPetScreen() {
           }}
         />
         <Text style={styles.charCount}>{formData.description.length}/200</Text>
-        {validationErrors.description && <Text style={styles.errorText}>{validationErrors.description}</Text>}
+        {validationErrors.description && (
+          <Text style={styles.errorText}>{validationErrors.description}</Text>
+        )}
       </View>
     </View>
   );
@@ -714,81 +1138,124 @@ export default function AddPetScreen() {
   const renderStep3 = () => (
     <View style={styles.stepContent}>
       <Text style={styles.stepTitle}>Health Certificate</Text>
-      <Text style={styles.stepSubtitle}>Upload your pet's health documentation</Text>
+      <Text style={styles.stepSubtitle}>
+        Upload your pet's health documentation
+      </Text>
 
       <View style={styles.infoCard}>
-        <Ionicons name="information-circle-outline" size={24} color={Colors.info} />
+        <Ionicons
+          name="information-circle-outline"
+          size={24}
+          color={Colors.info}
+        />
         <Text style={styles.infoCardText}>
-          Vaccination records will be added through the card-based system after registration.
-          For now, upload your pet's general health certificate.
+          Vaccination records will be added through the card-based system after
+          registration. For now, upload your pet's general health certificate.
         </Text>
       </View>
 
       {/* Health Certificate Upload */}
       <View style={styles.uploadSection}>
         <View style={styles.uploadHeader}>
-          <Ionicons name="document-text-outline" size={24} color={Colors.primary} />
+          <Ionicons
+            name="document-text-outline"
+            size={24}
+            color={Colors.primary}
+          />
           <Text style={styles.uploadTitle}>Health Certificate</Text>
         </View>
 
         <TouchableOpacity
-          style={[styles.uploadBox, validationErrors.healthCertificate && styles.inputError]}
+          style={[
+            styles.uploadBox,
+            validationErrors.healthCertificate && styles.inputError,
+          ]}
           onPress={() => pickDocument("healthCertificate")}
         >
           {formData.healthCertificate ? (
             <View style={styles.uploadedFile}>
-              <Ionicons name="checkmark-circle" size={24} color={Colors.success} />
+              <Ionicons
+                name="checkmark-circle"
+                size={24}
+                color={Colors.success}
+              />
               <Text style={styles.uploadedFileName} numberOfLines={1}>
                 {formData.healthCertificate.name}
               </Text>
-              <TouchableOpacity onPress={() => setFormData({ ...formData, healthCertificate: null })}>
+              <TouchableOpacity
+                onPress={() =>
+                  setFormData({ ...formData, healthCertificate: null })
+                }
+              >
                 <Ionicons name="close-circle" size={24} color={Colors.error} />
               </TouchableOpacity>
             </View>
           ) : (
             <>
-              <Ionicons name="cloud-upload-outline" size={40} color={Colors.textMuted} />
+              <Ionicons
+                name="cloud-upload-outline"
+                size={40}
+                color={Colors.textMuted}
+              />
               <Text style={styles.uploadText}>Tap to upload document</Text>
               <Text style={styles.uploadHint}>JPG, PNG, or PDF (max 20MB)</Text>
             </>
           )}
         </TouchableOpacity>
         {validationErrors.healthCertificate && (
-          <Text style={styles.errorText}>{validationErrors.healthCertificate}</Text>
+          <Text style={styles.errorText}>
+            {validationErrors.healthCertificate}
+          </Text>
         )}
 
         {/* Clinic Details */}
         <View style={styles.inputGroup}>
           <Text style={styles.label}>Clinic Name *</Text>
           <TextInput
-            style={[styles.input, validationErrors.healthClinicName && styles.inputError]}
+            style={[
+              styles.input,
+              validationErrors.healthClinicName && styles.inputError,
+            ]}
             placeholder="e.g., City Veterinary Clinic"
             placeholderTextColor={Colors.textMuted}
             value={formData.healthClinicName}
             onChangeText={(text) => {
               setFormData({ ...formData, healthClinicName: text });
-              setValidationErrors((prev) => ({ ...prev, healthClinicName: "" }));
+              setValidationErrors((prev) => ({
+                ...prev,
+                healthClinicName: "",
+              }));
             }}
           />
           {validationErrors.healthClinicName && (
-            <Text style={styles.errorText}>{validationErrors.healthClinicName}</Text>
+            <Text style={styles.errorText}>
+              {validationErrors.healthClinicName}
+            </Text>
           )}
         </View>
 
         <View style={styles.inputGroup}>
           <Text style={styles.label}>Veterinarian Name *</Text>
           <TextInput
-            style={[styles.input, validationErrors.healthVeterinarianName && styles.inputError]}
+            style={[
+              styles.input,
+              validationErrors.healthVeterinarianName && styles.inputError,
+            ]}
             placeholder="e.g., Dr. Juan dela Cruz"
             placeholderTextColor={Colors.textMuted}
             value={formData.healthVeterinarianName}
             onChangeText={(text) => {
               setFormData({ ...formData, healthVeterinarianName: text });
-              setValidationErrors((prev) => ({ ...prev, healthVeterinarianName: "" }));
+              setValidationErrors((prev) => ({
+                ...prev,
+                healthVeterinarianName: "",
+              }));
             }}
           />
           {validationErrors.healthVeterinarianName && (
-            <Text style={styles.errorText}>{validationErrors.healthVeterinarianName}</Text>
+            <Text style={styles.errorText}>
+              {validationErrors.healthVeterinarianName}
+            </Text>
           )}
         </View>
 
@@ -796,31 +1263,65 @@ export default function AddPetScreen() {
           <View style={[styles.inputGroup, { flex: 1 }]}>
             <Text style={styles.label}>Date Issued *</Text>
             <TouchableOpacity
-              style={[styles.selectInput, validationErrors.healthGivenDate && styles.inputError]}
+              style={[
+                styles.selectInput,
+                validationErrors.healthGivenDate && styles.inputError,
+              ]}
               onPress={() => openDatePicker("healthGivenDate")}
             >
-              <Ionicons name="calendar-outline" size={18} color={Colors.textMuted} />
-              <Text style={[styles.selectText, styles.smallText, !formData.healthGivenDate && styles.placeholder]}>
-                {formData.healthGivenDate ? formatDate(formData.healthGivenDate) : "Select"}
+              <Ionicons
+                name="calendar-outline"
+                size={18}
+                color={Colors.textMuted}
+              />
+              <Text
+                style={[
+                  styles.selectText,
+                  styles.smallText,
+                  !formData.healthGivenDate && styles.placeholder,
+                ]}
+              >
+                {formData.healthGivenDate
+                  ? formatDate(formData.healthGivenDate)
+                  : "Select"}
               </Text>
             </TouchableOpacity>
             {validationErrors.healthGivenDate && (
-              <Text style={styles.errorText}>{validationErrors.healthGivenDate}</Text>
+              <Text style={styles.errorText}>
+                {validationErrors.healthGivenDate}
+              </Text>
             )}
           </View>
           <View style={[styles.inputGroup, { flex: 1 }]}>
             <Text style={styles.label}>Expiration *</Text>
             <TouchableOpacity
-              style={[styles.selectInput, validationErrors.healthExpirationDate && styles.inputError]}
+              style={[
+                styles.selectInput,
+                validationErrors.healthExpirationDate && styles.inputError,
+              ]}
               onPress={() => openDatePicker("healthExpirationDate")}
             >
-              <Ionicons name="calendar-outline" size={18} color={Colors.textMuted} />
-              <Text style={[styles.selectText, styles.smallText, !formData.healthExpirationDate && styles.placeholder]}>
-                {formData.healthExpirationDate ? formatDate(formData.healthExpirationDate) : "Select"}
+              <Ionicons
+                name="calendar-outline"
+                size={18}
+                color={Colors.textMuted}
+              />
+              <Text
+                style={[
+                  styles.selectText,
+                  styles.smallText,
+                  !formData.healthExpirationDate && styles.placeholder,
+                ]}
+              >
+                {formData.healthExpirationDate
+                  ? formatDate(formData.healthExpirationDate)
+                  : "Select"}
               </Text>
             </TouchableOpacity>
             {validationErrors.healthExpirationDate && (
-              <Text style={styles.errorText}>{validationErrors.healthExpirationDate}</Text>
+              <Text style={styles.errorText}>
+                {validationErrors.healthExpirationDate}
+              </Text>
             )}
           </View>
         </View>
@@ -842,11 +1343,14 @@ export default function AddPetScreen() {
           <Ionicons name="camera-outline" size={48} color={Colors.primary} />
           <Text style={styles.photoUploadText}>Tap to add photos</Text>
           <Text style={styles.photoUploadHint}>
-            {formData.petPhotos.length}/10 photos ({Math.max(0, 3 - formData.petPhotos.length)} more required)
+            {formData.petPhotos.length}/10 photos (
+            {Math.max(0, 3 - formData.petPhotos.length)} more required)
           </Text>
         </LinearGradient>
       </TouchableOpacity>
-      {validationErrors.petPhotos && <Text style={styles.errorText}>{validationErrors.petPhotos}</Text>}
+      {validationErrors.petPhotos && (
+        <Text style={styles.errorText}>{validationErrors.petPhotos}</Text>
+      )}
 
       {formData.petPhotos.length > 0 && (
         <View style={styles.photoGrid}>
@@ -862,14 +1366,23 @@ export default function AddPetScreen() {
               <TouchableOpacity
                 style={[
                   styles.primaryBadge,
-                  formData.primaryPhotoIndex === index && styles.primaryBadgeActive,
+                  formData.primaryPhotoIndex === index &&
+                    styles.primaryBadgeActive,
                 ]}
                 onPress={() => setPrimaryPhoto(index)}
               >
                 <Ionicons
-                  name={formData.primaryPhotoIndex === index ? "star" : "star-outline"}
+                  name={
+                    formData.primaryPhotoIndex === index
+                      ? "star"
+                      : "star-outline"
+                  }
                   size={16}
-                  color={formData.primaryPhotoIndex === index ? Colors.warning : Colors.white}
+                  color={
+                    formData.primaryPhotoIndex === index
+                      ? Colors.warning
+                      : Colors.white
+                  }
                 />
               </TouchableOpacity>
             </View>
@@ -887,11 +1400,15 @@ export default function AddPetScreen() {
   const renderStep5 = () => (
     <View style={styles.stepContent}>
       <Text style={styles.stepTitle}>Partner Preferences</Text>
-      <Text style={styles.stepSubtitle}>What are you looking for in a breeding partner?</Text>
+      <Text style={styles.stepSubtitle}>
+        What are you looking for in a breeding partner?
+      </Text>
 
       <View style={styles.optionalBanner}>
         <Ionicons name="sparkles-outline" size={20} color={Colors.warning} />
-        <Text style={styles.optionalBannerText}>All preferences are optional</Text>
+        <Text style={styles.optionalBannerText}>
+          All preferences are optional
+        </Text>
       </View>
 
       {/* Preferred Breed */}
@@ -906,7 +1423,12 @@ export default function AddPetScreen() {
             }
           }}
         >
-          <Text style={[styles.selectText, !formData.preferredBreed && styles.placeholder]}>
+          <Text
+            style={[
+              styles.selectText,
+              !formData.preferredBreed && styles.placeholder,
+            ]}
+          >
             {formData.preferredBreed || "Any breed"}
           </Text>
           <Ionicons name="chevron-down" size={20} color={Colors.textMuted} />
@@ -949,15 +1471,19 @@ export default function AddPetScreen() {
               style={[
                 styles.tagButton,
                 styles.tagButtonSmall,
-                formData.partnerBehaviors.includes(behavior.label) && styles.tagButtonActive,
+                formData.partnerBehaviors.includes(behavior.label) &&
+                  styles.tagButtonActive,
               ]}
-              onPress={() => toggleSelection("partnerBehaviors", behavior.label)}
+              onPress={() =>
+                toggleSelection("partnerBehaviors", behavior.label)
+              }
             >
               <Text
                 style={[
                   styles.tagButtonText,
                   styles.tagButtonTextSmall,
-                  formData.partnerBehaviors.includes(behavior.label) && styles.tagButtonTextActive,
+                  formData.partnerBehaviors.includes(behavior.label) &&
+                    styles.tagButtonTextActive,
                 ]}
               >
                 {behavior.label}
@@ -977,7 +1503,8 @@ export default function AddPetScreen() {
               style={[
                 styles.tagButton,
                 styles.tagButtonSmall,
-                formData.partnerAttributes.includes(attr.label) && styles.tagButtonActive,
+                formData.partnerAttributes.includes(attr.label) &&
+                  styles.tagButtonActive,
               ]}
               onPress={() => toggleSelection("partnerAttributes", attr.label)}
             >
@@ -985,7 +1512,8 @@ export default function AddPetScreen() {
                 style={[
                   styles.tagButtonText,
                   styles.tagButtonTextSmall,
-                  formData.partnerAttributes.includes(attr.label) && styles.tagButtonTextActive,
+                  formData.partnerAttributes.includes(attr.label) &&
+                    styles.tagButtonTextActive,
                 ]}
               >
                 {attr.label}
@@ -999,12 +1527,18 @@ export default function AddPetScreen() {
 
   const renderStep = () => {
     switch (currentStep) {
-      case 1: return renderStep1();
-      case 2: return renderStep2();
-      case 3: return renderStep3();
-      case 4: return renderStep4();
-      case 5: return renderStep5();
-      default: return null;
+      case 1:
+        return renderStep1();
+      case 2:
+        return renderStep2();
+      case 3:
+        return renderStep3();
+      case 4:
+        return renderStep4();
+      case 5:
+        return renderStep5();
+      default:
+        return null;
     }
   };
 
@@ -1012,7 +1546,10 @@ export default function AddPetScreen() {
     <SafeAreaView style={styles.container} edges={["top"]}>
       {/* Header */}
       <LinearGradient colors={[...Gradients.header]} style={styles.header}>
-        <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
+        <TouchableOpacity
+          onPress={() => router.back()}
+          style={styles.backButton}
+        >
           <Ionicons name="arrow-back" size={24} color={Colors.white} />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>Add New Pet</Text>
@@ -1024,7 +1561,7 @@ export default function AddPetScreen() {
 
       {/* Form Content */}
       <KeyboardAvoidingView
-        behavior={Platform.OS === "ios" ? "padding" : "height"}
+        behavior={Platform.OS === "ios" ? "padding" : undefined}
         style={{ flex: 1 }}
       >
         <ScrollView
@@ -1036,41 +1573,45 @@ export default function AddPetScreen() {
         >
           {renderStep()}
         </ScrollView>
-      </KeyboardAvoidingView>
 
-      {/* Footer Buttons */}
-      <View style={styles.footer}>
-        {currentStep > 1 && (
+        {/* Footer Buttons */}
+        <View style={styles.footer}>
+          {currentStep > 1 && (
+            <TouchableOpacity
+              style={styles.backBtn}
+              onPress={handlePrev}
+              disabled={isSubmitting}
+            >
+              <Ionicons
+                name="arrow-back"
+                size={20}
+                color={Colors.textSecondary}
+              />
+              <Text style={styles.backBtnText}>Back</Text>
+            </TouchableOpacity>
+          )}
           <TouchableOpacity
-            style={styles.backBtn}
-            onPress={handlePrev}
+            style={[styles.nextBtn, isSubmitting && styles.disabledBtn]}
+            onPress={handleNext}
             disabled={isSubmitting}
           >
-            <Ionicons name="arrow-back" size={20} color={Colors.textSecondary} />
-            <Text style={styles.backBtnText}>Back</Text>
+            {isSubmitting ? (
+              <ActivityIndicator color={Colors.white} />
+            ) : (
+              <>
+                <Text style={styles.nextBtnText}>
+                  {currentStep === 5 ? "Submit" : "Continue"}
+                </Text>
+                <Ionicons
+                  name={currentStep === 5 ? "checkmark" : "arrow-forward"}
+                  size={20}
+                  color={Colors.white}
+                />
+              </>
+            )}
           </TouchableOpacity>
-        )}
-        <TouchableOpacity
-          style={[styles.nextBtn, isSubmitting && styles.disabledBtn]}
-          onPress={handleNext}
-          disabled={isSubmitting}
-        >
-          {isSubmitting ? (
-            <ActivityIndicator color={Colors.white} />
-          ) : (
-            <>
-              <Text style={styles.nextBtnText}>
-                {currentStep === 5 ? "Submit" : "Continue"}
-              </Text>
-              <Ionicons
-                name={currentStep === 5 ? "checkmark" : "arrow-forward"}
-                size={20}
-                color={Colors.white}
-              />
-            </>
-          )}
-        </TouchableOpacity>
-      </View>
+        </View>
+      </KeyboardAvoidingView>
 
       {/* Breed Search Modal */}
       <StyledModal
@@ -1079,24 +1620,109 @@ export default function AddPetScreen() {
           setShowBreedSearch(false);
           setBreedSearchQuery("");
         }}
-        title={activeBreedField === "preferredBreed" ? `Preferred ${formData.species} Breed` : `Select ${formData.species} Breed`}
+        title={
+          activeBreedField === "preferredBreed"
+            ? `Preferred ${formData.species} Breed`
+            : isMixedBreed
+              ? `Select Parent Breed ${activeMixedBreedField}`
+              : `Select ${formData.species} Breed`
+        }
         content={() => (
           <View>
             <TextInput
               style={styles.searchInput}
-              placeholder="Search breeds..."
+              placeholder="Search or type a custom breed..."
               placeholderTextColor={Colors.textMuted}
               value={breedSearchQuery}
               onChangeText={setBreedSearchQuery}
               autoFocus
             />
             <ScrollView style={{ maxHeight: 300 }}>
+              {/* Show "Use custom breed" option when user typed something not in the list */}
+              {breedSearchQuery.trim().length > 0 &&
+                !getFilteredBreeds().some(
+                  (b) =>
+                    b.toLowerCase() === breedSearchQuery.trim().toLowerCase(),
+                ) && (
+                  <TouchableOpacity
+                    style={[
+                      styles.breedOption,
+                      {
+                        backgroundColor: Colors.primaryLight + "15",
+                        borderRadius: BorderRadius.lg,
+                        marginBottom: Spacing.xs,
+                      },
+                    ]}
+                    onPress={() => {
+                      const customBreed = breedSearchQuery.trim();
+                      if (isMixedBreed && activeBreedField === "breed") {
+                        if (activeMixedBreedField === 1) {
+                          setMixedBreed1(customBreed);
+                          updateMixedBreedValue(customBreed, mixedBreed2);
+                        } else {
+                          setMixedBreed2(customBreed);
+                          updateMixedBreedValue(mixedBreed1, customBreed);
+                        }
+                      } else {
+                        setFormData((prev) => ({
+                          ...prev,
+                          [activeBreedField]: customBreed,
+                        }));
+                      }
+                      if (activeBreedField === "breed") {
+                        setValidationErrors((prev) => ({ ...prev, breed: "" }));
+                      }
+                      setShowBreedSearch(false);
+                      setBreedSearchQuery("");
+                    }}
+                  >
+                    <View
+                      style={{
+                        flexDirection: "row",
+                        alignItems: "center",
+                        gap: Spacing.sm,
+                      }}
+                    >
+                      <Ionicons
+                        name="add-circle-outline"
+                        size={20}
+                        color={Colors.primary}
+                      />
+                      <View>
+                        <Text
+                          style={[
+                            styles.breedOptionText,
+                            { color: Colors.primary, fontWeight: "700" },
+                          ]}
+                        >
+                          Use "{breedSearchQuery.trim()}"
+                        </Text>
+                        <Text style={{ fontSize: 11, color: Colors.textMuted }}>
+                          Custom breed not in the list
+                        </Text>
+                      </View>
+                    </View>
+                  </TouchableOpacity>
+                )}
               {getFilteredBreeds().map((breed) => (
                 <TouchableOpacity
                   key={breed}
                   style={styles.breedOption}
                   onPress={() => {
-                    setFormData({ ...formData, [activeBreedField]: breed });
+                    if (isMixedBreed && activeBreedField === "breed") {
+                      if (activeMixedBreedField === 1) {
+                        setMixedBreed1(breed);
+                        updateMixedBreedValue(breed, mixedBreed2);
+                      } else {
+                        setMixedBreed2(breed);
+                        updateMixedBreedValue(mixedBreed1, breed);
+                      }
+                    } else {
+                      setFormData((prev) => ({
+                        ...prev,
+                        [activeBreedField]: breed,
+                      }));
+                    }
                     setShowBreedSearch(false);
                     setBreedSearchQuery("");
                     if (activeBreedField === "breed") {
@@ -1105,12 +1731,425 @@ export default function AddPetScreen() {
                   }}
                 >
                   <Text style={styles.breedOptionText}>{breed}</Text>
-                  {formData[activeBreedField] === breed && (
-                    <Ionicons name="checkmark" size={20} color={Colors.primary} />
-                  )}
+                  {(() => {
+                    const isSelected =
+                      isMixedBreed && activeBreedField === "breed"
+                        ? (activeMixedBreedField === 1
+                            ? mixedBreed1
+                            : mixedBreed2) === breed
+                        : formData[activeBreedField] === breed;
+                    return isSelected ? (
+                      <Ionicons
+                        name="checkmark"
+                        size={20}
+                        color={Colors.primary}
+                      />
+                    ) : null;
+                  })()}
                 </TouchableOpacity>
               ))}
             </ScrollView>
+          </View>
+        )}
+      />
+
+      {/* AI Prediction Modal */}
+      <StyledModal
+        visible={showPredictionModal}
+        onClose={() => setShowPredictionModal(false)}
+        title="AI Breed Suggestions"
+        content={() => (
+          <View>
+            <Text
+              style={{
+                fontSize: 14,
+                color: Colors.textSecondary,
+                marginBottom: Spacing.md,
+              }}
+            >
+              Here are the top matches based on your photo:
+            </Text>
+            {breedPredictions.map((prediction, index) => (
+              <TouchableOpacity
+                key={index}
+                style={{
+                  flexDirection: "row",
+                  justifyContent: "space-between",
+                  alignItems: "center",
+                  paddingVertical: Spacing.md,
+                  borderBottomWidth: 1,
+                  borderBottomColor: Colors.borderLight,
+                }}
+                onPress={() => {
+                  setFormData((prev) => ({ ...prev, breed: prediction.breed }));
+                  setValidationErrors((prev) => ({ ...prev, breed: "" }));
+                  setIsMixedBreed(false);
+                  setMixedBreed1("");
+                  setMixedBreed2("");
+                  setShowPredictionModal(false);
+                }}
+              >
+                <View>
+                  <Text
+                    style={{
+                      fontSize: 16,
+                      fontWeight: "600",
+                      color: Colors.textPrimary,
+                    }}
+                  >
+                    {prediction.breed}
+                  </Text>
+                  <Text style={{ fontSize: 12, color: Colors.textMuted }}>
+                    {Math.round(prediction.confidence * 100)}% Confidence
+                  </Text>
+                </View>
+                <Ionicons
+                  name="chevron-forward"
+                  size={20}
+                  color={Colors.textMuted}
+                />
+              </TouchableOpacity>
+            ))}
+            <TouchableOpacity
+              style={{
+                marginTop: Spacing.md,
+                paddingVertical: Spacing.md,
+                alignItems: "center",
+              }}
+              onPress={() => setShowPredictionModal(false)}
+            >
+              <Text style={{ color: Colors.textMuted }}>Cancel</Text>
+            </TouchableOpacity>
+          </View>
+        )}
+      />
+
+      {/* Image Source Picker Modal */}
+      <StyledModal
+        visible={showImageSourceModal}
+        onClose={() => setShowImageSourceModal(false)}
+        title="Identify Breed from Photo"
+        content={() => (
+          <View>
+            <Text
+              style={{
+                fontSize: 14,
+                color: Colors.textSecondary,
+                marginBottom: Spacing.lg,
+              }}
+            >
+              Choose how to provide a photo of your pet for breed
+              identification:
+            </Text>
+            <TouchableOpacity
+              style={{
+                flexDirection: "row",
+                alignItems: "center",
+                padding: Spacing.lg,
+                backgroundColor: Colors.bgSecondary,
+                borderRadius: BorderRadius.lg,
+                marginBottom: Spacing.md,
+                gap: Spacing.md,
+              }}
+              onPress={handlePickFromGallery}
+            >
+              <View
+                style={{
+                  width: 44,
+                  height: 44,
+                  borderRadius: 22,
+                  backgroundColor: Colors.info,
+                  justifyContent: "center",
+                  alignItems: "center",
+                }}
+              >
+                <Ionicons
+                  name="images-outline"
+                  size={22}
+                  color={Colors.white}
+                />
+              </View>
+              <View style={{ flex: 1 }}>
+                <Text
+                  style={{
+                    fontSize: 16,
+                    fontWeight: "600",
+                    color: Colors.textPrimary,
+                  }}
+                >
+                  Choose from Gallery
+                </Text>
+                <Text style={{ fontSize: 12, color: Colors.textMuted }}>
+                  Pick an existing photo of your pet
+                </Text>
+              </View>
+              <Ionicons
+                name="chevron-forward"
+                size={20}
+                color={Colors.textMuted}
+              />
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={{
+                flexDirection: "row",
+                alignItems: "center",
+                padding: Spacing.lg,
+                backgroundColor: Colors.bgSecondary,
+                borderRadius: BorderRadius.lg,
+                gap: Spacing.md,
+              }}
+              onPress={handleTakePhoto}
+            >
+              <View
+                style={{
+                  width: 44,
+                  height: 44,
+                  borderRadius: 22,
+                  backgroundColor: Colors.primary,
+                  justifyContent: "center",
+                  alignItems: "center",
+                }}
+              >
+                <Ionicons
+                  name="camera-outline"
+                  size={22}
+                  color={Colors.white}
+                />
+              </View>
+              <View style={{ flex: 1 }}>
+                <Text
+                  style={{
+                    fontSize: 16,
+                    fontWeight: "600",
+                    color: Colors.textPrimary,
+                  }}
+                >
+                  Take a Photo
+                </Text>
+                <Text style={{ fontSize: 12, color: Colors.textMuted }}>
+                  Snap a photo of your pet right now
+                </Text>
+              </View>
+              <Ionicons
+                name="chevron-forward"
+                size={20}
+                color={Colors.textMuted}
+              />
+            </TouchableOpacity>
+          </View>
+        )}
+      />
+
+      {/* Low Confidence Warning Modal */}
+      <StyledModal
+        visible={showLowConfidenceWarning}
+        onClose={() => setShowLowConfidenceWarning(false)}
+        title="⚠️ Low Confidence Detection"
+        content={() => (
+          <View>
+            <View
+              style={{
+                backgroundColor: Colors.warningLight,
+                padding: Spacing.lg,
+                borderRadius: BorderRadius.lg,
+                marginBottom: Spacing.lg,
+                alignItems: "center",
+              }}
+            >
+              <Ionicons
+                name="warning-outline"
+                size={40}
+                color={Colors.warning}
+              />
+              <Text
+                style={{
+                  fontSize: 15,
+                  fontWeight: "700",
+                  color: Colors.warning,
+                  marginTop: Spacing.sm,
+                  textAlign: "center",
+                }}
+              >
+                Unable to confidently identify the breed
+              </Text>
+              <Text
+                style={{
+                  fontSize: 13,
+                  color: Colors.textSecondary,
+                  marginTop: Spacing.sm,
+                  textAlign: "center",
+                  lineHeight: 18,
+                }}
+              >
+                The AI detected a confidence of only{" "}
+                <Text style={{ fontWeight: "700", color: Colors.error }}>
+                  {lowConfidenceData
+                    ? Math.round(lowConfidenceData.topConfidence * 100)
+                    : 0}
+                  %
+                </Text>
+                . This may mean the photo does not clearly show a pet, or the
+                breed is not well represented in our database.
+              </Text>
+            </View>
+
+            <Text
+              style={{
+                fontSize: 13,
+                fontWeight: "600",
+                color: Colors.textSecondary,
+                marginBottom: Spacing.sm,
+              }}
+            >
+              Suggestions:
+            </Text>
+            <View style={{ marginBottom: Spacing.lg }}>
+              <Text
+                style={{
+                  fontSize: 13,
+                  color: Colors.textMuted,
+                  marginBottom: 4,
+                }}
+              >
+                • Make sure the photo clearly shows your pet
+              </Text>
+              <Text
+                style={{
+                  fontSize: 13,
+                  color: Colors.textMuted,
+                  marginBottom: 4,
+                }}
+              >
+                • Avoid photos of people or unrelated objects
+              </Text>
+              <Text
+                style={{
+                  fontSize: 13,
+                  color: Colors.textMuted,
+                  marginBottom: 4,
+                }}
+              >
+                • Try a different angle or better lighting
+              </Text>
+              <Text style={{ fontSize: 13, color: Colors.textMuted }}>
+                • You can always enter the breed manually
+              </Text>
+            </View>
+
+            {lowConfidenceData && lowConfidenceData.predictions.length > 0 && (
+              <View>
+                <Text
+                  style={{
+                    fontSize: 13,
+                    fontWeight: "600",
+                    color: Colors.textSecondary,
+                    marginBottom: Spacing.sm,
+                  }}
+                >
+                  Best guesses (use with caution):
+                </Text>
+                {lowConfidenceData.predictions.map((prediction, index) => (
+                  <TouchableOpacity
+                    key={index}
+                    style={{
+                      flexDirection: "row",
+                      justifyContent: "space-between",
+                      alignItems: "center",
+                      paddingVertical: Spacing.sm,
+                      borderBottomWidth: 1,
+                      borderBottomColor: Colors.borderLight,
+                    }}
+                    onPress={() => {
+                      setFormData((prev) => ({
+                        ...prev,
+                        breed: prediction.breed,
+                      }));
+                      setValidationErrors((prev) => ({ ...prev, breed: "" }));
+                      setIsMixedBreed(false);
+                      setShowLowConfidenceWarning(false);
+                      setLowConfidenceData(null);
+                    }}
+                  >
+                    <View>
+                      <Text
+                        style={{
+                          fontSize: 14,
+                          fontWeight: "600",
+                          color: Colors.textPrimary,
+                        }}
+                      >
+                        {prediction.breed}
+                      </Text>
+                      <Text style={{ fontSize: 11, color: Colors.textMuted }}>
+                        {Math.round(prediction.confidence * 100)}% confidence
+                      </Text>
+                    </View>
+                    <Ionicons
+                      name="chevron-forward"
+                      size={18}
+                      color={Colors.textMuted}
+                    />
+                  </TouchableOpacity>
+                ))}
+              </View>
+            )}
+
+            <View
+              style={{
+                flexDirection: "row",
+                gap: Spacing.md,
+                marginTop: Spacing.lg,
+              }}
+            >
+              <TouchableOpacity
+                style={{
+                  flex: 1,
+                  paddingVertical: Spacing.md,
+                  borderRadius: BorderRadius.lg,
+                  backgroundColor: Colors.bgTertiary,
+                  alignItems: "center",
+                }}
+                onPress={() => {
+                  setShowLowConfidenceWarning(false);
+                  setLowConfidenceData(null);
+                }}
+              >
+                <Text
+                  style={{
+                    fontSize: 14,
+                    fontWeight: "600",
+                    color: Colors.textSecondary,
+                  }}
+                >
+                  Try Again
+                </Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={{
+                  flex: 1,
+                  paddingVertical: Spacing.md,
+                  borderRadius: BorderRadius.lg,
+                  backgroundColor: Colors.primary,
+                  alignItems: "center",
+                }}
+                onPress={() => {
+                  setShowLowConfidenceWarning(false);
+                  setLowConfidenceData(null);
+                  setActiveBreedField("breed");
+                  setShowBreedSearch(true);
+                }}
+              >
+                <Text
+                  style={{
+                    fontSize: 14,
+                    fontWeight: "600",
+                    color: Colors.white,
+                  }}
+                >
+                  Enter Manually
+                </Text>
+              </TouchableOpacity>
+            </View>
           </View>
         )}
       />
@@ -1121,7 +2160,12 @@ export default function AddPetScreen() {
         mode="date"
         onConfirm={handleDateConfirm}
         onCancel={() => setShowDatePicker(false)}
-        maximumDate={datePickerField === "birthdate" || datePickerField === "healthGivenDate" ? new Date() : undefined}
+        maximumDate={
+          datePickerField === "birthdate" ||
+          datePickerField === "healthGivenDate"
+            ? new Date()
+            : undefined
+        }
       />
 
       <AlertModal visible={visible} {...alertOptions} onClose={hideAlert} />

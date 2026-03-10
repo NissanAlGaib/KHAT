@@ -1,4 +1,4 @@
-import { View, Text, Image } from "react-native";
+import { View, Text, Image, TouchableOpacity } from "react-native";
 import React, { useState } from "react";
 import { useSession } from "@/context/AuthContext";
 import { Link } from "expo-router";
@@ -9,6 +9,7 @@ import CustomButton from "@/components/app/CustomButton";
 import { useAlert } from "@/hooks/useAlert";
 import AlertModal from "@/components/core/AlertModal";
 import Constants from "expo-constants";
+import { Feather } from "@expo/vector-icons";
 
 // Get version from app.json
 const appVersion = Constants.expoConfig?.version || "1.0.0";
@@ -21,6 +22,7 @@ const Login = () => {
   const { signIn } = useSession();
   const { visible, alertOptions, showAlert, hideAlert } = useAlert();
   const [loading, setLoading] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
   const [data, setData] = useState({
     email: "",
     password: "",
@@ -48,11 +50,24 @@ const Login = () => {
       password: "",
     });
     try {
-      const response = await axiosInstance.post("/api/login", data);
+      const response = await axiosInstance.post("/api/login", {
+        ...data,
+        email: data.email.trim().toLowerCase(),
+      });
       await signIn(response.data.token, response.data.user);
     } catch (error) {
       if (isAxiosError(error)) {
         const responseData = error.response?.data;
+
+        // Ignore 403 suspended/banned errors as they are handled by the global interceptor
+        if (
+          error.response?.status === 403 &&
+          (responseData?.error === "account_suspended" ||
+            responseData?.error === "account_banned")
+        ) {
+          return;
+        }
+
         if (responseData?.errors) {
           setErrors(responseData.errors);
         } else if (responseData?.message) {
@@ -101,6 +116,7 @@ const Login = () => {
         onChangeText={(text) => handleChange("email", text)}
         label="Email"
         keyboardType="email-address"
+        autoCapitalize="none"
       />
       <CustomInput
         placeholder="Enter Your Password"
@@ -108,8 +124,24 @@ const Login = () => {
         error={errors.password}
         onChangeText={(text) => handleChange("password", text)}
         label="Password"
-        secureTextEntry
+        secureTextEntry={!showPassword}
+        rightIcon={
+          <TouchableOpacity onPress={() => setShowPassword(!showPassword)}>
+            <Feather
+              name={showPassword ? "eye" : "eye-off"}
+              size={20}
+              color="#9CA3AF"
+            />
+          </TouchableOpacity>
+        }
       />
+      <View className="items-end -mt-2">
+        <Link href="/forgot">
+          <Text className="text-primary-dark font-roboto text-sm">
+            Forgot Password?
+          </Text>
+        </Link>
+      </View>
       <CustomButton title="Login" onPress={handleLogin} isLoading={loading} />
       <Text className="text-sm text-text-muted text-center mb-6 font-roboto">
         Not registered yet?{" "}

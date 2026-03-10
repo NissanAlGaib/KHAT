@@ -99,19 +99,28 @@ export const createPet = async (petData: PetFormData) => {
   formData.append("description", petData.description);
 
   // Step 3 - Rabies Vaccination (optional - added via card system)
-  if (petData.rabies_vaccination_record && (petData.rabies_vaccination_record as any).uri) {
+  if (
+    petData.rabies_vaccination_record &&
+    (petData.rabies_vaccination_record as any).uri
+  ) {
     formData.append(
       "rabies_vaccination_record",
-      petData.rabies_vaccination_record
+      petData.rabies_vaccination_record,
     );
     formData.append("rabies_clinic_name", petData.rabies_clinic_name);
-    formData.append("rabies_veterinarian_name", petData.rabies_veterinarian_name);
+    formData.append(
+      "rabies_veterinarian_name",
+      petData.rabies_veterinarian_name,
+    );
     formData.append("rabies_given_date", petData.rabies_given_date);
     formData.append("rabies_expiration_date", petData.rabies_expiration_date);
   }
 
   // Step 3 - DHPP Vaccination (optional - added via card system)
-  if (petData.dhpp_vaccination_record && (petData.dhpp_vaccination_record as any).uri) {
+  if (
+    petData.dhpp_vaccination_record &&
+    (petData.dhpp_vaccination_record as any).uri
+  ) {
     formData.append("dhpp_vaccination_record", petData.dhpp_vaccination_record);
     formData.append("dhpp_clinic_name", petData.dhpp_clinic_name);
     formData.append("dhpp_veterinarian_name", petData.dhpp_veterinarian_name);
@@ -127,27 +136,27 @@ export const createPet = async (petData: PetFormData) => {
     petData.additional_vaccinations.forEach((vaccination, index) => {
       formData.append(
         `additional_vaccinations[${index}][vaccination_type]`,
-        vaccination.vaccination_type
+        vaccination.vaccination_type,
       );
       formData.append(
         `additional_vaccinations[${index}][vaccination_record]`,
-        vaccination.vaccination_record
+        vaccination.vaccination_record,
       );
       formData.append(
         `additional_vaccinations[${index}][clinic_name]`,
-        vaccination.clinic_name
+        vaccination.clinic_name,
       );
       formData.append(
         `additional_vaccinations[${index}][veterinarian_name]`,
-        vaccination.veterinarian_name
+        vaccination.veterinarian_name,
       );
       formData.append(
         `additional_vaccinations[${index}][given_date]`,
-        vaccination.given_date
+        vaccination.given_date,
       );
       formData.append(
         `additional_vaccinations[${index}][expiration_date]`,
-        vaccination.expiration_date
+        vaccination.expiration_date,
       );
     });
   }
@@ -201,7 +210,10 @@ export const createPet = async (petData: PetFormData) => {
     return response.data;
   } catch (error: any) {
     // Check if this is a verification required response (403)
-    if (error.response?.status === 403 && error.response?.data?.requires_verification) {
+    if (
+      error.response?.status === 403 &&
+      error.response?.data?.requires_verification
+    ) {
       return {
         success: false,
         message: error.response.data.message,
@@ -305,6 +317,8 @@ export interface PetPublicProfile {
     id: number;
     name: string;
     profile_image?: string;
+    is_verified?: boolean;
+    verification_status?: "pending" | "approved" | "rejected" | null;
   };
   photos: PetPhoto[];
   preferences: string[];
@@ -325,6 +339,16 @@ export interface LitterOffspring {
   color?: string;
   photo_url?: string;
   status: string;
+  death_date?: string;
+  notes?: string;
+  is_registered?: boolean;
+  allocation_status?: "unassigned" | "assigned" | "transferred";
+  selection_order?: number;
+  assigned_to?: {
+    id: number;
+    name: string;
+    profile_image?: string;
+  } | null;
 }
 
 export interface LitterParent {
@@ -336,6 +360,38 @@ export interface LitterParent {
     name: string;
     profile_image?: string;
   };
+}
+
+export interface ParentHealthVaccination {
+  vaccine_name: string;
+  is_required: boolean;
+  status: string;
+  completed_shots: number;
+  total_shots: number;
+  is_complete: boolean;
+}
+
+export interface ParentHealthSummary {
+  vaccinations: ParentHealthVaccination[];
+  total_vaccines: number;
+  completed_vaccines: number;
+  required_vaccines: number;
+  completed_required: number;
+  health_score: number;
+}
+
+export interface LitterMilestone {
+  key: string;
+  label: string;
+  date: string | null;
+  description: string;
+  completed: boolean;
+}
+
+export interface LitterDetailParent extends LitterParent {
+  breed: string;
+  species?: string;
+  health?: ParentHealthSummary;
 }
 
 export interface Litter {
@@ -362,19 +418,26 @@ export interface LitterDetail {
   litter_id: number;
   title: string;
   birth_date: string;
+  birth_date_full?: string;
   age_in_months: number;
+  age_in_weeks?: number;
   status: string;
   notes?: string;
+  has_contract?: boolean;
+  milestones?: LitterMilestone[];
   statistics: {
     total_offspring: number;
     alive_offspring: number;
     died_offspring: number;
     male_count: number;
     female_count: number;
+    assigned_count?: number;
+    transferred_count?: number;
+    unassigned_count?: number;
   };
   parents: {
-    sire: LitterParent & { breed: string };
-    dam: LitterParent & { breed: string };
+    sire: LitterDetailParent;
+    dam: LitterDetailParent;
   };
   offspring: LitterOffspring[];
 }
@@ -383,7 +446,7 @@ export interface LitterDetail {
  * Get public profile of a pet (for viewing other users' pets)
  */
 export const getPetPublicProfile = async (
-  petId: number
+  petId: number,
 ): Promise<PetPublicProfile> => {
   const response = await axiosInstance.get(`/api/pets/${petId}/profile`);
   return response.data.data;
@@ -401,7 +464,7 @@ export const getPetLitters = async (petId: number): Promise<Litter[]> => {
  * Get detailed information about a specific litter
  */
 export const getLitterDetail = async (
-  litterId: number
+  litterId: number,
 ): Promise<LitterDetail> => {
   const response = await axiosInstance.get(`/api/litters/${litterId}`);
   return response.data.data;
@@ -470,6 +533,28 @@ export const createLitter = async (litterData: CreateLitterData) => {
 // VACCINATION CARD SYSTEM (New Card-Based API)
 // ===========================================
 
+export interface VaccineProtocol {
+  id: number;
+  name: string;
+  slug: string;
+  species: "dog" | "cat" | "all";
+  is_required: boolean;
+  description: string | null;
+  series_doses: number | null;
+  series_interval_days: number | null;
+  has_booster: boolean;
+  booster_interval_days: number | null;
+  protocol_type: "series_only" | "series_with_booster" | "recurring";
+  protocol_type_label: string;
+  is_active: boolean;
+  sort_order: number;
+}
+
+export interface AvailableProtocolsResponse {
+  enrolled: VaccineProtocol[];
+  available: VaccineProtocol[];
+}
+
 export interface VaccinationShot {
   shot_id: number;
   shot_number: number;
@@ -489,6 +574,7 @@ export interface VaccinationShot {
   is_expired: boolean;
   is_expiring_soon: boolean;
   is_historical: boolean;
+  is_booster: boolean;
 }
 
 export interface VaccinationCard {
@@ -504,6 +590,10 @@ export interface VaccinationCard {
   progress_percentage: number;
   completed_shots_count: number;
   is_series_complete: boolean;
+  approved_shots_count: number;
+  pending_shots_count: number;
+  is_in_booster_phase: boolean;
+  protocol: VaccineProtocol | null;
   next_shot_date?: string;
   next_shot_date_display?: string;
   shots: VaccinationShot[];
@@ -536,10 +626,10 @@ export interface VaccinationSummary {
  * Get all vaccination cards for a pet
  */
 export const getVaccinationCards = async (
-  petId: number
+  petId: number,
 ): Promise<VaccinationCardsResponse> => {
   const response = await axiosInstance.get(
-    `/api/pets/${petId}/vaccination-cards`
+    `/api/pets/${petId}/vaccination-cards`,
   );
   return response.data.data;
 };
@@ -549,10 +639,10 @@ export const getVaccinationCards = async (
  */
 export const getVaccinationCard = async (
   petId: number,
-  cardId: number
+  cardId: number,
 ): Promise<VaccinationCard> => {
   const response = await axiosInstance.get(
-    `/api/pets/${petId}/vaccination-cards/${cardId}`
+    `/api/pets/${petId}/vaccination-cards/${cardId}`,
   );
   return response.data.data;
 };
@@ -570,10 +660,10 @@ export const addVaccinationShot = async (
     date_administered: string;
     expiration_date: string;
     shot_number?: number;
-  }
+  },
 ): Promise<{ shot: VaccinationShot; card: VaccinationCard }> => {
   const formData = new FormData();
-  
+
   // Format file for React Native FormData upload
   const fileData = shotData.vaccination_record as any;
   formData.append("vaccination_record", {
@@ -585,7 +675,7 @@ export const addVaccinationShot = async (
   formData.append("veterinarian_name", shotData.veterinarian_name);
   formData.append("date_administered", shotData.date_administered);
   formData.append("expiration_date", shotData.expiration_date);
-  
+
   // Include shot_number if provided (for historical records)
   if (shotData.shot_number !== undefined) {
     formData.append("shot_number", shotData.shot_number.toString());
@@ -598,47 +688,59 @@ export const addVaccinationShot = async (
       headers: {
         "Content-Type": "multipart/form-data",
       },
-    }
+    },
   );
   return response.data.data;
 };
 
 /**
- * Create a custom (optional) vaccination card
+ * Get available vaccine protocols for a pet (enrolled + available for opt-in)
  */
-export const createCustomVaccinationCard = async (
+export const getAvailableProtocols = async (
   petId: number,
-  cardData: {
-    vaccine_name: string;
-    total_shots?: number;
-    recurrence_type?: "none" | "recurring";
-  }
+): Promise<AvailableProtocolsResponse> => {
+  const response = await axiosInstance.get(
+    `/api/pets/${petId}/available-protocols`,
+  );
+  return response.data.data;
+};
+
+/**
+ * Opt in to an optional vaccine protocol
+ */
+export const optInToProtocol = async (
+  petId: number,
+  protocolId: number,
 ): Promise<VaccinationCard> => {
   const response = await axiosInstance.post(
-    `/api/pets/${petId}/vaccination-cards`,
-    cardData
+    `/api/pets/${petId}/opt-in/${protocolId}`,
   );
   return response.data.data;
 };
 
 /**
- * Delete a custom vaccination card (only optional cards can be deleted)
+ * Change the protocol for an existing vaccination card
  */
-export const deleteVaccinationCard = async (
+export const changeProtocol = async (
   petId: number,
-  cardId: number
-): Promise<void> => {
-  await axiosInstance.delete(`/api/pets/${petId}/vaccination-cards/${cardId}`);
+  cardId: number,
+  protocolId: number,
+): Promise<VaccinationCard> => {
+  const response = await axiosInstance.post(
+    `/api/pets/${petId}/vaccination-cards/${cardId}/change-protocol`,
+    { protocol_id: protocolId },
+  );
+  return response.data.data;
 };
 
 /**
  * Get vaccination summary for a pet
  */
 export const getVaccinationSummary = async (
-  petId: number
+  petId: number,
 ): Promise<VaccinationSummary> => {
   const response = await axiosInstance.get(
-    `/api/pets/${petId}/vaccination-summary`
+    `/api/pets/${petId}/vaccination-summary`,
   );
   return response.data.data;
 };
@@ -647,10 +749,10 @@ export const getVaccinationSummary = async (
  * Initialize required vaccination cards for a pet
  */
 export const initializeVaccinationCards = async (
-  petId: number
+  petId: number,
 ): Promise<VaccinationCard[]> => {
   const response = await axiosInstance.post(
-    `/api/pets/${petId}/vaccination-cards/initialize`
+    `/api/pets/${petId}/vaccination-cards/initialize`,
   );
   return response.data.data;
 };
@@ -669,7 +771,7 @@ export const addHistoricalShot = async (
     date_administered: string;
     expiration_date: string;
     shot_number: number;
-  }
+  },
 ): Promise<{ shot: VaccinationShot; card: VaccinationCard }> => {
   const formData = new FormData();
 
@@ -693,7 +795,7 @@ export const addHistoricalShot = async (
       headers: {
         "Content-Type": "multipart/form-data",
       },
-    }
+    },
   );
   return response.data.data;
 };
@@ -714,7 +816,7 @@ export interface HistoricalShotData {
 export const importVaccinationHistory = async (
   petId: number,
   cardId: number,
-  shots: HistoricalShotData[]
+  shots: HistoricalShotData[],
 ): Promise<{ imported_shots: VaccinationShot[]; card: VaccinationCard }> => {
   const formData = new FormData();
 
@@ -727,10 +829,19 @@ export const importVaccinationHistory = async (
       name: fileData.name || `vaccination_${Date.now()}.jpg`,
       type: fileData.mimeType || fileData.type || "image/jpeg",
     } as any);
-    formData.append(`shots[${index}][shot_number]`, shot.shot_number.toString());
+    formData.append(
+      `shots[${index}][shot_number]`,
+      shot.shot_number.toString(),
+    );
     formData.append(`shots[${index}][clinic_name]`, shot.clinic_name);
-    formData.append(`shots[${index}][veterinarian_name]`, shot.veterinarian_name);
-    formData.append(`shots[${index}][date_administered]`, shot.date_administered);
+    formData.append(
+      `shots[${index}][veterinarian_name]`,
+      shot.veterinarian_name,
+    );
+    formData.append(
+      `shots[${index}][date_administered]`,
+      shot.date_administered,
+    );
     formData.append(`shots[${index}][expiration_date]`, shot.expiration_date);
   });
 
@@ -741,7 +852,36 @@ export const importVaccinationHistory = async (
       headers: {
         "Content-Type": "multipart/form-data",
       },
-    }
+    },
+  );
+  return response.data.data;
+};
+
+// Compatibility
+export interface CompatibilityBreakdown {
+  breed_match: boolean;
+  sex_match: boolean;
+  age_in_range: boolean;
+  behavior_matches: string[];
+  attribute_matches: string[];
+}
+
+export interface CompatibilityResult {
+  compatibility_score: number;
+  match_reasons: string[];
+  reverse_score: number;
+  reverse_reasons: string[];
+  breakdown: CompatibilityBreakdown;
+  user_pet: { pet_id: number; name: string };
+  other_pet: { pet_id: number; name: string };
+}
+
+export const getCompatibilityScore = async (
+  userPetId: number,
+  otherPetId: number,
+): Promise<CompatibilityResult> => {
+  const response = await axiosInstance.get(
+    `/api/pets/${userPetId}/compatibility/${otherPetId}`,
   );
   return response.data.data;
 };

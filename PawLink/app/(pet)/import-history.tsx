@@ -9,6 +9,8 @@ import {
   Image,
   TextInput,
   Modal,
+  KeyboardAvoidingView,
+  Platform,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Feather, Ionicons } from "@expo/vector-icons";
@@ -46,14 +48,17 @@ export default function ImportHistoryScreen() {
 
   const [petName, setPetName] = useState("");
   const [loading, setLoading] = useState(true);
-  const [vaccinationCards, setVaccinationCards] = useState<VaccinationCardsResponse>({
-    required: [],
-    optional: [],
-  });
+  const [vaccinationCards, setVaccinationCards] =
+    useState<VaccinationCardsResponse>({
+      required: [],
+      optional: [],
+    });
 
   // Modal states
   const [showAddModal, setShowAddModal] = useState(false);
-  const [selectedCard, setSelectedCard] = useState<VaccinationCard | null>(null);
+  const [selectedCard, setSelectedCard] = useState<VaccinationCard | null>(
+    null,
+  );
   const [addingShot, setAddingShot] = useState(false);
 
   // Form state for add modal
@@ -64,7 +69,9 @@ export default function ImportHistoryScreen() {
   const [expirationDate, setExpirationDate] = useState("");
   const [shotNumber, setShotNumber] = useState("1");
   const [showDatePicker, setShowDatePicker] = useState(false);
-  const [datePickerField, setDatePickerField] = useState<"administered" | "expiration">("administered");
+  const [datePickerField, setDatePickerField] = useState<
+    "administered" | "expiration"
+  >("administered");
   const [errors, setErrors] = useState<Record<string, string>>({});
 
   const fetchData = useCallback(async () => {
@@ -205,7 +212,10 @@ export default function ImportHistoryScreen() {
       newErrors.shotNumber = "Shot number must be at least 1";
     }
     // Check for duplicate shot number
-    if (selectedCard && selectedCard.shots.some((s) => s.shot_number === shotNum)) {
+    if (
+      selectedCard &&
+      selectedCard.shots.some((s) => s.shot_number === shotNum)
+    ) {
       newErrors.shotNumber = `Shot ${shotNum} already exists`;
     }
 
@@ -236,10 +246,16 @@ export default function ImportHistoryScreen() {
         type: "success",
       });
     } catch (error: any) {
-      console.error("Error adding historical shot:", error.response?.data || error.message || error);
+      console.error(
+        "Error adding historical shot:",
+        error.response?.data || error.message || error,
+      );
       showAlert({
         title: "Error",
-        message: error.response?.data?.message || error.message || "Failed to add shot",
+        message:
+          error.response?.data?.message ||
+          error.message ||
+          "Failed to add shot",
         type: "error",
       });
     } finally {
@@ -259,7 +275,7 @@ export default function ImportHistoryScreen() {
   const allCards = [...vaccinationCards.required, ...vaccinationCards.optional];
   const totalHistoricalShots = allCards.reduce(
     (sum, card) => sum + card.shots.filter((s) => s.is_historical).length,
-    0
+    0,
   );
 
   if (loading) {
@@ -278,7 +294,10 @@ export default function ImportHistoryScreen() {
       {/* Header */}
       <LinearGradient colors={[...Gradients.primary]} style={styles.header}>
         <View style={styles.headerContent}>
-          <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
+          <TouchableOpacity
+            onPress={() => router.back()}
+            style={styles.backButton}
+          >
             <Feather name="arrow-left" size={24} color="white" />
           </TouchableOpacity>
           <View style={styles.headerTextContainer}>
@@ -289,15 +308,20 @@ export default function ImportHistoryScreen() {
         </View>
       </LinearGradient>
 
-      <ScrollView style={styles.scrollView} contentContainerStyle={styles.scrollContent}>
+      <ScrollView
+        style={styles.scrollView}
+        contentContainerStyle={styles.scrollContent}
+      >
         {/* Info Banner */}
         <View style={styles.infoBanner}>
           <Ionicons name="time-outline" size={24} color={Colors.info} />
           <View style={styles.infoBannerText}>
-            <Text style={styles.infoBannerTitle}>Add Past Vaccination Records</Text>
+            <Text style={styles.infoBannerTitle}>
+              Add Past Vaccination Records
+            </Text>
             <Text style={styles.infoBannerSubtitle}>
-              Import records from before you started using the app. These will be marked as
-              "Historical" and won't require verification.
+              Import records from before you started using the app. These will
+              be marked as "Historical" and won't require verification.
             </Text>
           </View>
         </View>
@@ -305,9 +329,14 @@ export default function ImportHistoryScreen() {
         {/* Stats */}
         {totalHistoricalShots > 0 && (
           <View style={styles.statsCard}>
-            <Ionicons name="documents-outline" size={20} color={Colors.success} />
+            <Ionicons
+              name="documents-outline"
+              size={20}
+              color={Colors.success}
+            />
             <Text style={styles.statsText}>
-              {totalHistoricalShots} historical record{totalHistoricalShots > 1 ? "s" : ""} imported
+              {totalHistoricalShots} historical record
+              {totalHistoricalShots > 1 ? "s" : ""} imported
             </Text>
           </View>
         )}
@@ -324,7 +353,10 @@ export default function ImportHistoryScreen() {
                 />
                 <Text style={styles.cardTitle}>{card.vaccine_name}</Text>
               </View>
-              <TouchableOpacity style={styles.addButton} onPress={() => openAddModal(card)}>
+              <TouchableOpacity
+                style={styles.addButton}
+                onPress={() => openAddModal(card)}
+              >
                 <Ionicons name="add" size={20} color={Colors.white} />
                 <Text style={styles.addButtonText}>Add</Text>
               </TouchableOpacity>
@@ -335,11 +367,15 @@ export default function ImportHistoryScreen() {
               <View style={styles.progressContainer}>
                 <View style={styles.progressBar}>
                   <View
-                    style={[styles.progressFill, { width: `${card.progress_percentage}%` }]}
+                    style={[
+                      styles.progressFill,
+                      { width: `${card.progress_percentage}%` },
+                    ]}
                   />
                 </View>
                 <Text style={styles.progressText}>
-                  {card.completed_shots_count} / {card.total_shots_required} shots
+                  {card.completed_shots_count} / {card.total_shots_required}{" "}
+                  shots
                 </Text>
               </View>
             )}
@@ -350,20 +386,41 @@ export default function ImportHistoryScreen() {
                 {card.shots.map((shot) => (
                   <View key={shot.shot_id} style={styles.shotItem}>
                     <View style={styles.shotInfo}>
-                      <Text style={styles.shotNumber}>Shot {shot.shot_number}</Text>
-                      <Text style={styles.shotDate}>{shot.date_administered_display}</Text>
+                      <Text style={styles.shotNumber}>
+                        Shot {shot.shot_number}
+                      </Text>
+                      <Text style={styles.shotDate}>
+                        {shot.date_administered_display}
+                      </Text>
                     </View>
                     {shot.is_historical && (
                       <View style={styles.historicalBadge}>
-                        <Ionicons name="time-outline" size={12} color={Colors.info} />
-                        <Text style={styles.historicalBadgeText}>Historical</Text>
+                        <Ionicons
+                          name="time-outline"
+                          size={12}
+                          color={Colors.info}
+                        />
+                        <Text style={styles.historicalBadgeText}>
+                          Historical
+                        </Text>
                       </View>
                     )}
                     {!shot.is_historical && (
                       <View style={[styles.historicalBadge, styles.liveBadge]}>
-                        <Ionicons name="checkmark-circle" size={12} color={Colors.success} />
-                        <Text style={[styles.historicalBadgeText, styles.liveBadgeText]}>
-                          {shot.verification_status === "approved" ? "Verified" : "Pending"}
+                        <Ionicons
+                          name="checkmark-circle"
+                          size={12}
+                          color={Colors.success}
+                        />
+                        <Text
+                          style={[
+                            styles.historicalBadgeText,
+                            styles.liveBadgeText,
+                          ]}
+                        >
+                          {shot.verification_status === "approved"
+                            ? "Verified"
+                            : "Pending"}
                         </Text>
                       </View>
                     )}
@@ -400,200 +457,303 @@ export default function ImportHistoryScreen() {
       </View>
 
       {/* Add Historical Shot Modal */}
-      <Modal visible={showAddModal} transparent animationType="slide" onRequestClose={closeAddModal}>
-        <View style={styles.modalOverlay}>
-          <View style={styles.modalContainer}>
-            <LinearGradient colors={[...Gradients.primary]} style={styles.modalHeader}>
-              <View>
-                <Text style={styles.modalTitle}>Add Historical Record</Text>
-                <Text style={styles.modalSubtitle}>
-                  {selectedCard?.vaccine_name} - Shot {shotNumber}
-                </Text>
-              </View>
-              <TouchableOpacity onPress={closeAddModal} style={styles.closeButton}>
-                <Ionicons name="close" size={24} color={Colors.white} />
-              </TouchableOpacity>
-            </LinearGradient>
-
-            <ScrollView style={styles.modalContent} keyboardShouldPersistTaps="handled">
-              {/* Shot Number */}
-              <View style={styles.inputGroup}>
-                <Text style={styles.label}>Shot Number *</Text>
-                <View style={styles.shotNumberRow}>
-                  <TouchableOpacity
-                    style={styles.shotNumberBtn}
-                    onPress={() => {
-                      const num = parseInt(shotNumber) || 1;
-                      if (num > 1) setShotNumber((num - 1).toString());
-                    }}
-                  >
-                    <Ionicons name="remove" size={20} color={Colors.textSecondary} />
-                  </TouchableOpacity>
-                  <TextInput
-                    style={[styles.shotNumberInput, errors.shotNumber && styles.inputError]}
-                    value={shotNumber}
-                    onChangeText={(text) => {
-                      setShotNumber(text.replace(/[^0-9]/g, ""));
-                      setErrors((prev) => ({ ...prev, shotNumber: "" }));
-                    }}
-                    keyboardType="number-pad"
-                    maxLength={2}
-                    textAlign="center"
-                  />
-                  <TouchableOpacity
-                    style={styles.shotNumberBtn}
-                    onPress={() => {
-                      const num = parseInt(shotNumber) || 0;
-                      setShotNumber((num + 1).toString());
-                    }}
-                  >
-                    <Ionicons name="add" size={20} color={Colors.textSecondary} />
-                  </TouchableOpacity>
+      <Modal
+        visible={showAddModal}
+        transparent
+        animationType="slide"
+        onRequestClose={closeAddModal}
+      >
+        <KeyboardAvoidingView
+          style={{ flex: 1 }}
+          behavior={Platform.OS === "ios" ? "padding" : undefined}
+        >
+          <View style={styles.modalOverlay}>
+            <View style={styles.modalContainer}>
+              <LinearGradient
+                colors={[...Gradients.primary]}
+                style={styles.modalHeader}
+              >
+                <View>
+                  <Text style={styles.modalTitle}>Add Historical Record</Text>
+                  <Text style={styles.modalSubtitle}>
+                    {selectedCard?.vaccine_name} - Shot {shotNumber}
+                  </Text>
                 </View>
-                {errors.shotNumber && <Text style={styles.errorText}>{errors.shotNumber}</Text>}
-              </View>
+                <TouchableOpacity
+                  onPress={closeAddModal}
+                  style={styles.closeButton}
+                >
+                  <Ionicons name="close" size={24} color={Colors.white} />
+                </TouchableOpacity>
+              </LinearGradient>
 
-              {/* Document Upload */}
-              <View style={styles.inputGroup}>
-                <Text style={styles.label}>Proof Document *</Text>
-                <View style={styles.uploadRow}>
+              <ScrollView
+                style={styles.modalContent}
+                keyboardShouldPersistTaps="handled"
+              >
+                {/* Shot Number */}
+                <View style={styles.inputGroup}>
+                  <Text style={styles.label}>Shot Number *</Text>
+                  <View style={styles.shotNumberRow}>
+                    <TouchableOpacity
+                      style={styles.shotNumberBtn}
+                      onPress={() => {
+                        const num = parseInt(shotNumber) || 1;
+                        if (num > 1) setShotNumber((num - 1).toString());
+                      }}
+                    >
+                      <Ionicons
+                        name="remove"
+                        size={20}
+                        color={Colors.textSecondary}
+                      />
+                    </TouchableOpacity>
+                    <TextInput
+                      style={[
+                        styles.shotNumberInput,
+                        errors.shotNumber && styles.inputError,
+                      ]}
+                      value={shotNumber}
+                      onChangeText={(text) => {
+                        setShotNumber(text.replace(/[^0-9]/g, ""));
+                        setErrors((prev) => ({ ...prev, shotNumber: "" }));
+                      }}
+                      keyboardType="number-pad"
+                      maxLength={2}
+                      textAlign="center"
+                    />
+                    <TouchableOpacity
+                      style={styles.shotNumberBtn}
+                      onPress={() => {
+                        const num = parseInt(shotNumber) || 0;
+                        setShotNumber((num + 1).toString());
+                      }}
+                    >
+                      <Ionicons
+                        name="add"
+                        size={20}
+                        color={Colors.textSecondary}
+                      />
+                    </TouchableOpacity>
+                  </View>
+                  {errors.shotNumber && (
+                    <Text style={styles.errorText}>{errors.shotNumber}</Text>
+                  )}
+                </View>
+
+                {/* Document Upload */}
+                <View style={styles.inputGroup}>
+                  <Text style={styles.label}>Proof Document *</Text>
+                  <View style={styles.uploadRow}>
+                    <TouchableOpacity
+                      style={[
+                        styles.uploadButton,
+                        errors.document && styles.inputError,
+                      ]}
+                      onPress={pickDocument}
+                    >
+                      <Ionicons
+                        name="document-attach-outline"
+                        size={24}
+                        color={Colors.textMuted}
+                      />
+                      <Text style={styles.uploadButtonText} numberOfLines={1}>
+                        {document?.name || "Upload File"}
+                      </Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity
+                      style={styles.cameraButton}
+                      onPress={pickImage}
+                    >
+                      <Ionicons name="camera" size={24} color={Colors.white} />
+                    </TouchableOpacity>
+                  </View>
+                  {document?.uri && document.mimeType?.startsWith("image") && (
+                    <Image
+                      source={{ uri: document.uri }}
+                      style={styles.previewImage}
+                    />
+                  )}
+                  {errors.document && (
+                    <Text style={styles.errorText}>{errors.document}</Text>
+                  )}
+                </View>
+
+                {/* Clinic Name */}
+                <View style={styles.inputGroup}>
+                  <Text style={styles.label}>Clinic Name *</Text>
+                  <TextInput
+                    style={[
+                      styles.input,
+                      errors.clinicName && styles.inputError,
+                    ]}
+                    placeholder="e.g., City Veterinary Clinic"
+                    placeholderTextColor={Colors.textMuted}
+                    value={clinicName}
+                    onChangeText={(text) => {
+                      setClinicName(text);
+                      setErrors((prev) => ({ ...prev, clinicName: "" }));
+                    }}
+                  />
+                  {errors.clinicName && (
+                    <Text style={styles.errorText}>{errors.clinicName}</Text>
+                  )}
+                </View>
+
+                {/* Veterinarian Name */}
+                <View style={styles.inputGroup}>
+                  <Text style={styles.label}>Veterinarian Name *</Text>
+                  <TextInput
+                    style={[
+                      styles.input,
+                      errors.veterinarianName && styles.inputError,
+                    ]}
+                    placeholder="e.g., Dr. Juan dela Cruz"
+                    placeholderTextColor={Colors.textMuted}
+                    value={veterinarianName}
+                    onChangeText={(text) => {
+                      setVeterinarianName(text);
+                      setErrors((prev) => ({ ...prev, veterinarianName: "" }));
+                    }}
+                  />
+                  {errors.veterinarianName && (
+                    <Text style={styles.errorText}>
+                      {errors.veterinarianName}
+                    </Text>
+                  )}
+                </View>
+
+                {/* Date Administered */}
+                <View style={styles.inputGroup}>
+                  <Text style={styles.label}>Date Administered *</Text>
                   <TouchableOpacity
-                    style={[styles.uploadButton, errors.document && styles.inputError]}
-                    onPress={pickDocument}
+                    style={[
+                      styles.dateInput,
+                      errors.dateAdministered && styles.inputError,
+                    ]}
+                    onPress={() => openDatePicker("administered")}
                   >
-                    <Ionicons name="document-attach-outline" size={24} color={Colors.textMuted} />
-                    <Text style={styles.uploadButtonText} numberOfLines={1}>
-                      {document?.name || "Upload File"}
+                    <Ionicons
+                      name="calendar-outline"
+                      size={20}
+                      color={Colors.textMuted}
+                    />
+                    <Text
+                      style={[
+                        styles.dateText,
+                        !dateAdministered && styles.placeholder,
+                      ]}
+                    >
+                      {dateAdministered
+                        ? formatDate(dateAdministered)
+                        : "Select date"}
                     </Text>
                   </TouchableOpacity>
-                  <TouchableOpacity style={styles.cameraButton} onPress={pickImage}>
-                    <Ionicons name="camera" size={24} color={Colors.white} />
-                  </TouchableOpacity>
+                  {errors.dateAdministered && (
+                    <Text style={styles.errorText}>
+                      {errors.dateAdministered}
+                    </Text>
+                  )}
                 </View>
-                {document?.uri && document.mimeType?.startsWith("image") && (
-                  <Image source={{ uri: document.uri }} style={styles.previewImage} />
-                )}
-                {errors.document && <Text style={styles.errorText}>{errors.document}</Text>}
-              </View>
 
-              {/* Clinic Name */}
-              <View style={styles.inputGroup}>
-                <Text style={styles.label}>Clinic Name *</Text>
-                <TextInput
-                  style={[styles.input, errors.clinicName && styles.inputError]}
-                  placeholder="e.g., City Veterinary Clinic"
-                  placeholderTextColor={Colors.textMuted}
-                  value={clinicName}
-                  onChangeText={(text) => {
-                    setClinicName(text);
-                    setErrors((prev) => ({ ...prev, clinicName: "" }));
-                  }}
-                />
-                {errors.clinicName && <Text style={styles.errorText}>{errors.clinicName}</Text>}
-              </View>
+                {/* Expiration Date */}
+                <View style={styles.inputGroup}>
+                  <Text style={styles.label}>Expiration Date *</Text>
+                  <TouchableOpacity
+                    style={[
+                      styles.dateInput,
+                      errors.expirationDate && styles.inputError,
+                    ]}
+                    onPress={() => openDatePicker("expiration")}
+                  >
+                    <Ionicons
+                      name="calendar-outline"
+                      size={20}
+                      color={Colors.textMuted}
+                    />
+                    <Text
+                      style={[
+                        styles.dateText,
+                        !expirationDate && styles.placeholder,
+                      ]}
+                    >
+                      {expirationDate
+                        ? formatDate(expirationDate)
+                        : "Select date"}
+                    </Text>
+                  </TouchableOpacity>
+                  {selectedCard?.interval_days && dateAdministered && (
+                    <Text style={styles.helperText}>
+                      Auto-calculated based on {selectedCard.interval_days}-day
+                      interval
+                    </Text>
+                  )}
+                  {errors.expirationDate && (
+                    <Text style={styles.errorText}>
+                      {errors.expirationDate}
+                    </Text>
+                  )}
+                </View>
 
-              {/* Veterinarian Name */}
-              <View style={styles.inputGroup}>
-                <Text style={styles.label}>Veterinarian Name *</Text>
-                <TextInput
-                  style={[styles.input, errors.veterinarianName && styles.inputError]}
-                  placeholder="e.g., Dr. Juan dela Cruz"
-                  placeholderTextColor={Colors.textMuted}
-                  value={veterinarianName}
-                  onChangeText={(text) => {
-                    setVeterinarianName(text);
-                    setErrors((prev) => ({ ...prev, veterinarianName: "" }));
-                  }}
-                />
-                {errors.veterinarianName && (
-                  <Text style={styles.errorText}>{errors.veterinarianName}</Text>
-                )}
-              </View>
+                {/* Historical Note */}
+                <View style={styles.historicalNote}>
+                  <Ionicons name="time-outline" size={18} color={Colors.info} />
+                  <Text style={styles.historicalNoteText}>
+                    This record will be marked as historical and won't go
+                    through the verification queue.
+                  </Text>
+                </View>
+              </ScrollView>
 
-              {/* Date Administered */}
-              <View style={styles.inputGroup}>
-                <Text style={styles.label}>Date Administered *</Text>
+              {/* Modal Footer */}
+              <View style={styles.modalFooter}>
                 <TouchableOpacity
-                  style={[styles.dateInput, errors.dateAdministered && styles.inputError]}
-                  onPress={() => openDatePicker("administered")}
+                  style={styles.cancelButton}
+                  onPress={closeAddModal}
+                  disabled={addingShot}
                 >
-                  <Ionicons name="calendar-outline" size={20} color={Colors.textMuted} />
-                  <Text style={[styles.dateText, !dateAdministered && styles.placeholder]}>
-                    {dateAdministered ? formatDate(dateAdministered) : "Select date"}
-                  </Text>
+                  <Text style={styles.cancelButtonText}>Cancel</Text>
                 </TouchableOpacity>
-                {errors.dateAdministered && (
-                  <Text style={styles.errorText}>{errors.dateAdministered}</Text>
-                )}
-              </View>
-
-              {/* Expiration Date */}
-              <View style={styles.inputGroup}>
-                <Text style={styles.label}>Expiration Date *</Text>
                 <TouchableOpacity
-                  style={[styles.dateInput, errors.expirationDate && styles.inputError]}
-                  onPress={() => openDatePicker("expiration")}
+                  style={[
+                    styles.submitButton,
+                    addingShot && styles.disabledButton,
+                  ]}
+                  onPress={handleAddShot}
+                  disabled={addingShot}
                 >
-                  <Ionicons name="calendar-outline" size={20} color={Colors.textMuted} />
-                  <Text style={[styles.dateText, !expirationDate && styles.placeholder]}>
-                    {expirationDate ? formatDate(expirationDate) : "Select date"}
-                  </Text>
+                  {addingShot ? (
+                    <ActivityIndicator size="small" color={Colors.white} />
+                  ) : (
+                    <>
+                      <Ionicons
+                        name="checkmark"
+                        size={20}
+                        color={Colors.white}
+                      />
+                      <Text style={styles.submitButtonText}>Add Record</Text>
+                    </>
+                  )}
                 </TouchableOpacity>
-                {selectedCard?.interval_days && dateAdministered && (
-                  <Text style={styles.helperText}>
-                    Auto-calculated based on {selectedCard.interval_days}-day interval
-                  </Text>
-                )}
-                {errors.expirationDate && (
-                  <Text style={styles.errorText}>{errors.expirationDate}</Text>
-                )}
               </View>
 
-              {/* Historical Note */}
-              <View style={styles.historicalNote}>
-                <Ionicons name="time-outline" size={18} color={Colors.info} />
-                <Text style={styles.historicalNoteText}>
-                  This record will be marked as historical and won't go through the verification
-                  queue.
-                </Text>
-              </View>
-            </ScrollView>
-
-            {/* Modal Footer */}
-            <View style={styles.modalFooter}>
-              <TouchableOpacity style={styles.cancelButton} onPress={closeAddModal} disabled={addingShot}>
-                <Text style={styles.cancelButtonText}>Cancel</Text>
-              </TouchableOpacity>
-              <TouchableOpacity
-                style={[styles.submitButton, addingShot && styles.disabledButton]}
-                onPress={handleAddShot}
-                disabled={addingShot}
-              >
-                {addingShot ? (
-                  <ActivityIndicator size="small" color={Colors.white} />
-                ) : (
-                  <>
-                    <Ionicons name="checkmark" size={20} color={Colors.white} />
-                    <Text style={styles.submitButtonText}>Add Record</Text>
-                  </>
-                )}
-              </TouchableOpacity>
+              <DateTimePickerModal
+                isVisible={showDatePicker}
+                mode="date"
+                onConfirm={handleDateConfirm}
+                onCancel={() => setShowDatePicker(false)}
+                maximumDate={
+                  datePickerField === "administered" ? new Date() : undefined
+                }
+                minimumDate={
+                  datePickerField === "expiration" && dateAdministered
+                    ? new Date(dateAdministered)
+                    : undefined
+                }
+              />
             </View>
-
-            <DateTimePickerModal
-              isVisible={showDatePicker}
-              mode="date"
-              onConfirm={handleDateConfirm}
-              onCancel={() => setShowDatePicker(false)}
-              maximumDate={datePickerField === "administered" ? new Date() : undefined}
-              minimumDate={
-                datePickerField === "expiration" && dateAdministered
-                  ? new Date(dateAdministered)
-                  : undefined
-              }
-            />
           </View>
-        </View>
+        </KeyboardAvoidingView>
       </Modal>
 
       <AlertModal visible={visible} {...alertOptions} onClose={hideAlert} />

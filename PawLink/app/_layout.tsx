@@ -6,10 +6,16 @@ import { NotificationProvider } from "@/context/NotificationContext";
 import * as SplashScreen from "expo-splash-screen";
 import { useLoadFonts } from "@/hooks/useLoadFonts";
 import { useUpdateChecker } from "@/hooks/useUpdateChecker";
+import { useWhatsNew } from "@/hooks/useWhatsNew";
+import WhatsNewModal from "@/components/core/WhatsNewModal";
 import { useEffect, useMemo } from "react";
 import { Text, View } from "react-native";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
-import { SafeAreaProvider, initialWindowMetrics } from "react-native-safe-area-context";
+import {
+  SafeAreaProvider,
+  initialWindowMetrics,
+} from "react-native-safe-area-context";
+import { WarningChecker } from "@/components/core/WarningChecker";
 import "./globals.css";
 
 SplashScreen.preventAutoHideAsync().catch((err) => {
@@ -21,6 +27,7 @@ function RootNavigator() {
   const segments = useSegments();
 
   const inAuthGroup = useMemo(() => segments[0] === "(auth)", [segments]);
+  const isBannedRoute = useMemo(() => segments[0] === "banned", [segments]);
 
   useEffect(() => {
     console.log(
@@ -31,15 +38,17 @@ function RootNavigator() {
       "segments:",
       segments,
       "inAuthGroup:",
-      inAuthGroup
+      inAuthGroup,
+      "isBannedRoute:",
+      isBannedRoute,
     );
-  }, [isLoading, session, segments, inAuthGroup]);
+  }, [isLoading, session, segments, inAuthGroup, isBannedRoute]);
 
   if (isLoading) {
     return null;
   }
 
-  if (!session && !inAuthGroup) {
+  if (!session && !inAuthGroup && !isBannedRoute) {
     return <Redirect href="/login" />;
   }
   if (session && inAuthGroup) {
@@ -47,34 +56,43 @@ function RootNavigator() {
   }
 
   return (
-    <Stack
-      screenOptions={{
-        headerShown: false,
-        contentStyle: { backgroundColor: '#FFFFFF' },
-        animation: 'fade',
-      }}
-    >
-      <Stack.Screen name="(auth)" />
-      <Stack.Screen name="(tabs)" />
-      <Stack.Screen name="(chat)" />
-      <Stack.Screen name="(pet)" />
-      <Stack.Screen name="(shooter)" />
-      <Stack.Screen name="(verification)" />
-      <Stack.Screen name="search" />
-      <Stack.Screen name="settings" />
-      <Stack.Screen name="notifications" />
-      <Stack.Screen name="subscription" />
-      <Stack.Screen name="edit-profile" />
-      <Stack.Screen name="privacy-security" />
-    </Stack>
+    <>
+      <WarningChecker />
+      <Stack
+        screenOptions={{
+          headerShown: false,
+          contentStyle: { backgroundColor: "#FFFFFF" },
+          animation: "fade",
+        }}
+      >
+        <Stack.Screen name="(auth)" />
+        <Stack.Screen name="(tabs)" />
+        <Stack.Screen name="(chat)" />
+        <Stack.Screen name="(pet)" />
+        <Stack.Screen name="(shooter)" />
+        <Stack.Screen name="(verification)" />
+        <Stack.Screen name="search" />
+        <Stack.Screen name="settings" />
+        <Stack.Screen name="notifications" />
+        <Stack.Screen name="subscription" />
+        <Stack.Screen name="edit-profile" />
+        <Stack.Screen name="privacy-security" />
+        <Stack.Screen name="my-payments" />
+        <Stack.Screen name="payment" />
+        <Stack.Screen name="banned" options={{ gestureEnabled: false }} />
+      </Stack>
+    </>
   );
 }
 
 export default function RootLayout() {
   const fontsLoaded = useLoadFonts();
-  
+
   // Check for OTA updates
   useUpdateChecker();
+
+  // "What's New" modal after updates
+  const whatsNew = useWhatsNew();
 
   useEffect(() => {
     console.log("RootLayout - fontsLoaded:", fontsLoaded);
@@ -99,6 +117,16 @@ export default function RootLayout() {
               <RoleProvider>
                 <NotificationProvider>
                   <RootNavigator />
+
+                  {/* What's New modal — shown after app updates */}
+                  {whatsNew.release && (
+                    <WhatsNewModal
+                      visible={whatsNew.visible}
+                      release={whatsNew.release}
+                      onDismiss={whatsNew.dismiss}
+                      onDontShowAgain={whatsNew.dontShowAgain}
+                    />
+                  )}
                 </NotificationProvider>
               </RoleProvider>
             </PetProvider>

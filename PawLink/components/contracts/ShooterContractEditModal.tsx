@@ -11,7 +11,7 @@ import {
   Animated,
   ScrollView,
 } from "react-native";
-import { X, DollarSign, Shield } from "lucide-react-native";
+import { X, DollarSign, Shield, Lightbulb } from "lucide-react-native";
 import { BreedingContract } from "@/services/contractService";
 
 interface ShooterContractEditModalProps {
@@ -21,7 +21,7 @@ interface ShooterContractEditModalProps {
   contract: BreedingContract;
   onSubmit: (
     payment: number,
-    collateral: number
+    collateral: number,
   ) => Promise<{ success: boolean; message: string; data?: BreedingContract }>;
 }
 
@@ -33,7 +33,7 @@ export default function ShooterContractEditModal({
   onSubmit,
 }: ShooterContractEditModalProps) {
   const [shooterPayment, setShooterPayment] = useState(
-    contract.shooter_payment?.toString() || ""
+    contract.shooter_payment?.toString() || "",
   );
   const [shooterCollateral, setShooterCollateral] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -41,7 +41,9 @@ export default function ShooterContractEditModal({
   const scaleAnim = React.useRef(new Animated.Value(0)).current;
 
   // Track the contract id to detect when we switch to a different contract
-  const [lastContractId, setLastContractId] = React.useState<number | null>(null);
+  const [lastContractId, setLastContractId] = React.useState<number | null>(
+    null,
+  );
 
   // Initialize shooter_payment value for when we open with a new contract
   const initialShooterPayment = contract.shooter_payment?.toString() || "";
@@ -111,7 +113,7 @@ export default function ShooterContractEditModal({
       onRequestClose={onClose}
     >
       <KeyboardAvoidingView
-        behavior={Platform.OS === "ios" ? "padding" : "height"}
+        behavior={Platform.OS === "ios" ? "padding" : undefined}
         className="flex-1"
       >
         <View className="flex-1 bg-black/50 justify-center items-center px-4">
@@ -141,9 +143,16 @@ export default function ShooterContractEditModal({
             >
               {/* Info Box */}
               <View className="bg-blue-50 rounded-xl p-4 mb-4 border border-blue-200">
-                <Text className="text-blue-900 font-semibold text-sm mb-1">
-                  💡 Why Collateral?
-                </Text>
+                <View className="flex-row items-center mb-1">
+                  <Lightbulb
+                    size={14}
+                    color="#1e3a5f"
+                    style={{ marginRight: 4 }}
+                  />
+                  <Text className="text-blue-900 font-semibold text-sm">
+                    Why Collateral?
+                  </Text>
+                </View>
                 <Text className="text-blue-800 text-xs leading-5">
                   To ensure the safety and trust of both pet owners, you must
                   provide collateral when updating your payment terms. This

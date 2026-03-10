@@ -5,10 +5,12 @@ export default function ChatLayout() {
     <Stack
       screenOptions={{
         headerShown: false,
-        contentStyle: { backgroundColor: '#FFFFFF' },
+        contentStyle: { backgroundColor: "#FFFFFF" },
       }}
     >
       <Stack.Screen name="conversation" />
+      <Stack.Screen name="contract-detail" />
+      <Stack.Screen name="create-contract" />
     </Stack>
   );
 }

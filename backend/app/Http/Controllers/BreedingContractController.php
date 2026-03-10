@@ -7,6 +7,8 @@ use App\Models\Conversation;
 use App\Models\Litter;
 use App\Models\LitterOffspring;
 use App\Models\Pet;
+use App\Services\ActivityNotificationService;
+use App\Services\PoolService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
@@ -14,6 +16,13 @@ use Illuminate\Support\Facades\Storage;
 
 class BreedingContractController extends Controller
 {
+    private PoolService $poolService;
+
+    public function __construct(PoolService $poolService)
+    {
+        $this->poolService = $poolService;
+    }
+
     /**
      * Create a new breeding contract for a conversation
      */
@@ -432,6 +441,16 @@ class BreedingContractController extends Controller
                 // Add shooter to the conversation
                 $conversation = $contract->conversation;
                 $conversation->update(['shooter_user_id' => $contract->shooter_user_id]);
+
+                // Notify the shooter they have been confirmed
+                $pet1Name = $matchRequest->requesterPet->name ?? 'Pet 1';
+                $pet2Name = $matchRequest->targetPet->name ?? 'Pet 2';
+                ActivityNotificationService::shooterRequest(
+                    $contract->shooter_user_id,
+                    $pet1Name,
+                    $pet2Name,
+                    ['contract_id' => $contract->id]
+                );
             }
 
             return response()->json([
@@ -841,7 +860,7 @@ class BreedingContractController extends Controller
      */
     private function formatContract(BreedingContract $contract, $user): array
     {
-        $contract->load('shooter', 'conversation.matchRequest.requesterPet', 'conversation.matchRequest.targetPet');
+        $contract->load('shooter', 'conversation.matchRequest.requesterPet.owner', 'conversation.matchRequest.targetPet.owner');
 
         // Determine if user is owner1 or owner2 or shooter
         $matchRequest = $contract->conversation->matchRequest;
@@ -855,6 +874,7 @@ class BreedingContractController extends Controller
         return [
             'id' => $contract->id,
             'conversation_id' => $contract->conversation_id,
+            'match_request_id' => $matchRequest->id,
             'created_by' => $contract->created_by,
             'last_edited_by' => $contract->last_edited_by,
             'status' => $contract->status,
@@ -917,6 +937,13 @@ class BreedingContractController extends Controller
             'current_user_accepted_shooter' => $currentUserAcceptedShooter,
             'can_mark_breeding_complete' => $contract->canMarkBreedingComplete($user),
             'can_input_offspring' => $contract->canInputOffspring($user),
+            // Partner info for reviews
+            'partner_name' => $isOwner1
+                ? ($matchRequest->targetPet->owner->name ?? 'Your Partner')
+                : ($matchRequest->requesterPet->owner->name ?? 'Your Partner'),
+            'partner_id' => $isOwner1
+                ? $matchRequest->targetPet->user_id
+                : $matchRequest->requesterPet->user_id,
         ];
     }
 
@@ -963,6 +990,32 @@ class BreedingContractController extends Controller
             ], 403);
         }
 
+        // Soft payment gate: require both owners to pay collateral before breeding can be marked
+        if ($contract->collateral_total > 0) {
+            $contract->load('conversation.matchRequest.requesterPet', 'conversation.matchRequest.targetPet');
+            $matchRequest = $contract->conversation->matchRequest ?? null;
+            if ($matchRequest) {
+                $ownerIds = collect([
+                    $matchRequest->requesterPet->user_id ?? null,
+                    $matchRequest->targetPet->user_id ?? null,
+                ])->filter()->unique()->values();
+
+                $paidOwnerCount = \App\Models\Payment::where('contract_id', $contract->id)
+                    ->where('payment_type', 'collateral')
+                    ->where('status', 'paid')
+                    ->whereIn('user_id', $ownerIds)
+                    ->distinct('user_id')
+                    ->count('user_id');
+
+                if ($paidOwnerCount < $ownerIds->count()) {
+                    return response()->json([
+                        'success' => false,
+                        'message' => 'Both parties must pay their collateral deposit before breeding can be marked as complete or failed.',
+                    ], 422);
+                }
+            }
+        }
+
         try {
             $contract->update([
                 'breeding_status' => $validated['breeding_status'],
@@ -972,11 +1025,52 @@ class BreedingContractController extends Controller
                 'breeding_notes' => $validated['breeding_notes'] ?? null,
             ]);
 
+            // If breeding completed successfully, release shooter payment from pool
+            if ($validated['breeding_status'] === 'completed') {
+                try {
+                    $this->poolService->releaseShooterPayment($contract);
+                    Log::info('Shooter payment released from pool', [
+                        'contract_id' => $contract->id,
+                    ]);
+                } catch (\Exception $e) {
+                    Log::error('Failed to release shooter payment from pool', [
+                        'contract_id' => $contract->id,
+                        'error' => $e->getMessage(),
+                    ]);
+                    // Don't fail the breeding completion - pool release can be retried by admin
+                }
+            }
+
             // If breeding failed, apply rest period cooldown to the female (dam) only
             if ($validated['breeding_status'] === 'failed') {
                 $pets = $contract->getSireAndDam();
                 if (isset($pets['dam'])) {
                     $pets['dam']->startCooldown(Pet::FAILED_BREEDING_COOLDOWN_DAYS);
+                }
+            }
+
+            // Notify all participants about the breeding status
+            $contract->load(['conversation.matchRequest.requesterPet', 'conversation.matchRequest.targetPet']);
+            $matchRequest = $contract->conversation->matchRequest ?? null;
+            if ($matchRequest) {
+                $statusLabel = $validated['breeding_status'] === 'completed' ? 'completed successfully' : 'marked as failed';
+                $petName = $matchRequest->requesterPet->name ?? 'the pet';
+                $participantIds = collect([
+                    $matchRequest->requesterPet->user_id ?? null,
+                    $matchRequest->targetPet->user_id ?? null,
+                    $contract->shooter_user_id,
+                ])->filter()->unique();
+
+                foreach ($participantIds as $participantId) {
+                    ActivityNotificationService::contractCompleted(
+                        $participantId,
+                        $petName,
+                        [
+                            'contract_id' => $contract->id,
+                            'conversation_id' => $contract->conversation->id ?? null,
+                            'breeding_status' => $validated['breeding_status'],
+                        ]
+                    );
                 }
             }
 
@@ -1545,13 +1639,17 @@ class BreedingContractController extends Controller
      */
     public function completeMatch(Request $request, $contractId)
     {
+        $validated = $request->validate([
+            'skip_offspring' => 'sometimes|boolean',
+        ]);
+
         $user = $request->user();
         $userPetIds = Pet::where('user_id', $user->id)->pluck('pet_id');
 
         // Get the contract with litter
         $contract = BreedingContract::where('id', $contractId)
             ->where('status', 'accepted')
-            ->where('breeding_status', 'completed')
+            ->whereIn('breeding_status', ['completed', 'failed'])
             ->where(function ($query) use ($userPetIds, $user) {
                 $query->whereHas('conversation.matchRequest', function ($q) use ($userPetIds) {
                     $q->whereIn('requester_pet_id', $userPetIds)
@@ -1565,8 +1663,16 @@ class BreedingContractController extends Controller
         if (!$contract) {
             return response()->json([
                 'success' => false,
-                'message' => 'Contract not found or breeding not completed',
+                'message' => 'Contract not found or breeding not yet marked as complete/failed',
             ], 404);
+        }
+
+        // If skip_offspring is requested, update has_offspring to false
+        // This allows completing the match when breeding was initially marked with offspring
+        // but no offspring were actually produced
+        if (!empty($validated['skip_offspring'])) {
+            $contract->update(['has_offspring' => false]);
+            $contract->refresh();
         }
 
         // Check if contract has offspring and they are allocated
@@ -1606,6 +1712,20 @@ class BreedingContractController extends Controller
                 ]);
             }
 
+            // Release collaterals from pool back to owners
+            try {
+                $this->poolService->releaseCollateral($contract);
+                Log::info('Collaterals released from pool on match completion', [
+                    'contract_id' => $contract->id,
+                ]);
+            } catch (\Exception $e) {
+                Log::error('Failed to release collaterals from pool', [
+                    'contract_id' => $contract->id,
+                    'error' => $e->getMessage(),
+                ]);
+                // Don't fail the match completion - pool release can be retried by admin
+            }
+
             // Mark the conversation as completed and archive it
             $conversation = $contract->conversation;
             $conversation->markAsCompleted();
@@ -1620,6 +1740,29 @@ class BreedingContractController extends Controller
 
             // Refresh to get updated timestamps
             $conversation->refresh();
+
+            // Notify all participants about contract completion
+            $matchRequest = $conversation->matchRequest;
+            if ($matchRequest) {
+                $matchRequest->load(['requesterPet', 'targetPet']);
+                $petName = $matchRequest->requesterPet->name ?? 'your pet';
+                $participantIds = collect([
+                    $matchRequest->requesterPet->user_id ?? null,
+                    $matchRequest->targetPet->user_id ?? null,
+                    $contract->shooter_user_id,
+                ])->filter()->unique();
+
+                foreach ($participantIds as $participantId) {
+                    ActivityNotificationService::contractCompleted(
+                        $participantId,
+                        $petName,
+                        [
+                            'contract_id' => $contract->id,
+                            'conversation_id' => $conversation->id,
+                        ]
+                    );
+                }
+            }
 
             return response()->json([
                 'success' => true,
@@ -1637,6 +1780,94 @@ class BreedingContractController extends Controller
             return response()->json([
                 'success' => false,
                 'message' => 'Failed to complete match',
+            ], 500);
+        }
+    }
+
+    /**
+     * Cancel a breeding contract
+     * Triggers pool cancellation logic (partial refunds minus cancellation fee)
+     */
+    public function cancelContract(Request $request, $contractId)
+    {
+        $validated = $request->validate([
+            'reason' => 'required|string|max:1000',
+        ]);
+
+        $user = $request->user();
+        $userPetIds = Pet::where('user_id', $user->id)->pluck('pet_id');
+
+        $contract = BreedingContract::where('id', $contractId)
+            ->where('status', 'accepted')
+            ->where(function ($query) use ($userPetIds, $user) {
+                $query->whereHas('conversation.matchRequest', function ($q) use ($userPetIds) {
+                    $q->whereIn('requester_pet_id', $userPetIds)
+                        ->orWhereIn('target_pet_id', $userPetIds);
+                })
+                    ->orWhere('shooter_user_id', $user->id);
+            })
+            ->with(['conversation'])
+            ->first();
+
+        if (!$contract) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Contract not found or you do not have access',
+            ], 404);
+        }
+
+        // Cannot cancel if there's an active dispute
+        if ($contract->hasActiveDispute()) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Cannot cancel contract while there is an active dispute. Please resolve the dispute first.',
+            ], 400);
+        }
+
+        try {
+            DB::beginTransaction();
+
+            // Update contract status
+            $contract->update([
+                'status' => 'cancelled',
+                'cancellation_reason' => $validated['reason'],
+                'cancelled_by' => $user->id,
+                'cancelled_at' => now(),
+            ]);
+
+            // Handle pool cancellation (partial refunds with fee deduction)
+            try {
+                $this->poolService->handleCancellation($contract, $user->id);
+                Log::info('Pool cancellation processed', [
+                    'contract_id' => $contract->id,
+                    'cancelled_by' => $user->id,
+                ]);
+            } catch (\Exception $e) {
+                Log::error('Failed to process pool cancellation', [
+                    'contract_id' => $contract->id,
+                    'error' => $e->getMessage(),
+                ]);
+                // Don't fail the cancellation - pool can be handled by admin
+            }
+
+            // Archive the conversation
+            if ($contract->conversation) {
+                $contract->conversation->archive();
+            }
+
+            DB::commit();
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Contract cancelled. Refunds will be processed according to the cancellation policy.',
+                'data' => $this->formatContract($contract->fresh(), $user),
+            ]);
+        } catch (\Exception $e) {
+            DB::rollBack();
+            Log::error('Failed to cancel contract: ' . $e->getMessage());
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to cancel contract',
             ], 500);
         }
     }
@@ -1899,7 +2130,7 @@ class BreedingContractController extends Controller
 
         // Check if user can submit reports
         $canSubmitReport = \App\Models\DailyReport::canUserReport($contract, $user);
-        
+
         // Check if report already exists for today
         $todayReportExists = $reports->where('report_date', now()->toDateString())->isNotEmpty();
 
