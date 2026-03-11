@@ -719,8 +719,10 @@ class ShooterController extends Controller
             $viewer = $request->user();
             if ($viewer && $viewer->hasLocation() && $shooter->hasLocation()) {
                 $distance = DistanceHelper::haversine(
-                    $viewer->latitude, $viewer->longitude,
-                    $shooter->latitude, $shooter->longitude
+                    $viewer->latitude,
+                    $viewer->longitude,
+                    $shooter->latitude,
+                    $shooter->longitude
                 );
                 $formatted = DistanceHelper::format(
                     $distance,

@@ -883,7 +883,10 @@ function SearchScreenContent() {
                   </Text>
                 )}
                 {shooter.distance_label && (
-                  <DistanceBadge distanceLabel={shooter.distance_label} size="sm" />
+                  <DistanceBadge
+                    distanceLabel={shooter.distance_label}
+                    size="sm"
+                  />
                 )}
               </TouchableOpacity>
             );

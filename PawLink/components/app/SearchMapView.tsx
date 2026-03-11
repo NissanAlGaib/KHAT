@@ -1,4 +1,12 @@
-import React, { useState, useEffect, useCallback, useRef } from "react";
+import React, {
+  useState,
+  useEffect,
+  useCallback,
+  useRef,
+  Component,
+  ErrorInfo,
+  ReactNode,
+} from "react";
 import {
   View,
   Text,
@@ -16,6 +24,7 @@ import {
   searchService,
   MapMarker,
   MapMarkerType,
+  MapFilterType,
 } from "@/services/searchService";
 import { getStorageUrl } from "@/utils/imageUrl";
 
@@ -29,7 +38,12 @@ const DEFAULT_REGION = {
   longitudeDelta: 0.5,
 };
 
-const FILTER_OPTIONS: { key: MapMarkerType; label: string; icon: string; color: string }[] = [
+const FILTER_OPTIONS: {
+  key: MapFilterType;
+  label: string;
+  icon: string;
+  color: string;
+}[] = [
   { key: "breeders", label: "Breeders", icon: "users", color: Colors.info },
   { key: "shooters", label: "Shooters", icon: "camera", color: Colors.warning },
   { key: "pets", label: "Pets", icon: "heart", color: Colors.primary },
@@ -39,12 +53,78 @@ interface SearchMapViewProps {
   onClose: () => void;
 }
 
-export default function SearchMapView({ onClose }: SearchMapViewProps) {
+class MapErrorBoundary extends Component<
+  { children: ReactNode; onClose: () => void },
+  { hasError: boolean }
+> {
+  state = { hasError: false };
+  static getDerivedStateFromError() {
+    return { hasError: true };
+  }
+  componentDidCatch(error: Error, info: ErrorInfo) {
+    console.error("MapView error:", error, info);
+  }
+  render() {
+    if (this.state.hasError) {
+      return (
+        <View
+          style={{
+            flex: 1,
+            alignItems: "center",
+            justifyContent: "center",
+            padding: 24,
+          }}
+        >
+          <Feather name="alert-circle" size={48} color={Colors.textMuted} />
+          <Text
+            style={{
+              fontSize: 16,
+              fontWeight: "600",
+              color: Colors.textPrimary,
+              marginTop: 16,
+              textAlign: "center",
+            }}
+          >
+            Map unavailable
+          </Text>
+          <Text
+            style={{
+              fontSize: 14,
+              color: Colors.textMuted,
+              marginTop: 8,
+              textAlign: "center",
+            }}
+          >
+            Could not load the map. Please make sure you have the latest app
+            version installed.
+          </Text>
+          <TouchableOpacity
+            onPress={this.props.onClose}
+            style={{
+              marginTop: 20,
+              paddingHorizontal: 24,
+              paddingVertical: 10,
+              backgroundColor: Colors.primary,
+              borderRadius: BorderRadius.md,
+            }}
+          >
+            <Text style={{ color: Colors.white, fontWeight: "600" }}>
+              Go Back
+            </Text>
+          </TouchableOpacity>
+        </View>
+      );
+    }
+    return this.props.children;
+  }
+}
+
+function SearchMapViewInner({ onClose }: SearchMapViewProps) {
   const router = useRouter();
   const mapRef = useRef<MapView>(null);
   const [markers, setMarkers] = useState<MapMarker[]>([]);
   const [loading, setLoading] = useState(true);
-  const [activeFilters, setActiveFilters] = useState<MapMarkerType[]>([
+  const [activeFilters, setActiveFilters] = useState<MapFilterType[]>([
     "breeders",
     "shooters",
     "pets",
@@ -80,7 +160,7 @@ export default function SearchMapView({ onClose }: SearchMapViewProps) {
     loadMarkers();
   }, [loadMarkers]);
 
-  const toggleFilter = (key: MapMarkerType) => {
+  const toggleFilter = (key: MapFilterType) => {
     setActiveFilters((prev) => {
       if (prev.includes(key)) {
         if (prev.length === 1) return prev; // Keep at least one
@@ -135,7 +215,10 @@ export default function SearchMapView({ onClose }: SearchMapViewProps) {
               key={opt.key}
               style={[
                 styles.filterChip,
-                active && { backgroundColor: opt.color + "18", borderColor: opt.color },
+                active && {
+                  backgroundColor: opt.color + "18",
+                  borderColor: opt.color,
+                },
               ]}
               onPress={() => toggleFilter(opt.key)}
             >
@@ -145,10 +228,7 @@ export default function SearchMapView({ onClose }: SearchMapViewProps) {
                 color={active ? opt.color : Colors.textMuted}
               />
               <Text
-                style={[
-                  styles.filterChipText,
-                  active && { color: opt.color },
-                ]}
+                style={[styles.filterChipText, active && { color: opt.color }]}
               >
                 {opt.label}
               </Text>
@@ -182,7 +262,9 @@ export default function SearchMapView({ onClose }: SearchMapViewProps) {
                 <View style={styles.callout}>
                   {marker.profile_image && (
                     <Image
-                      source={{ uri: getStorageUrl(marker.profile_image) || "" }}
+                      source={{
+                        uri: getStorageUrl(marker.profile_image) || "",
+                      }}
                       style={styles.calloutImage}
                     />
                   )}
@@ -336,3 +418,11 @@ const styles = StyleSheet.create({
     color: Colors.textMuted,
   },
 });
+
+export default function SearchMapView({ onClose }: SearchMapViewProps) {
+  return (
+    <MapErrorBoundary onClose={onClose}>
+      <SearchMapViewInner onClose={onClose} />
+    </MapErrorBoundary>
+  );
+}

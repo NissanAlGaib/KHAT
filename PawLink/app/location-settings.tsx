@@ -17,17 +17,40 @@ import {
 
 type Precision = "city" | "barangay" | "exact";
 
-const PRECISION_OPTIONS: { key: Precision; label: string; description: string }[] = [
-  { key: "city", label: "City Level", description: "~5 km accuracy. Other users see your general city area." },
-  { key: "barangay", label: "Barangay Level", description: "~500 m accuracy. Shows approximate neighborhood." },
-  { key: "exact", label: "Exact Location", description: "Precise pin. Best for nearby matching." },
+const PRECISION_OPTIONS: {
+  key: Precision;
+  label: string;
+  description: string;
+}[] = [
+  {
+    key: "city",
+    label: "City Level",
+    description: "~5 km accuracy. Other users see your general city area.",
+  },
+  {
+    key: "barangay",
+    label: "Barangay Level",
+    description: "~500 m accuracy. Shows approximate neighborhood.",
+  },
+  {
+    key: "exact",
+    label: "Exact Location",
+    description: "Precise pin. Best for nearby matching.",
+  },
 ];
 
 export default function LocationSettingsScreen() {
   const router = useRouter();
   const { user } = useSession();
   const { visible, alertOptions, showAlert, hideAlert } = useAlert();
-  const { latitude, longitude, loading: locLoading, error: locError, permissionStatus, requestLocation } = useLocation();
+  const {
+    latitude,
+    longitude,
+    loading: locLoading,
+    error: locError,
+    permissionStatus,
+    requestLocation,
+  } = useLocation();
 
   const [saving, setSaving] = useState(false);
   const [profileLoading, setProfileLoading] = useState(true);
@@ -78,7 +101,11 @@ export default function LocationSettingsScreen() {
 
   const handleSave = async () => {
     if (!currentLat || !currentLng) {
-      showAlert({ title: "No Location", message: "Please detect your location first.", type: "warning" });
+      showAlert({
+        title: "No Location",
+        message: "Please detect your location first.",
+        type: "warning",
+      });
       return;
     }
     setSaving(true);
@@ -97,7 +124,11 @@ export default function LocationSettingsScreen() {
       });
     } catch (error) {
       console.error("Error saving location:", error);
-      showAlert({ title: "Error", message: "Failed to save location settings.", type: "error" });
+      showAlert({
+        title: "Error",
+        message: "Failed to save location settings.",
+        type: "error",
+      });
     } finally {
       setSaving(false);
     }
@@ -106,7 +137,9 @@ export default function LocationSettingsScreen() {
   if (profileLoading) {
     return (
       <SettingsLayout headerTitle="Location Settings">
-        <View style={{ flex: 1, justifyContent: "center", alignItems: "center" }}>
+        <View
+          style={{ flex: 1, justifyContent: "center", alignItems: "center" }}
+        >
           <ActivityIndicator size="large" color={Colors.primary} />
         </View>
       </SettingsLayout>
@@ -121,14 +154,18 @@ export default function LocationSettingsScreen() {
       <SettingsSection title="Your Location">
         <View style={{ padding: Spacing.md }}>
           {currentLat && currentLng ? (
-            <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
+            <View
+              style={{ flexDirection: "row", alignItems: "center", gap: 8 }}
+            >
               <Feather name="check-circle" size={20} color={Colors.success} />
               <Text style={{ color: Colors.textPrimary, fontSize: 14 }}>
                 Location set ({currentLat.toFixed(4)}, {currentLng.toFixed(4)})
               </Text>
             </View>
           ) : (
-            <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
+            <View
+              style={{ flexDirection: "row", alignItems: "center", gap: 8 }}
+            >
               <Feather name="alert-circle" size={20} color={Colors.warning} />
               <Text style={{ color: Colors.textMuted, fontSize: 14 }}>
                 No location set — tap below to detect
@@ -148,7 +185,9 @@ export default function LocationSettingsScreen() {
       {/* Privacy Precision */}
       <SettingsSection title="Location Privacy">
         <View style={{ padding: Spacing.md, gap: 8 }}>
-          <Text style={{ color: Colors.textMuted, fontSize: 13, marginBottom: 4 }}>
+          <Text
+            style={{ color: Colors.textMuted, fontSize: 13, marginBottom: 4 }}
+          >
             Choose how precisely others can see your location:
           </Text>
           {PRECISION_OPTIONS.map((opt) => (
@@ -159,28 +198,54 @@ export default function LocationSettingsScreen() {
                 alignItems: "center",
                 padding: 12,
                 borderRadius: 10,
-                backgroundColor: precision === opt.key ? Colors.primary + "10" : "#F9FAFB",
+                backgroundColor:
+                  precision === opt.key ? Colors.primary + "10" : "#F9FAFB",
                 borderWidth: 1,
                 borderColor: precision === opt.key ? Colors.primary : "#E5E7EB",
               }}
               onPress={() => setPrecision(opt.key)}
             >
-              <View style={{
-                width: 20, height: 20, borderRadius: 10,
-                borderWidth: 2,
-                borderColor: precision === opt.key ? Colors.primary : "#D1D5DB",
-                alignItems: "center", justifyContent: "center",
-                marginRight: 12,
-              }}>
+              <View
+                style={{
+                  width: 20,
+                  height: 20,
+                  borderRadius: 10,
+                  borderWidth: 2,
+                  borderColor:
+                    precision === opt.key ? Colors.primary : "#D1D5DB",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  marginRight: 12,
+                }}
+              >
                 {precision === opt.key && (
-                  <View style={{ width: 10, height: 10, borderRadius: 5, backgroundColor: Colors.primary }} />
+                  <View
+                    style={{
+                      width: 10,
+                      height: 10,
+                      borderRadius: 5,
+                      backgroundColor: Colors.primary,
+                    }}
+                  />
                 )}
               </View>
               <View style={{ flex: 1 }}>
-                <Text style={{ fontWeight: "600", color: Colors.textPrimary, fontSize: 14 }}>
+                <Text
+                  style={{
+                    fontWeight: "600",
+                    color: Colors.textPrimary,
+                    fontSize: 14,
+                  }}
+                >
                   {opt.label}
                 </Text>
-                <Text style={{ color: Colors.textMuted, fontSize: 12, marginTop: 2 }}>
+                <Text
+                  style={{
+                    color: Colors.textMuted,
+                    fontSize: 12,
+                    marginTop: 2,
+                  }}
+                >
                   {opt.description}
                 </Text>
               </View>
@@ -198,9 +263,12 @@ export default function LocationSettingsScreen() {
           value={preferNearby}
           onPress={() => setPreferNearby((v) => !v)}
         />
-        <View style={{ paddingHorizontal: Spacing.md, paddingBottom: Spacing.md }}>
+        <View
+          style={{ paddingHorizontal: Spacing.md, paddingBottom: Spacing.md }}
+        >
           <Text style={{ color: Colors.textMuted, fontSize: 12 }}>
-            When enabled, the matching algorithm will slightly favor pets from owners closer to you.
+            When enabled, the matching algorithm will slightly favor pets from
+            owners closer to you.
           </Text>
         </View>
       </SettingsSection>

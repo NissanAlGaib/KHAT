@@ -3,9 +3,7 @@
     "name": "PawLink",
     "slug": "PawLink",
     "version": "1.7.0",
-    "assetBundlePatterns": [
-      "**/*"
-    ],
+    "assetBundlePatterns": ["**/*"],
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
     "scheme": "pawlink",
@@ -52,7 +50,20 @@
       "expo-font",
       "@react-native-community/datetimepicker",
       "expo-secure-store",
-      "expo-web-browser"
+      "expo-web-browser",
+      [
+        "expo-location",
+        {
+          "locationAlwaysAndWhenInUsePermission": "PawLink uses your location to show nearby breeders, shooters, and pets.",
+          "locationWhenInUsePermission": "PawLink uses your location to show nearby breeders, shooters, and pets."
+        }
+      ],
+      [
+        "react-native-maps",
+        {
+          "androidApiKey": "AIzaSyBfEG1_Ut1akRLQ3Tx7PwPHZ_X_bDN_gvQ"
+        }
+      ]
     ],
     "experiments": {
       "typedRoutes": true,

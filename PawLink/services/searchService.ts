@@ -117,6 +117,7 @@ export interface BreedListResponse {
 }
 
 export type MapMarkerType = "breeder" | "shooter" | "pet";
+export type MapFilterType = "breeders" | "shooters" | "pets";
 
 export interface MapMarker {
   type: MapMarkerType;
@@ -137,7 +138,7 @@ export interface MapMarker {
 }
 
 export interface MapSearchParams {
-  types?: MapMarkerType[];
+  types?: MapFilterType[];
   radius_km?: number;
   species?: string;
   limit?: number;
@@ -257,15 +258,25 @@ export const searchService = {
   /**
    * Get map markers for breeders, shooters, and/or pets within optional radius
    */
-  mapSearch: async (params: MapSearchParams = {}): Promise<MapSearchResponse> => {
+  mapSearch: async (
+    params: MapSearchParams = {},
+  ): Promise<MapSearchResponse> => {
     const queryParams: any = {};
     if (params.types) queryParams.types = params.types;
     if (params.radius_km) queryParams.radius_km = params.radius_km;
     if (params.species) queryParams.species = params.species;
     if (params.limit) queryParams.limit = params.limit;
 
-    const response = await axios.get("/api/search/map", { params: queryParams });
-    return response.data.data || { markers: [], center: { latitude: 0, longitude: 0 }, count: 0 };
+    const response = await axios.get("/api/search/map", {
+      params: queryParams,
+    });
+    return (
+      response.data.data || {
+        markers: [],
+        center: { latitude: 0, longitude: 0 },
+        count: 0,
+      }
+    );
   },
 
   /**

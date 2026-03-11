@@ -447,8 +447,10 @@ class MatchController extends Controller
             if ($petOwner && $petOwner->prefer_nearby_matches && $petOwner->hasLocation()) {
                 $features['location_active'] = true;
                 $distKm = DistanceHelper::haversine(
-                    $viewer->latitude, $viewer->longitude,
-                    $petOwner->latitude, $petOwner->longitude
+                    $viewer->latitude,
+                    $viewer->longitude,
+                    $petOwner->latitude,
+                    $petOwner->longitude
                 );
                 $decayFactor = config('matching.location.decay_factor', 100);
                 $features['location'] = exp(-$distKm / $decayFactor);

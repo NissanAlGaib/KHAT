@@ -338,8 +338,10 @@ class SearchController extends Controller
 
                 if ($viewer && $viewer->hasLocation() && $user->hasLocation()) {
                     $distance = DistanceHelper::haversine(
-                        $viewer->latitude, $viewer->longitude,
-                        $user->latitude, $user->longitude
+                        $viewer->latitude,
+                        $viewer->longitude,
+                        $user->latitude,
+                        $user->longitude
                     );
                     $formatted = DistanceHelper::format(
                         $distance,
@@ -625,8 +627,10 @@ class SearchController extends Controller
 
                 if ($viewer && $viewer->hasLocation() && $user->hasLocation()) {
                     $distance = DistanceHelper::haversine(
-                        $viewer->latitude, $viewer->longitude,
-                        $user->latitude, $user->longitude
+                        $viewer->latitude,
+                        $viewer->longitude,
+                        $user->latitude,
+                        $user->longitude
                     );
                     $formatted = DistanceHelper::format(
                         $distance,
@@ -689,8 +693,10 @@ class SearchController extends Controller
         // Add distance info if viewer has location
         if ($viewer && $viewer->hasLocation() && $pet->owner && $pet->owner->hasLocation()) {
             $distance = DistanceHelper::haversine(
-                $viewer->latitude, $viewer->longitude,
-                $pet->owner->latitude, $pet->owner->longitude
+                $viewer->latitude,
+                $viewer->longitude,
+                $pet->owner->latitude,
+                $pet->owner->longitude
             );
             $formatted = DistanceHelper::format(
                 $distance,
@@ -838,8 +844,10 @@ class SearchController extends Controller
             $viewer = $request->user();
             if ($viewer && $viewer->hasLocation() && $breeder->hasLocation()) {
                 $distance = DistanceHelper::haversine(
-                    $viewer->latitude, $viewer->longitude,
-                    $breeder->latitude, $breeder->longitude
+                    $viewer->latitude,
+                    $viewer->longitude,
+                    $breeder->latitude,
+                    $breeder->longitude
                 );
                 $formatted = DistanceHelper::format(
                     $distance,

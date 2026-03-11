@@ -85,7 +85,7 @@ export const getUserProfile = async (): Promise<UserProfile> => {
   } catch (error: any) {
     console.error(
       "Error getting user profile:",
-      error.response?.data || error.message
+      error.response?.data || error.message,
     );
     throw error;
   }
@@ -95,7 +95,7 @@ export const getUserProfile = async (): Promise<UserProfile> => {
  * Update user profile
  */
 export const updateUserProfile = async (
-  data: UpdateProfileData
+  data: UpdateProfileData,
 ): Promise<UserProfile> => {
   try {
     const formData = new FormData();
@@ -111,10 +111,17 @@ export const updateUserProfile = async (
     if (data.address) formData.append("address", JSON.stringify(data.address));
 
     // Location fields
-    if (data.latitude !== undefined) formData.append("latitude", String(data.latitude));
-    if (data.longitude !== undefined) formData.append("longitude", String(data.longitude));
-    if (data.location_precision) formData.append("location_precision", data.location_precision);
-    if (data.prefer_nearby_matches !== undefined) formData.append("prefer_nearby_matches", data.prefer_nearby_matches ? "1" : "0");
+    if (data.latitude !== undefined)
+      formData.append("latitude", String(data.latitude));
+    if (data.longitude !== undefined)
+      formData.append("longitude", String(data.longitude));
+    if (data.location_precision)
+      formData.append("location_precision", data.location_precision);
+    if (data.prefer_nearby_matches !== undefined)
+      formData.append(
+        "prefer_nearby_matches",
+        data.prefer_nearby_matches ? "1" : "0",
+      );
 
     // Handle profile image if provided
     if (data.profile_image) {
@@ -137,7 +144,7 @@ export const updateUserProfile = async (
   } catch (error: any) {
     console.error(
       "Error updating user profile:",
-      error.response?.data || error.message
+      error.response?.data || error.message,
     );
     throw error;
   }
@@ -153,7 +160,7 @@ export const getUserStatistics = async (): Promise<UserStatistics> => {
   } catch (error: any) {
     console.error(
       "Error getting user statistics:",
-      error.response?.data || error.message
+      error.response?.data || error.message,
     );
     // Return default values if endpoint doesn't exist yet
     return {
@@ -187,14 +194,14 @@ export const uploadProfileImage = async (imageUri: string): Promise<string> => {
         headers: {
           "Content-Type": "multipart/form-data",
         },
-      }
+      },
     );
 
     return response.data.profile_image;
   } catch (error: any) {
     console.error(
       "Error uploading profile image:",
-      error.response?.data || error.message
+      error.response?.data || error.message,
     );
     throw error;
   }
@@ -206,7 +213,7 @@ export const uploadProfileImage = async (imageUri: string): Promise<string> => {
 export const changePassword = async (
   currentPassword: string,
   newPassword: string,
-  confirmPassword: string
+  confirmPassword: string,
 ): Promise<{ success: boolean; message: string }> => {
   try {
     const response = await axiosInstance.post("/api/user/change-password", {
@@ -218,7 +225,7 @@ export const changePassword = async (
   } catch (error: any) {
     console.error(
       "Error changing password:",
-      error.response?.data || error.message
+      error.response?.data || error.message,
     );
     throw error;
   }
@@ -228,7 +235,7 @@ export const changePassword = async (
  * Delete user account
  */
 export const deleteAccount = async (
-  password: string
+  password: string,
 ): Promise<{ success: boolean; message: string }> => {
   try {
     const response = await axiosInstance.post("/api/user/delete-account", {
@@ -239,7 +246,7 @@ export const deleteAccount = async (
   } catch (error: any) {
     console.error(
       "Error deleting account:",
-      error.response?.data || error.message
+      error.response?.data || error.message,
     );
     throw error;
   }
@@ -248,14 +255,16 @@ export const deleteAccount = async (
 /**
  * Get a breeder's public profile by ID
  */
-export const getBreederProfile = async (breederId: number): Promise<BreederProfile> => {
+export const getBreederProfile = async (
+  breederId: number,
+): Promise<BreederProfile> => {
   try {
     const response = await axiosInstance.get(`/api/breeders/${breederId}`);
     return response.data.data;
   } catch (error: any) {
     console.error(
       "Error getting breeder profile:",
-      error.response?.data || error.message
+      error.response?.data || error.message,
     );
     throw error;
   }
