@@ -29,6 +29,7 @@ import {
 import { getStorageUrl } from "@/utils/imageUrl";
 import { useAlert } from "@/hooks/useAlert";
 import AlertModal from "@/components/core/AlertModal";
+import { SettingsSection, SettingsItem } from "@/components/settings";
 import { LinearGradient } from "expo-linear-gradient";
 import dayjs from "dayjs";
 
@@ -315,100 +316,63 @@ export default function ProfileScreen() {
   };
 
   const renderSettings = () => {
-    const menuItems = [
-      {
-        icon: "user" as const,
-        label: "Account",
-        subtitle: "Name, photo, contact info",
-        iconBg: "#3B82F6",
-        onPress: () => router.push("/edit-profile"),
-      },
-      {
-        icon: "bell" as const,
-        label: "Notifications",
-        subtitle: "Alerts and activity updates",
-        iconBg: "#F59E0B",
-        onPress: () => router.push("/notifications"),
-      },
-      {
-        icon: "shield" as const,
-        label: "Privacy & Security",
-        subtitle: "Password, account safety",
-        iconBg: "#10B981",
-        onPress: () => router.push("/privacy-security"),
-      },
-      {
-        icon: "map-pin" as const,
-        label: "Location Settings",
-        subtitle: "Distance, map preferences",
-        iconBg: "#EF4444",
-        onPress: () => router.push("/location-settings"),
-      },
-      {
-        icon: "credit-card" as const,
-        label: "My Payments",
-        subtitle: "Transactions and disputes",
-        iconBg: "#8B5CF6",
-        onPress: () => router.push("/my-payments"),
-      },
-      {
-        icon: "award" as const,
-        label: "Breeding History",
-        subtitle: "Completed breeding contracts",
-        iconBg: "#EC4899",
-        onPress: () => router.push("/completed-matches"),
-      },
-    ];
-
     return (
       <View style={styles.tabContent}>
-        <View style={styles.settingsCard}>
-          {menuItems.map((item, index) => (
-            <TouchableOpacity
-              key={item.label}
-              style={[
-                styles.settingsRow,
-                index < menuItems.length - 1 && styles.settingsRowBorder,
-              ]}
-              onPress={item.onPress}
-              activeOpacity={0.7}
-            >
-              <View
-                style={[
-                  styles.settingsIconBox,
-                  { backgroundColor: item.iconBg },
-                ]}
-              >
-                <Feather name={item.icon} size={18} color="white" />
-              </View>
-              <View style={styles.settingsRowContent}>
-                <Text style={styles.settingsRowLabel}>{item.label}</Text>
-                <Text style={styles.settingsRowSubtitle}>{item.subtitle}</Text>
-              </View>
-              <Feather name="chevron-right" size={18} color="#C0C0C0" />
-            </TouchableOpacity>
-          ))}
-        </View>
+        <SettingsSection>
+          <SettingsItem
+            icon="user"
+            iconColor="#3B82F6"
+            label="Account"
+            subtitle="Name, photo, contact info"
+            onPress={() => router.push("/edit-profile")}
+          />
+          <SettingsItem
+            icon="bell"
+            iconColor="#F59E0B"
+            label="Notifications"
+            subtitle="Alerts and activity updates"
+            onPress={() => router.push("/notifications")}
+          />
+          <SettingsItem
+            icon="shield"
+            iconColor="#10B981"
+            label="Privacy & Security"
+            subtitle="Password, account safety"
+            onPress={() => router.push("/privacy-security")}
+          />
+          <SettingsItem
+            icon="map-pin"
+            iconColor="#EF4444"
+            label="Location Settings"
+            subtitle="Distance, map preferences"
+            onPress={() => router.push("/location-settings")}
+          />
+          <SettingsItem
+            icon="credit-card"
+            iconColor="#8B5CF6"
+            label="My Payments"
+            subtitle="Transactions and disputes"
+            onPress={() => router.push("/my-payments")}
+          />
+          <SettingsItem
+            icon="award"
+            iconColor="#EC4899"
+            label="Breeding History"
+            subtitle="Completed breeding contracts"
+            onPress={() => router.push("/completed-matches")}
+            borderless
+          />
+        </SettingsSection>
 
-        {/* Sign Out — separate danger card */}
-        <View style={styles.settingsCard}>
-          <TouchableOpacity
-            style={styles.settingsRow}
+        <SettingsSection>
+          <SettingsItem
+            icon="log-out"
+            label="Sign Out"
             onPress={handleLogout}
-            activeOpacity={0.7}
-          >
-            <View
-              style={[styles.settingsIconBox, { backgroundColor: "#EF4444" }]}
-            >
-              <Feather name="log-out" size={18} color="white" />
-            </View>
-            <View style={styles.settingsRowContent}>
-              <Text style={[styles.settingsRowLabel, { color: "#EF4444" }]}>
-                Sign Out
-              </Text>
-            </View>
-          </TouchableOpacity>
-        </View>
+            isDestructive
+            borderless
+          />
+        </SettingsSection>
       </View>
     );
   };
@@ -737,40 +701,6 @@ const styles = StyleSheet.create({
     fontSize: 13,
   },
   headerRoleTextActive: { color: "#FF6B4A" },
-  // iOS-style settings cards
-  settingsCard: {
-    backgroundColor: "white",
-    borderRadius: 16,
-    marginHorizontal: 4,
-    marginBottom: 16,
-    overflow: "hidden",
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.07,
-    shadowRadius: 8,
-    elevation: 3,
-  },
-  settingsRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    paddingVertical: 13,
-    paddingHorizontal: 16,
-  },
-  settingsRowBorder: {
-    borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: "#E5E7EB",
-  },
-  settingsIconBox: {
-    width: 36,
-    height: 36,
-    borderRadius: 9,
-    justifyContent: "center",
-    alignItems: "center",
-    marginRight: 14,
-  },
-  settingsRowContent: { flex: 1 },
-  settingsRowLabel: { fontSize: 15, fontWeight: "600", color: "#111827" },
-  settingsRowSubtitle: { fontSize: 12, color: "#9CA3AF", marginTop: 2 },
   fab: {
     position: "absolute",
     bottom: 110,

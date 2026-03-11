@@ -6,7 +6,6 @@ import {
   FlatList,
   ActivityIndicator,
   RefreshControl,
-  StyleSheet,
 } from "react-native";
 import { useRouter } from "expo-router";
 import { Feather } from "@expo/vector-icons";
@@ -31,6 +30,7 @@ import {
   Dispute,
 } from "@/services/disputeService";
 import { SettingsLayout } from "@/components/settings";
+import { Colors } from "@/constants";
 
 type TabType = "transactions" | "disputes";
 type FilterType = "all" | PoolTransactionType;
@@ -123,29 +123,43 @@ export default function MyPaymentsScreen() {
   const renderBalanceCard = () => {
     if (!balance) return null;
     return (
-      <View className="mx-4 mt-4 mb-2 bg-gray-900 rounded-2xl p-5 shadow-sm">
-        <Text className="text-gray-400 text-sm font-medium mb-1">
-          Pool Balance
-        </Text>
-        <Text className="text-white text-3xl font-bold mb-4">
+      <View
+        className="mx-4 mt-4 mb-2 bg-white rounded-2xl p-5"
+        style={{
+          shadowColor: "#000",
+          shadowOffset: { width: 0, height: 1 },
+          shadowOpacity: 0.04,
+          shadowRadius: 12,
+          elevation: 2,
+        }}
+      >
+        <View className="flex-row items-center gap-2 mb-1">
+          <View className="w-2 h-2 rounded-full bg-primary" />
+          <Text className="text-gray-500 text-sm font-medium">
+            Pool Balance
+          </Text>
+        </View>
+        <Text className="text-gray-900 text-3xl font-bold mb-4">
           {formatPoolAmount(balance.held)}
         </Text>
-        <View className="flex-row justify-between">
-          <View>
-            <Text className="text-gray-500 text-xs">Frozen</Text>
-            <Text className="text-blue-400 text-sm font-semibold">
+        <View className="flex-row justify-between bg-gray-50 rounded-xl p-3">
+          <View className="items-center">
+            <Text className="text-gray-400 text-xs mb-0.5">Frozen</Text>
+            <Text className="text-blue-600 text-sm font-semibold">
               {formatPoolAmount(balance.frozen)}
             </Text>
           </View>
-          <View>
-            <Text className="text-gray-500 text-xs">Pending</Text>
-            <Text className="text-yellow-400 text-sm font-semibold">
+          <View className="w-px bg-gray-200" />
+          <View className="items-center">
+            <Text className="text-gray-400 text-xs mb-0.5">Pending</Text>
+            <Text className="text-amber-600 text-sm font-semibold">
               {formatPoolAmount(balance.pending_deposits)}
             </Text>
           </View>
-          <View>
-            <Text className="text-gray-500 text-xs">Total Released</Text>
-            <Text className="text-green-400 text-sm font-semibold">
+          <View className="w-px bg-gray-200" />
+          <View className="items-center">
+            <Text className="text-gray-400 text-xs mb-0.5">Released</Text>
+            <Text className="text-green-600 text-sm font-semibold">
               {formatPoolAmount(balance.total_released)}
             </Text>
           </View>
@@ -171,9 +185,15 @@ export default function MyPaymentsScreen() {
     const amountPrefix = earned ? "+" : credit ? "" : "-";
 
     return (
-      <TouchableOpacity
-        className="mx-4 mb-3 bg-white rounded-xl p-4 shadow-sm border border-gray-100"
-        activeOpacity={0.7}
+      <View
+        className="mx-4 mb-3 bg-white rounded-2xl p-4 border border-gray-100"
+        style={{
+          shadowColor: "#000",
+          shadowOffset: { width: 0, height: 1 },
+          shadowOpacity: 0.04,
+          shadowRadius: 8,
+          elevation: 1,
+        }}
       >
         {/* Direction label + Amount */}
         <View className="flex-row items-center justify-between mb-2">
@@ -213,7 +233,7 @@ export default function MyPaymentsScreen() {
           </Text>
         )}
 
-        <View className="flex-row items-center justify-between mt-2 pt-2 border-t border-gray-50">
+        <View className="flex-row items-center justify-between mt-2 pt-2 border-t border-gray-100">
           {item.contract_id ? (
             <Text className="text-gray-400 text-xs">
               Contract #{item.contract_id}
@@ -231,7 +251,7 @@ export default function MyPaymentsScreen() {
             })}
           </Text>
         </View>
-      </TouchableOpacity>
+      </View>
     );
   };
 
@@ -240,7 +260,16 @@ export default function MyPaymentsScreen() {
     const date = new Date(item.created_at);
 
     return (
-      <View className="mx-4 mb-3 bg-white rounded-xl p-4 shadow-sm border border-gray-100">
+      <View
+        className="mx-4 mb-3 bg-white rounded-2xl p-4 border border-gray-100"
+        style={{
+          shadowColor: "#000",
+          shadowOffset: { width: 0, height: 1 },
+          shadowOpacity: 0.04,
+          shadowRadius: 8,
+          elevation: 1,
+        }}
+      >
         <View className="flex-row items-center justify-between mb-2">
           <View className="flex-row items-center gap-2">
             <View className={`px-2 py-1 rounded-md ${statusColor.bg}`}>
@@ -306,13 +335,13 @@ export default function MyPaymentsScreen() {
             onPress={() => setFilter(opt.value)}
             className={`mr-2 px-4 py-2 rounded-full ${
               filter === opt.value
-                ? "bg-[#E75234]"
+                ? "bg-primary"
                 : "bg-white border border-gray-200"
             }`}
           >
             <Text
               className={`text-sm font-medium ${
-                filter === opt.value ? "text-white" : "text-gray-600"
+                filter === opt.value ? "text-white" : "text-gray-500"
               }`}
             >
               {opt.label}
@@ -325,11 +354,11 @@ export default function MyPaymentsScreen() {
 
   const renderEmptyState = () => (
     <View className="items-center justify-center py-16 px-4">
-      <View className="bg-gray-100 p-4 rounded-full mb-4">
+      <View className="bg-orange-50 p-4 rounded-full mb-4">
         <Feather
           name={activeTab === "transactions" ? "inbox" : "check-circle"}
           size={32}
-          color="#9CA3AF"
+          color={Colors.primary}
         />
       </View>
       <Text className="text-gray-900 text-lg font-semibold text-center">
@@ -351,16 +380,27 @@ export default function MyPaymentsScreen() {
       {renderBalanceCard()}
 
       {/* Tabs */}
-      <View className="flex-row mx-4 mt-3 mb-4 bg-gray-200/50 p-1 rounded-xl">
+      <View className="flex-row mx-4 mt-3 mb-4 bg-gray-100 p-1 rounded-2xl">
         <TouchableOpacity
           onPress={() => setActiveTab("transactions")}
-          className={`flex-1 py-2.5 rounded-lg items-center justify-center ${
-            activeTab === "transactions" ? "bg-white shadow-sm" : ""
+          className={`flex-1 py-2.5 rounded-xl items-center justify-center ${
+            activeTab === "transactions" ? "bg-white" : ""
           }`}
+          style={
+            activeTab === "transactions"
+              ? {
+                  shadowColor: "#000",
+                  shadowOffset: { width: 0, height: 1 },
+                  shadowOpacity: 0.06,
+                  shadowRadius: 4,
+                  elevation: 1,
+                }
+              : undefined
+          }
         >
           <Text
             className={`text-sm font-semibold ${
-              activeTab === "transactions" ? "text-gray-900" : "text-gray-500"
+              activeTab === "transactions" ? "text-gray-900" : "text-gray-400"
             }`}
           >
             Transactions
@@ -368,13 +408,24 @@ export default function MyPaymentsScreen() {
         </TouchableOpacity>
         <TouchableOpacity
           onPress={() => setActiveTab("disputes")}
-          className={`flex-1 py-2.5 rounded-lg items-center justify-center ${
-            activeTab === "disputes" ? "bg-white shadow-sm" : ""
+          className={`flex-1 py-2.5 rounded-xl items-center justify-center ${
+            activeTab === "disputes" ? "bg-white" : ""
           }`}
+          style={
+            activeTab === "disputes"
+              ? {
+                  shadowColor: "#000",
+                  shadowOffset: { width: 0, height: 1 },
+                  shadowOpacity: 0.06,
+                  shadowRadius: 4,
+                  elevation: 1,
+                }
+              : undefined
+          }
         >
           <Text
             className={`text-sm font-semibold ${
-              activeTab === "disputes" ? "text-gray-900" : "text-gray-500"
+              activeTab === "disputes" ? "text-gray-900" : "text-gray-400"
             }`}
           >
             Disputes
@@ -388,15 +439,11 @@ export default function MyPaymentsScreen() {
   );
 
   return (
-    <SettingsLayout
-      headerTitle="My Payments"
-      scrollable={false}
-      contentContainerStyle={{ backgroundColor: "#F9FAFB" }}
-    >
+    <SettingsLayout headerTitle="My Payments" scrollable={false}>
       {/* Content */}
       {loading ? (
         <View className="flex-1 items-center justify-center pt-20">
-          <ActivityIndicator size="large" color="#E75234" />
+          <ActivityIndicator size="large" color={Colors.primary} />
         </View>
       ) : activeTab === "transactions" ? (
         <FlatList
@@ -411,7 +458,7 @@ export default function MyPaymentsScreen() {
             <RefreshControl
               refreshing={refreshing}
               onRefresh={onRefresh}
-              tintColor="#E75234"
+              tintColor={Colors.primary}
             />
           }
           contentContainerStyle={{ paddingBottom: 40 }}
@@ -428,7 +475,7 @@ export default function MyPaymentsScreen() {
             <RefreshControl
               refreshing={refreshing}
               onRefresh={onRefresh}
-              tintColor="#E75234"
+              tintColor={Colors.primary}
             />
           }
           contentContainerStyle={{ paddingBottom: 40 }}

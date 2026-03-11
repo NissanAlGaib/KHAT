@@ -13,9 +13,9 @@ export const SettingsSection = ({
   className,
 }: SettingsSectionProps) => {
   return (
-    <View className={`mb-5 ${className || ""}`}>
+    <View className={`mb-6 ${className || ""}`}>
       {title && (
-        <Text className="text-xs font-bold text-gray-400 uppercase tracking-widest mb-2 ml-1 px-4">
+        <Text className="text-xs font-semibold text-gray-400 uppercase tracking-widest mb-2.5 ml-1 px-5">
           {title}
         </Text>
       )}
@@ -23,9 +23,9 @@ export const SettingsSection = ({
         className="bg-white rounded-2xl overflow-hidden mx-4"
         style={{
           shadowColor: "#000",
-          shadowOffset: { width: 0, height: 2 },
-          shadowOpacity: 0.06,
-          shadowRadius: 8,
+          shadowOffset: { width: 0, height: 1 },
+          shadowOpacity: 0.04,
+          shadowRadius: 12,
           elevation: 2,
         }}
       >

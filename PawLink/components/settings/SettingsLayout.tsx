@@ -55,7 +55,7 @@ export const SettingsLayout: React.FC<SettingsLayoutProps> = ({
   );
 
   return (
-    <SafeAreaView className="flex-1 bg-[#F2F4F8]" edges={["top"]}>
+    <SafeAreaView className="flex-1 bg-[#FAFAFA]" edges={["top"]}>
       <StatusBar barStyle="light-content" backgroundColor="#FF6B4A" />
 
       {/* Branded gradient header */}

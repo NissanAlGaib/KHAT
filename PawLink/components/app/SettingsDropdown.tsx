@@ -40,7 +40,7 @@ export default function SettingsDropdown() {
 
   const handleNavigate = (path: Parameters<typeof router.push>[0]) => {
     setOpen(false);
-    setTimeout(() => router.push("/settings"), ANIM_DURATION); // use absolute root path
+    setTimeout(() => router.push("/(tabs)/profile"), ANIM_DURATION);
   };
 
   const handleLogout = async () => {
@@ -65,7 +65,7 @@ export default function SettingsDropdown() {
         (x: number, y: number, width: number, height: number) => {
           setTriggerLayout({ x, y, width, height });
           setOpen(true);
-        }
+        },
       );
     } else {
       setOpen(true);

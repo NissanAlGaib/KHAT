@@ -27,7 +27,6 @@ export const SettingsInput = ({
         className={`
         flex-row items-center bg-white border rounded-xl px-3 h-12
         ${error ? "border-red-500" : "border-gray-200"}
-        focus:border-[${Colors.primary}]
       `}
       >
         {icon && (

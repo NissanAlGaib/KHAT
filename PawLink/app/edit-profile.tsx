@@ -1,11 +1,5 @@
 import React, { useState, useEffect } from "react";
-import {
-  View,
-  Text,
-  TouchableOpacity,
-  Image,
-  ScrollView,
-} from "react-native";
+import { View, Text, TouchableOpacity, Image, Platform } from "react-native";
 import { useRouter } from "expo-router";
 import { Feather } from "@expo/vector-icons";
 import * as ImagePicker from "expo-image-picker";
@@ -260,114 +254,112 @@ export default function EditProfileScreen() {
       headerTitle="Edit Profile"
       contentContainerStyle={{ paddingBottom: 100 }}
     >
-        <View className="mb-6 items-center pt-4">
-          <TouchableOpacity onPress={pickImage} activeOpacity={0.8}>
-            <View className="relative">
-              <Image
-                source={getImageSource()}
-                className="w-32 h-32 rounded-full border-4 border-white shadow-sm"
-              />
-              <View className="absolute bottom-0 right-0 bg-orange-500 p-2 rounded-full border-2 border-white">
-                <Feather name="camera" size={16} color="white" />
-              </View>
-            </View>
-          </TouchableOpacity>
-          <Text className="text-gray-500 text-sm mt-3">
-            Tap to change photo
-          </Text>
-        </View>
-
-        <SettingsSection title="Personal Information">
-          <View className="p-4 bg-white">
-            <SettingsInput
-              label="Full Name"
-              value={name}
-              onChangeText={setName}
-              placeholder="e.g. John Doe"
-              icon="user"
-              error={errors.name}
+      <View className="mb-6 items-center pt-4">
+        <TouchableOpacity onPress={pickImage} activeOpacity={0.8}>
+          <View className="relative">
+            <Image
+              source={getImageSource()}
+              className="w-32 h-32 rounded-full border-4 border-white shadow-sm"
             />
-
-            <SettingsInput
-              label="Email Address"
-              value={email}
-              editable={false}
-              icon="mail"
-              className="opacity-60"
-            />
-
-            <SettingsInput
-              label="Phone Number"
-              value={contactNumber}
-              onChangeText={handleContactChange}
-              placeholder="+63 XXX-XXX-XXXX"
-              keyboardType="phone-pad"
-              icon="phone"
-              maxLength={16}
-              error={errors.contact}
-            />
-
-            <View className="mb-4 mx-4">
-              <Text className="text-sm font-medium text-gray-700 mb-1.5 ml-1">
-                Date of Birth
-              </Text>
-              <TouchableOpacity
-                onPress={() => setShowDatePicker(true)}
-                className="flex-row items-center bg-white border border-gray-200 rounded-xl px-3 h-12"
-              >
-                <Feather
-                  name="calendar"
-                  size={20}
-                  color="#9ca3af"
-                  style={{ marginRight: 10 }}
-                />
-                <Text
-                  className={
-                    birthdate
-                      ? "text-gray-900 text-base"
-                      : "text-gray-400 text-base"
-                  }
-                >
-                  {birthdate
-                    ? dayjs(birthdate).format("MMMM D, YYYY")
-                    : "Select date"}
-                </Text>
-              </TouchableOpacity>
-            </View>
-
-            {showDatePicker && (
-              <DateTimePicker
-                value={birthdate || new Date(2000, 0, 1)}
-                mode="date"
-                display="spinner"
-                maximumDate={new Date()}
-                onChange={(event, date) => {
-                  setShowDatePicker(Platform.OS === "ios");
-                  if (date) setBirthdate(date);
-                }}
-              />
-            )}
-
-            <View className="mb-2 mx-4">
-              <Text className="text-sm font-medium text-gray-700 mb-1.5 ml-1">
-                Gender
-              </Text>
-              <View className="flex-row">
-                <GenderButton value="male" label="Male" icon="♂" />
-                <GenderButton value="female" label="Female" icon="♀" />
-              </View>
+            <View className="absolute bottom-0 right-0 bg-orange-500 p-2 rounded-full border-2 border-white">
+              <Feather name="camera" size={16} color="white" />
             </View>
           </View>
-        </SettingsSection>
+        </TouchableOpacity>
+        <Text className="text-gray-500 text-sm mt-3">Tap to change photo</Text>
+      </View>
 
-        <View className="px-4 mt-4">
-          <SettingsButton
-            title={saving ? "Saving Changes..." : "Save Changes"}
-            onPress={handleSave}
-            loading={saving}
-            disabled={loading}
+      <SettingsSection title="Personal Information">
+        <View className="p-4 bg-white">
+          <SettingsInput
+            label="Full Name"
+            value={name}
+            onChangeText={setName}
+            placeholder="e.g. John Doe"
+            icon="user"
+            error={errors.name}
           />
+
+          <SettingsInput
+            label="Email Address"
+            value={email}
+            editable={false}
+            icon="mail"
+            className="opacity-60"
+          />
+
+          <SettingsInput
+            label="Phone Number"
+            value={contactNumber}
+            onChangeText={handleContactChange}
+            placeholder="+63 XXX-XXX-XXXX"
+            keyboardType="phone-pad"
+            icon="phone"
+            maxLength={16}
+            error={errors.contact}
+          />
+
+          <View className="mb-4 mx-4">
+            <Text className="text-sm font-medium text-gray-700 mb-1.5 ml-1">
+              Date of Birth
+            </Text>
+            <TouchableOpacity
+              onPress={() => setShowDatePicker(true)}
+              className="flex-row items-center bg-white border border-gray-200 rounded-xl px-3 h-12"
+            >
+              <Feather
+                name="calendar"
+                size={20}
+                color="#9ca3af"
+                style={{ marginRight: 10 }}
+              />
+              <Text
+                className={
+                  birthdate
+                    ? "text-gray-900 text-base"
+                    : "text-gray-400 text-base"
+                }
+              >
+                {birthdate
+                  ? dayjs(birthdate).format("MMMM D, YYYY")
+                  : "Select date"}
+              </Text>
+            </TouchableOpacity>
+          </View>
+
+          {showDatePicker && (
+            <DateTimePicker
+              value={birthdate || new Date(2000, 0, 1)}
+              mode="date"
+              display="spinner"
+              maximumDate={new Date()}
+              onChange={(event, date) => {
+                setShowDatePicker(Platform.OS === "ios");
+                if (date) setBirthdate(date);
+              }}
+            />
+          )}
+
+          <View className="mb-2 mx-4">
+            <Text className="text-sm font-medium text-gray-700 mb-1.5 ml-1">
+              Gender
+            </Text>
+            <View className="flex-row">
+              <GenderButton value="male" label="Male" icon="♂" />
+              <GenderButton value="female" label="Female" icon="♀" />
+            </View>
+          </View>
         </View>
+      </SettingsSection>
+
+      <View className="px-4 mt-4">
+        <SettingsButton
+          title={saving ? "Saving Changes..." : "Save Changes"}
+          onPress={handleSave}
+          loading={saving}
+          disabled={loading}
+        />
+      </View>
 
       <AlertModal
         visible={visible}

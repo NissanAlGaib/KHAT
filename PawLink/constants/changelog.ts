@@ -30,6 +30,53 @@ export interface ReleaseEntry {
  */
 export const releases: ReleaseEntry[] = [
   {
+    version: "1.7.0",
+    title: "Settings Redesign & Distance Labels",
+    date: "March 11, 2026",
+    items: [
+      {
+        text: "All settings pages redesigned — unified warm off-white backgrounds, softer shadows, refined typography, and consistent spacing across every screen",
+        category: "improved",
+      },
+      {
+        text: "My Payments fully redesigned — clean white balance card with coral accent, refined tab switcher, and softer filter chips replacing the dark theme",
+        category: "improved",
+      },
+      {
+        text: "Profile settings menu rebuilt with shared design system components and subtitle descriptions for each menu item",
+        category: "improved",
+      },
+      {
+        text: "Breeding History screen now uses the standard gradient header layout consistent with all other settings pages",
+        category: "improved",
+      },
+      {
+        text: "Location Settings converted to NativeWind styling with cleaner radio buttons and consistent theme colors",
+        category: "improved",
+      },
+      {
+        text: "Match cards now show actual distance in kilometers (e.g. '~15 km away') instead of vague 'Nearby' labels",
+        category: "new",
+      },
+      {
+        text: "Hardcoded colors replaced with design tokens across Privacy & Security, Completed Matches, and My Payments screens",
+        category: "fixed",
+      },
+      {
+        text: "Removed redundant standalone Settings screen — profile tab is now the single settings hub",
+        category: "fixed",
+      },
+      {
+        text: "Fixed missing Platform import in Edit Profile that could cause crashes on date picker",
+        category: "fixed",
+      },
+      {
+        text: "Fixed broken focus border styling on settings text inputs",
+        category: "fixed",
+      },
+    ],
+  },
+  {
     version: "1.6.7",
     title: "Pet Selector Revamp & Rich Animations",
     date: "March 7, 2026",

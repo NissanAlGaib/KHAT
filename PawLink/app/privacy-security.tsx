@@ -1,9 +1,5 @@
 import React, { useState } from "react";
-import {
-  View,
-  Text,
-  TouchableOpacity,
-} from "react-native";
+import { View, Text, TouchableOpacity } from "react-native";
 import { useRouter } from "expo-router";
 import { Feather } from "@expo/vector-icons";
 
@@ -194,200 +190,205 @@ export default function PrivacySecurityScreen() {
     bg: string;
     expanded: boolean;
     onPress: () => void;
-  }) => (
-    <TouchableOpacity
-      className="flex-row items-center justify-between p-4 bg-white active:bg-gray-50 rounded-xl"
-      onPress={onPress}
-      activeOpacity={0.7}
-    >
-      <View className="flex-row items-center flex-1 mr-4">
-        <View
-          className="w-10 h-10 rounded-xl justify-center items-center mr-3"
-          style={{ backgroundColor: bg }}
-        >
-          <Feather name={icon} size={20} color={color} />
-        </View>
-        <View>
-          <Text
-            className="text-base font-semibold text-gray-900"
-            style={{ color: color === "#DC2626" ? color : "#111827" }}
+  }) => {
+    const isDestructive = color === Colors.error;
+    return (
+      <TouchableOpacity
+        className="flex-row items-center justify-between p-4 bg-white active:bg-gray-50 rounded-xl"
+        onPress={onPress}
+        activeOpacity={0.7}
+      >
+        <View className="flex-row items-center flex-1 mr-4">
+          <View
+            className="w-10 h-10 rounded-xl justify-center items-center mr-3"
+            style={{ backgroundColor: bg }}
           >
-            {title}
-          </Text>
-          <Text className="text-xs text-gray-500 mt-0.5" numberOfLines={1}>
-            {description}
-          </Text>
+            <Feather name={icon} size={20} color={color} />
+          </View>
+          <View>
+            <Text
+              className="text-base font-semibold"
+              style={{
+                color: isDestructive ? Colors.error : Colors.textPrimary,
+              }}
+            >
+              {title}
+            </Text>
+            <Text className="text-xs text-gray-500 mt-0.5" numberOfLines={1}>
+              {description}
+            </Text>
+          </View>
         </View>
-      </View>
-      <Feather
-        name={expanded ? "chevron-up" : "chevron-down"}
-        size={20}
-        color={color === "#DC2626" ? color : "#9CA3AF"}
-      />
-    </TouchableOpacity>
-  );
+        <Feather
+          name={expanded ? "chevron-up" : "chevron-down"}
+          size={20}
+          color={isDestructive ? Colors.error : Colors.textMuted}
+        />
+      </TouchableOpacity>
+    );
+  };
 
   return (
     <SettingsLayout headerTitle="Privacy & Security">
-        <SettingsSection>
-          <SectionHeader
-            title="Change Password"
-            description="Update your account password"
-            icon="lock"
-            color="#3B82F6"
-            bg="#EBF5FF"
-            expanded={showPasswordSection}
-            onPress={() => setShowPasswordSection(!showPasswordSection)}
-          />
+      <SettingsSection>
+        <SectionHeader
+          title="Change Password"
+          description="Update your account password"
+          icon="lock"
+          color={Colors.info}
+          bg="#EBF5FF"
+          expanded={showPasswordSection}
+          onPress={() => setShowPasswordSection(!showPasswordSection)}
+        />
 
-          {showPasswordSection && (
-            <View className="px-4 pb-4 bg-white border-t border-gray-100 pt-4">
-              <SettingsInput
-                label="Current Password"
-                value={currentPassword}
-                onChangeText={setCurrentPassword}
-                placeholder="Enter current password"
-                secureTextEntry={!showCurrentPassword}
-                icon="lock"
-                rightIcon={
-                  <TouchableOpacity
-                    onPress={() => setShowCurrentPassword(!showCurrentPassword)}
-                  >
-                    <Feather
-                      name={showCurrentPassword ? "eye" : "eye-off"}
-                      size={18}
-                      color="#9CA3AF"
-                    />
-                  </TouchableOpacity>
-                }
-              />
-              <SettingsInput
-                label="New Password"
-                value={newPassword}
-                onChangeText={setNewPassword}
-                placeholder="Min 8 characters"
-                secureTextEntry={!showNewPassword}
-                icon="key"
-                rightIcon={
-                  <TouchableOpacity
-                    onPress={() => setShowNewPassword(!showNewPassword)}
-                  >
-                    <Feather
-                      name={showNewPassword ? "eye" : "eye-off"}
-                      size={18}
-                      color="#9CA3AF"
-                    />
-                  </TouchableOpacity>
-                }
-              />
-              <SettingsInput
-                label="Confirm New Password"
-                value={confirmPassword}
-                onChangeText={setConfirmPassword}
-                placeholder="Re-enter new password"
-                secureTextEntry={!showConfirmNewPassword}
-                icon="check-circle"
-                rightIcon={
-                  <TouchableOpacity
-                    onPress={() =>
-                      setShowConfirmNewPassword(!showConfirmNewPassword)
-                    }
-                  >
-                    <Feather
-                      name={showConfirmNewPassword ? "eye" : "eye-off"}
-                      size={18}
-                      color="#9CA3AF"
-                    />
-                  </TouchableOpacity>
-                }
-              />
+        {showPasswordSection && (
+          <View className="px-4 pb-4 bg-white border-t border-gray-100 pt-4">
+            <SettingsInput
+              label="Current Password"
+              value={currentPassword}
+              onChangeText={setCurrentPassword}
+              placeholder="Enter current password"
+              secureTextEntry={!showCurrentPassword}
+              icon="lock"
+              rightIcon={
+                <TouchableOpacity
+                  onPress={() => setShowCurrentPassword(!showCurrentPassword)}
+                >
+                  <Feather
+                    name={showCurrentPassword ? "eye" : "eye-off"}
+                    size={18}
+                    color="#9CA3AF"
+                  />
+                </TouchableOpacity>
+              }
+            />
+            <SettingsInput
+              label="New Password"
+              value={newPassword}
+              onChangeText={setNewPassword}
+              placeholder="Min 8 characters"
+              secureTextEntry={!showNewPassword}
+              icon="key"
+              rightIcon={
+                <TouchableOpacity
+                  onPress={() => setShowNewPassword(!showNewPassword)}
+                >
+                  <Feather
+                    name={showNewPassword ? "eye" : "eye-off"}
+                    size={18}
+                    color="#9CA3AF"
+                  />
+                </TouchableOpacity>
+              }
+            />
+            <SettingsInput
+              label="Confirm New Password"
+              value={confirmPassword}
+              onChangeText={setConfirmPassword}
+              placeholder="Re-enter new password"
+              secureTextEntry={!showConfirmNewPassword}
+              icon="check-circle"
+              rightIcon={
+                <TouchableOpacity
+                  onPress={() =>
+                    setShowConfirmNewPassword(!showConfirmNewPassword)
+                  }
+                >
+                  <Feather
+                    name={showConfirmNewPassword ? "eye" : "eye-off"}
+                    size={18}
+                    color="#9CA3AF"
+                  />
+                </TouchableOpacity>
+              }
+            />
 
-              <SettingsButton
-                title="Update Password"
-                onPress={handleChangePassword}
-                loading={changingPassword}
-                variant="primary"
-                className="mt-2"
+            <SettingsButton
+              title="Update Password"
+              onPress={handleChangePassword}
+              loading={changingPassword}
+              variant="primary"
+              className="mt-2"
+            />
+          </View>
+        )}
+      </SettingsSection>
+
+      <SettingsSection title="Account Information">
+        <SettingsItem
+          label="Email"
+          value={user?.email || "Not set"}
+          type="info"
+          icon="mail"
+          iconColor={Colors.info}
+        />
+        <SettingsItem
+          label="Account ID"
+          value={`#${user?.id || "---"}`}
+          type="info"
+          icon="hash"
+          iconColor={Colors.textMuted}
+          borderless
+        />
+      </SettingsSection>
+
+      <SettingsSection>
+        <SectionHeader
+          title="Delete Account"
+          description="Permanently delete your account"
+          icon="trash-2"
+          color={Colors.error}
+          bg="#FEF2F2"
+          expanded={showDeleteSection}
+          onPress={() => setShowDeleteSection(!showDeleteSection)}
+        />
+
+        {showDeleteSection && (
+          <View className="px-4 pb-4 bg-white border-t border-red-100 pt-4">
+            <View className="flex-row items-start bg-red-50 p-3 rounded-xl mb-4">
+              <Feather
+                name="alert-triangle"
+                size={18}
+                color={Colors.error}
+                style={{ marginTop: 2, marginRight: 8 }}
               />
+              <Text className="flex-1 text-xs text-red-700 leading-5">
+                This will permanently delete your account, all your pets,
+                matches, and breeding history. This action cannot be undone.
+              </Text>
             </View>
-          )}
-        </SettingsSection>
 
-        <SettingsSection title="Account Information">
-          <SettingsItem
-            label="Email"
-            value={user?.email || "Not set"}
-            type="info"
-            icon="mail"
-            iconColor="#3B82F6"
-          />
-          <SettingsItem
-            label="Account ID"
-            value={`#${user?.id || "---"}`}
-            type="info"
-            icon="hash"
-            iconColor="#6B7280"
-            borderless
-          />
-        </SettingsSection>
+            <SettingsInput
+              label="Your Password"
+              value={deletePassword}
+              onChangeText={setDeletePassword}
+              placeholder="Verify identity"
+              secureTextEntry
+            />
 
-        <SettingsSection>
-          <SectionHeader
-            title="Delete Account"
-            description="Permanently delete your account"
-            icon="trash-2"
-            color="#DC2626"
-            bg="#FEF2F2"
-            expanded={showDeleteSection}
-            onPress={() => setShowDeleteSection(!showDeleteSection)}
-          />
+            <SettingsInput
+              label='Type "DELETE" to confirm'
+              value={deleteConfirmation}
+              onChangeText={setDeleteConfirmation}
+              placeholder='Type "DELETE"'
+              autoCapitalize="characters"
+              error={
+                deleteConfirmation && deleteConfirmation !== "DELETE"
+                  ? "Must type DELETE"
+                  : undefined
+              }
+            />
 
-          {showDeleteSection && (
-            <View className="px-4 pb-4 bg-white border-t border-red-100 pt-4">
-              <View className="flex-row items-start bg-red-50 p-3 rounded-xl mb-4">
-                <Feather
-                  name="alert-triangle"
-                  size={18}
-                  color="#DC2626"
-                  style={{ marginTop: 2, marginRight: 8 }}
-                />
-                <Text className="flex-1 text-xs text-red-700 leading-5">
-                  This will permanently delete your account, all your pets,
-                  matches, and breeding history. This action cannot be undone.
-                </Text>
-              </View>
-
-              <SettingsInput
-                label="Your Password"
-                value={deletePassword}
-                onChangeText={setDeletePassword}
-                placeholder="Verify identity"
-                secureTextEntry
-              />
-
-              <SettingsInput
-                label='Type "DELETE" to confirm'
-                value={deleteConfirmation}
-                onChangeText={setDeleteConfirmation}
-                placeholder='Type "DELETE"'
-                autoCapitalize="characters"
-                error={
-                  deleteConfirmation && deleteConfirmation !== "DELETE"
-                    ? "Must type DELETE"
-                    : undefined
-                }
-              />
-
-              <SettingsButton
-                title="Delete My Account"
-                onPress={handleDeleteAccount}
-                loading={deletingAccount}
-                variant="destructive"
-                className="mt-2"
-              />
-            </View>
-          )}
-        </SettingsSection>
+            <SettingsButton
+              title="Delete My Account"
+              onPress={handleDeleteAccount}
+              loading={deletingAccount}
+              variant="destructive"
+              className="mt-2"
+            />
+          </View>
+        )}
+      </SettingsSection>
 
       <AlertModal {...{ visible, ...alertOptions, onClose: hideAlert }} />
     </SettingsLayout>

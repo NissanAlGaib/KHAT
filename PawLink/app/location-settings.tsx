@@ -2,7 +2,7 @@ import React, { useState, useEffect } from "react";
 import { View, Text, TouchableOpacity, ActivityIndicator } from "react-native";
 import { useRouter } from "expo-router";
 import { Feather } from "@expo/vector-icons";
-import { Colors, Spacing } from "@/constants";
+import { Colors } from "@/constants";
 import { useSession } from "@/context/AuthContext";
 import { getUserProfile, updateUserProfile } from "@/services/userService";
 import { useLocation } from "@/hooks/useLocation";
@@ -137,9 +137,7 @@ export default function LocationSettingsScreen() {
   if (profileLoading) {
     return (
       <SettingsLayout headerTitle="Location Settings">
-        <View
-          style={{ flex: 1, justifyContent: "center", alignItems: "center" }}
-        >
+        <View className="flex-1 justify-center items-center">
           <ActivityIndicator size="large" color={Colors.primary} />
         </View>
       </SettingsLayout>
@@ -152,22 +150,18 @@ export default function LocationSettingsScreen() {
 
       {/* Current Location Status */}
       <SettingsSection title="Your Location">
-        <View style={{ padding: Spacing.md }}>
+        <View className="p-4">
           {currentLat && currentLng ? (
-            <View
-              style={{ flexDirection: "row", alignItems: "center", gap: 8 }}
-            >
+            <View className="flex-row items-center gap-2">
               <Feather name="check-circle" size={20} color={Colors.success} />
-              <Text style={{ color: Colors.textPrimary, fontSize: 14 }}>
+              <Text className="text-gray-800 text-sm">
                 Location set ({currentLat.toFixed(4)}, {currentLng.toFixed(4)})
               </Text>
             </View>
           ) : (
-            <View
-              style={{ flexDirection: "row", alignItems: "center", gap: 8 }}
-            >
+            <View className="flex-row items-center gap-2">
               <Feather name="alert-circle" size={20} color={Colors.warning} />
-              <Text style={{ color: Colors.textMuted, fontSize: 14 }}>
+              <Text className="text-gray-400 text-sm">
                 No location set — tap below to detect
               </Text>
             </View>
@@ -183,73 +177,42 @@ export default function LocationSettingsScreen() {
 
       {/* Privacy Precision */}
       <SettingsSection title="Location Privacy">
-        <View style={{ padding: Spacing.md, gap: 8 }}>
-          <Text
-            style={{ color: Colors.textMuted, fontSize: 13, marginBottom: 4 }}
-          >
+        <View className="p-4 gap-2">
+          <Text className="text-gray-400 text-[13px] mb-1">
             Choose how precisely others can see your location:
           </Text>
-          {PRECISION_OPTIONS.map((opt) => (
-            <TouchableOpacity
-              key={opt.key}
-              style={{
-                flexDirection: "row",
-                alignItems: "center",
-                padding: 12,
-                borderRadius: 10,
-                backgroundColor:
-                  precision === opt.key ? Colors.primary + "10" : "#F9FAFB",
-                borderWidth: 1,
-                borderColor: precision === opt.key ? Colors.primary : "#E5E7EB",
-              }}
-              onPress={() => setPrecision(opt.key)}
-            >
-              <View
-                style={{
-                  width: 20,
-                  height: 20,
-                  borderRadius: 10,
-                  borderWidth: 2,
-                  borderColor:
-                    precision === opt.key ? Colors.primary : "#D1D5DB",
-                  alignItems: "center",
-                  justifyContent: "center",
-                  marginRight: 12,
-                }}
+          {PRECISION_OPTIONS.map((opt) => {
+            const isSelected = precision === opt.key;
+            return (
+              <TouchableOpacity
+                key={opt.key}
+                className={`flex-row items-center p-3 rounded-xl border ${
+                  isSelected
+                    ? "border-primary bg-orange-50"
+                    : "border-gray-200 bg-gray-50"
+                }`}
+                onPress={() => setPrecision(opt.key)}
               >
-                {precision === opt.key && (
-                  <View
-                    style={{
-                      width: 10,
-                      height: 10,
-                      borderRadius: 5,
-                      backgroundColor: Colors.primary,
-                    }}
-                  />
-                )}
-              </View>
-              <View style={{ flex: 1 }}>
-                <Text
-                  style={{
-                    fontWeight: "600",
-                    color: Colors.textPrimary,
-                    fontSize: 14,
-                  }}
+                <View
+                  className={`w-5 h-5 rounded-full border-2 items-center justify-center mr-3 ${
+                    isSelected ? "border-primary" : "border-gray-300"
+                  }`}
                 >
-                  {opt.label}
-                </Text>
-                <Text
-                  style={{
-                    color: Colors.textMuted,
-                    fontSize: 12,
-                    marginTop: 2,
-                  }}
-                >
-                  {opt.description}
-                </Text>
-              </View>
-            </TouchableOpacity>
-          ))}
+                  {isSelected && (
+                    <View className="w-2.5 h-2.5 rounded-full bg-primary" />
+                  )}
+                </View>
+                <View className="flex-1">
+                  <Text className="font-semibold text-gray-800 text-sm">
+                    {opt.label}
+                  </Text>
+                  <Text className="text-gray-400 text-xs mt-0.5">
+                    {opt.description}
+                  </Text>
+                </View>
+              </TouchableOpacity>
+            );
+          })}
         </View>
       </SettingsSection>
 
@@ -262,10 +225,8 @@ export default function LocationSettingsScreen() {
           value={preferNearby}
           onPress={() => setPreferNearby((v) => !v)}
         />
-        <View
-          style={{ paddingHorizontal: Spacing.md, paddingBottom: Spacing.md }}
-        >
-          <Text style={{ color: Colors.textMuted, fontSize: 12 }}>
+        <View className="px-4 pb-4">
+          <Text className="text-gray-400 text-xs">
             When enabled, the matching algorithm will slightly favor pets from
             owners closer to you.
           </Text>
@@ -273,7 +234,7 @@ export default function LocationSettingsScreen() {
       </SettingsSection>
 
       {/* Save */}
-      <View style={{ padding: Spacing.md }}>
+      <View className="p-4">
         <SettingsButton
           title={saving ? "Saving..." : "Save Location Settings"}
           onPress={handleSave}

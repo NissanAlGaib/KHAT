@@ -5,6 +5,8 @@ import { Colors } from "../../constants/colors";
 
 interface SettingsItemProps {
   label: string;
+  /** Optional subtitle shown below the label. */
+  subtitle?: string;
   icon?: keyof typeof Feather.glyphMap;
   /** Background color for the icon tile. Defaults to gray. */
   iconColor?: string;
@@ -17,6 +19,7 @@ interface SettingsItemProps {
 
 export const SettingsItem = ({
   label,
+  subtitle,
   icon,
   iconColor,
   value,
@@ -43,6 +46,7 @@ export const SettingsItem = ({
       {/* Label */}
       <View style={styles.labelWrap}>
         <Text style={[styles.label, { color: labelColor }]}>{label}</Text>
+        {subtitle && <Text style={styles.subtitle}>{subtitle}</Text>}
       </View>
 
       {/* Right Side Content */}
@@ -105,6 +109,7 @@ const styles = StyleSheet.create({
   },
   labelWrap: { flex: 1, justifyContent: "center" },
   label: { fontSize: 15, fontWeight: "600" },
+  subtitle: { fontSize: 12, color: "#9CA3AF", marginTop: 2 },
   rightWrap: { flexDirection: "row", alignItems: "center" },
   infoText: { color: "#6B7280", fontSize: 14, marginRight: 4 },
   valueText: { color: "#9CA3AF", fontSize: 14, marginRight: 6 },

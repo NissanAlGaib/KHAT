@@ -8,11 +8,15 @@ import {
   Image,
   RefreshControl,
 } from "react-native";
-import { SafeAreaView } from "react-native-safe-area-context";
 import { Feather } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
-import { getMatchHistory, type HistoryItem } from "@/services/matchRequestService";
+import {
+  getMatchHistory,
+  type HistoryItem,
+} from "@/services/matchRequestService";
 import { getStorageUrl } from "@/utils/imageUrl";
+import { Colors } from "@/constants";
+import { SettingsLayout } from "@/components/settings";
 
 const formatDate = (dateStr: string) => {
   const date = new Date(dateStr);
@@ -142,20 +146,10 @@ export default function CompletedMatchesScreen() {
   };
 
   return (
-    <SafeAreaView className="flex-1 bg-[#FAFAFA]" edges={["top"]}>
-      {/* Header */}
-      <View className="flex-row items-center px-4 py-3 bg-white border-b border-gray-100">
-        <TouchableOpacity onPress={() => router.back()} className="mr-3">
-          <Feather name="arrow-left" size={22} color="#333" />
-        </TouchableOpacity>
-        <Text className="text-lg font-bold text-gray-900">
-          Breeding History
-        </Text>
-      </View>
-
+    <SettingsLayout headerTitle="Breeding History" scrollable={false}>
       {loading ? (
         <View className="flex-1 items-center justify-center">
-          <ActivityIndicator size="large" color="#EA5B3A" />
+          <ActivityIndicator size="large" color={Colors.primary} />
           <Text className="text-gray-500 mt-3 text-sm">Loading...</Text>
         </View>
       ) : items.length === 0 ? (
@@ -182,7 +176,7 @@ export default function CompletedMatchesScreen() {
             <RefreshControl
               refreshing={refreshing}
               onRefresh={onRefresh}
-              colors={["#EA5B3A"]}
+              colors={[Colors.primary]}
             />
           }
           onEndReached={onEndReached}
@@ -190,12 +184,12 @@ export default function CompletedMatchesScreen() {
           ListFooterComponent={
             loadingMore ? (
               <View className="py-4 items-center">
-                <ActivityIndicator size="small" color="#EA5B3A" />
+                <ActivityIndicator size="small" color={Colors.primary} />
               </View>
             ) : null
           }
         />
       )}
-    </SafeAreaView>
+    </SettingsLayout>
   );
 }
