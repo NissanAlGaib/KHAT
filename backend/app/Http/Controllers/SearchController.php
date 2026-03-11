@@ -879,7 +879,7 @@ class SearchController extends Controller
     {
         try {
             $viewer = $request->user();
-            $types = $request->input('types', $request->input('types_', ['breeders', 'shooters', 'pets']));
+            $types = $request->input('types', $request->input('types_', ['breeders', 'shooters']));
             if (is_string($types)) {
                 $types = [$types];
             }
@@ -978,57 +978,6 @@ class SearchController extends Controller
                             'distance_label' => $formatted['distance_label'],
                         ];
                     }
-                }
-            }
-
-            // Pets (via owner location)
-            if (in_array('pets', $types)) {
-                $query = Pet::where('status', 'active')
-                    ->whereHas('owner', function ($q) {
-                        $q->whereNotNull('latitude')->whereNotNull('longitude');
-                    })
-                    ->with(['owner', 'photos']);
-
-                if ($species) {
-                    $query->where('species', $species);
-                }
-
-                if ($radiusKm) {
-                    $query->whereHas('owner', function ($q) use ($viewerLat, $viewerLng, $radiusKm) {
-                        $q->withinRadius($viewerLat, $viewerLng, (float) $radiusKm);
-                    });
-                }
-
-                $pets = $query->limit($limit)->get();
-
-                foreach ($pets as $pet) {
-                    $owner = $pet->owner;
-                    if (!$owner || !$owner->hasLocation()) continue;
-                    $coords = $owner->getObfuscatedCoordinates();
-                    if (!$coords) continue;
-
-                    $dist = DistanceHelper::haversine($viewerLat, $viewerLng, $owner->latitude, $owner->longitude);
-                    $formatted = DistanceHelper::format(
-                        $dist,
-                        $viewer->location_precision ?? 'city',
-                        $owner->location_precision ?? 'city'
-                    );
-
-                    $primaryPhoto = $pet->photos->where('is_primary', true)->first();
-                    $markers[] = [
-                        'type' => 'pet',
-                        'id' => $pet->pet_id,
-                        'name' => $pet->name,
-                        'species' => $pet->species,
-                        'breed' => $pet->breed,
-                        'sex' => $pet->sex,
-                        'profile_image' => $primaryPhoto ? $primaryPhoto->photo_url : $pet->profile_image,
-                        'latitude' => $coords['latitude'],
-                        'longitude' => $coords['longitude'],
-                        'distance_km' => $formatted['distance_km'],
-                        'distance_label' => $formatted['distance_label'],
-                        'owner_name' => $owner->name,
-                    ];
                 }
             }
 

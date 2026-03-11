@@ -285,9 +285,11 @@ class User extends Authenticatable
 
     /**
      * Get obfuscated coordinates based on the user's location_precision setting.
+     * Uses a deterministic offset seeded by user ID so the same user always
+     * appears at the same obfuscated position across requests.
      * - 'exact': returns actual coordinates
-     * - 'barangay': adds random noise ~500m
-     * - 'city' (default): adds random noise ~5.5km
+     * - 'barangay': adds stable noise ~500m
+     * - 'city' (default): adds stable noise ~5.5km
      */
     public function getObfuscatedCoordinates(): ?array
     {
@@ -298,17 +300,21 @@ class User extends Authenticatable
         $lat = $this->latitude;
         $lng = $this->longitude;
 
+        // Deterministic offsets derived from user ID — stable across API calls
+        $seed = crc32('lat' . strval($this->id));
+        $seedLng = crc32('lng' . strval($this->id));
+
         switch ($this->location_precision ?? 'city') {
             case 'exact':
                 break;
             case 'barangay':
-                $lat += (mt_rand(-500, 500) / 100000); // ~500m
-                $lng += (mt_rand(-500, 500) / 100000);
+                $lat += (($seed % 1001 - 500) / 100000); // ~500m stable offset
+                $lng += (($seedLng % 1001 - 500) / 100000);
                 break;
             case 'city':
             default:
-                $lat += (mt_rand(-5000, 5000) / 100000); // ~5.5km
-                $lng += (mt_rand(-5000, 5000) / 100000);
+                $lat += (($seed % 10001 - 5000) / 100000); // ~5.5km stable offset
+                $lng += (($seedLng % 10001 - 5000) / 100000);
                 break;
         }
 

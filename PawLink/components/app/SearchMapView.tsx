@@ -22,9 +22,8 @@ const FILTER_OPTIONS: {
   icon: string;
   color: string;
 }[] = [
-  { key: "breeders", label: "Breeders", icon: "users", color: Colors.info },
-  { key: "shooters", label: "Shooters", icon: "camera", color: Colors.warning },
-  { key: "pets", label: "Pets", icon: "heart", color: Colors.primary },
+  { key: "breeders", label: "Breeders", icon: "users", color: "#3B82F6" },
+  { key: "shooters", label: "Shooters", icon: "camera", color: "#F59E0B" },
 ];
 
 interface SearchMapViewProps {
@@ -35,35 +34,35 @@ function buildLeafletHtml(
   markers: MapMarker[],
   center: { latitude: number; longitude: number },
 ) {
-  const markerColor = (type: string) => {
-    switch (type) {
-      case "breeder":
-        return "#3B82F6";
-      case "shooter":
-        return "#F59E0B";
-      case "pet":
-        return "#6C63FF";
-      default:
-        return "#888";
-    }
-  };
+  const markerColor = (type: string) =>
+    type === "shooter" ? "#F59E0B" : "#3B82F6";
 
   const markerJs = markers
     .map((m) => {
       const color = markerColor(m.type);
-      const subtitle =
-        m.type === "pet"
-          ? m.breed || m.species || "Pet"
-          : m.type === "breeder"
-            ? `${m.pet_count || 0} pets`
-            : "Shooter";
-      const distLine = m.distance_label
-        ? `<br/><span style="color:${color};font-size:11px">${m.distance_label}</span>`
-        : "";
-      // Sanitize name to prevent XSS in popup
       const safeName = (m.name || "").replace(/[<>"'&]/g, "");
+      const safeDistance = (m.distance_label || "").replace(/[<>"'&]/g, "");
+      const subtitle =
+        m.type === "breeder" ? `${m.pet_count || 0} pets` : "Shooter";
       const safeSubtitle = subtitle.replace(/[<>"'&]/g, "");
-      return `L.circleMarker([${m.latitude},${m.longitude}],{radius:8,fillColor:'${color}',color:'#fff',weight:2,fillOpacity:0.9}).addTo(map).bindPopup('<b>${safeName}</b><br/>${safeSubtitle}${distLine}',{closeButton:false}).on('click',function(){window.ReactNativeWebView.postMessage(JSON.stringify({type:'${m.type}',id:${m.id}}))});`;
+
+      return `(function(){
+  var icon = L.divIcon({
+    className:'',
+    iconSize:[0,0],
+    iconAnchor:[6,6],
+    html:'<div style="display:flex;align-items:center;gap:6px;white-space:nowrap;pointer-events:auto;">'
+      +'<div style="width:12px;height:12px;border-radius:50%;background:${color};border:2px solid #fff;box-shadow:0 1px 3px rgba(0,0,0,0.3);flex-shrink:0;"></div>'
+      +'<div style="background:#fff;border-radius:8px;padding:3px 8px;box-shadow:0 1px 4px rgba(0,0,0,0.15);pointer-events:auto;">'
+        +'<div style="font-size:11px;font-weight:600;color:#1F2937;line-height:1.3;">${safeName}</div>'
+        +'<div style="font-size:10px;color:${color};line-height:1.2;">${safeDistance}</div>'
+      +'</div>'
+    +'</div>'
+  });
+  L.marker([${m.latitude},${m.longitude}],{icon:icon}).addTo(map)
+    .bindPopup('<b>${safeName}</b><br/>${safeSubtitle}<br/><span style="color:${color};font-size:11px">${safeDistance}</span>',{closeButton:false})
+    .on('click',function(){window.ReactNativeWebView.postMessage(JSON.stringify({type:'${m.type}',id:${m.id}}))});
+})();`;
     })
     .join("\n");
 
@@ -76,6 +75,7 @@ function buildLeafletHtml(
 <style>
   body{margin:0;padding:0;}
   #map{width:100%;height:100vh;}
+  .leaflet-div-icon{background:none!important;border:none!important;}
 </style>
 </head>
 <body>
@@ -103,7 +103,6 @@ export default function SearchMapView({ onClose }: SearchMapViewProps) {
   const [activeFilters, setActiveFilters] = useState<MapFilterType[]>([
     "breeders",
     "shooters",
-    "pets",
   ]);
   const [center, setCenter] = useState({
     latitude: 14.5995,
@@ -151,9 +150,7 @@ export default function SearchMapView({ onClose }: SearchMapViewProps) {
   const handleMessage = (event: { nativeEvent: { data: string } }) => {
     try {
       const data = JSON.parse(event.nativeEvent.data);
-      if (data.type === "pet") {
-        router.push(`/(pet)/${data.id}`);
-      } else if (data.type === "breeder") {
+      if (data.type === "breeder") {
         router.push(`/(breeder)/${data.id}`);
       } else if (data.type === "shooter") {
         router.push(`/(shooter)/${data.id}`);

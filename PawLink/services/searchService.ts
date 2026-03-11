@@ -116,8 +116,8 @@ export interface BreedListResponse {
   cat_breeds: string[];
 }
 
-export type MapMarkerType = "breeder" | "shooter" | "pet";
-export type MapFilterType = "breeders" | "shooters" | "pets";
+export type MapMarkerType = "breeder" | "shooter";
+export type MapFilterType = "breeders" | "shooters";
 
 export interface MapMarker {
   type: MapMarkerType;
@@ -130,17 +130,11 @@ export interface MapMarker {
   profile_image?: string | null;
   // Breeder-specific
   pet_count?: number;
-  // Pet-specific
-  species?: string;
-  breed?: string;
-  sex?: string;
-  owner_name?: string;
 }
 
 export interface MapSearchParams {
   types?: MapFilterType[];
   radius_km?: number;
-  species?: string;
   limit?: number;
 }
 
@@ -256,7 +250,7 @@ export const searchService = {
   },
 
   /**
-   * Get map markers for breeders, shooters, and/or pets within optional radius
+   * Get map markers for breeders and shooters within optional radius
    */
   mapSearch: async (
     params: MapSearchParams = {},
@@ -264,7 +258,6 @@ export const searchService = {
     const queryParams: any = {};
     if (params.types) queryParams["types[]"] = params.types;
     if (params.radius_km) queryParams.radius_km = params.radius_km;
-    if (params.species) queryParams.species = params.species;
     if (params.limit) queryParams.limit = params.limit;
 
     const response = await axios.get("/api/search/map", {
