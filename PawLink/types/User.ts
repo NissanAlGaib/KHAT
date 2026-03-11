@@ -20,9 +20,15 @@ export interface User {
   subscription_tier?: SubscriptionTier;
   rating?: number;
   review_count?: number;
+  latitude?: number;
+  longitude?: number;
+  location_precision?: LocationPrecision;
+  prefer_nearby_matches?: boolean;
   created_at: string;
   updated_at: string;
 }
+
+export type LocationPrecision = "city" | "barangay" | "exact";
 
 export type UserRole = "user" | "breeder" | "shooter" | "admin";
 

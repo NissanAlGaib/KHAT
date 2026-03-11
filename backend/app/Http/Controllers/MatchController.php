@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\Pet;
 use App\Models\MatchRequest;
+use App\Helpers\DistanceHelper;
 use Illuminate\Http\Request;
 
 class MatchController extends Controller
@@ -39,7 +40,7 @@ class MatchController extends Controller
             $userPetSexes = $userPets->pluck('sex')->unique()->toArray();
             $query = Pet::where('user_id', '!=', $user->id)
                 ->availableForMatching()
-                ->with(['owner:id,name,profile_image', 'photos']);
+                ->with(['owner:id,name,profile_image,latitude,longitude,location_precision,prefer_nearby_matches', 'photos']);
 
             // Filter to opposite sex only (if user has only male pets, show only female, and vice versa)
             if (count($userPetSexes) === 1) {
@@ -55,8 +56,17 @@ class MatchController extends Controller
             $potentialMatches = $query->get();
 
             // Calculate compatibility scores
-            $matches = $potentialMatches->map(function ($pet) use ($userPets) {
-                $compatibility = $this->calculateCompatibilityScore($pet, $userPets->first());
+            $matches = $potentialMatches->map(function ($pet) use ($user, $userPets) {
+                $compatibility = $this->calculateCompatibilityScore($pet, $userPets->first(), $user);
+
+                $distanceKm = null;
+                $distanceLabel = null;
+                if ($user->hasLocation() && $pet->owner && $pet->owner->hasLocation()) {
+                    $dist = DistanceHelper::haversine($user->latitude, $user->longitude, $pet->owner->latitude, $pet->owner->longitude);
+                    $formatted = DistanceHelper::format($dist, $user->location_precision ?? 'city', $pet->owner->location_precision ?? 'city');
+                    $distanceKm = $formatted['distance_km'];
+                    $distanceLabel = $formatted['distance_label'];
+                }
 
                 return [
                     'pet_id' => $pet->pet_id,
@@ -82,6 +92,8 @@ class MatchController extends Controller
                     ],
                     'compatibility_score' => $compatibility['score'],
                     'match_reasons' => $compatibility['reasons'],
+                    'distance_km' => $distanceKm,
+                    'distance_label' => $distanceLabel,
                 ];
             });
 
@@ -129,7 +141,7 @@ class MatchController extends Controller
             // Get potential matches (not owned by user, not on cooldown, not owned by blocked users)
             $query = Pet::where('user_id', '!=', $user->id)
                 ->availableForMatching()
-                ->with('photos');
+                ->with(['owner:id,latitude,longitude,location_precision,prefer_nearby_matches', 'photos']);
 
             // Only add whereNotIn if there are blocked users
             if (!empty($blockedUserIds)) {
@@ -178,7 +190,7 @@ class MatchController extends Controller
                         continue;
                     }
 
-                    $compatibility = $this->calculateCompatibilityScore($potentialPet, $userPet);
+                    $compatibility = $this->calculateCompatibilityScore($potentialPet, $userPet, $user);
 
                     $primaryPhoto1 = $userPet->photos->firstWhere('is_primary', true) ?? $userPet->photos->first();
                     $primaryPhoto2 = $potentialPet->photos->firstWhere('is_primary', true) ?? $potentialPet->photos->first();
@@ -230,18 +242,18 @@ class MatchController extends Controller
     public function getCompatibilityScore(Request $request, $petId, $otherPetId)
     {
         try {
-            $userPet = Pet::with(['partnerPreferences'])->findOrFail($petId);
-            $otherPet = Pet::with(['partnerPreferences'])->findOrFail($otherPetId);
+            $userPet = Pet::with(['partnerPreferences', 'owner:id,latitude,longitude,location_precision,prefer_nearby_matches'])->findOrFail($petId);
+            $otherPet = Pet::with(['partnerPreferences', 'owner:id,latitude,longitude,location_precision,prefer_nearby_matches'])->findOrFail($otherPetId);
 
             // Verify the requesting user owns the user pet
             if ($userPet->user_id !== $request->user()->id) {
                 return response()->json(['success' => false, 'message' => 'Unauthorized'], 403);
             }
 
-            $result = $this->calculateCompatibilityScore($otherPet, $userPet);
+            $result = $this->calculateCompatibilityScore($otherPet, $userPet, $request->user());
 
             // Also calculate reverse compatibility
-            $reverseResult = $this->calculateCompatibilityScore($userPet, $otherPet);
+            $reverseResult = $this->calculateCompatibilityScore($userPet, $otherPet, $request->user());
 
             // Feature breakdown for detailed view
             $preferences = $userPet->partnerPreferences->first();
@@ -309,7 +321,7 @@ class MatchController extends Controller
      * - Hidden layer: Non-linear transformations and feature interactions
      * - Output layer: Final score calculation with activation
      */
-    private function calculateCompatibilityScore($pet, $userPet)
+    private function calculateCompatibilityScore($pet, $userPet, $viewer = null)
     {
         $reasons = [];
         $preferences = $userPet->partnerPreferences->first();
@@ -321,7 +333,7 @@ class MatchController extends Controller
         // ============================================
         // INPUT LAYER: Feature extraction & normalization
         // ============================================
-        $inputFeatures = $this->extractInputFeatures($pet, $userPet, $preferences);
+        $inputFeatures = $this->extractInputFeatures($pet, $userPet, $preferences, $viewer);
 
         // ============================================
         // HIDDEN LAYER: Non-linear transformations & interactions
@@ -340,7 +352,7 @@ class MatchController extends Controller
      * Input Layer: Extract and normalize features from pet data
      * Returns normalized values between 0 and 1
      */
-    private function extractInputFeatures($pet, $userPet, $preferences): array
+    private function extractInputFeatures($pet, $userPet, $preferences, $viewer = null): array
     {
         $features = [];
 
@@ -427,6 +439,23 @@ class MatchController extends Controller
             }
         }
 
+        // Location proximity feature (opt-in: both users must enable prefer_nearby_matches)
+        $features['location'] = -1; // sentinel: not applicable
+        $features['location_active'] = false;
+        if ($viewer && $viewer->prefer_nearby_matches && $viewer->hasLocation()) {
+            $petOwner = $pet->owner;
+            if ($petOwner && $petOwner->prefer_nearby_matches && $petOwner->hasLocation()) {
+                $features['location_active'] = true;
+                $distKm = DistanceHelper::haversine(
+                    $viewer->latitude, $viewer->longitude,
+                    $petOwner->latitude, $petOwner->longitude
+                );
+                $decayFactor = config('matching.location.decay_factor', 100);
+                $features['location'] = exp(-$distKm / $decayFactor);
+                $features['location_distance_km'] = $distKm;
+            }
+        }
+
         return $features;
     }
 
@@ -486,6 +515,13 @@ class MatchController extends Controller
         }
         $hidden['bonus'] = $this->sigmoid($matchBonus * 2);
 
+        // Hidden Neuron 5: Proximity (only active when both users opted in)
+        if ($inputFeatures['location_active']) {
+            $hidden['proximity'] = $this->sigmoid($inputFeatures['location'] * 3 - 1);
+        } else {
+            $hidden['proximity'] = null;
+        }
+
         return $hidden;
     }
 
@@ -494,20 +530,34 @@ class MatchController extends Controller
      */
     private function computeOutputLayer(array $hiddenActivations, array $inputFeatures, array &$reasons): array
     {
-        // Output layer weights
-        $outputWeights = [
-            'primary' => 0.45,
-            'secondary' => 0.25,
-            'interaction' => 0.15,
-            'bonus' => 0.15,
-        ];
-
-        // Compute weighted sum of hidden layer outputs
-        $outputSum =
-            $hiddenActivations['primary'] * $outputWeights['primary'] +
-            $hiddenActivations['secondary'] * $outputWeights['secondary'] +
-            $hiddenActivations['interaction'] * $outputWeights['interaction'] +
-            $hiddenActivations['bonus'] * $outputWeights['bonus'];
+        // Output layer weights (redistributed when location is active)
+        if ($hiddenActivations['proximity'] !== null) {
+            $outputWeights = [
+                'primary' => 0.38,
+                'secondary' => 0.22,
+                'interaction' => 0.13,
+                'bonus' => 0.12,
+                'proximity' => 0.15,
+            ];
+            $outputSum =
+                $hiddenActivations['primary'] * $outputWeights['primary'] +
+                $hiddenActivations['secondary'] * $outputWeights['secondary'] +
+                $hiddenActivations['interaction'] * $outputWeights['interaction'] +
+                $hiddenActivations['bonus'] * $outputWeights['bonus'] +
+                $hiddenActivations['proximity'] * $outputWeights['proximity'];
+        } else {
+            $outputWeights = [
+                'primary' => 0.45,
+                'secondary' => 0.25,
+                'interaction' => 0.15,
+                'bonus' => 0.15,
+            ];
+            $outputSum =
+                $hiddenActivations['primary'] * $outputWeights['primary'] +
+                $hiddenActivations['secondary'] * $outputWeights['secondary'] +
+                $hiddenActivations['interaction'] * $outputWeights['interaction'] +
+                $hiddenActivations['bonus'] * $outputWeights['bonus'];
+        }
 
         // Apply sigmoid activation and scale to 0-100
         $rawScore = $this->sigmoid($outputSum * 4) * 100;
@@ -544,6 +594,14 @@ class MatchController extends Controller
         // Add interaction-based reason
         if ($hiddenActivations['interaction'] > 0.3) {
             $reasons[] = 'Strong overall compatibility';
+        }
+
+        // Add proximity reason when location is active
+        if ($hiddenActivations['proximity'] !== null && isset($inputFeatures['location_distance_km'])) {
+            $nearbyKm = config('matching.location.nearby_threshold_km', 50);
+            if ($inputFeatures['location_distance_km'] <= $nearbyKm) {
+                $reasons[] = 'Nearby breeder';
+            }
         }
 
         if (empty($reasons)) {

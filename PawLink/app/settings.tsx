@@ -36,6 +36,12 @@ export default function SettingsScreen() {
           label="Privacy & Security"
           onPress={() => router.push("/privacy-security")}
         />
+        <SettingsItem
+          icon="map-pin"
+          iconColor="#EF4444"
+          label="Location Settings"
+          onPress={() => router.push("/location-settings")}
+        />
       </SettingsSection>
 
       <SettingsSection title="Billing">

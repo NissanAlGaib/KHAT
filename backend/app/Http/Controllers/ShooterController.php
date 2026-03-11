@@ -9,6 +9,7 @@ use App\Models\Role;
 use App\Models\BreedingContract;
 use App\Models\Pet;
 use App\Services\ActivityNotificationService;
+use App\Helpers\DistanceHelper;
 use Carbon\Carbon;
 
 class ShooterController extends Controller
@@ -41,7 +42,7 @@ class ShooterController extends Controller
                 ->with(['roles', 'pets'])
                 ->get();
 
-            $shooterProfiles = $shooters->map(function ($user) {
+            $shooterProfiles = $shooters->map(function ($user) use ($request) {
                 // Calculate experience (assuming user created_at as start date)
                 $experienceYears = $user->created_at ? ceil($user->created_at->diffInYears(now())) : 0;
 
@@ -54,6 +55,16 @@ class ShooterController extends Controller
                 $petBreed = null;
                 if ($isPetOwner && $user->pets->isNotEmpty()) {
                     $petBreed = $user->pets->first()->breed;
+                }
+
+                $distanceKm = null;
+                $distanceLabel = null;
+                $viewer = $request->user();
+                if ($viewer && $viewer->hasLocation() && $user->hasLocation()) {
+                    $dist = DistanceHelper::haversine($viewer->latitude, $viewer->longitude, $user->latitude, $user->longitude);
+                    $formatted = DistanceHelper::format($dist, $viewer->location_precision ?? 'city', $user->location_precision ?? 'city');
+                    $distanceKm = $formatted['distance_km'];
+                    $distanceLabel = $formatted['distance_label'];
                 }
 
                 return [
@@ -70,6 +81,8 @@ class ShooterController extends Controller
                     'rating' => $user->shooter_average_rating > 0 ? (float) $user->shooter_average_rating : null,
                     'reviews_count' => $user->shooter_review_count,
                     'completed_sessions' => null, // TODO: Implement session tracking
+                    'distance_km' => $distanceKm,
+                    'distance_label' => $distanceLabel,
                 ];
             });
 
@@ -687,6 +700,9 @@ class ShooterController extends Controller
                 'id_verified' => $idVerified,
                 'breeder_verified' => $breederVerified,
                 'shooter_verified' => $shooterVerified,
+                'distance_km' => null,
+                'distance_label' => null,
+                'location' => $shooter->getObfuscatedCoordinates(),
                 'statistics' => [
                     'total_pets' => $totalPetsHandled,
                     'matched' => $completedContracts,
@@ -698,6 +714,22 @@ class ShooterController extends Controller
                     'failed_contracts' => $failedContracts,
                 ],
             ];
+
+            // Add distance info
+            $viewer = $request->user();
+            if ($viewer && $viewer->hasLocation() && $shooter->hasLocation()) {
+                $distance = DistanceHelper::haversine(
+                    $viewer->latitude, $viewer->longitude,
+                    $shooter->latitude, $shooter->longitude
+                );
+                $formatted = DistanceHelper::format(
+                    $distance,
+                    $viewer->location_precision ?? 'city',
+                    $shooter->location_precision ?? 'city'
+                );
+                $shooterProfile['distance_km'] = $formatted['distance_km'];
+                $shooterProfile['distance_label'] = $formatted['distance_label'];
+            }
 
             return response()->json([
                 'success' => true,

@@ -7,6 +7,7 @@ use Illuminate\Support\Facades\Auth;
 use App\Models\Pet;
 use App\Models\User;
 use App\Models\Role;
+use App\Helpers\DistanceHelper;
 use Carbon\Carbon;
 
 class SearchController extends Controller
@@ -161,9 +162,10 @@ class SearchController extends Controller
             $total = $petsQuery->count();
             $pets = $petsQuery->skip(($page - 1) * $perPage)->take($perPage)->get();
 
+            $viewer = $request->user();
             /** @var \Illuminate\Support\Collection<int, Pet> $pets */
-            $formattedPets = $pets->map(function (Pet $pet) {
-                return $this->formatPetForSearch($pet);
+            $formattedPets = $pets->map(function (Pet $pet) use ($viewer) {
+                return $this->formatPetForSearch($pet, $viewer);
             });
 
             return response()->json([
@@ -242,9 +244,10 @@ class SearchController extends Controller
             $total = $petsQuery->count();
             $pets = $petsQuery->skip(($page - 1) * $perPage)->take($perPage)->get();
 
+            $viewer = $request->user();
             /** @var \Illuminate\Support\Collection<int, Pet> $pets */
-            $formattedPets = $pets->map(function (Pet $pet) {
-                return $this->formatPetForSearch($pet);
+            $formattedPets = $pets->map(function (Pet $pet) use ($viewer) {
+                return $this->formatPetForSearch($pet, $viewer);
             });
 
             return response()->json([
@@ -307,7 +310,8 @@ class SearchController extends Controller
 
             $breeders = $breedersQuery->limit(50)->get();
 
-            $formattedBreeders = $breeders->map(function ($user) {
+            $viewer = $request->user();
+            $formattedBreeders = $breeders->map(function ($user) use ($viewer) {
                 $experienceYears = $user->created_at ? ceil($user->created_at->diffInYears(now())) : 0;
 
                 // Get pet breeds
@@ -316,7 +320,7 @@ class SearchController extends Controller
                 // Get pet count
                 $petCount = $user->pets->count();
 
-                return [
+                $result = [
                     'id' => $user->id,
                     'name' => $user->name,
                     'email' => $user->email,
@@ -328,7 +332,25 @@ class SearchController extends Controller
                     'pet_breeds' => $petBreeds,
                     'pet_count' => $petCount,
                     'address' => $user->address,
+                    'distance_km' => null,
+                    'distance_label' => null,
                 ];
+
+                if ($viewer && $viewer->hasLocation() && $user->hasLocation()) {
+                    $distance = DistanceHelper::haversine(
+                        $viewer->latitude, $viewer->longitude,
+                        $user->latitude, $user->longitude
+                    );
+                    $formatted = DistanceHelper::format(
+                        $distance,
+                        $viewer->location_precision ?? 'city',
+                        $user->location_precision ?? 'city'
+                    );
+                    $result['distance_km'] = $formatted['distance_km'];
+                    $result['distance_label'] = $formatted['distance_label'];
+                }
+
+                return $result;
             });
 
             return response()->json([
@@ -382,9 +404,19 @@ class SearchController extends Controller
             $pets = $petsQuery->orderByRaw('CASE WHEN cooldown_until IS NULL OR cooldown_until <= NOW() THEN 0 ELSE 1 END ASC')
                 ->limit($limit)->get();
 
+            $viewer = $request->user();
+
             /** @var \Illuminate\Support\Collection<int, Pet> $pets */
-            $formattedPets = $pets->map(function (Pet $pet) {
+            $formattedPets = $pets->map(function (Pet $pet) use ($viewer) {
                 $primaryPhoto = $pet->photos->where('is_primary', true)->first();
+                $distanceKm = null;
+                $distanceLabel = null;
+                if ($viewer && $viewer->hasLocation() && $pet->owner && $pet->owner->hasLocation()) {
+                    $dist = DistanceHelper::haversine($viewer->latitude, $viewer->longitude, $pet->owner->latitude, $pet->owner->longitude);
+                    $formatted = DistanceHelper::format($dist, $viewer->location_precision ?? 'city', $pet->owner->location_precision ?? 'city');
+                    $distanceKm = $formatted['distance_km'];
+                    $distanceLabel = $formatted['distance_label'];
+                }
                 return [
                     'pet_id' => $pet->pet_id,
                     'name' => $pet->name,
@@ -399,6 +431,8 @@ class SearchController extends Controller
                         'id' => $pet->owner->id,
                         'name' => $pet->owner->name,
                     ] : null,
+                    'distance_km' => $distanceKm,
+                    'distance_label' => $distanceLabel,
                 ];
             });
 
@@ -428,14 +462,24 @@ class SearchController extends Controller
                 $breedersCount = $breedersQuery->count();
                 $breeders = $breedersQuery->limit($limit)->get();
 
-                $formattedBreeders = $breeders->map(function ($user) {
+                $formattedBreeders = $breeders->map(function ($user) use ($viewer) {
                     $petBreeds = $user->pets->pluck('breed')->unique()->filter()->values()->toArray();
+                    $distanceKm = null;
+                    $distanceLabel = null;
+                    if ($viewer && $viewer->hasLocation() && $user->hasLocation()) {
+                        $dist = DistanceHelper::haversine($viewer->latitude, $viewer->longitude, $user->latitude, $user->longitude);
+                        $formatted = DistanceHelper::format($dist, $viewer->location_precision ?? 'city', $user->location_precision ?? 'city');
+                        $distanceKm = $formatted['distance_km'];
+                        $distanceLabel = $formatted['distance_label'];
+                    }
                     return [
                         'id' => $user->id,
                         'name' => $user->name,
                         'profile_image' => $user->profile_image,
                         'pet_breeds' => $petBreeds,
                         'pet_count' => $user->pets->count(),
+                        'distance_km' => $distanceKm,
+                        'distance_label' => $distanceLabel,
                     ];
                 });
             }
@@ -462,13 +506,23 @@ class SearchController extends Controller
                 $shootersCount = $shootersQuery->count();
                 $shooters = $shootersQuery->limit($limit)->get();
 
-                $formattedShooters = $shooters->map(function ($user) {
+                $formattedShooters = $shooters->map(function ($user) use ($viewer) {
                     $experienceYears = $user->created_at ? ceil($user->created_at->diffInYears(now())) : 0;
+                    $distanceKm = null;
+                    $distanceLabel = null;
+                    if ($viewer && $viewer->hasLocation() && $user->hasLocation()) {
+                        $dist = DistanceHelper::haversine($viewer->latitude, $viewer->longitude, $user->latitude, $user->longitude);
+                        $formatted = DistanceHelper::format($dist, $viewer->location_precision ?? 'city', $user->location_precision ?? 'city');
+                        $distanceKm = $formatted['distance_km'];
+                        $distanceLabel = $formatted['distance_label'];
+                    }
                     return [
                         'id' => $user->id,
                         'name' => $user->name,
                         'profile_image' => $user->profile_image,
                         'experience_years' => $experienceYears,
+                        'distance_km' => $distanceKm,
+                        'distance_label' => $distanceLabel,
                     ];
                 });
             }
@@ -537,7 +591,8 @@ class SearchController extends Controller
 
             $shooters = $shootersQuery->limit(50)->get();
 
-            $formattedShooters = $shooters->map(function ($user) {
+            $viewer = $request->user();
+            $formattedShooters = $shooters->map(function ($user) use ($viewer) {
                 $experienceYears = $user->created_at ? ceil($user->created_at->diffInYears(now())) : 0;
 
                 // Check if user is also a pet owner
@@ -551,7 +606,7 @@ class SearchController extends Controller
                     $petBreed = $user->pets->first()->breed;
                 }
 
-                return [
+                $result = [
                     'id' => $user->id,
                     'name' => $user->name,
                     'profile_image' => $user->profile_image,
@@ -564,7 +619,25 @@ class SearchController extends Controller
                     'pet_breed' => $petBreed,
                     'rating' => null,
                     'completed_sessions' => null,
+                    'distance_km' => null,
+                    'distance_label' => null,
                 ];
+
+                if ($viewer && $viewer->hasLocation() && $user->hasLocation()) {
+                    $distance = DistanceHelper::haversine(
+                        $viewer->latitude, $viewer->longitude,
+                        $user->latitude, $user->longitude
+                    );
+                    $formatted = DistanceHelper::format(
+                        $distance,
+                        $viewer->location_precision ?? 'city',
+                        $user->location_precision ?? 'city'
+                    );
+                    $result['distance_km'] = $formatted['distance_km'];
+                    $result['distance_label'] = $formatted['distance_label'];
+                }
+
+                return $result;
             });
 
             return response()->json([
@@ -583,11 +656,11 @@ class SearchController extends Controller
     /**
      * Helper: Format a pet model for search/explore responses
      */
-    private function formatPetForSearch(Pet $pet): array
+    private function formatPetForSearch(Pet $pet, ?User $viewer = null): array
     {
         $primaryPhoto = $pet->photos->where('is_primary', true)->first();
 
-        return [
+        $result = [
             'pet_id' => $pet->pet_id,
             'name' => $pet->name,
             'species' => $pet->species,
@@ -612,6 +685,26 @@ class SearchController extends Controller
                 'profile_image' => $pet->owner->profile_image,
             ] : null,
         ];
+
+        // Add distance info if viewer has location
+        if ($viewer && $viewer->hasLocation() && $pet->owner && $pet->owner->hasLocation()) {
+            $distance = DistanceHelper::haversine(
+                $viewer->latitude, $viewer->longitude,
+                $pet->owner->latitude, $pet->owner->longitude
+            );
+            $formatted = DistanceHelper::format(
+                $distance,
+                $viewer->location_precision ?? 'city',
+                $pet->owner->location_precision ?? 'city'
+            );
+            $result['distance_km'] = $formatted['distance_km'];
+            $result['distance_label'] = $formatted['distance_label'];
+        } else {
+            $result['distance_km'] = null;
+            $result['distance_label'] = null;
+        }
+
+        return $result;
     }
 
     /**
@@ -731,12 +824,31 @@ class SearchController extends Controller
                 'id_verified' => $idVerified,
                 'breeder_verified' => $breederCertVerified,
                 'rating' => null, // TODO: Implement rating system
+                'distance_km' => null,
+                'distance_label' => null,
+                'location' => $breeder->getObfuscatedCoordinates(),
                 'statistics' => [
                     'total_pets' => $totalPets,
                     'dog_count' => $dogCount,
                     'cat_count' => $catCount,
                 ],
             ];
+
+            // Add distance info
+            $viewer = $request->user();
+            if ($viewer && $viewer->hasLocation() && $breeder->hasLocation()) {
+                $distance = DistanceHelper::haversine(
+                    $viewer->latitude, $viewer->longitude,
+                    $breeder->latitude, $breeder->longitude
+                );
+                $formatted = DistanceHelper::format(
+                    $distance,
+                    $viewer->location_precision ?? 'city',
+                    $breeder->location_precision ?? 'city'
+                );
+                $breederProfile['distance_km'] = $formatted['distance_km'];
+                $breederProfile['distance_label'] = $formatted['distance_label'];
+            }
 
             return response()->json([
                 'success' => true,
@@ -747,6 +859,184 @@ class SearchController extends Controller
                 'success' => false,
                 'message' => 'Failed to get breeder profile',
                 'error' => $e->getMessage()
+            ], 500);
+        }
+    }
+
+    /**
+     * Map search - returns markers with obfuscated coordinates for map view.
+     * Supports filtering by type (breeders, shooters, pets) and optional radius.
+     */
+    public function mapSearch(Request $request)
+    {
+        try {
+            $viewer = $request->user();
+            $types = $request->input('types', ['breeders', 'shooters', 'pets']);
+            $radiusKm = $request->input('radius_km');
+            $species = $request->input('species');
+            $limit = min((int) $request->input('limit', 100), 200);
+
+            if (!$viewer || !$viewer->hasLocation()) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Location required. Please set your location in profile settings.',
+                ], 422);
+            }
+
+            $viewerLat = $viewer->latitude;
+            $viewerLng = $viewer->longitude;
+            $markers = [];
+
+            // Breeders
+            if (in_array('breeders', $types)) {
+                $breederRole = Role::where('role_type', 'Breeder')->first();
+                if ($breederRole) {
+                    $query = User::whereNotNull('latitude')
+                        ->whereNotNull('longitude')
+                        ->where('id', '!=', $viewer->id)
+                        ->whereHas('roles', fn($q) => $q->where('roles.role_id', $breederRole->role_id))
+                        ->whereHas('userAuth', fn($q) => $q->where('auth_type', 'id')->where('status', 'approved'));
+
+                    if ($radiusKm) {
+                        $query->withinRadius($viewerLat, $viewerLng, (float) $radiusKm);
+                    }
+
+                    $breeders = $query->withDistance($viewerLat, $viewerLng)
+                        ->orderBy('distance')
+                        ->limit($limit)
+                        ->get();
+
+                    foreach ($breeders as $breeder) {
+                        $coords = $breeder->getObfuscatedCoordinates();
+                        if (!$coords) continue;
+                        $formatted = DistanceHelper::format(
+                            $breeder->distance,
+                            $viewer->location_precision ?? 'city',
+                            $breeder->location_precision ?? 'city'
+                        );
+                        $markers[] = [
+                            'type' => 'breeder',
+                            'id' => $breeder->id,
+                            'name' => $breeder->name,
+                            'profile_image' => $breeder->profile_image,
+                            'latitude' => $coords['latitude'],
+                            'longitude' => $coords['longitude'],
+                            'distance_km' => $formatted['distance_km'],
+                            'distance_label' => $formatted['distance_label'],
+                            'pet_count' => $breeder->pets()->where('status', 'active')->count(),
+                        ];
+                    }
+                }
+            }
+
+            // Shooters
+            if (in_array('shooters', $types)) {
+                $shooterRole = Role::where('role_type', 'Shooter')->first();
+                if ($shooterRole) {
+                    $query = User::whereNotNull('latitude')
+                        ->whereNotNull('longitude')
+                        ->where('id', '!=', $viewer->id)
+                        ->whereHas('roles', fn($q) => $q->where('roles.role_id', $shooterRole->role_id))
+                        ->whereHas('userAuth', fn($q) => $q->where('auth_type', 'shooter_certificate')->where('status', 'approved'));
+
+                    if ($radiusKm) {
+                        $query->withinRadius($viewerLat, $viewerLng, (float) $radiusKm);
+                    }
+
+                    $shooters = $query->withDistance($viewerLat, $viewerLng)
+                        ->orderBy('distance')
+                        ->limit($limit)
+                        ->get();
+
+                    foreach ($shooters as $shooter) {
+                        $coords = $shooter->getObfuscatedCoordinates();
+                        if (!$coords) continue;
+                        $formatted = DistanceHelper::format(
+                            $shooter->distance,
+                            $viewer->location_precision ?? 'city',
+                            $shooter->location_precision ?? 'city'
+                        );
+                        $markers[] = [
+                            'type' => 'shooter',
+                            'id' => $shooter->id,
+                            'name' => $shooter->name,
+                            'profile_image' => $shooter->profile_image,
+                            'latitude' => $coords['latitude'],
+                            'longitude' => $coords['longitude'],
+                            'distance_km' => $formatted['distance_km'],
+                            'distance_label' => $formatted['distance_label'],
+                        ];
+                    }
+                }
+            }
+
+            // Pets (via owner location)
+            if (in_array('pets', $types)) {
+                $query = Pet::where('status', 'active')
+                    ->whereHas('owner', function ($q) {
+                        $q->whereNotNull('latitude')->whereNotNull('longitude');
+                    })
+                    ->with(['owner', 'photos']);
+
+                if ($species) {
+                    $query->where('species', $species);
+                }
+
+                if ($radiusKm) {
+                    $query->whereHas('owner', function ($q) use ($viewerLat, $viewerLng, $radiusKm) {
+                        $q->withinRadius($viewerLat, $viewerLng, (float) $radiusKm);
+                    });
+                }
+
+                $pets = $query->limit($limit)->get();
+
+                foreach ($pets as $pet) {
+                    $owner = $pet->owner;
+                    if (!$owner || !$owner->hasLocation()) continue;
+                    $coords = $owner->getObfuscatedCoordinates();
+                    if (!$coords) continue;
+
+                    $dist = DistanceHelper::haversine($viewerLat, $viewerLng, $owner->latitude, $owner->longitude);
+                    $formatted = DistanceHelper::format(
+                        $dist,
+                        $viewer->location_precision ?? 'city',
+                        $owner->location_precision ?? 'city'
+                    );
+
+                    $primaryPhoto = $pet->photos->where('is_primary', true)->first();
+                    $markers[] = [
+                        'type' => 'pet',
+                        'id' => $pet->pet_id,
+                        'name' => $pet->name,
+                        'species' => $pet->species,
+                        'breed' => $pet->breed,
+                        'sex' => $pet->sex,
+                        'profile_image' => $primaryPhoto ? $primaryPhoto->photo_url : $pet->profile_image,
+                        'latitude' => $coords['latitude'],
+                        'longitude' => $coords['longitude'],
+                        'distance_km' => $formatted['distance_km'],
+                        'distance_label' => $formatted['distance_label'],
+                        'owner_name' => $owner->name,
+                    ];
+                }
+            }
+
+            return response()->json([
+                'success' => true,
+                'data' => [
+                    'markers' => $markers,
+                    'center' => [
+                        'latitude' => $viewerLat,
+                        'longitude' => $viewerLng,
+                    ],
+                    'count' => count($markers),
+                ],
+            ]);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to load map data',
+                'error' => $e->getMessage(),
             ], 500);
         }
     }

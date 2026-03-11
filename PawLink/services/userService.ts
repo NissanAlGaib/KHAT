@@ -30,6 +30,9 @@ export interface BreederProfile {
   id_verified: boolean;
   breeder_verified: boolean;
   rating: number | null;
+  distance_km?: number | null;
+  distance_label?: string | null;
+  location?: { latitude: number; longitude: number } | null;
   statistics: {
     total_pets: number;
     dog_count: number;
@@ -66,6 +69,10 @@ export interface UpdateProfileData {
   sex?: string;
   address?: any;
   profile_image?: any; // File/URI
+  latitude?: number;
+  longitude?: number;
+  location_precision?: "city" | "barangay" | "exact";
+  prefer_nearby_matches?: boolean;
 }
 
 /**
@@ -102,6 +109,12 @@ export const updateUserProfile = async (
     if (data.birthdate) formData.append("birthdate", data.birthdate);
     if (data.sex) formData.append("sex", data.sex);
     if (data.address) formData.append("address", JSON.stringify(data.address));
+
+    // Location fields
+    if (data.latitude !== undefined) formData.append("latitude", String(data.latitude));
+    if (data.longitude !== undefined) formData.append("longitude", String(data.longitude));
+    if (data.location_precision) formData.append("location_precision", data.location_precision);
+    if (data.prefer_nearby_matches !== undefined) formData.append("prefer_nearby_matches", data.prefer_nearby_matches ? "1" : "0");
 
     // Handle profile image if provided
     if (data.profile_image) {

@@ -35,6 +35,10 @@ class UserController extends Controller
             'birthdate' => 'sometimes|date',
             'sex' => 'sometimes|in:male,female,other',
             'address' => 'sometimes|string',
+            'latitude' => 'sometimes|nullable|numeric|between:-90,90',
+            'longitude' => 'sometimes|nullable|numeric|between:-180,180',
+            'location_precision' => 'sometimes|in:city,barangay,exact',
+            'prefer_nearby_matches' => 'sometimes|boolean',
             'profile_image' => 'sometimes|image|mimes:jpeg,png,jpg,gif|max:2048',
         ]);
 
@@ -65,6 +69,18 @@ class UserController extends Controller
         }
         if ($request->has('address')) {
             $user->address = $request->address;
+        }
+        if ($request->has('latitude')) {
+            $user->latitude = $request->latitude;
+        }
+        if ($request->has('longitude')) {
+            $user->longitude = $request->longitude;
+        }
+        if ($request->has('location_precision')) {
+            $user->location_precision = $request->location_precision;
+        }
+        if ($request->has('prefer_nearby_matches')) {
+            $user->prefer_nearby_matches = $request->boolean('prefer_nearby_matches');
         }
 
         // Handle profile image upload

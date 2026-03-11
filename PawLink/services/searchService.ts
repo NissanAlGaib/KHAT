@@ -37,6 +37,8 @@ export interface GlobalSearchPetItem {
   is_on_cooldown: boolean;
   cooldown_days_remaining: number | null;
   owner: { id: number; name: string } | null;
+  distance_km: number | null;
+  distance_label: string | null;
 }
 
 export interface GlobalSearchBreederItem {
@@ -45,6 +47,8 @@ export interface GlobalSearchBreederItem {
   profile_image: string | null;
   pet_breeds: string[];
   pet_count: number;
+  distance_km: number | null;
+  distance_label: string | null;
 }
 
 export interface GlobalSearchShooterItem {
@@ -52,6 +56,8 @@ export interface GlobalSearchShooterItem {
   name: string;
   profile_image: string | null;
   experience_years: number;
+  distance_km: number | null;
+  distance_label: string | null;
 }
 
 export interface GlobalSearchResults {
@@ -88,6 +94,8 @@ export interface ExplorePetItem {
     name: string;
     profile_image: string | null;
   } | null;
+  distance_km: number | null;
+  distance_label: string | null;
 }
 
 export interface PaginationMeta {
@@ -106,6 +114,39 @@ export interface BreedListResponse {
   breeds: string[];
   dog_breeds: string[];
   cat_breeds: string[];
+}
+
+export type MapMarkerType = "breeder" | "shooter" | "pet";
+
+export interface MapMarker {
+  type: MapMarkerType;
+  id: number;
+  name: string;
+  latitude: number;
+  longitude: number;
+  distance_km: number | null;
+  distance_label: string | null;
+  profile_image?: string | null;
+  // Breeder-specific
+  pet_count?: number;
+  // Pet-specific
+  species?: string;
+  breed?: string;
+  sex?: string;
+  owner_name?: string;
+}
+
+export interface MapSearchParams {
+  types?: MapMarkerType[];
+  radius_km?: number;
+  species?: string;
+  limit?: number;
+}
+
+export interface MapSearchResponse {
+  markers: MapMarker[];
+  center: { latitude: number; longitude: number };
+  count: number;
 }
 
 export const searchService = {
@@ -211,6 +252,20 @@ export const searchService = {
       params: { q: query },
     });
     return response.data.data || response.data;
+  },
+
+  /**
+   * Get map markers for breeders, shooters, and/or pets within optional radius
+   */
+  mapSearch: async (params: MapSearchParams = {}): Promise<MapSearchResponse> => {
+    const queryParams: any = {};
+    if (params.types) queryParams.types = params.types;
+    if (params.radius_km) queryParams.radius_km = params.radius_km;
+    if (params.species) queryParams.species = params.species;
+    if (params.limit) queryParams.limit = params.limit;
+
+    const response = await axios.get("/api/search/map", { params: queryParams });
+    return response.data.data || { markers: [], center: { latitude: 0, longitude: 0 }, count: 0 };
   },
 
   /**

@@ -26,6 +26,8 @@ import {
 } from "@/services/searchService";
 import { getShooters, type ShooterProfile } from "@/services/matchService";
 import { getStorageUrl } from "@/utils/imageUrl";
+import DistanceBadge from "@/components/core/DistanceBadge";
+import SearchMapView from "@/components/app/SearchMapView";
 import ErrorBoundary from "@/components/ErrorBoundary";
 
 const { width: SCREEN_WIDTH } = Dimensions.get("window");
@@ -47,6 +49,7 @@ interface UnifiedResult {
   sex?: string;
   isOnCooldown?: boolean;
   cooldownDaysRemaining?: number | null;
+  distanceLabel?: string | null;
 }
 
 // --- Main Component ---
@@ -98,6 +101,7 @@ function SearchScreenContent() {
   );
   const [shootersLoading, setShootersLoading] = useState(true);
   const [showShooterTooltip, setShowShooterTooltip] = useState(false);
+  const [showMapView, setShowMapView] = useState(false);
 
   const isSearchMode = query.trim().length > 0;
 
@@ -271,6 +275,7 @@ function SearchScreenContent() {
           sex: pet.sex,
           isOnCooldown: pet.is_on_cooldown,
           cooldownDaysRemaining: pet.cooldown_days_remaining,
+          distanceLabel: pet.distance_label,
         });
       });
 
@@ -284,6 +289,7 @@ function SearchScreenContent() {
             b.pet_breeds?.slice(0, 2).join(", ") || `${b.pet_count || 0} pets`,
           imageUrl: b.profile_image,
           userId: b.id,
+          distanceLabel: b.distance_label,
         });
       });
 
@@ -296,6 +302,7 @@ function SearchScreenContent() {
           subtitle: `${s.experience_years || 0}y experience`,
           imageUrl: s.profile_image,
           userId: s.id,
+          distanceLabel: s.distance_label,
         });
       });
 
@@ -487,6 +494,9 @@ function SearchScreenContent() {
               </Text>
             </View>
           )}
+          {item.distance_label && (
+            <DistanceBadge distanceLabel={item.distance_label} size="sm" />
+          )}
         </View>
       </TouchableOpacity>
     );
@@ -543,6 +553,9 @@ function SearchScreenContent() {
           <Text style={styles.resultSubtitle} numberOfLines={1}>
             {item.subtitle}
           </Text>
+          {item.distanceLabel && (
+            <DistanceBadge distanceLabel={item.distanceLabel} size="sm" />
+          )}
         </View>
 
         {/* Type badge */}
@@ -869,6 +882,9 @@ function SearchScreenContent() {
                     {shooter.experience_years}y exp
                   </Text>
                 )}
+                {shooter.distance_label && (
+                  <DistanceBadge distanceLabel={shooter.distance_label} size="sm" />
+                )}
               </TouchableOpacity>
             );
           })}
@@ -974,6 +990,21 @@ function SearchScreenContent() {
             </TouchableOpacity>
           )}
         </View>
+
+        {/* Map toggle button */}
+        <TouchableOpacity
+          style={[
+            styles.moreFilterBtn,
+            showMapView && styles.moreFilterBtnActive,
+          ]}
+          onPress={() => setShowMapView((v) => !v)}
+        >
+          <Feather
+            name="map"
+            size={18}
+            color={showMapView ? Colors.white : Colors.textSecondary}
+          />
+        </TouchableOpacity>
 
         {/* More filters button */}
         <TouchableOpacity
@@ -1081,7 +1112,13 @@ function SearchScreenContent() {
       {renderRecentSearches()}
 
       {/* Content */}
-      <View style={styles.body}>{renderContent()}</View>
+      <View style={styles.body}>
+        {showMapView ? (
+          <SearchMapView onClose={() => setShowMapView(false)} />
+        ) : (
+          renderContent()
+        )}
+      </View>
 
       {/* Filter Bottom Sheet */}
       {renderFilterSheet()}

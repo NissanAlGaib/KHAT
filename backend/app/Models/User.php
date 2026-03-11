@@ -35,6 +35,10 @@ class User extends Authenticatable
         'sex',
         'address',
         'profile_image',
+        'latitude',
+        'longitude',
+        'location_precision',
+        'prefer_nearby_matches',
         'warning_count',
         'average_rating',
         'review_count',
@@ -69,6 +73,9 @@ class User extends Authenticatable
             'password' => 'hashed',
             'birthday' => 'date',
             'address' => 'array',
+            'latitude' => 'float',
+            'longitude' => 'float',
+            'prefer_nearby_matches' => 'boolean',
             'suspended_at' => 'datetime',
             'suspension_end_date' => 'datetime',
         ];
@@ -244,5 +251,79 @@ class User extends Authenticatable
     public function sendPasswordResetNotification($token): void
     {
         $this->notify(new ResetPasswordNotification($token));
+    }
+
+    /**
+     * Scope: add a calculated distance_km column using the Haversine formula.
+     */
+    public function scopeWithDistance($query, float $lat, float $lng)
+    {
+        $latParam = (float) $lat;
+        $lngParam = (float) $lng;
+
+        return $query->selectRaw("
+            *, (
+                6371 * acos(
+                    cos(radians(?)) * cos(radians(latitude))
+                    * cos(radians(longitude) - radians(?))
+                    + sin(radians(?)) * sin(radians(latitude))
+                )
+            ) AS distance_km
+        ", [$latParam, $lngParam, $latParam]);
+    }
+
+    /**
+     * Scope: filter users within a given radius (km).
+     */
+    public function scopeWithinRadius($query, float $lat, float $lng, float $radiusKm)
+    {
+        return $query->withDistance($lat, $lng)
+            ->whereNotNull('latitude')
+            ->whereNotNull('longitude')
+            ->having('distance_km', '<=', $radiusKm);
+    }
+
+    /**
+     * Get obfuscated coordinates based on the user's location_precision setting.
+     * - 'exact': returns actual coordinates
+     * - 'barangay': adds random noise ~500m
+     * - 'city' (default): adds random noise ~5.5km
+     */
+    public function getObfuscatedCoordinates(): ?array
+    {
+        if (is_null($this->latitude) || is_null($this->longitude)) {
+            return null;
+        }
+
+        $lat = $this->latitude;
+        $lng = $this->longitude;
+
+        switch ($this->location_precision ?? 'city') {
+            case 'exact':
+                break;
+            case 'barangay':
+                $lat += (mt_rand(-500, 500) / 100000); // ~500m
+                $lng += (mt_rand(-500, 500) / 100000);
+                break;
+            case 'city':
+            default:
+                $lat += (mt_rand(-5000, 5000) / 100000); // ~5.5km
+                $lng += (mt_rand(-5000, 5000) / 100000);
+                break;
+        }
+
+        return [
+            'latitude' => round($lat, 6),
+            'longitude' => round($lng, 6),
+            'precision' => $this->location_precision ?? 'city',
+        ];
+    }
+
+    /**
+     * Check if user has location data.
+     */
+    public function hasLocation(): bool
+    {
+        return !is_null($this->latitude) && !is_null($this->longitude);
     }
 }

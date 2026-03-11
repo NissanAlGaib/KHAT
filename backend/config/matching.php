@@ -18,6 +18,7 @@ return [
         'behaviors' => env('MATCHING_WEIGHT_BEHAVIORS', 0.20),
         'attributes' => env('MATCHING_WEIGHT_ATTRIBUTES', 0.15),
         'preferences' => env('MATCHING_WEIGHT_PREFERENCES', 0.15),
+        'location' => env('MATCHING_WEIGHT_LOCATION', 0.15),
     ],
 
     /*
@@ -64,6 +65,25 @@ return [
 
         // Score for same species but different breed
         'same_species_score' => env('MATCHING_SAME_SPECIES_SCORE', 0.5),
+    ],
+
+    /*
+    |--------------------------------------------------------------------------
+    | Location Scoring Parameters
+    |--------------------------------------------------------------------------
+    |
+    | Controls how distance affects the proximity score when both users
+    | have enabled "prefer nearby matches". Uses exponential decay:
+    | score = exp(-distance_km / decay_factor)
+    |
+    */
+
+    'location' => [
+        // Decay factor for exponential distance scoring (higher = more forgiving)
+        'decay_factor' => env('MATCHING_LOCATION_DECAY', 100),
+
+        // Distance threshold in km for "Nearby breeder" reason label
+        'nearby_threshold_km' => env('MATCHING_LOCATION_NEARBY_KM', 50),
     ],
 
 ];

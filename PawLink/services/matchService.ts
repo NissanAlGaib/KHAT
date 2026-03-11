@@ -22,6 +22,8 @@ export interface PetMatch {
   };
   compatibility_score?: number;
   match_reasons?: string[];
+  distance_km?: number | null;
+  distance_label?: string | null;
 }
 
 export interface ShooterPet {
@@ -57,6 +59,9 @@ export interface ShooterProfile {
   id_verified?: boolean;
   breeder_verified?: boolean;
   shooter_verified?: boolean;
+  distance_km?: number | null;
+  distance_label?: string | null;
+  location?: { latitude: number; longitude: number } | null;
   statistics: {
     total_pets: number;
     matched: number;

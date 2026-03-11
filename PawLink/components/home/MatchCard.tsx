@@ -24,6 +24,7 @@ interface MatchCardProps {
       birthdate?: string;
     };
     compatibility_score: number;
+    distance_label?: string | null;
   };
   selectedPetId?: number;
 }
@@ -132,7 +133,7 @@ export default function MatchCard({ match, selectedPetId }: MatchCardProps) {
             </View>
             <View style={styles.locationTag}>
               <Feather name="map-pin" size={12} color="rgba(255,255,255,0.8)" />
-              <Text style={styles.locationText}>Nearby</Text>
+              <Text style={styles.locationText}>{match.distance_label || "Nearby"}</Text>
             </View>
           </View>
         </View>
