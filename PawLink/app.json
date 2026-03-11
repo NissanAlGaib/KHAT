@@ -59,9 +59,15 @@
         }
       ],
       [
-        "react-native-maps",
+        "expo-build-properties",
         {
-          "androidApiKey": "AIzaSyBfEG1_Ut1akRLQ3Tx7PwPHZ_X_bDN_gvQ"
+          "android": {
+            "compileSdkVersion": 35,
+            "targetSdkVersion": 35,
+            "agpVersion": "8.10.2",
+            "gradleVersion": "8.11.1",
+            "kotlinVersion": "2.0.21"
+          }
         }
       ]
     ],
@@ -75,9 +81,7 @@
         "projectId": "7e943f80-fb61-42eb-a1bb-1a8043d09381"
       }
     },
-    "runtimeVersion": {
-      "policy": "appVersion"
-    },
+    "runtimeVersion": "1.7.0",
     "updates": {
       "url": "https://u.expo.dev/7e943f80-fb61-42eb-a1bb-1a8043d09381"
     }

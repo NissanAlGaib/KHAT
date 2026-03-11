@@ -338,6 +338,13 @@ export default function ProfileScreen() {
         onPress: () => router.push("/privacy-security"),
       },
       {
+        icon: "map-pin" as const,
+        label: "Location Settings",
+        subtitle: "Distance, map preferences",
+        iconBg: "#EF4444",
+        onPress: () => router.push("/location-settings"),
+      },
+      {
         icon: "credit-card" as const,
         label: "My Payments",
         subtitle: "Transactions and disputes",

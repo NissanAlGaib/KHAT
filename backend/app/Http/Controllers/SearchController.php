@@ -879,7 +879,10 @@ class SearchController extends Controller
     {
         try {
             $viewer = $request->user();
-            $types = $request->input('types', ['breeders', 'shooters', 'pets']);
+            $types = $request->input('types', $request->input('types_', ['breeders', 'shooters', 'pets']));
+            if (is_string($types)) {
+                $types = [$types];
+            }
             $radiusKm = $request->input('radius_km');
             $species = $request->input('species');
             $limit = min((int) $request->input('limit', 100), 200);

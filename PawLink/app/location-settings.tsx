@@ -120,7 +120,7 @@ export default function LocationSettingsScreen() {
         title: "Saved",
         message: "Your location settings have been updated.",
         type: "success",
-        onClose: () => router.back(),
+        buttons: [{ text: "OK", onPress: () => router.back() }],
       });
     } catch (error) {
       console.error("Error saving location:", error);
@@ -175,8 +175,7 @@ export default function LocationSettingsScreen() {
         </View>
 
         <SettingsButton
-          label={locLoading ? "Detecting..." : "Detect My Location"}
-          icon="navigation"
+          title={locLoading ? "Detecting..." : "Update My Location"}
           onPress={handleDetectLocation}
           disabled={locLoading}
         />
@@ -276,8 +275,7 @@ export default function LocationSettingsScreen() {
       {/* Save */}
       <View style={{ padding: Spacing.md }}>
         <SettingsButton
-          label={saving ? "Saving..." : "Save Location Settings"}
-          icon="save"
+          title={saving ? "Saving..." : "Save Location Settings"}
           onPress={handleSave}
           variant="primary"
           disabled={saving}

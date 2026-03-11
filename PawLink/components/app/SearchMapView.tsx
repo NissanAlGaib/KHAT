@@ -1,42 +1,20 @@
-import React, {
-  useState,
-  useEffect,
-  useCallback,
-  useRef,
-  Component,
-  ErrorInfo,
-  ReactNode,
-} from "react";
+import React, { useState, useEffect, useCallback, useRef } from "react";
 import {
   View,
   Text,
   TouchableOpacity,
-  Image,
   ActivityIndicator,
   StyleSheet,
-  Dimensions,
 } from "react-native";
-import MapView, { Marker, Callout, PROVIDER_DEFAULT } from "react-native-maps";
+import { WebView } from "react-native-webview";
 import { Feather } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
 import { Colors, Spacing, BorderRadius } from "@/constants";
 import {
   searchService,
   MapMarker,
-  MapMarkerType,
   MapFilterType,
 } from "@/services/searchService";
-import { getStorageUrl } from "@/utils/imageUrl";
-
-const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get("window");
-
-// Default center: Manila, Philippines
-const DEFAULT_REGION = {
-  latitude: 14.5995,
-  longitude: 120.9842,
-  latitudeDelta: 0.5,
-  longitudeDelta: 0.5,
-};
 
 const FILTER_OPTIONS: {
   key: MapFilterType;
@@ -53,104 +31,104 @@ interface SearchMapViewProps {
   onClose: () => void;
 }
 
-class MapErrorBoundary extends Component<
-  { children: ReactNode; onClose: () => void },
-  { hasError: boolean }
-> {
-  state = { hasError: false };
-  static getDerivedStateFromError() {
-    return { hasError: true };
-  }
-  componentDidCatch(error: Error, info: ErrorInfo) {
-    console.error("MapView error:", error, info);
-  }
-  render() {
-    if (this.state.hasError) {
-      return (
-        <View
-          style={{
-            flex: 1,
-            alignItems: "center",
-            justifyContent: "center",
-            padding: 24,
-          }}
-        >
-          <Feather name="alert-circle" size={48} color={Colors.textMuted} />
-          <Text
-            style={{
-              fontSize: 16,
-              fontWeight: "600",
-              color: Colors.textPrimary,
-              marginTop: 16,
-              textAlign: "center",
-            }}
-          >
-            Map unavailable
-          </Text>
-          <Text
-            style={{
-              fontSize: 14,
-              color: Colors.textMuted,
-              marginTop: 8,
-              textAlign: "center",
-            }}
-          >
-            Could not load the map. Please make sure you have the latest app
-            version installed.
-          </Text>
-          <TouchableOpacity
-            onPress={this.props.onClose}
-            style={{
-              marginTop: 20,
-              paddingHorizontal: 24,
-              paddingVertical: 10,
-              backgroundColor: Colors.primary,
-              borderRadius: BorderRadius.md,
-            }}
-          >
-            <Text style={{ color: Colors.white, fontWeight: "600" }}>
-              Go Back
-            </Text>
-          </TouchableOpacity>
-        </View>
-      );
+function buildLeafletHtml(
+  markers: MapMarker[],
+  center: { latitude: number; longitude: number },
+) {
+  const markerColor = (type: string) => {
+    switch (type) {
+      case "breeder":
+        return "#3B82F6";
+      case "shooter":
+        return "#F59E0B";
+      case "pet":
+        return "#6C63FF";
+      default:
+        return "#888";
     }
-    return this.props.children;
-  }
+  };
+
+  const markerJs = markers
+    .map((m) => {
+      const color = markerColor(m.type);
+      const subtitle =
+        m.type === "pet"
+          ? m.breed || m.species || "Pet"
+          : m.type === "breeder"
+            ? `${m.pet_count || 0} pets`
+            : "Shooter";
+      const distLine = m.distance_label
+        ? `<br/><span style="color:${color};font-size:11px">${m.distance_label}</span>`
+        : "";
+      // Sanitize name to prevent XSS in popup
+      const safeName = (m.name || "").replace(/[<>"'&]/g, "");
+      const safeSubtitle = subtitle.replace(/[<>"'&]/g, "");
+      return `L.circleMarker([${m.latitude},${m.longitude}],{radius:8,fillColor:'${color}',color:'#fff',weight:2,fillOpacity:0.9}).addTo(map).bindPopup('<b>${safeName}</b><br/>${safeSubtitle}${distLine}',{closeButton:false}).on('click',function(){window.ReactNativeWebView.postMessage(JSON.stringify({type:'${m.type}',id:${m.id}}))});`;
+    })
+    .join("\n");
+
+  return `<!DOCTYPE html>
+<html>
+<head>
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no"/>
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<style>
+  body{margin:0;padding:0;}
+  #map{width:100%;height:100vh;}
+</style>
+</head>
+<body>
+<div id="map"></div>
+<script>
+  var map = L.map('map',{zoomControl:false}).setView([${center.latitude},${center.longitude}],11);
+  L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png',{
+    maxZoom:19,
+    attribution:'&copy; OpenStreetMap'
+  }).addTo(map);
+  L.control.zoom({position:'bottomright'}).addTo(map);
+  ${markerJs}
+</script>
+</body>
+</html>`;
 }
 
-function SearchMapViewInner({ onClose }: SearchMapViewProps) {
+export default function SearchMapView({ onClose }: SearchMapViewProps) {
   const router = useRouter();
-  const mapRef = useRef<MapView>(null);
+  const webViewRef = useRef<WebView>(null);
   const [markers, setMarkers] = useState<MapMarker[]>([]);
   const [loading, setLoading] = useState(true);
+  const [mapReady, setMapReady] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   const [activeFilters, setActiveFilters] = useState<MapFilterType[]>([
     "breeders",
     "shooters",
     "pets",
   ]);
-  const [center, setCenter] = useState(DEFAULT_REGION);
+  const [center, setCenter] = useState({
+    latitude: 14.5995,
+    longitude: 120.9842,
+  });
 
   const loadMarkers = useCallback(async () => {
     setLoading(true);
+    setError(null);
     try {
       const result = await searchService.mapSearch({
         types: activeFilters,
         limit: 150,
       });
-      setMarkers(result.markers);
-      if (result.center.latitude && result.center.longitude) {
-        const newRegion = {
-          latitude: result.center.latitude,
-          longitude: result.center.longitude,
-          latitudeDelta: 0.3,
-          longitudeDelta: 0.3,
-        };
-        setCenter(newRegion);
-        mapRef.current?.animateToRegion(newRegion, 500);
+      setMarkers(result.markers || []);
+      if (result.center?.latitude && result.center?.longitude) {
+        setCenter(result.center);
       }
-    } catch (error) {
-      console.error("Map search error:", error);
+    } catch (err: any) {
+      const msg =
+        err?.response?.data?.message ||
+        err?.message ||
+        "Failed to load map data";
+      console.error("Map search error:", msg, err?.response?.status);
+      setError(msg);
     } finally {
       setLoading(false);
     }
@@ -163,35 +141,27 @@ function SearchMapViewInner({ onClose }: SearchMapViewProps) {
   const toggleFilter = (key: MapFilterType) => {
     setActiveFilters((prev) => {
       if (prev.includes(key)) {
-        if (prev.length === 1) return prev; // Keep at least one
+        if (prev.length === 1) return prev;
         return prev.filter((f) => f !== key);
       }
       return [...prev, key];
     });
   };
 
-  const getMarkerColor = (type: MapMarkerType): string => {
-    switch (type) {
-      case "breeder":
-        return Colors.info;
-      case "shooter":
-        return Colors.warning;
-      case "pet":
-        return Colors.primary;
-      default:
-        return Colors.textMuted;
-    }
+  const handleMessage = (event: { nativeEvent: { data: string } }) => {
+    try {
+      const data = JSON.parse(event.nativeEvent.data);
+      if (data.type === "pet") {
+        router.push(`/(pet)/${data.id}`);
+      } else if (data.type === "breeder") {
+        router.push(`/(breeder)/${data.id}`);
+      } else if (data.type === "shooter") {
+        router.push(`/(shooter)/${data.id}`);
+      }
+    } catch {}
   };
 
-  const handleMarkerPress = (marker: MapMarker) => {
-    if (marker.type === "pet") {
-      router.push(`/(pet)/${marker.id}`);
-    } else if (marker.type === "breeder") {
-      router.push(`/(breeder)/${marker.id}`);
-    } else if (marker.type === "shooter") {
-      router.push(`/(shooter)/${marker.id}`);
-    }
-  };
+  const html = buildLeafletHtml(markers, center);
 
   return (
     <View style={styles.container}>
@@ -239,59 +209,31 @@ function SearchMapViewInner({ onClose }: SearchMapViewProps) {
 
       {/* Map */}
       <View style={styles.mapWrapper}>
-        <MapView
-          ref={mapRef}
-          style={styles.map}
-          provider={PROVIDER_DEFAULT}
-          initialRegion={center}
-          showsUserLocation
-          showsMyLocationButton
-          mapType="standard"
-        >
-          {markers.map((marker, index) => (
-            <Marker
-              key={`${marker.type}-${marker.id}-${index}`}
-              coordinate={{
-                latitude: marker.latitude,
-                longitude: marker.longitude,
-              }}
-              pinColor={getMarkerColor(marker.type as MapMarkerType)}
-              onCalloutPress={() => handleMarkerPress(marker)}
-            >
-              <Callout tooltip={false}>
-                <View style={styles.callout}>
-                  {marker.profile_image && (
-                    <Image
-                      source={{
-                        uri: getStorageUrl(marker.profile_image) || "",
-                      }}
-                      style={styles.calloutImage}
-                    />
-                  )}
-                  <View style={styles.calloutText}>
-                    <Text style={styles.calloutName} numberOfLines={1}>
-                      {marker.name}
-                    </Text>
-                    <Text style={styles.calloutType}>
-                      {marker.type === "pet"
-                        ? `${marker.breed || marker.species}`
-                        : marker.type === "breeder"
-                          ? `${marker.pet_count || 0} pets`
-                          : "Shooter"}
-                    </Text>
-                    {marker.distance_label && (
-                      <Text style={styles.calloutDistance}>
-                        {marker.distance_label}
-                      </Text>
-                    )}
-                  </View>
-                </View>
-              </Callout>
-            </Marker>
-          ))}
-        </MapView>
+        {error ? (
+          <View style={styles.errorContainer}>
+            <Feather name="alert-circle" size={32} color={Colors.warning} />
+            <Text style={styles.errorText}>{error}</Text>
+            <TouchableOpacity onPress={loadMarkers} style={styles.retryBtn}>
+              <Text style={styles.retryText}>Retry</Text>
+            </TouchableOpacity>
+          </View>
+        ) : (
+          <WebView
+            ref={webViewRef}
+            source={{ html }}
+            style={styles.map}
+            onMessage={handleMessage}
+            onLoadEnd={() => setMapReady(true)}
+            javaScriptEnabled
+            domStorageEnabled
+            scrollEnabled={false}
+            overScrollMode="never"
+            showsHorizontalScrollIndicator={false}
+            showsVerticalScrollIndicator={false}
+          />
+        )}
 
-        {loading && (
+        {!error && (loading || !mapReady) && (
           <View style={styles.loadingOverlay}>
             <ActivityIndicator size="small" color={Colors.primary} />
           </View>
@@ -375,35 +317,6 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.15,
     shadowRadius: 4,
   },
-  callout: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 8,
-    maxWidth: 200,
-    padding: 4,
-  },
-  calloutImage: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-  },
-  calloutText: {
-    flex: 1,
-  },
-  calloutName: {
-    fontSize: 13,
-    fontWeight: "600",
-    color: Colors.textPrimary,
-  },
-  calloutType: {
-    fontSize: 11,
-    color: Colors.textMuted,
-  },
-  calloutDistance: {
-    fontSize: 11,
-    color: Colors.info,
-    fontWeight: "500",
-  },
   countRow: {
     flexDirection: "row",
     alignItems: "center",
@@ -417,12 +330,27 @@ const styles = StyleSheet.create({
     fontSize: 13,
     color: Colors.textMuted,
   },
+  errorContainer: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
+    padding: Spacing.lg,
+    gap: 12,
+  },
+  errorText: {
+    fontSize: 14,
+    color: Colors.textMuted,
+    textAlign: "center",
+  },
+  retryBtn: {
+    paddingHorizontal: 20,
+    paddingVertical: 8,
+    borderRadius: BorderRadius.full,
+    backgroundColor: Colors.primary,
+  },
+  retryText: {
+    color: Colors.white,
+    fontWeight: "600",
+    fontSize: 14,
+  },
 });
-
-export default function SearchMapView({ onClose }: SearchMapViewProps) {
-  return (
-    <MapErrorBoundary onClose={onClose}>
-      <SearchMapViewInner onClose={onClose} />
-    </MapErrorBoundary>
-  );
-}
