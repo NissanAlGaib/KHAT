@@ -195,6 +195,15 @@ class MatchController extends Controller
                     $primaryPhoto1 = $userPet->photos->firstWhere('is_primary', true) ?? $userPet->photos->first();
                     $primaryPhoto2 = $potentialPet->photos->firstWhere('is_primary', true) ?? $potentialPet->photos->first();
 
+                    // Calculate distance label between pet owners
+                    $distanceLabel = null;
+                    $petOwner = $potentialPet->owner;
+                    if ($user->hasLocation() && $petOwner && $petOwner->hasLocation()) {
+                        $dist = DistanceHelper::haversine($user->latitude, $user->longitude, $petOwner->latitude, $petOwner->longitude);
+                        $formatted = DistanceHelper::format($dist, $user->location_precision ?? 'city', $petOwner->location_precision ?? 'city');
+                        $distanceLabel = $formatted['distance_label'];
+                    }
+
                     $topMatches[] = [
                         'pet1' => [
                             'pet_id' => $userPet->pet_id,
@@ -216,6 +225,7 @@ class MatchController extends Controller
                         ],
                         'compatibility_score' => $compatibility['score'],
                         'match_reasons' => $compatibility['reasons'],
+                        'distance_label' => $distanceLabel,
                     ];
                 }
             }

@@ -95,6 +95,7 @@ export interface TopMatch {
   };
   compatibility_score: number;
   match_reasons?: string[];
+  distance_label?: string | null;
 }
 
 /**

@@ -55,34 +55,17 @@ class DistanceHelper
 
             case 'city':
             default:
-                // Show broad ranges only
-                if ($distanceKm < 5) {
+                // Show approximate numbered distances
+                if ($distanceKm < 1) {
                     return [
-                        'distance_km' => round($distanceKm, 0),
-                        'distance_label' => 'Same area',
+                        'distance_km' => round($distanceKm, 1),
+                        'distance_label' => '< 1 km away',
                     ];
                 }
-                if ($distanceKm < 20) {
-                    return [
-                        'distance_km' => round($distanceKm, 0),
-                        'distance_label' => 'Nearby',
-                    ];
-                }
-                if ($distanceKm < 50) {
-                    return [
-                        'distance_km' => round($distanceKm, 0),
-                        'distance_label' => 'Same province',
-                    ];
-                }
-                if ($distanceKm < 200) {
-                    return [
-                        'distance_km' => round($distanceKm, 0),
-                        'distance_label' => 'Same region',
-                    ];
-                }
+                $rounded = round($distanceKm);
                 return [
-                    'distance_km' => round($distanceKm, 0),
-                    'distance_label' => 'Far away',
+                    'distance_km' => (float) $rounded,
+                    'distance_label' => "~{$rounded} km away",
                 ];
         }
     }
