@@ -913,7 +913,7 @@ class SearchController extends Controller
                     }
 
                     $breeders = $query->withDistance($viewerLat, $viewerLng)
-                        ->orderBy('distance')
+                        ->orderBy('distance_km')
                         ->limit($limit)
                         ->get();
 
@@ -921,7 +921,7 @@ class SearchController extends Controller
                         $coords = $breeder->getObfuscatedCoordinates();
                         if (!$coords) continue;
                         $formatted = DistanceHelper::format(
-                            $breeder->distance,
+                            $breeder->distance_km,
                             $viewer->location_precision ?? 'city',
                             $breeder->location_precision ?? 'city'
                         );
@@ -955,7 +955,7 @@ class SearchController extends Controller
                     }
 
                     $shooters = $query->withDistance($viewerLat, $viewerLng)
-                        ->orderBy('distance')
+                        ->orderBy('distance_km')
                         ->limit($limit)
                         ->get();
 
@@ -963,7 +963,7 @@ class SearchController extends Controller
                         $coords = $shooter->getObfuscatedCoordinates();
                         if (!$coords) continue;
                         $formatted = DistanceHelper::format(
-                            $shooter->distance,
+                            $shooter->distance_km,
                             $viewer->location_precision ?? 'city',
                             $shooter->location_precision ?? 'city'
                         );
