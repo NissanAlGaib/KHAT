@@ -319,6 +319,7 @@ export interface PetPublicProfile {
     profile_image?: string;
     is_verified?: boolean;
     verification_status?: "pending" | "approved" | "rejected" | null;
+    location?: string | null;
   };
   photos: PetPhoto[];
   preferences: string[];

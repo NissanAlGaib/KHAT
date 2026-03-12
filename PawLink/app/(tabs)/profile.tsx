@@ -355,6 +355,13 @@ export default function ProfileScreen() {
             onPress={() => router.push("/my-payments")}
           />
           <SettingsItem
+            icon="heart"
+            iconColor="#EF4444"
+            label="My Favorites"
+            subtitle="Saved pets"
+            onPress={() => router.push("/favorites")}
+          />
+          <SettingsItem
             icon="award"
             iconColor="#EC4899"
             label="Breeding History"

@@ -102,3 +102,20 @@ export interface LitterPuppy {
   created_at: string;
   updated_at: string;
 }
+
+export interface FavoritePet {
+  id: number;
+  pet_id: number;
+  name: string;
+  species: string;
+  breed: string;
+  sex: string;
+  profile_image?: string;
+  owner: {
+    id: number;
+    name: string;
+    profile_image?: string;
+    location?: string | null;
+  };
+  favorited_at: string;
+}

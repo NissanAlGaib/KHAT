@@ -9,11 +9,15 @@ import {
   StyleSheet,
   Dimensions,
   Linking,
+  Share,
+  Modal,
+  Pressable,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Feather, Ionicons } from "@expo/vector-icons";
 import { useAlert } from "@/hooks/useAlert";
 import AlertModal from "@/components/core/AlertModal";
+import BlockReportModal from "@/components/chat/BlockReportModal";
 import { useRouter, useLocalSearchParams } from "expo-router";
 import {
   getPetPublicProfile,
@@ -27,12 +31,19 @@ import {
 import {
   sendMatchRequest,
   createMatchPayment,
+  getConversations,
 } from "@/services/matchRequestService";
 import { verifyPayment } from "@/services/paymentService";
+import {
+  addFavorite,
+  removeFavorite,
+  checkFavorite,
+} from "@/services/favoriteService";
 import { API_BASE_URL } from "@/config/env";
 import { usePet } from "@/context/PetContext";
 import { getStorageUrl } from "@/utils/imageUrl";
 import { ReadOnlyVaccinationCard } from "@/components/pet";
+import * as Clipboard from "expo-clipboard";
 import dayjs from "dayjs";
 import { LinearGradient } from "expo-linear-gradient";
 
@@ -72,8 +83,8 @@ export default function ViewPetProfileScreen() {
   const [loading, setLoading] = useState(true);
   const [sendingRequest, setSendingRequest] = useState(false);
   const [activeTab, setActiveTab] = useState<
-    "about" | "health" | "gallery" | "litters" | "compatibility"
-  >("about");
+    "overview" | "health" | "breeding"
+  >("overview");
   const [pendingPaymentId, setPendingPaymentId] = useState<number | null>(null);
   const [pendingMatchData, setPendingMatchData] = useState<{
     requesterPetId: number;
@@ -83,6 +94,14 @@ export default function ViewPetProfileScreen() {
     null,
   );
   const [compatLoading, setCompatLoading] = useState(false);
+  const [isFavorited, setIsFavorited] = useState(false);
+  const [hasActiveChat, setHasActiveChat] = useState(false);
+  const [conversationId, setConversationId] = useState<number | null>(null);
+  const [showMenuModal, setShowMenuModal] = useState(false);
+  const [showBlockReport, setShowBlockReport] = useState(false);
+  const [blockReportTab, setBlockReportTab] = useState<"block" | "report">(
+    "report",
+  );
 
   const fetchPetData = useCallback(async () => {
     try {
@@ -122,6 +141,30 @@ export default function ViewPetProfileScreen() {
     }
   }, [selectedPet, petData]);
 
+  // Check if pet is favorited
+  useEffect(() => {
+    if (petId) {
+      checkFavorite(parseInt(petId)).then((res) =>
+        setIsFavorited(res.is_favorited),
+      );
+    }
+  }, [petId]);
+
+  // Check if there's an active conversation with this pet's owner
+  useEffect(() => {
+    if (petData?.owner?.id) {
+      getConversations().then((conversations) => {
+        const existing = conversations.find(
+          (c) => c.owner?.id === petData.owner.id,
+        );
+        if (existing) {
+          setHasActiveChat(true);
+          setConversationId(existing.id);
+        }
+      });
+    }
+  }, [petData?.owner?.id]);
+
   const getImageUrl = (path: string | null | undefined) => {
     if (!path) return undefined;
     return getStorageUrl(path) ?? undefined;
@@ -135,6 +178,75 @@ export default function ViewPetProfileScreen() {
     const months = now.diff(birth, "month") % 12;
     if (years > 0) return `${years} Year${years > 1 ? "s" : ""}`;
     return `${months} Month${months > 1 ? "s" : ""}`;
+  };
+
+  const handleToggleFavorite = async () => {
+    const petIdNum = parseInt(petId);
+    const wasFavorited = isFavorited;
+    setIsFavorited(!wasFavorited);
+    try {
+      if (wasFavorited) {
+        await removeFavorite(petIdNum);
+      } else {
+        await addFavorite(petIdNum);
+      }
+      showAlert({
+        title: wasFavorited ? "Removed" : "Added to Favorites",
+        message: wasFavorited
+          ? `${petData?.name} removed from favorites.`
+          : `${petData?.name} added to your favorites!`,
+        type: "success",
+      });
+    } catch {
+      setIsFavorited(wasFavorited);
+      showAlert({
+        title: "Error",
+        message: "Failed to update favorites.",
+        type: "error",
+      });
+    }
+  };
+
+  const handleShareProfile = async () => {
+    setShowMenuModal(false);
+    try {
+      await Share.share({
+        message: `Check out ${petData?.name} on PawLink! A ${petData?.species} (${petData?.breed}) looking for a match.`,
+        title: `${petData?.name} - PawLink`,
+      });
+    } catch {
+      // user cancelled share
+    }
+  };
+
+  const handleCopyLink = async () => {
+    setShowMenuModal(false);
+    await Clipboard.setStringAsync(
+      `PawLink Pet Profile: ${petData?.name} (ID: ${petId})`,
+    );
+    showAlert({
+      title: "Copied",
+      message: "Profile link copied to clipboard.",
+      type: "success",
+    });
+  };
+
+  const handleReportOwner = () => {
+    setShowMenuModal(false);
+    setBlockReportTab("report");
+    setShowBlockReport(true);
+  };
+
+  const handleBlockOwner = () => {
+    setShowMenuModal(false);
+    setBlockReportTab("block");
+    setShowBlockReport(true);
+  };
+
+  const handleChatPress = () => {
+    if (conversationId) {
+      router.push(`/(chat)/conversation?id=${conversationId}`);
+    }
   };
 
   const handlePaymentForMatch = async (
@@ -392,28 +504,18 @@ export default function ViewPetProfileScreen() {
     );
   }
 
-  const renderAbout = () => (
+  const renderOverview = () => (
     <View style={styles.tabContent}>
-      <InfoCard icon="information-circle-outline" title="About Me">
+      {/* Description */}
+      <InfoCard icon="information-circle-outline" title="About">
         <Text style={styles.cardText}>
           {petData.description || "No description available."}
         </Text>
       </InfoCard>
 
-      <InfoCard icon="person-outline" title="Owner">
-        <View style={styles.ownerContainer}>
-          <Image
-            source={{ uri: getImageUrl(petData.owner.profile_image) }}
-            style={styles.ownerImage}
-          />
-          <View>
-            <Text style={styles.ownerName}>{petData.owner.name}</Text>
-            <Text style={styles.cardText}>{petData.name}&apos;s Owner</Text>
-          </View>
-        </View>
-      </InfoCard>
-
+      {/* Details Grid */}
       <InfoCard icon="paw-outline" title="Details">
+        <DetailRow label="Species" value={petData.species} />
         <DetailRow label="Breed" value={petData.breed} />
         <DetailRow label="Age" value={calculateAge(petData.birthdate)} />
         <DetailRow label="Sex" value={petData.sex} />
@@ -461,6 +563,7 @@ export default function ViewPetProfileScreen() {
         )}
       </InfoCard>
 
+      {/* Preferences */}
       <InfoCard icon="heart-outline" title="Breeding Preferences">
         {petData.preferences && petData.preferences.length > 0 ? (
           <View style={styles.tagContainer}>
@@ -473,7 +576,28 @@ export default function ViewPetProfileScreen() {
         )}
       </InfoCard>
 
-      {/* Trust & Verification Card */}
+      {/* Photo Gallery */}
+      <InfoCard icon="images-outline" title="Gallery">
+        {petData.photos && petData.photos.length > 0 ? (
+          <View style={styles.photoGrid}>
+            {petData.photos.map((photo, index) => (
+              <View key={`photo-${index}`} style={styles.photoContainer}>
+                <Image
+                  source={{ uri: getImageUrl(photo.photo_url) }}
+                  style={styles.photo}
+                />
+              </View>
+            ))}
+          </View>
+        ) : (
+          <View style={styles.emptySection}>
+            <Ionicons name="images-outline" size={40} color="#9CA3AF" />
+            <Text style={styles.emptySectionText}>No photos yet.</Text>
+          </View>
+        )}
+      </InfoCard>
+
+      {/* Trust & Verification */}
       <InfoCard icon="shield-checkmark-outline" title="Trust & Verification">
         <View style={styles.verificationDetailRow}>
           <View style={styles.verificationIconContainer}>
@@ -643,100 +767,9 @@ export default function ViewPetProfileScreen() {
     </View>
   );
 
-  const renderGallery = () => (
-    <View style={styles.galleryContainer}>
-      {petData.photos && petData.photos.length > 0 ? (
-        <View style={styles.photoGrid}>
-          {petData.photos.map((photo, index) => (
-            <View key={`photo-${index}`} style={styles.photoContainer}>
-              <Image
-                source={{ uri: getImageUrl(photo.photo_url) }}
-                style={styles.photo}
-              />
-            </View>
-          ))}
-        </View>
-      ) : (
-        <View style={styles.center}>
-          <Ionicons name="images-outline" size={50} color="#999" />
-          <Text style={styles.emptyGalleryText}>
-            This pet has no photos yet.
-          </Text>
-        </View>
-      )}
-    </View>
-  );
-
-  const renderLitters = () => (
+  const renderBreeding = () => (
     <View style={styles.tabContent}>
-      {/* Breeding Partners */}
-      {petData.breeding_partners && petData.breeding_partners.length > 0 && (
-        <InfoCard icon="people-outline" title="Breeding Partners">
-          {petData.breeding_partners.map((partner) => (
-            <TouchableOpacity
-              key={`partner-${partner.pet_id}`}
-              style={styles.breedingPartnerRow}
-              onPress={() =>
-                router.push(`/(pet)/view-profile?id=${partner.pet_id}`)
-              }
-            >
-              <Image
-                source={{ uri: getImageUrl(partner.photo) }}
-                style={styles.partnerPhoto}
-              />
-              <View style={{ flex: 1 }}>
-                <Text style={styles.partnerName}>{partner.name}</Text>
-                <Text style={styles.partnerBreed}>{partner.breed}</Text>
-              </View>
-              <View style={styles.litterCountBadge}>
-                <Text style={styles.litterCountText}>
-                  {partner.litter_count} litter
-                  {partner.litter_count !== 1 ? "s" : ""}
-                </Text>
-              </View>
-            </TouchableOpacity>
-          ))}
-        </InfoCard>
-      )}
-
-      {litters.length > 0 ? (
-        litters.map((litter) => (
-          <InfoCard
-            key={litter.litter_id}
-            icon="list-outline"
-            title={litter.title}
-          >
-            <DetailRow label="Status" value={litter.status} />
-            <DetailRow label="Birth Date" value={litter.birth_date} />
-            <DetailRow
-              label="Total Offspring"
-              value={String(litter.offspring.total)}
-            />
-            <DetailRow
-              label="Male / Female"
-              value={`${litter.offspring.male} / ${litter.offspring.female}`}
-            />
-            <TouchableOpacity
-              style={styles.viewLitterButton}
-              onPress={() =>
-                router.push(`/(pet)/litter-detail?id=${litter.litter_id}`)
-              }
-            >
-              <Text style={styles.viewLitterText}>View Litter Details</Text>
-              <Ionicons name="arrow-forward" size={16} color="white" />
-            </TouchableOpacity>
-          </InfoCard>
-        ))
-      ) : (
-        <InfoCard icon="list-outline" title="Litters">
-          <Text style={styles.cardText}>No litters to show.</Text>
-        </InfoCard>
-      )}
-    </View>
-  );
-
-  const renderCompatibility = () => (
-    <View style={styles.tabContent}>
+      {/* Compatibility Score Section */}
       {!selectedPet ? (
         <InfoCard icon="analytics-outline" title="Compatibility">
           <View style={styles.compatEmptyContainer}>
@@ -754,7 +787,6 @@ export default function ViewPetProfileScreen() {
         </View>
       ) : compatData ? (
         <>
-          {/* Score Circle */}
           <View style={styles.compatScoreCard}>
             <View style={styles.compatScoreRow}>
               <View style={styles.compatPetInfo}>
@@ -802,7 +834,6 @@ export default function ViewPetProfileScreen() {
             </View>
           </View>
 
-          {/* Match Reasons */}
           <InfoCard icon="checkmark-done-outline" title="Why They Match">
             {compatData.match_reasons.map((reason, i) => (
               <View key={`reason-${i}`} style={styles.matchReasonRow}>
@@ -812,7 +843,6 @@ export default function ViewPetProfileScreen() {
             ))}
           </InfoCard>
 
-          {/* Detailed Breakdown */}
           <InfoCard icon="bar-chart-outline" title="Compatibility Breakdown">
             <CompatFactorRow
               label="Breed"
@@ -867,7 +897,6 @@ export default function ViewPetProfileScreen() {
             )}
           </InfoCard>
 
-          {/* Reverse Compatibility */}
           <InfoCard icon="repeat-outline" title={`${petData.name}'s View`}>
             <View style={styles.reverseScoreContainer}>
               <Text style={styles.reverseScoreLabel}>
@@ -911,25 +940,133 @@ export default function ViewPetProfileScreen() {
           </Text>
         </InfoCard>
       )}
+
+      {/* Breeding Partners */}
+      {petData.breeding_partners && petData.breeding_partners.length > 0 && (
+        <InfoCard icon="people-outline" title="Breeding Partners">
+          {petData.breeding_partners.map((partner) => (
+            <TouchableOpacity
+              key={`partner-${partner.pet_id}`}
+              style={styles.breedingPartnerRow}
+              onPress={() =>
+                router.push(`/(pet)/view-profile?id=${partner.pet_id}`)
+              }
+            >
+              <Image
+                source={{ uri: getImageUrl(partner.photo) }}
+                style={styles.partnerPhoto}
+              />
+              <View style={{ flex: 1 }}>
+                <Text style={styles.partnerName}>{partner.name}</Text>
+                <Text style={styles.partnerBreed}>{partner.breed}</Text>
+              </View>
+              <View style={styles.litterCountBadge}>
+                <Text style={styles.litterCountText}>
+                  {partner.litter_count} litter
+                  {partner.litter_count !== 1 ? "s" : ""}
+                </Text>
+              </View>
+            </TouchableOpacity>
+          ))}
+        </InfoCard>
+      )}
+
+      {/* Litter History */}
+      {litters.length > 0 ? (
+        litters.map((litter) => (
+          <InfoCard
+            key={litter.litter_id}
+            icon="list-outline"
+            title={litter.title}
+          >
+            <DetailRow label="Status" value={litter.status} />
+            <DetailRow label="Birth Date" value={litter.birth_date} />
+            <DetailRow
+              label="Total Offspring"
+              value={String(litter.offspring.total)}
+            />
+            <DetailRow
+              label="Male / Female"
+              value={`${litter.offspring.male} / ${litter.offspring.female}`}
+            />
+            <TouchableOpacity
+              style={styles.viewLitterButton}
+              onPress={() =>
+                router.push(`/(pet)/litter-detail?id=${litter.litter_id}`)
+              }
+            >
+              <Text style={styles.viewLitterText}>View Litter Details</Text>
+              <Ionicons name="arrow-forward" size={16} color="white" />
+            </TouchableOpacity>
+          </InfoCard>
+        ))
+      ) : (
+        <InfoCard icon="list-outline" title="Litter History">
+          <View style={styles.emptySection}>
+            <Ionicons name="paw-outline" size={40} color="#9CA3AF" />
+            <Text style={styles.emptySectionText}>
+              No litters recorded yet.
+            </Text>
+          </View>
+        </InfoCard>
+      )}
     </View>
   );
 
   const renderTabContent = () => {
     switch (activeTab) {
-      case "about":
-        return renderAbout();
+      case "overview":
+        return renderOverview();
       case "health":
         return renderHealth();
-      case "gallery":
-        return renderGallery();
-      case "litters":
-        return renderLitters();
-      case "compatibility":
-        return renderCompatibility();
+      case "breeding":
+        return renderBreeding();
       default:
         return null;
     }
   };
+
+  // Three-dot Menu Modal
+  const renderMenuModal = () => (
+    <Modal
+      visible={showMenuModal}
+      transparent
+      animationType="fade"
+      onRequestClose={() => setShowMenuModal(false)}
+    >
+      <Pressable
+        style={styles.menuOverlay}
+        onPress={() => setShowMenuModal(false)}
+      >
+        <View style={styles.menuContainer}>
+          <TouchableOpacity
+            style={styles.menuItem}
+            onPress={handleShareProfile}
+          >
+            <Feather name="share-2" size={20} color="#333" />
+            <Text style={styles.menuItemText}>Share Profile</Text>
+          </TouchableOpacity>
+          <TouchableOpacity style={styles.menuItem} onPress={handleCopyLink}>
+            <Feather name="copy" size={20} color="#333" />
+            <Text style={styles.menuItemText}>Copy Profile Link</Text>
+          </TouchableOpacity>
+          <View style={styles.menuDivider} />
+          <TouchableOpacity style={styles.menuItem} onPress={handleReportOwner}>
+            <Feather name="flag" size={20} color="#EF4444" />
+            <Text style={[styles.menuItemText, { color: "#EF4444" }]}>
+              Report
+            </Text>
+          </TouchableOpacity>
+          <TouchableOpacity style={styles.menuItem} onPress={handleBlockOwner}>
+            <Feather name="slash" size={20} color="#EF4444" />
+            <Text style={[styles.menuItemText, { color: "#EF4444" }]}>
+              Block Owner
+            </Text>
+          </TouchableOpacity>
+        </View>
+      </Pressable>
+    </Modal>
+  );
 
   return (
     <SafeAreaView style={styles.flex_1} edges={["top"]}>
@@ -945,7 +1082,10 @@ export default function ViewPetProfileScreen() {
             >
               <Feather name="arrow-left" size={26} color="white" />
             </TouchableOpacity>
-            <TouchableOpacity style={styles.headerButton}>
+            <TouchableOpacity
+              style={styles.headerButton}
+              onPress={() => setShowMenuModal(true)}
+            >
               <Feather name="more-vertical" size={24} color="white" />
             </TouchableOpacity>
           </View>
@@ -957,7 +1097,6 @@ export default function ViewPetProfileScreen() {
               source={{ uri: getImageUrl(petData.profile_image) }}
               style={styles.profilePic}
             />
-            {/* Compatibility Badge on Avatar */}
             {compatData && (
               <View
                 style={[
@@ -976,6 +1115,7 @@ export default function ViewPetProfileScreen() {
             )}
           </View>
           <Text style={styles.petName}>{petData.name}</Text>
+          <Text style={styles.speciesLabel}>{petData.species}</Text>
 
           {/* Verification badges row */}
           <View style={styles.verificationBadgesRow}>
@@ -1033,7 +1173,37 @@ export default function ViewPetProfileScreen() {
             </View>
           </View>
 
-          {/* Availability Status */}
+          {/* Owner Card */}
+          <TouchableOpacity
+            style={styles.ownerCard}
+            onPress={() => router.push(`/(breeder)/${petData.owner.id}`)}
+            activeOpacity={0.7}
+          >
+            <Image
+              source={{ uri: getImageUrl(petData.owner.profile_image) }}
+              style={styles.ownerCardImage}
+            />
+            <View style={{ flex: 1 }}>
+              <View style={styles.ownerCardNameRow}>
+                <Text style={styles.ownerCardName}>{petData.owner.name}</Text>
+                {petData.owner.is_verified && (
+                  <Ionicons name="checkmark-circle" size={16} color="#22C55E" />
+                )}
+              </View>
+              {petData.owner.location && (
+                <View style={styles.ownerCardLocationRow}>
+                  <Ionicons name="location-outline" size={13} color="#6B7280" />
+                  <Text style={styles.ownerCardLocation}>
+                    {petData.owner.location}
+                  </Text>
+                </View>
+              )}
+              <Text style={styles.ownerCardSubtext}>View Breeder Profile</Text>
+            </View>
+            <Ionicons name="chevron-forward" size={20} color="#9CA3AF" />
+          </TouchableOpacity>
+
+          {/* Availability / Cooldown Status */}
           {!petData.is_available_for_matching && (
             <View style={styles.unavailableBanner}>
               <Ionicons name="information-circle" size={16} color="#92400E" />
@@ -1045,23 +1215,46 @@ export default function ViewPetProfileScreen() {
             </View>
           )}
 
-          <View style={styles.actionButtonsContainer}>
-            <TouchableOpacity style={styles.actionButton}>
-              <Feather name="star" size={24} color="#FF6B4A" />
-            </TouchableOpacity>
+          {/* Primary CTA: Send Match Request */}
+          <TouchableOpacity
+            style={styles.primaryCTA}
+            onPress={handleMatchRequest}
+            disabled={sendingRequest}
+            activeOpacity={0.8}
+          >
+            {sendingRequest ? (
+              <ActivityIndicator size="small" color="white" />
+            ) : (
+              <>
+                <Feather name="heart" size={20} color="white" />
+                <Text style={styles.primaryCTAText}>Send Match Request</Text>
+              </>
+            )}
+          </TouchableOpacity>
+
+          {/* Secondary Action Icons */}
+          <View style={styles.secondaryActionsRow}>
             <TouchableOpacity
-              style={[styles.actionButton, styles.mainActionButton]}
-              onPress={handleMatchRequest}
-              disabled={sendingRequest}
+              style={styles.secondaryAction}
+              onPress={handleToggleFavorite}
             >
-              {sendingRequest ? (
-                <ActivityIndicator size="small" color="white" />
-              ) : (
-                <Feather name="heart" size={28} color="white" />
-              )}
+              <Ionicons
+                name={isFavorited ? "star" : "star-outline"}
+                size={22}
+                color={isFavorited ? "#F59E0B" : "#6B7280"}
+              />
+              <Text
+                style={[
+                  styles.secondaryActionText,
+                  isFavorited && { color: "#F59E0B" },
+                ]}
+              >
+                {isFavorited ? "Favorited" : "Favorite"}
+              </Text>
             </TouchableOpacity>
+
             <TouchableOpacity
-              style={styles.actionButton}
+              style={styles.secondaryAction}
               onPress={() => {
                 if (!selectedPet) {
                   showAlert({
@@ -1095,20 +1288,33 @@ export default function ViewPetProfileScreen() {
             >
               <Image
                 source={require("@/assets/images/AI_Rec.png")}
-                style={styles.aiRecButtonIcon}
+                style={styles.aiRecIcon}
               />
+              <Text style={styles.secondaryActionText}>AI Offspring</Text>
             </TouchableOpacity>
-            <TouchableOpacity style={styles.actionButton}>
-              <Feather name="message-circle" size={24} color="#4B5563" />
-            </TouchableOpacity>
+
+            {hasActiveChat && (
+              <TouchableOpacity
+                style={styles.secondaryAction}
+                onPress={handleChatPress}
+              >
+                <Feather name="message-circle" size={22} color="#3B82F6" />
+                <Text
+                  style={[styles.secondaryActionText, { color: "#3B82F6" }]}
+                >
+                  Chat
+                </Text>
+              </TouchableOpacity>
+            )}
           </View>
         </View>
 
+        {/* 3 Tabs */}
         <View style={styles.tabContainer}>
           <TabButton
-            title="About"
-            isActive={activeTab === "about"}
-            onPress={() => setActiveTab("about")}
+            title="Overview"
+            isActive={activeTab === "overview"}
+            onPress={() => setActiveTab("overview")}
           />
           <TabButton
             title="Health"
@@ -1116,26 +1322,31 @@ export default function ViewPetProfileScreen() {
             onPress={() => setActiveTab("health")}
           />
           <TabButton
-            title="Gallery"
-            isActive={activeTab === "gallery"}
-            onPress={() => setActiveTab("gallery")}
-          />
-          <TabButton
-            title="Litters"
-            isActive={activeTab === "litters"}
-            onPress={() => setActiveTab("litters")}
-          />
-          <TabButton
-            title="Match"
-            isActive={activeTab === "compatibility"}
-            onPress={() => setActiveTab("compatibility")}
+            title="Breeding"
+            isActive={activeTab === "breeding"}
+            onPress={() => setActiveTab("breeding")}
           />
         </View>
 
         {renderTabContent()}
       </ScrollView>
 
+      {renderMenuModal()}
+
       <AlertModal {...{ visible, ...alertOptions, onClose: hideAlert }} />
+
+      {petData?.owner && (
+        <BlockReportModal
+          visible={showBlockReport}
+          onClose={() => setShowBlockReport(false)}
+          userId={petData.owner.id}
+          userName={petData.owner.name}
+          onBlockSuccess={() => {
+            setShowBlockReport(false);
+            router.back();
+          }}
+        />
+      )}
     </SafeAreaView>
   );
 }
@@ -1353,32 +1564,150 @@ const styles = StyleSheet.create({
     fontWeight: "bold",
     color: "#2C2C2C",
     marginTop: 12,
-    marginBottom: 4,
+    marginBottom: 2,
   },
-  actionButtonsContainer: {
+  speciesLabel: {
+    fontSize: 15,
+    color: "#6B7280",
+    fontWeight: "500",
+    marginBottom: 4,
+    textTransform: "capitalize",
+  },
+  // Owner card
+  ownerCard: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 16,
-    marginVertical: 12,
-  },
-  actionButton: {
-    width: 56,
-    height: 56,
-    borderRadius: 28,
-    justifyContent: "center",
-    alignItems: "center",
     backgroundColor: "white",
-    elevation: 3,
+    borderRadius: 16,
+    padding: 14,
+    marginHorizontal: 20,
+    marginTop: 12,
+    elevation: 2,
     shadowColor: "#000",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.15,
-    shadowRadius: 3,
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.08,
+    shadowRadius: 4,
   },
-  mainActionButton: {
-    width: 64,
-    height: 64,
-    borderRadius: 32,
+  ownerCardImage: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    marginRight: 12,
+  },
+  ownerCardNameRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 5,
+  },
+  ownerCardName: {
+    fontSize: 16,
+    fontWeight: "bold",
+    color: "#333",
+  },
+  ownerCardLocationRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 3,
+    marginTop: 2,
+  },
+  ownerCardLocation: {
+    fontSize: 13,
+    color: "#6B7280",
+  },
+  ownerCardSubtext: {
+    fontSize: 12,
+    color: "#9CA3AF",
+    marginTop: 2,
+  },
+  // Primary CTA
+  primaryCTA: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
     backgroundColor: "#FF6B4A",
+    borderRadius: 16,
+    paddingVertical: 14,
+    marginHorizontal: 20,
+    marginTop: 16,
+    gap: 8,
+    elevation: 4,
+    shadowColor: "#FF6B4A",
+    shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.3,
+    shadowRadius: 6,
+  },
+  primaryCTAText: {
+    fontSize: 17,
+    fontWeight: "bold",
+    color: "white",
+  },
+  // Secondary action row
+  secondaryActionsRow: {
+    flexDirection: "row",
+    justifyContent: "center",
+    gap: 24,
+    marginTop: 14,
+    marginBottom: 8,
+  },
+  secondaryAction: {
+    alignItems: "center",
+    gap: 4,
+  },
+  secondaryActionText: {
+    fontSize: 12,
+    color: "#6B7280",
+    fontWeight: "500",
+  },
+  aiRecIcon: {
+    width: 24,
+    height: 24,
+  },
+  // Menu modal
+  menuOverlay: {
+    flex: 1,
+    backgroundColor: "rgba(0,0,0,0.3)",
+    justifyContent: "flex-start",
+    alignItems: "flex-end",
+    paddingTop: 90,
+    paddingRight: 16,
+  },
+  menuContainer: {
+    backgroundColor: "white",
+    borderRadius: 16,
+    paddingVertical: 8,
+    minWidth: 200,
+    elevation: 8,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.15,
+    shadowRadius: 12,
+  },
+  menuItem: {
+    flexDirection: "row",
+    alignItems: "center",
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    gap: 12,
+  },
+  menuItemText: {
+    fontSize: 15,
+    color: "#333",
+    fontWeight: "500",
+  },
+  menuDivider: {
+    height: 1,
+    backgroundColor: "#F3F4F6",
+    marginVertical: 4,
+  },
+  // Empty section
+  emptySection: {
+    alignItems: "center",
+    paddingVertical: 24,
+    gap: 8,
+  },
+  emptySectionText: {
+    fontSize: 14,
+    color: "#9CA3AF",
   },
   tabContainer: {
     flexDirection: "row",
@@ -1418,9 +1747,6 @@ const styles = StyleSheet.create({
   cardHeader: { flexDirection: "row", alignItems: "center", marginBottom: 12 },
   cardTitle: { fontSize: 18, fontWeight: "bold", color: "#333", marginLeft: 8 },
   cardText: { fontSize: 15, color: "#666", lineHeight: 22 },
-  ownerContainer: { flexDirection: "row", alignItems: "center" },
-  ownerImage: { width: 60, height: 60, borderRadius: 15, marginRight: 12 },
-  ownerName: { fontSize: 16, fontWeight: "bold", color: "#333" },
   detailRow: {
     flexDirection: "row",
     justifyContent: "space-between",
@@ -1450,7 +1776,6 @@ const styles = StyleSheet.create({
   statusDot: { width: 10, height: 10, borderRadius: 5, marginRight: 12 },
   documentTitle: { fontSize: 16, fontWeight: "600", color: "#333" },
   documentSubtitle: { fontSize: 13, color: "#777", marginTop: 2 },
-  galleryContainer: { padding: 10 },
   photoGrid: {
     flexDirection: "row",
     flexWrap: "wrap",
@@ -1466,12 +1791,6 @@ const styles = StyleSheet.create({
     overflow: "hidden",
   },
   photo: { width: "100%", height: "100%" },
-  emptyGalleryText: {
-    marginTop: 15,
-    fontSize: 16,
-    color: "#888",
-    textAlign: "center",
-  },
   viewLitterButton: {
     backgroundColor: "#FF6B4A",
     borderRadius: 20,
@@ -1483,7 +1802,6 @@ const styles = StyleSheet.create({
     marginTop: 10,
   },
   viewLitterText: { color: "white", fontWeight: "bold", marginRight: 8 },
-  aiRecButtonIcon: { width: 32, height: 32 },
   vaccinationSection: { marginBottom: 16 },
   vaccinationSectionHeader: {
     flexDirection: "row",

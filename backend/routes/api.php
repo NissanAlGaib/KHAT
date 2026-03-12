@@ -21,6 +21,7 @@ use App\Http\Controllers\SafetyController;
 use App\Http\Controllers\SearchController;
 use App\Http\Controllers\AiOffspringController;
 use App\Http\Controllers\BreedIdentifierController;
+use App\Http\Controllers\FavoriteController;
 use App\Http\Controllers\Api\UserReviewController;
 use App\Http\Controllers\Auth\PasswordResetLinkController;
 use App\Http\Controllers\Auth\NewPasswordController;
@@ -229,6 +230,12 @@ Route::middleware(['auth:sanctum'])
         Route::post('/disputes', [DisputeController::class, 'store']);
         Route::get('/disputes', [DisputeController::class, 'index']);
         Route::get('/disputes/{id}', [DisputeController::class, 'show']);
+
+        // Favorite routes
+        Route::get('/favorites', [FavoriteController::class, 'index']);
+        Route::post('/favorites/{petId}', [FavoriteController::class, 'store']);
+        Route::delete('/favorites/{petId}', [FavoriteController::class, 'destroy']);
+        Route::get('/favorites/{petId}/check', [FavoriteController::class, 'check']);
 
         // Admin Testing Tools API (requires admin role)
         Route::prefix('admin/testing-tools')->group(function () {

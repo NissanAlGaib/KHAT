@@ -332,4 +332,12 @@ class User extends Authenticatable
     {
         return !is_null($this->latitude) && !is_null($this->longitude);
     }
+
+    /**
+     * Get the user's favorited pets.
+     */
+    public function petFavorites()
+    {
+        return $this->hasMany(PetFavorite::class, 'user_id');
+    }
 }

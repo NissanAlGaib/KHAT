@@ -356,7 +356,7 @@ class PetController extends Controller
     public function getPublicProfile($id)
     {
         $pet = Pet::with([
-            'owner:id,name,email,profile_image',
+            'owner:id,name,email,profile_image,address',
             'photos',
             'vaccinations' => function ($query) {
                 $query->select('vaccination_id', 'pet_id', 'vaccine_name', 'expiration_date', 'status')
@@ -544,6 +544,15 @@ class PetController extends Controller
                 'verification_status' => UserAuth::where('user_id', $pet->owner->id)
                     ->where('auth_type', 'id')
                     ->value('status') ?? 'unverified',
+                'location' => (function () use ($pet) {
+                    $addr = $pet->owner->address;
+                    if (!is_array($addr)) return null;
+                    $parts = array_filter([
+                        $addr['city'] ?? $addr['municipality'] ?? null,
+                        $addr['province'] ?? $addr['region'] ?? null,
+                    ]);
+                    return implode(', ', $parts) ?: null;
+                })(),
             ],
             'photos' => $pet->photos->map(function ($photo) {
                 return [
