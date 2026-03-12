@@ -2,6 +2,9 @@
 
 namespace App\Providers;
 
+use Illuminate\Cache\RateLimiting\Limit;
+use Illuminate\Http\Request;
+use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Support\Facades\URL;
 use Illuminate\Support\Facades\View;
 use Illuminate\Support\Facades\Auth;
@@ -26,6 +29,11 @@ class AppServiceProvider extends ServiceProvider
         if (app()->environment('production')) {
             URL::forceScheme('https');
         }
+
+        // Rate limit admin login to 5 attempts per minute per IP
+        RateLimiter::for('admin-login', function (Request $request) {
+            return Limit::perMinute(5)->by($request->ip());
+        });
 
         // Share admin notification badges with all admin views
         View::composer('admin.layouts.app', function ($view) {

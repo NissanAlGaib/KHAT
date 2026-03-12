@@ -16,8 +16,8 @@ Route::get('/', function () {
 // Payment redirect routes — PayMongo redirects here after checkout,
 // then we bounce the user back into the mobile app via the pawlink:// scheme
 Route::get('/payment/redirect', function (\Illuminate\Http\Request $request) {
-    $status = $request->query('status', 'success');
-    $deepLink = 'pawlink://payment/' . ($status === 'cancel' ? 'cancel' : 'success');
+    $status = in_array($request->query('status'), ['success', 'cancel'], true) ? $request->query('status') : 'success';
+    $deepLink = 'pawlink://payment/' . $status;
 
     return response(
         '<html><head><meta charset="utf-8">'
@@ -46,11 +46,11 @@ Route::prefix('admin')->group(function () {
     // Guest routes (not authenticated)
     Route::middleware('guest')->group(function () {
         Route::get('/login', [AdminController::class, 'showLoginForm'])->name('admin.login');
-        Route::post('/login', [AdminController::class, 'login']);
+        Route::post('/login', [AdminController::class, 'login'])->middleware('throttle:admin-login');
     });
 
     // Authenticated admin routes
-    Route::middleware('auth')->group(function () {
+    Route::middleware(['auth', 'admin'])->group(function () {
         Route::get('/dashboard', [AdminController::class, 'dashboard'])->name('admin.dashboard');
         Route::get('/stats/detail/{type}', [StatsDetailController::class, 'show'])->name('admin.stats.detail');
         Route::post('/logout', [AdminController::class, 'logout'])->name('admin.logout');

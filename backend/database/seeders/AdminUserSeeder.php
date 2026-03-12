@@ -5,6 +5,7 @@ namespace Database\Seeders;
 use Illuminate\Database\Seeder;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Str;
 
 class AdminUserSeeder extends Seeder
 {
@@ -27,14 +28,15 @@ class AdminUserSeeder extends Seeder
         }
 
         // Create admin user
-        $adminEmail = 'admin@khat.com';
+        $adminEmail = env('ADMIN_EMAIL', 'admin@pawlink.com');
+        $adminPassword = env('ADMIN_PASSWORD', Str::random(32));
         $existingUser = DB::table('users')->where('email', $adminEmail)->first();
 
         if (!$existingUser) {
             $userId = DB::table('users')->insertGetId([
                 'name' => 'Admin User',
                 'email' => $adminEmail,
-                'password' => Hash::make('Admin123!'),
+                'password' => Hash::make($adminPassword),
                 'firstName' => 'Admin',
                 'lastName' => 'User',
                 'email_verified_at' => now(),
@@ -51,16 +53,21 @@ class AdminUserSeeder extends Seeder
             ]);
 
             $this->command->info('Admin user created successfully!');
-            $this->command->info('Email: admin@khat.com');
-            $this->command->info('Password: Admin123!');
+            $this->command->info('Email: ' . $adminEmail);
+            if (!env('ADMIN_PASSWORD')) {
+                $this->command->warn('No ADMIN_PASSWORD set in .env — generated random password: ' . $adminPassword);
+                $this->command->warn('Set ADMIN_PASSWORD in your .env file and re-run the seeder.');
+            }
         } else {
-            // Update existing user password
-            DB::table('users')
-                ->where('email', $adminEmail)
-                ->update([
-                    'password' => Hash::make('Admin123!'),
-                    'updated_at' => now(),
-                ]);
+            // Only update password if ADMIN_PASSWORD is explicitly set in env
+            if (env('ADMIN_PASSWORD')) {
+                DB::table('users')
+                    ->where('email', $adminEmail)
+                    ->update([
+                        'password' => Hash::make($adminPassword),
+                        'updated_at' => now(),
+                    ]);
+            }
 
             // Ensure user has admin role
             $userRoleExists = DB::table('user_roles')
@@ -78,8 +85,6 @@ class AdminUserSeeder extends Seeder
             }
 
             $this->command->info('Admin user updated successfully!');
-            $this->command->info('Email: admin@khat.com');
-            $this->command->info('Password: Admin123!');
         }
     }
 }
