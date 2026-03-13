@@ -125,10 +125,15 @@ class ShooterController extends Controller
             }
 
             // Get all accepted contracts with pending shooter status
-            $offers = BreedingContract::where('status', 'accepted')
+            // Visibility is restricted by selected shooter_user_id or exact name fallback.
+            $offersQuery = BreedingContract::where('status', 'accepted')
                 ->where('shooter_status', 'pending')
                 ->whereNotNull('shooter_payment')
-                ->where('shooter_payment', '>', 0)
+                ->where('shooter_payment', '>', 0);
+
+            $this->applyPendingOfferVisibility($offersQuery, $user);
+
+            $offers = $offersQuery
                 ->with([
                     'conversation.matchRequest.requesterPet.owner',
                     'conversation.matchRequest.requesterPet.photos',
@@ -277,7 +282,10 @@ class ShooterController extends Controller
                 ->whereNotNull('shooter_payment')
                 ->where('shooter_payment', '>', 0)
                 ->where(function ($query) use ($user) {
-                    $query->where('shooter_status', 'pending')
+                    $query->where(function ($pendingQuery) use ($user) {
+                        $pendingQuery->where('shooter_status', 'pending');
+                        $this->applyPendingOfferVisibility($pendingQuery, $user);
+                    })
                         ->orWhere(function ($q) use ($user) {
                             $q->where('shooter_user_id', $user->id)
                                 ->whereIn('shooter_status', ['accepted_by_shooter', 'accepted_by_owners']);
@@ -387,12 +395,16 @@ class ShooterController extends Controller
                 ], 403);
             }
 
-            // Get the contract
-            $contract = BreedingContract::where('status', 'accepted')
+            // Get the contract. If an offer has a selected shooter_user_id,
+            // only that shooter can accept it.
+            $contractQuery = BreedingContract::where('status', 'accepted')
                 ->where('shooter_status', 'pending')
                 ->whereNotNull('shooter_payment')
-                ->where('shooter_payment', '>', 0)
-                ->find($contractId);
+                ->where('shooter_payment', '>', 0);
+
+            $this->applyPendingOfferVisibility($contractQuery, $user);
+
+            $contract = $contractQuery->find($contractId);
 
             if (!$contract) {
                 return response()->json([
@@ -744,5 +756,42 @@ class ShooterController extends Controller
                 'error' => $e->getMessage()
             ], 500);
         }
+    }
+
+    /**
+     * Restrict pending offer visibility for a shooter.
+     *
+     * Offer is visible when:
+     * - shooter_user_id is the current user, OR
+     * - shooter_user_id is null and shooter_name is empty (open to all), OR
+     * - shooter_user_id is null and shooter_name exactly matches shooter name (case-insensitive).
+     */
+    private function applyPendingOfferVisibility($query, User $user): void
+    {
+        $normalizedUserName = $this->normalizeName((string) ($user->name ?? ''));
+
+        $query->where(function ($visibilityQuery) use ($user, $normalizedUserName) {
+            $visibilityQuery->where('shooter_user_id', $user->id)
+                ->orWhere(function ($openOfferQuery) use ($normalizedUserName) {
+                    $openOfferQuery->whereNull('shooter_user_id')
+                        ->where(function ($nameQuery) use ($normalizedUserName) {
+                            $nameQuery->whereNull('shooter_name')
+                                ->orWhereRaw("TRIM(shooter_name) = ''")
+                                ->orWhereRaw('LOWER(TRIM(shooter_name)) = ?', [$normalizedUserName]);
+                        });
+                });
+        });
+    }
+
+    /**
+     * Lowercase helper that gracefully handles multibyte names.
+     */
+    private function normalizeName(string $value): string
+    {
+        $trimmed = trim($value);
+
+        return function_exists('mb_strtolower')
+            ? mb_strtolower($trimmed)
+            : strtolower($trimmed);
     }
 }

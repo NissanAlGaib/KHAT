@@ -97,6 +97,7 @@ export interface ShooterRequestStatus {
 export interface ContractFormData {
   // Shooter Agreement (Optional)
   shooter_name?: string;
+  shooter_user_id?: number;
   shooter_payment?: number;
   shooter_location?: string;
   shooter_conditions?: string;

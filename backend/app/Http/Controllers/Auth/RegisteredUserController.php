@@ -38,6 +38,7 @@ class RegisteredUserController extends Controller
             'address.province' => ['required', 'string', 'max:120'],
             'address.postal_code' => ['required', 'string', 'max:20'],
             'roles' => ['required', 'array'],
+            'roles.*' => ['string', 'in:breeder,shooter'],
         ]);
 
         $user = User::create([

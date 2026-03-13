@@ -35,6 +35,16 @@ class AppServiceProvider extends ServiceProvider
             return Limit::perMinute(5)->by($request->ip());
         });
 
+        // Rate limit registration to 10 attempts per minute per IP
+        RateLimiter::for('register', function (Request $request) {
+            return Limit::perMinute(10)->by($request->ip());
+        });
+
+        // Rate limit forgot-password to 5 attempts per minute per IP
+        RateLimiter::for('forgot-password', function (Request $request) {
+            return Limit::perMinute(5)->by($request->ip());
+        });
+
         // Share admin notification badges with all admin views
         View::composer('admin.layouts.app', function ($view) {
             if (!Auth::check()) {

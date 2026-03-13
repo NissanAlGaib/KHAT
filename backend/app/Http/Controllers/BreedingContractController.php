@@ -7,12 +7,15 @@ use App\Models\Conversation;
 use App\Models\Litter;
 use App\Models\LitterOffspring;
 use App\Models\Pet;
+use App\Models\Role;
+use App\Models\User;
 use App\Services\ActivityNotificationService;
 use App\Services\PoolService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Validation\ValidationException;
 
 class BreedingContractController extends Controller
 {
@@ -31,6 +34,7 @@ class BreedingContractController extends Controller
         $validated = $request->validate([
             // Shooter Agreement (Optional)
             'shooter_name' => 'nullable|string|max:255',
+            'shooter_user_id' => 'nullable|integer|exists:users,id',
             'shooter_payment' => 'nullable|numeric|min:0',
             'shooter_location' => 'nullable|string|max:255',
             'shooter_conditions' => 'nullable|string|max:500',
@@ -80,6 +84,8 @@ class BreedingContractController extends Controller
         }
 
         try {
+            $resolvedShooter = $this->resolveShooterPreference($validated);
+
             // Calculate collateral per owner
             $collateralTotal = $validated['collateral_total'] ?? 0;
             $collateralPerOwner = $collateralTotal > 0 ? $collateralTotal / 2 : 0;
@@ -89,7 +95,8 @@ class BreedingContractController extends Controller
                 'created_by' => $user->id,
                 'status' => 'pending_review',
                 // Shooter Agreement
-                'shooter_name' => $validated['shooter_name'] ?? null,
+                'shooter_name' => $resolvedShooter['shooter_name'],
+                'shooter_user_id' => $resolvedShooter['shooter_user_id'],
                 'shooter_payment' => $validated['shooter_payment'] ?? null,
                 'shooter_location' => $validated['shooter_location'] ?? null,
                 'shooter_conditions' => $validated['shooter_conditions'] ?? null,
@@ -176,6 +183,7 @@ class BreedingContractController extends Controller
         $validated = $request->validate([
             // Shooter Agreement (Optional)
             'shooter_name' => 'nullable|string|max:255',
+            'shooter_user_id' => 'nullable|integer|exists:users,id',
             'shooter_payment' => 'nullable|numeric|min:0',
             'shooter_location' => 'nullable|string|max:255',
             'shooter_conditions' => 'nullable|string|max:500',
@@ -225,6 +233,27 @@ class BreedingContractController extends Controller
         }
 
         try {
+            $hasShooterFields = array_key_exists('shooter_name', $validated)
+                || array_key_exists('shooter_user_id', $validated);
+
+            if ($hasShooterFields) {
+                $resolvedShooter = $this->resolveShooterPreference($validated);
+                $validated['shooter_name'] = $resolvedShooter['shooter_name'];
+                $validated['shooter_user_id'] = $resolvedShooter['shooter_user_id'];
+
+                $isShooterChangeLocked = in_array(
+                    $contract->shooter_status,
+                    ['accepted_by_shooter', 'accepted_by_owners'],
+                    true
+                ) && $contract->shooter_user_id !== $validated['shooter_user_id'];
+
+                if ($isShooterChangeLocked) {
+                    throw ValidationException::withMessages([
+                        'shooter_user_id' => 'You can only change the selected shooter before a shooter accepts the offer.',
+                    ]);
+                }
+            }
+
             // Calculate collateral per owner if total is updated
             if (isset($validated['collateral_total'])) {
                 $validated['collateral_per_owner'] = $validated['collateral_total'] > 0
@@ -853,6 +882,116 @@ class BreedingContractController extends Controller
             'created_at' => $contract->created_at->toISOString(),
             'updated_at' => $contract->updated_at->toISOString(),
         ];
+    }
+
+    /**
+     * Normalize and validate the optional shooter preference.
+     *
+     * Rules:
+     * - shooter_user_id (preferred) must point to a verified shooter.
+     * - shooter_name fallback must be a case-insensitive exact match to one verified shooter.
+     */
+    private function resolveShooterPreference(array $validated): array
+    {
+        $requestedShooterId = isset($validated['shooter_user_id'])
+            ? (int) $validated['shooter_user_id']
+            : null;
+
+        $requestedShooterName = isset($validated['shooter_name'])
+            ? trim((string) $validated['shooter_name'])
+            : null;
+
+        if ($requestedShooterName === '') {
+            $requestedShooterName = null;
+        }
+
+        if ($requestedShooterId) {
+            $shooter = $this->findVerifiedShooterById($requestedShooterId);
+
+            if (!$shooter) {
+                throw ValidationException::withMessages([
+                    'shooter_user_id' => 'Selected shooter must be a verified shooter.',
+                ]);
+            }
+
+            return [
+                'shooter_user_id' => $shooter->id,
+                'shooter_name' => $shooter->name,
+            ];
+        }
+
+        if (!$requestedShooterName) {
+            return [
+                'shooter_user_id' => null,
+                'shooter_name' => null,
+            ];
+        }
+
+        $normalizedName = $this->toLower($requestedShooterName);
+
+        $matches = $this->verifiedShootersQuery()
+            ->whereRaw('LOWER(TRIM(name)) = ?', [$normalizedName])
+            ->get(['id', 'name']);
+
+        if ($matches->isEmpty()) {
+            throw ValidationException::withMessages([
+                'shooter_name' => 'No verified shooter found with that exact name.',
+            ]);
+        }
+
+        if ($matches->count() > 1) {
+            throw ValidationException::withMessages([
+                'shooter_name' => 'Multiple verified shooters share this name. Please select one from the list.',
+            ]);
+        }
+
+        $match = $matches->first();
+
+        return [
+            'shooter_user_id' => $match->id,
+            'shooter_name' => $match->name,
+        ];
+    }
+
+    /**
+     * Query for shooter users with approved shooter certificate.
+     */
+    private function verifiedShootersQuery()
+    {
+        $shooterRole = Role::where('role_type', 'Shooter')->first();
+
+        if (!$shooterRole) {
+            return User::query()->whereRaw('1 = 0');
+        }
+
+        return User::query()
+            ->whereHas('roles', function ($query) use ($shooterRole) {
+                $query->where('roles.role_id', $shooterRole->role_id);
+            })
+            ->whereHas('userAuth', function ($query) {
+                $query->where('auth_type', 'shooter_certificate')
+                    ->where('status', 'approved');
+            });
+    }
+
+    /**
+     * Find a verified shooter by id.
+     */
+    private function findVerifiedShooterById(int $userId): ?User
+    {
+        return $this->verifiedShootersQuery()
+            ->where('id', $userId)
+            ->first();
+    }
+
+    /**
+     * Lowercase helper that gracefully handles multibyte names.
+     */
+    private function toLower(string $value): string
+    {
+        return function_exists('mb_strtolower')
+            ? mb_strtolower($value)
+            : strtolower($value);
     }
 
     /**

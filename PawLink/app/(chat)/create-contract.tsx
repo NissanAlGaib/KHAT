@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect } from "react";
+import React, { useState, useRef, useEffect, useMemo } from "react";
 import {
   View,
   Text,
@@ -10,6 +10,7 @@ import {
   Platform,
   Animated,
   Dimensions,
+  Image,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import {
@@ -37,6 +38,7 @@ import {
   updateContract,
   getContract,
 } from "@/services/contractService";
+import { getShooters, ShooterProfile } from "@/services/matchService";
 
 const { width: SCREEN_WIDTH } = Dimensions.get("window");
 const TOTAL_STEPS = 5;
@@ -109,12 +111,21 @@ export default function CreateContractScreen() {
   const [existingContract, setExistingContract] =
     useState<BreedingContract | null>(null);
   const [loading, setLoading] = useState(isEditing);
+  const [availableShooters, setAvailableShooters] = useState<ShooterProfile[]>(
+    [],
+  );
+  const [loadingShooters, setLoadingShooters] = useState(false);
+  const [showShooterSuggestions, setShowShooterSuggestions] = useState(false);
+  const [shooterSelectionError, setShooterSelectionError] = useState<
+    string | null
+  >(null);
   const progressAnim = useRef(new Animated.Value(0)).current;
   const fadeAnim = useRef(new Animated.Value(1)).current;
 
   // Form state
   const [formData, setFormData] = useState<ContractFormData>({
     shooter_name: "",
+    shooter_user_id: undefined,
     shooter_payment: undefined,
     shooter_location: "",
     shooter_conditions: "",
@@ -143,6 +154,7 @@ export default function CreateContractScreen() {
           setExistingContract(data);
           setFormData({
             shooter_name: data.shooter_name || "",
+            shooter_user_id: data.shooter_user_id || undefined,
             shooter_payment: data.shooter_payment || undefined,
             shooter_location: data.shooter_location || "",
             shooter_conditions: data.shooter_conditions || "",
@@ -166,6 +178,31 @@ export default function CreateContractScreen() {
     }
   }, [isEditing, conversationId]);
 
+  // Load verified shooter list for selection/autocomplete.
+  useEffect(() => {
+    let mounted = true;
+
+    const fetchShooters = async () => {
+      setLoadingShooters(true);
+      try {
+        const shooters = await getShooters();
+        if (mounted) {
+          setAvailableShooters(shooters);
+        }
+      } finally {
+        if (mounted) {
+          setLoadingShooters(false);
+        }
+      }
+    };
+
+    fetchShooters();
+
+    return () => {
+      mounted = false;
+    };
+  }, []);
+
   // Animate progress bar
   useEffect(() => {
     Animated.spring(progressAnim, {
@@ -174,7 +211,7 @@ export default function CreateContractScreen() {
       tension: 50,
       friction: 10,
     }).start();
-  }, [currentStep]);
+  }, [currentStep, progressAnim]);
 
   const animateStepTransition = (
     direction: "next" | "prev",
@@ -210,7 +247,104 @@ export default function CreateContractScreen() {
     setShowDatePicker(false);
   };
 
+  const normalizedShooterName = useMemo(
+    () => (formData.shooter_name || "").trim().toLowerCase(),
+    [formData.shooter_name],
+  );
+
+  const filteredShooters = useMemo(() => {
+    if (!normalizedShooterName) {
+      return availableShooters.slice(0, 8);
+    }
+
+    return availableShooters
+      .filter((shooter) =>
+        shooter.name.toLowerCase().includes(normalizedShooterName),
+      )
+      .slice(0, 8);
+  }, [availableShooters, normalizedShooterName]);
+
+  const exactNameMatches = useMemo(() => {
+    if (!normalizedShooterName) return [];
+    return availableShooters.filter(
+      (shooter) => shooter.name.trim().toLowerCase() === normalizedShooterName,
+    );
+  }, [availableShooters, normalizedShooterName]);
+
+  const getInitials = (name: string) =>
+    name
+      .trim()
+      .split(" ")
+      .filter(Boolean)
+      .slice(0, 2)
+      .map((part) => part.charAt(0).toUpperCase())
+      .join("");
+
+  const selectShooter = (shooter: ShooterProfile) => {
+    updateFormField("shooter_user_id", shooter.id);
+    updateFormField("shooter_name", shooter.name);
+    setShowShooterSuggestions(false);
+    setShooterSelectionError(null);
+  };
+
+  const resolveShooterSelection = () => {
+    const typedName = (formData.shooter_name || "").trim();
+
+    if (!typedName) {
+      updateFormField("shooter_user_id", undefined);
+      setShooterSelectionError(null);
+      return true;
+    }
+
+    if (formData.shooter_user_id) {
+      const selectedShooter = availableShooters.find(
+        (shooter) => shooter.id === formData.shooter_user_id,
+      );
+
+      if (selectedShooter) {
+        if (typedName !== selectedShooter.name) {
+          updateFormField("shooter_name", selectedShooter.name);
+        }
+        setShooterSelectionError(null);
+        return true;
+      }
+    }
+
+    if (availableShooters.length === 0) {
+      setShooterSelectionError(
+        "Unable to validate shooter names right now. Please try again in a moment.",
+      );
+      return false;
+    }
+
+    if (exactNameMatches.length === 1) {
+      const matchedShooter = exactNameMatches[0];
+      updateFormField("shooter_user_id", matchedShooter.id);
+      updateFormField("shooter_name", matchedShooter.name);
+      setShooterSelectionError(null);
+      return true;
+    }
+
+    if (exactNameMatches.length > 1) {
+      setShowShooterSuggestions(true);
+      setShooterSelectionError(
+        "Multiple verified shooters share this name. Select one below.",
+      );
+      return false;
+    }
+
+    setShowShooterSuggestions(true);
+    setShooterSelectionError(
+      "No verified shooter found with that exact name. Select from the list or leave it blank.",
+    );
+    return false;
+  };
+
   const handleNext = () => {
+    if (currentStep === 2 && !resolveShooterSelection()) {
+      return;
+    }
+
     if (currentStep < TOTAL_STEPS - 1) {
       animateStepTransition("next", () => setCurrentStep(currentStep + 1));
     }
@@ -223,6 +357,11 @@ export default function CreateContractScreen() {
   };
 
   const handleSubmit = async () => {
+    if (!resolveShooterSelection()) {
+      setCurrentStep(2);
+      return;
+    }
+
     setIsSubmitting(true);
     try {
       let result;
@@ -302,7 +441,7 @@ export default function CreateContractScreen() {
       contentContainerStyle={{ paddingBottom: 24 }}
     >
       <Text className="text-sm text-gray-500 mb-4">
-        Select one or more ways you'd like to be compensated. You can combine
+        Select one or more ways you&apos;d like to be compensated. You can combine
         them!
       </Text>
 
@@ -605,30 +744,133 @@ export default function CreateContractScreen() {
         <View className="flex-row items-center mb-2">
           <HelpCircle size={18} color="#a16207" />
           <Text className="text-blue-800 font-bold text-sm">
-            What's a Shooter?
+            What&apos;s a Shooter?
           </Text>
         </View>
         <Text className="text-blue-700 text-xs leading-5">
           A shooter is a verified professional who assists with the breeding
-          process. If you add a payment amount below, verified shooters will see
-          this offer and can apply once the contract is accepted.
+          process. If you add a payment amount, your selected shooter will be
+          invited after acceptance. If none is selected, the offer is open to
+          verified shooters.
         </Text>
       </View>
 
       <View className="mb-4">
         <Text className="text-sm font-semibold text-gray-700 mb-1">
-          Preferred Shooter Name
+          Preferred Shooter
         </Text>
         <Text className="text-xs text-gray-400 mb-2">
-          Leave blank to accept any verified shooter
+          Search and select a verified shooter. Leave blank to accept any
+          verified shooter.
         </Text>
         <TextInput
           className="bg-gray-100 rounded-xl px-4 py-3 text-base"
-          placeholder="Anyone is fine"
+          placeholder="Search shooter name"
           placeholderTextColor="#9CA3AF"
-          value={formData.shooter_name}
-          onChangeText={(text) => updateFormField("shooter_name", text)}
+          value={formData.shooter_name || ""}
+          onFocus={() => setShowShooterSuggestions(true)}
+          onChangeText={(text) => {
+            updateFormField("shooter_name", text);
+            updateFormField("shooter_user_id", undefined);
+            setShooterSelectionError(null);
+            setShowShooterSuggestions(true);
+          }}
         />
+
+        {!!formData.shooter_user_id && (
+          <View className="mt-2 bg-emerald-50 border border-emerald-200 rounded-lg px-3 py-2">
+            <Text className="text-emerald-700 text-xs font-semibold">
+              Selected verified shooter
+            </Text>
+          </View>
+        )}
+
+        {shooterSelectionError && (
+          <Text className="text-red-600 text-xs mt-2">{shooterSelectionError}</Text>
+        )}
+
+        {loadingShooters ? (
+          <View className="py-4 items-center">
+            <ActivityIndicator size="small" color="#FF6B6B" />
+            <Text className="text-xs text-gray-400 mt-2">
+              Loading verified shooters...
+            </Text>
+          </View>
+        ) : (
+          showShooterSuggestions && (
+            <View className="mt-2 border border-gray-200 rounded-xl bg-white overflow-hidden">
+              {filteredShooters.length === 0 ? (
+                <Text className="text-xs text-gray-400 px-3 py-3">
+                  No matching verified shooters
+                </Text>
+              ) : (
+                filteredShooters.map((shooter) => {
+                  const isSelected = formData.shooter_user_id === shooter.id;
+
+                  return (
+                    <TouchableOpacity
+                      key={shooter.id}
+                      onPress={() => selectShooter(shooter)}
+                      className={`px-3 py-3 border-b border-gray-100 flex-row items-center ${
+                        isSelected ? "bg-emerald-50" : "bg-white"
+                      }`}
+                    >
+                      {shooter.profile_image ? (
+                        <Image
+                          source={{ uri: shooter.profile_image }}
+                          className="w-10 h-10 rounded-full"
+                        />
+                      ) : (
+                        <View className="w-10 h-10 rounded-full bg-gray-200 items-center justify-center">
+                          <Text className="text-xs font-semibold text-gray-600">
+                            {getInitials(shooter.name) || "S"}
+                          </Text>
+                        </View>
+                      )}
+
+                      <View className="ml-3 flex-1">
+                        <Text className="text-sm font-semibold text-gray-800">
+                          {shooter.name}
+                        </Text>
+                        <Text className="text-xs text-gray-500">
+                          {(shooter.experience_years ?? 0).toString()} yrs exp •{" "}
+                          {shooter.rating ? `${shooter.rating.toFixed(1)} rating` : "No ratings yet"}
+                        </Text>
+                      </View>
+
+                      {isSelected && (
+                        <View className="bg-emerald-500 rounded-full px-2 py-1">
+                          <Text className="text-[10px] font-semibold text-white">
+                            Selected
+                          </Text>
+                        </View>
+                      )}
+                    </TouchableOpacity>
+                  );
+                })
+              )}
+            </View>
+          )
+        )}
+
+        {normalizedShooterName &&
+          !formData.shooter_user_id &&
+          exactNameMatches.length > 1 && (
+            <View className="mt-3 p-3 rounded-xl border border-amber-200 bg-amber-50">
+              <Text className="text-amber-800 text-xs font-semibold mb-2">
+                Exact name matches found. Please choose one:
+              </Text>
+              {exactNameMatches.map((match) => (
+                <TouchableOpacity
+                  key={`exact-${match.id}`}
+                  onPress={() => selectShooter(match)}
+                  className="py-2"
+                >
+                  <Text className="text-amber-900 text-sm">{match.name}</Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+          )}
       </View>
 
       <View className="mb-4">
@@ -704,15 +946,18 @@ export default function CreateContractScreen() {
       <TouchableOpacity
         onPress={() => {
           updateFormField("shooter_name", "");
+          updateFormField("shooter_user_id", undefined);
           updateFormField("shooter_payment", undefined);
           updateFormField("shooter_location", "");
           updateFormField("shooter_conditions", "");
+          setShooterSelectionError(null);
+          setShowShooterSuggestions(false);
           handleNext();
         }}
         className="bg-gray-100 rounded-full py-3 items-center"
       >
         <Text className="text-gray-500 font-semibold">
-          Skip — I don't need a shooter
+          Skip — I don&apos;t need a shooter
         </Text>
       </TouchableOpacity>
     </ScrollView>
@@ -922,7 +1167,7 @@ export default function CreateContractScreen() {
           </Text>
           {formData.shooter_name ? (
             <View className="flex-row justify-between mb-2">
-              <Text className="text-gray-500 text-sm">Preferred Name</Text>
+              <Text className="text-gray-500 text-sm">Preferred Shooter</Text>
               <Text className="text-gray-900 font-semibold text-sm">
                 {formData.shooter_name}
               </Text>
