@@ -965,6 +965,7 @@ class BreedingContractController extends Controller
         }
 
         return User::query()
+            ->where('id', '!=', auth()->id())
             ->whereHas('roles', function ($query) use ($shooterRole) {
                 $query->where('roles.role_id', $shooterRole->role_id);
             })

@@ -1,32 +1,85 @@
-import React, { useState, useEffect, useCallback } from "react";
+import React, { useCallback, useEffect, useMemo, useState } from "react";
 import {
-  View,
-  Text,
-  ScrollView,
-  TouchableOpacity,
-  Image,
   ActivityIndicator,
+  Image,
+  ScrollView,
   StyleSheet,
-  Dimensions,
+  Text,
+  TouchableOpacity,
+  View,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { Feather } from "@expo/vector-icons";
-import { LinearGradient } from "expo-linear-gradient";
-import { useRouter, useLocalSearchParams } from "expo-router";
+import { Feather, Ionicons } from "@expo/vector-icons";
+import { useLocalSearchParams, useRouter } from "expo-router";
+import dayjs from "dayjs";
+import BubbleBackgroundRe from "@/components/app/BubbleBackground";
 import {
   getLitterDetail,
   type LitterDetail,
   type LitterOffspring,
-  type LitterMilestone,
-  type ParentHealthVaccination,
-  type LitterDetailParent,
 } from "@/services/petService";
 import { getStorageUrl } from "@/utils/imageUrl";
-import { Colors } from "@/constants";
 
-const { width: SCREEN_WIDTH } = Dimensions.get("window");
-const TABS = ["Overview", "Offspring", "Health"] as const;
-type TabKey = (typeof TABS)[number];
+type StatusMeta = {
+  bg: string;
+  text: string;
+};
+
+function getStatusMeta(status: string): StatusMeta {
+  const value = status.toLowerCase();
+
+  if (value === "completed") {
+    return { bg: "rgba(255,255,255,0.32)", text: "#FFFFFF" };
+  }
+
+  if (value === "active") {
+    return { bg: "rgba(220, 247, 238, 0.95)", text: "#3EA48B" };
+  }
+
+  return { bg: "rgba(255,255,255,0.32)", text: "#FFFFFF" };
+}
+
+function formatBirthDate(litter: LitterDetail): string {
+  if (litter.birth_date_full && litter.birth_date_full.trim().length > 0) {
+    return litter.birth_date_full;
+  }
+
+  const parsed = dayjs(litter.birth_date);
+  return parsed.isValid() ? parsed.format("MMM D, YYYY") : "Date unavailable";
+}
+
+function formatAgeLabel(litter: LitterDetail): string {
+  if (typeof litter.age_in_weeks === "number" && litter.age_in_months < 1) {
+    return `${Math.max(1, Math.round(litter.age_in_weeks))} weeks old`;
+  }
+
+  if (
+    typeof litter.age_in_months !== "number" ||
+    Number.isNaN(litter.age_in_months)
+  ) {
+    return "";
+  }
+
+  const rounded = Math.round(litter.age_in_months * 10) / 10;
+  const value = Number.isInteger(rounded)
+    ? rounded.toFixed(0)
+    : rounded.toFixed(1);
+  return `${value} months old`;
+}
+
+function getOffspringLabels(species?: string) {
+  const value = (species || "").toLowerCase();
+
+  if (value === "dog") {
+    return { singular: "Puppy", plural: "Puppies" };
+  }
+
+  if (value === "cat") {
+    return { singular: "Kitten", plural: "Kittens" };
+  }
+
+  return { singular: "Offspring", plural: "Offspring" };
+}
 
 export default function LitterDetailScreen() {
   const router = useRouter();
@@ -35,15 +88,15 @@ export default function LitterDetailScreen() {
 
   const [litter, setLitter] = useState<LitterDetail | null>(null);
   const [loading, setLoading] = useState(true);
-  const [activeTab, setActiveTab] = useState<TabKey>("Overview");
 
   const fetchLitterDetail = useCallback(async () => {
     try {
       setLoading(true);
-      const data = await getLitterDetail(parseInt(litterId));
+      const data = await getLitterDetail(parseInt(litterId, 10));
       setLitter(data);
     } catch (error) {
       console.error("Error fetching litter detail:", error);
+      setLitter(null);
     } finally {
       setLoading(false);
     }
@@ -53,1228 +106,577 @@ export default function LitterDetailScreen() {
     if (litterId) {
       fetchLitterDetail();
     }
-  }, [litterId, fetchLitterDetail]);
+  }, [fetchLitterDetail, litterId]);
 
   const getImageUrl = (path: string | null | undefined) => {
-    return getStorageUrl(path);
+    if (!path) return undefined;
+    return getStorageUrl(path) ?? undefined;
   };
 
-  const getStatusColor = (status: string) => {
-    switch (status.toLowerCase()) {
-      case "active":
-        return { bg: Colors.successLight, text: Colors.success };
-      case "completed":
-        return { bg: Colors.infoLight, text: Colors.info };
-      default:
-        return { bg: Colors.bgTertiary, text: Colors.textSecondary };
-    }
-  };
-
-  const getAllocationColor = (status: string) => {
-    switch (status) {
-      case "assigned":
-        return { bg: "#DBEAFE", text: "#2563EB", label: "Assigned" };
-      case "transferred":
-        return {
-          bg: Colors.successLight,
-          text: Colors.success,
-          label: "Transferred",
-        };
-      default:
-        return {
-          bg: Colors.bgTertiary,
-          text: Colors.textMuted,
-          label: "Unassigned",
-        };
-    }
-  };
+  const birthDateLabel = useMemo(
+    () => (litter ? formatBirthDate(litter) : ""),
+    [litter],
+  );
+  const ageLabel = useMemo(
+    () => (litter ? formatAgeLabel(litter) : ""),
+    [litter],
+  );
 
   if (loading) {
     return (
-      <View style={styles.loadingContainer}>
-        <ActivityIndicator size="large" color={Colors.primary} />
+      <SafeAreaView style={styles.loadingScreen} edges={["top"]}>
+        <ActivityIndicator size="large" color="#F98D67" />
         <Text style={styles.loadingText}>Loading litter details...</Text>
-      </View>
+      </SafeAreaView>
     );
   }
 
   if (!litter) {
     return (
-      <View style={styles.loadingContainer}>
-        <Feather name="alert-circle" size={40} color={Colors.textDisabled} />
-        <Text style={[styles.loadingText, { marginTop: 12 }]}>
-          Litter not found
-        </Text>
-      </View>
+      <SafeAreaView style={styles.loadingScreen} edges={["top"]}>
+        <Feather name="alert-circle" size={36} color="#B8B4C1" />
+        <Text style={styles.loadingText}>Litter details unavailable.</Text>
+      </SafeAreaView>
     );
   }
 
-  const statusColor = getStatusColor(litter.status);
+  const statusMeta = getStatusMeta(litter.status);
+  const sire = litter.parents.sire;
+  const dam = litter.parents.dam;
+  const sireBreed = sire.breed || "Unknown Breed";
+  const damBreed = dam.breed || "Unknown Breed";
+  const offspringLabels = getOffspringLabels(sire.species || dam.species);
+  const ownerLine = dam.owner?.name
+    ? `${dam.name} owned by ${dam.owner.name}`
+    : `${dam.name} owner unavailable`;
 
-  // ===================== RENDER HELPERS =====================
-
-  const renderParentCard = (
-    parent: LitterDetailParent,
-    role: "Sire" | "Dam",
-  ) => {
-    const isSire = role === "Sire";
-    return (
-      <TouchableOpacity
-        style={[
-          styles.parentCard,
-          { backgroundColor: isSire ? "#EFF6FF" : "#FDF2F8" },
-        ]}
-        onPress={() => router.push(`/(pet)/view-profile?id=${parent.pet_id}`)}
-        activeOpacity={0.7}
-      >
-        <Image
-          source={{ uri: getImageUrl(parent.photo) || undefined }}
-          style={styles.parentCardPhoto}
-        />
-        <Text style={styles.parentCardName} numberOfLines={1}>
-          {parent.name}
-        </Text>
-        <Text style={styles.parentCardBreed} numberOfLines={1}>
-          {parent.breed}
-        </Text>
-        <View
-          style={[
-            styles.parentRoleBadge,
-            { backgroundColor: isSire ? "#2563EB" : "#DB2777" },
-          ]}
-        >
-          <Text style={styles.parentRoleText}>
-            {role} {isSire ? "♂" : "♀"}
-          </Text>
+  return (
+    <SafeAreaView style={styles.screen} edges={["top"]}>
+      <View style={styles.headerWrap}>
+        <View style={StyleSheet.absoluteFillObject}>
+          <BubbleBackgroundRe
+            backgroundColor="#F98D67"
+            bubbleColor="rgba(255, 192, 170, 0.35)"
+            bigCount={3}
+            smallCount={6}
+          />
         </View>
-      </TouchableOpacity>
-    );
-  };
 
-  const renderMilestoneTimeline = () => {
-    const milestones = litter.milestones || [];
-    if (milestones.length === 0) return null;
+        <View style={styles.headerRow}>
+          <TouchableOpacity
+            style={styles.backCircle}
+            onPress={() => router.back()}
+          >
+            <Feather name="chevron-left" size={20} color="#FFFFFF" />
+          </TouchableOpacity>
 
-    return (
-      <View style={styles.card}>
-        <Text style={styles.cardTitle}>Growth Timeline</Text>
-        <View style={styles.timelineContainer}>
-          {milestones.map((milestone, index) => {
-            const isLast = index === milestones.length - 1;
-            return (
-              <View key={milestone.key} style={styles.timelineItem}>
-                {/* Vertical Line */}
-                {!isLast && (
-                  <View
-                    style={[
-                      styles.timelineLine,
-                      {
-                        backgroundColor: milestone.completed
-                          ? Colors.success
-                          : Colors.borderLight,
-                      },
-                    ]}
-                  />
-                )}
-                {/* Dot */}
-                <View
-                  style={[
-                    styles.timelineDot,
-                    milestone.completed
-                      ? styles.timelineDotCompleted
-                      : styles.timelineDotPending,
-                  ]}
+          <View style={styles.headerBody}>
+            <Text style={styles.headerTitle} numberOfLines={1}>
+              {litter.title}
+            </Text>
+            <Text style={styles.headerSubTitle} numberOfLines={1}>
+              {sire.name} x {dam.name} · {birthDateLabel}
+            </Text>
+            {ageLabel ? (
+              <Text style={styles.headerSubTitle}>{ageLabel}</Text>
+            ) : null}
+          </View>
+
+          <View
+            style={[styles.statusBadge, { backgroundColor: statusMeta.bg }]}
+          >
+            <Text style={[styles.statusBadgeText, { color: statusMeta.text }]}>
+              {litter.status}
+            </Text>
+          </View>
+        </View>
+      </View>
+
+      <ScrollView
+        style={styles.body}
+        contentContainerStyle={styles.bodyContent}
+        showsVerticalScrollIndicator={false}
+      >
+        <View style={styles.topSheet}>
+          <View style={styles.summaryOuterCard}>
+            <View style={styles.summaryHead}>
+              <View style={styles.parentPairWrap}>
+                <TouchableOpacity
+                  style={styles.parentAvatarWrap}
+                  onPress={() =>
+                    router.push(`/(pet)/view-profile?id=${sire.pet_id}`)
+                  }
+                  activeOpacity={0.8}
                 >
-                  {milestone.completed && (
-                    <Feather name="check" size={10} color="#fff" />
-                  )}
-                </View>
-                {/* Content */}
-                <View style={styles.timelineContent}>
-                  <Text
-                    style={[
-                      styles.timelineLabel,
-                      !milestone.completed && { color: Colors.textDisabled },
-                    ]}
-                  >
-                    {milestone.label}
-                  </Text>
-                  {milestone.date && (
-                    <Text style={styles.timelineDate}>{milestone.date}</Text>
-                  )}
-                  <Text style={styles.timelineDescription}>
-                    {milestone.description}
+                  <Image
+                    source={{ uri: getImageUrl(sire.photo) }}
+                    style={styles.parentAvatar}
+                  />
+                </TouchableOpacity>
+
+                <TouchableOpacity
+                  style={[styles.parentAvatarWrap, styles.parentAvatarOverlap]}
+                  onPress={() =>
+                    router.push(`/(pet)/view-profile?id=${dam.pet_id}`)
+                  }
+                  activeOpacity={0.8}
+                >
+                  <Image
+                    source={{ uri: getImageUrl(dam.photo) }}
+                    style={styles.parentAvatar}
+                  />
+                </TouchableOpacity>
+              </View>
+
+              <View style={styles.summaryTextWrap}>
+                <Text style={styles.summaryPairTitle} numberOfLines={1}>
+                  {sire.name} x {dam.name}
+                </Text>
+                <Text style={styles.summaryPairSub} numberOfLines={1}>
+                  {sireBreed} x {damBreed}
+                </Text>
+
+                <View style={styles.summaryOwnerRow}>
+                  <Text style={styles.summaryOwnerIcon}>👩</Text>
+                  <Text style={styles.summaryOwnerText} numberOfLines={1}>
+                    {ownerLine}
                   </Text>
                 </View>
               </View>
-            );
-          })}
-        </View>
-      </View>
-    );
-  };
-
-  const renderStatChips = () => (
-    <View style={styles.statsGrid}>
-      <View style={styles.statsRow}>
-        <View style={[styles.statBox, { backgroundColor: Colors.bgTertiary }]}>
-          <Text style={styles.statBoxValue}>
-            {litter.statistics.total_offspring}
-          </Text>
-          <Text style={styles.statBoxLabel}>Total</Text>
-        </View>
-        <View
-          style={[styles.statBox, { backgroundColor: Colors.successLight }]}
-        >
-          <Text style={[styles.statBoxValue, { color: Colors.success }]}>
-            {litter.statistics.alive_offspring}
-          </Text>
-          <Text style={styles.statBoxLabel}>Alive</Text>
-        </View>
-        {litter.statistics.died_offspring > 0 && (
-          <View
-            style={[styles.statBox, { backgroundColor: Colors.errorLight }]}
-          >
-            <Text style={[styles.statBoxValue, { color: Colors.error }]}>
-              {litter.statistics.died_offspring}
-            </Text>
-            <Text style={styles.statBoxLabel}>Died</Text>
-          </View>
-        )}
-      </View>
-      <View style={styles.statsRow}>
-        <View style={[styles.statBox, { backgroundColor: "#EFF6FF" }]}>
-          <Text style={[styles.statBoxValue, { color: "#2563EB" }]}>
-            {litter.statistics.male_count}
-          </Text>
-          <Text style={styles.statBoxLabel}>Male</Text>
-        </View>
-        <View style={[styles.statBox, { backgroundColor: "#FDF2F8" }]}>
-          <Text style={[styles.statBoxValue, { color: "#DB2777" }]}>
-            {litter.statistics.female_count}
-          </Text>
-          <Text style={styles.statBoxLabel}>Female</Text>
-        </View>
-        {(litter.statistics.assigned_count ?? 0) > 0 && (
-          <View style={[styles.statBox, { backgroundColor: "#DBEAFE" }]}>
-            <Text style={[styles.statBoxValue, { color: "#2563EB" }]}>
-              {litter.statistics.assigned_count}
-            </Text>
-            <Text style={styles.statBoxLabel}>Assigned</Text>
-          </View>
-        )}
-      </View>
-    </View>
-  );
-
-  // ===================== TAB: OVERVIEW =====================
-
-  const renderOverviewTab = () => (
-    <View>
-      {/* Parents Section */}
-      <View style={styles.card}>
-        <Text style={styles.cardTitle}>Parents</Text>
-        <View style={styles.parentsRow}>
-          {renderParentCard(litter.parents.sire, "Sire")}
-          {renderParentCard(litter.parents.dam, "Dam")}
-        </View>
-      </View>
-
-      {/* Statistics */}
-      <View style={styles.card}>
-        <Text style={styles.cardTitle}>Statistics</Text>
-        {renderStatChips()}
-      </View>
-
-      {/* Milestone Timeline */}
-      {renderMilestoneTimeline()}
-
-      {/* Notes */}
-      {litter.notes && (
-        <View style={styles.card}>
-          <Text style={styles.cardTitle}>Notes</Text>
-          <Text style={styles.notesText}>{litter.notes}</Text>
-        </View>
-      )}
-
-      {/* Contract Info */}
-      {litter.has_contract && (
-        <View style={styles.card}>
-          <View style={styles.contractBanner}>
-            <Feather name="file-text" size={18} color="#2563EB" />
-            <Text style={styles.contractText}>
-              This litter is part of a breeding contract
-            </Text>
-          </View>
-        </View>
-      )}
-    </View>
-  );
-
-  // ===================== TAB: OFFSPRING =====================
-
-  const renderOffspringCard = (offspring: LitterOffspring) => {
-    const allocationInfo = getAllocationColor(
-      offspring.allocation_status || "unassigned",
-    );
-    const isDead = offspring.status === "died";
-
-    return (
-      <View
-        key={offspring.offspring_id}
-        style={[styles.offspringCard, isDead && styles.offspringCardDead]}
-      >
-        {/* Photo */}
-        <View style={styles.offspringPhotoContainer}>
-          {offspring.photo_url ? (
-            <Image
-              source={{ uri: getImageUrl(offspring.photo_url) || undefined }}
-              style={styles.offspringPhoto}
-            />
-          ) : (
-            <View style={styles.offspringPhotoPlaceholder}>
-              <Feather name="image" size={24} color={Colors.textDisabled} />
             </View>
-          )}
-          {/* Sex badge */}
-          <View
-            style={[
-              styles.sexBadge,
-              {
-                backgroundColor:
-                  offspring.sex === "male" ? "#2563EB" : "#DB2777",
-              },
-            ]}
-          >
-            <Text style={styles.sexBadgeText}>
-              {offspring.sex === "male" ? "♂" : "♀"}
-            </Text>
-          </View>
-        </View>
 
-        {/* Info */}
-        <View style={styles.offspringInfo}>
-          <Text style={styles.offspringName}>
-            {offspring.name || "Unnamed"}
-          </Text>
-
-          <View style={styles.offspringMeta}>
-            {offspring.color && (
-              <View style={styles.metaChip}>
-                <Feather name="droplet" size={10} color={Colors.textMuted} />
-                <Text style={styles.metaChipText}>{offspring.color}</Text>
-              </View>
-            )}
-            <View
-              style={[
-                styles.metaChip,
-                {
-                  backgroundColor: isDead
-                    ? Colors.errorLight
-                    : Colors.successLight,
-                },
-              ]}
-            >
-              <Text
-                style={[
-                  styles.metaChipText,
-                  { color: isDead ? Colors.error : Colors.success },
-                ]}
-              >
-                {offspring.status}
-              </Text>
+            <View style={styles.metricsRow}>
+              <MetricCell
+                label={offspringLabels.plural}
+                value={String(litter.statistics.total_offspring)}
+              />
+              <MetricCell
+                label="Sex"
+                value={`${litter.statistics.male_count}M ${litter.statistics.female_count}F`}
+              />
+              <MetricCell
+                label="Alive"
+                value={String(litter.statistics.alive_offspring)}
+                valueColor="#54C5A7"
+              />
+              <MetricCell
+                label="Died"
+                value={String(litter.statistics.died_offspring)}
+                valueColor="#FF8A66"
+              />
             </View>
           </View>
 
-          {/* Allocation Status */}
-          <View style={styles.offspringAllocation}>
-            <View
-              style={[
-                styles.allocationBadge,
-                { backgroundColor: allocationInfo.bg },
-              ]}
-            >
-              <Text
-                style={[
-                  styles.allocationBadgeText,
-                  { color: allocationInfo.text },
-                ]}
-              >
-                {allocationInfo.label}
-              </Text>
-            </View>
-            {offspring.assigned_to && (
-              <View style={styles.assignedToRow}>
-                <Image
-                  source={{
-                    uri:
-                      getImageUrl(offspring.assigned_to.profile_image) ||
-                      undefined,
-                  }}
-                  style={styles.assignedToAvatar}
+          <View style={styles.sectionWrap}>
+            <Text style={styles.sectionTitle}>{offspringLabels.plural}</Text>
+
+            {litter.offspring.length > 0 ? (
+              litter.offspring.map((offspring) => (
+                <OffspringCard
+                  key={offspring.offspring_id}
+                  offspring={offspring}
+                  getImageUrl={getImageUrl}
                 />
-                <Text style={styles.assignedToName} numberOfLines={1}>
-                  {offspring.assigned_to.name}
+              ))
+            ) : (
+              <View style={styles.emptyCard}>
+                <Ionicons name="paw-outline" size={24} color="#AEA8B7" />
+                <Text style={styles.emptyTitle}>
+                  {`No ${offspringLabels.plural.toLowerCase()} recorded yet.`}
                 </Text>
               </View>
             )}
           </View>
-
-          {/* Death info */}
-          {isDead && offspring.death_date && (
-            <Text style={styles.deathDate}>Passed: {offspring.death_date}</Text>
-          )}
-
-          {/* Notes */}
-          {offspring.notes && (
-            <Text style={styles.offspringNotes} numberOfLines={2}>
-              {offspring.notes}
-            </Text>
-          )}
-
-          {/* Registered badge */}
-          {offspring.is_registered && (
-            <View style={styles.registeredBadge}>
-              <Feather name="check-circle" size={12} color={Colors.success} />
-              <Text style={styles.registeredText}>Registered as pet</Text>
-            </View>
-          )}
         </View>
-      </View>
-    );
-  };
-
-  const renderOffspringTab = () => {
-    const males = litter.offspring.filter((o) => o.sex === "male");
-    const females = litter.offspring.filter((o) => o.sex === "female");
-
-    return (
-      <View>
-        {litter.offspring.length === 0 ? (
-          <View style={styles.emptyTabContainer}>
-            <Feather name="users" size={40} color={Colors.textDisabled} />
-            <Text style={styles.emptyTabText}>No offspring recorded</Text>
-          </View>
-        ) : (
-          <>
-            {males.length > 0 && (
-              <View style={styles.card}>
-                <View style={styles.offspringSectionHeader}>
-                  <Text style={styles.cardTitle}>Males</Text>
-                  <View
-                    style={[styles.countBadge, { backgroundColor: "#EFF6FF" }]}
-                  >
-                    <Text style={[styles.countBadgeText, { color: "#2563EB" }]}>
-                      {males.length}
-                    </Text>
-                  </View>
-                </View>
-                {males.map(renderOffspringCard)}
-              </View>
-            )}
-
-            {females.length > 0 && (
-              <View style={styles.card}>
-                <View style={styles.offspringSectionHeader}>
-                  <Text style={styles.cardTitle}>Females</Text>
-                  <View
-                    style={[styles.countBadge, { backgroundColor: "#FDF2F8" }]}
-                  >
-                    <Text style={[styles.countBadgeText, { color: "#DB2777" }]}>
-                      {females.length}
-                    </Text>
-                  </View>
-                </View>
-                {females.map(renderOffspringCard)}
-              </View>
-            )}
-          </>
-        )}
-      </View>
-    );
-  };
-
-  // ===================== TAB: HEALTH =====================
-
-  const renderHealthBar = (completed: number, total: number) => {
-    const percentage = total > 0 ? (completed / total) * 100 : 0;
-    return (
-      <View style={styles.healthBar}>
-        <View
-          style={[
-            styles.healthBarFill,
-            {
-              width: `${percentage}%`,
-              backgroundColor:
-                percentage >= 100
-                  ? Colors.success
-                  : percentage >= 50
-                    ? Colors.warning
-                    : Colors.error,
-            },
-          ]}
-        />
-      </View>
-    );
-  };
-
-  const renderParentHealth = (
-    parent: LitterDetailParent,
-    role: "Sire" | "Dam",
-  ) => {
-    const health = parent.health;
-    if (!health) {
-      return (
-        <View style={styles.card}>
-          <Text style={styles.cardTitle}>
-            {role} ({parent.name}) - Health
-          </Text>
-          <Text style={styles.noDataText}>No health data available</Text>
-        </View>
-      );
-    }
-
-    const isSire = role === "Sire";
-
-    return (
-      <View style={styles.card}>
-        <View style={styles.healthParentHeader}>
-          <Image
-            source={{ uri: getImageUrl(parent.photo) || undefined }}
-            style={styles.healthParentAvatar}
-          />
-          <View style={{ flex: 1 }}>
-            <Text style={styles.cardTitle}>
-              {parent.name}
-              <Text style={styles.healthRoleLabel}>
-                {" "}
-                ({role} {isSire ? "♂" : "♀"})
-              </Text>
-            </Text>
-            <Text style={styles.healthBreed}>{parent.breed}</Text>
-          </View>
-          {/* Health Score */}
-          <View
-            style={[
-              styles.healthScoreCircle,
-              {
-                borderColor:
-                  health.health_score >= 80
-                    ? Colors.success
-                    : health.health_score >= 50
-                      ? Colors.warning
-                      : Colors.error,
-              },
-            ]}
-          >
-            <Text
-              style={[
-                styles.healthScoreValue,
-                {
-                  color:
-                    health.health_score >= 80
-                      ? Colors.success
-                      : health.health_score >= 50
-                        ? Colors.warning
-                        : Colors.error,
-                },
-              ]}
-            >
-              {health.health_score}%
-            </Text>
-          </View>
-        </View>
-
-        {/* Summary Stats */}
-        <View style={styles.healthSummaryRow}>
-          <View style={styles.healthSummaryItem}>
-            <Text style={styles.healthSummaryValue}>
-              {health.completed_vaccines}/{health.total_vaccines}
-            </Text>
-            <Text style={styles.healthSummaryLabel}>Vaccines Done</Text>
-          </View>
-          <View style={styles.healthSummaryItem}>
-            <Text style={styles.healthSummaryValue}>
-              {health.completed_required}/{health.required_vaccines}
-            </Text>
-            <Text style={styles.healthSummaryLabel}>Required Done</Text>
-          </View>
-        </View>
-
-        {/* Vaccination List */}
-        {health.vaccinations.length > 0 && (
-          <View style={styles.vaccinationList}>
-            {health.vaccinations.map(
-              (vax: ParentHealthVaccination, index: number) => (
-                <View key={index} style={styles.vaccinationItem}>
-                  <View style={styles.vaccinationHeader}>
-                    <View style={{ flex: 1 }}>
-                      <View style={styles.vaccinationNameRow}>
-                        <Text style={styles.vaccinationName}>
-                          {vax.vaccine_name}
-                        </Text>
-                        {vax.is_required && (
-                          <View style={styles.requiredBadge}>
-                            <Text style={styles.requiredBadgeText}>
-                              Required
-                            </Text>
-                          </View>
-                        )}
-                      </View>
-                      <Text style={styles.vaccinationProgress}>
-                        {vax.completed_shots}/{vax.total_shots} shots
-                      </Text>
-                    </View>
-                    <Feather
-                      name={vax.is_complete ? "check-circle" : "clock"}
-                      size={18}
-                      color={
-                        vax.is_complete ? Colors.success : Colors.textDisabled
-                      }
-                    />
-                  </View>
-                  {renderHealthBar(vax.completed_shots, vax.total_shots)}
-                </View>
-              ),
-            )}
-          </View>
-        )}
-      </View>
-    );
-  };
-
-  const renderHealthTab = () => (
-    <View>
-      <View style={styles.healthInfoBanner}>
-        <Feather name="info" size={16} color="#2563EB" />
-        <Text style={styles.healthInfoText}>
-          Health lineage shows the vaccination status of both parents at the
-          time of this litter.
-        </Text>
-      </View>
-
-      {renderParentHealth(litter.parents.sire, "Sire")}
-      {renderParentHealth(litter.parents.dam, "Dam")}
-    </View>
-  );
-
-  // ===================== MAIN RENDER =====================
-
-  return (
-    <View style={styles.container}>
-      {/* Header */}
-      <LinearGradient
-        colors={["#FF6B4A", "#FF9A8B"]}
-        style={styles.headerGradient}
-      >
-        <SafeAreaView edges={["top"]}>
-          <View style={styles.headerContent}>
-            <TouchableOpacity
-              onPress={() => router.back()}
-              style={styles.headerButton}
-            >
-              <Feather name="arrow-left" size={24} color="#fff" />
-            </TouchableOpacity>
-            <View style={styles.headerTitleContainer}>
-              <Text style={styles.headerTitle} numberOfLines={1}>
-                {litter.title}
-              </Text>
-              <Text style={styles.headerSubtitle}>
-                {litter.birth_date} · {litter.age_in_months} months old
-              </Text>
-            </View>
-            <View
-              style={[
-                styles.headerStatusBadge,
-                { backgroundColor: "rgba(255,255,255,0.25)" },
-              ]}
-            >
-              <Text style={styles.headerStatusText}>{litter.status}</Text>
-            </View>
-          </View>
-        </SafeAreaView>
-      </LinearGradient>
-
-      {/* Tab Bar */}
-      <View style={styles.tabBar}>
-        {TABS.map((tab) => (
-          <TouchableOpacity
-            key={tab}
-            style={[styles.tab, activeTab === tab && styles.tabActive]}
-            onPress={() => setActiveTab(tab)}
-          >
-            <Text
-              style={[
-                styles.tabText,
-                activeTab === tab && styles.tabTextActive,
-              ]}
-            >
-              {tab}
-            </Text>
-          </TouchableOpacity>
-        ))}
-      </View>
-
-      {/* Content */}
-      <ScrollView
-        style={styles.scrollView}
-        contentContainerStyle={styles.scrollContent}
-        showsVerticalScrollIndicator={false}
-      >
-        {activeTab === "Overview" && renderOverviewTab()}
-        {activeTab === "Offspring" && renderOffspringTab()}
-        {activeTab === "Health" && renderHealthTab()}
-
-        <View style={{ height: 30 }} />
       </ScrollView>
+    </SafeAreaView>
+  );
+}
+
+function MetricCell({
+  value,
+  label,
+  valueColor,
+}: {
+  value: string;
+  label: string;
+  valueColor?: string;
+}) {
+  return (
+    <View style={styles.metricCell}>
+      <Text
+        style={[styles.metricValue, valueColor ? { color: valueColor } : null]}
+      >
+        {value}
+      </Text>
+      <Text style={styles.metricLabel}>{label}</Text>
     </View>
   );
 }
 
-// ===================== STYLES =====================
+function OffspringCard({
+  offspring,
+  getImageUrl,
+}: {
+  offspring: LitterOffspring;
+  getImageUrl: (path: string | null | undefined) => string | undefined;
+}) {
+  const isMale = offspring.sex === "male";
+  const status = offspring.status?.trim() || "unknown";
+  const ownerName = offspring.assigned_to?.name || "Unassigned";
+  const isAssigned = Boolean(offspring.assigned_to?.name);
+
+  return (
+    <View style={styles.kittenRow}>
+      <View style={styles.kittenAvatarWrap}>
+        {offspring.photo_url ? (
+          <Image
+            source={{ uri: getImageUrl(offspring.photo_url) }}
+            style={styles.kittenAvatar}
+          />
+        ) : (
+          <View
+            style={[
+              styles.kittenAvatar,
+              { backgroundColor: isMale ? "#DDEAFE" : "#FCE5F1" },
+            ]}
+          >
+            <Text style={styles.kittenPlaceholder}>🐱</Text>
+          </View>
+        )}
+      </View>
+
+      <View style={styles.kittenMain}>
+        <View style={styles.kittenNameRow}>
+          <Text style={styles.kittenName} numberOfLines={1}>
+            {offspring.name || "Unnamed"}
+          </Text>
+          <View
+            style={[
+              styles.kittenSexBadge,
+              { backgroundColor: isMale ? "#DDEAFE" : "#FCE5F1" },
+            ]}
+          >
+            <Text
+              style={[
+                styles.kittenSexText,
+                { color: isMale ? "#4B81E4" : "#D45A9F" },
+              ]}
+            >
+              {isMale ? "M" : "F"}
+            </Text>
+          </View>
+        </View>
+
+        <Text style={styles.kittenMeta} numberOfLines={1}>
+          {offspring.color ? `${offspring.color} coat` : "Color not set"} ·{" "}
+          {status}
+        </Text>
+      </View>
+
+      <View style={styles.kittenRight}>
+        <View
+          style={[
+            styles.ownerBadge,
+            isAssigned
+              ? styles.ownerBadgeAssigned
+              : styles.ownerBadgeUnassigned,
+          ]}
+        >
+          <Text
+            style={[
+              styles.ownerBadgeText,
+              isAssigned
+                ? styles.ownerTextAssigned
+                : styles.ownerTextUnassigned,
+            ]}
+            numberOfLines={1}
+          >
+            {ownerName}
+          </Text>
+        </View>
+        <Text style={styles.ownerSub}>
+          {isAssigned ? "now owned by" : "ownership pending"}
+        </Text>
+      </View>
+    </View>
+  );
+}
 
 const styles = StyleSheet.create({
-  container: {
+  screen: {
     flex: 1,
-    backgroundColor: "#FDF4F4",
+    backgroundColor: "#F5EFED",
   },
-  loadingContainer: {
+  loadingScreen: {
     flex: 1,
-    justifyContent: "center",
+    backgroundColor: "#F5EFED",
     alignItems: "center",
-    backgroundColor: "#FDF4F4",
+    justifyContent: "center",
   },
   loadingText: {
-    marginTop: 12,
-    color: Colors.textMuted,
-    fontSize: 14,
+    marginTop: 10,
+    color: "#8F8B97",
+    fontSize: 13,
   },
 
-  // Header
-  headerGradient: {
-    paddingBottom: 16,
+  headerWrap: {
+    height: 122,
+    overflow: "hidden",
   },
-  headerContent: {
+  headerRow: {
     flexDirection: "row",
     alignItems: "center",
-    paddingHorizontal: 16,
-    paddingTop: 8,
+    paddingHorizontal: 14,
+    paddingTop: 6,
   },
-  headerButton: {
+  backCircle: {
     width: 40,
     height: 40,
     borderRadius: 20,
-    backgroundColor: "rgba(255,255,255,0.2)",
+    backgroundColor: "rgba(255,255,255,0.27)",
+    alignItems: "center",
     justifyContent: "center",
-    alignItems: "center",
   },
-  headerTitleContainer: {
+  headerBody: {
     flex: 1,
-    alignItems: "center",
-    paddingHorizontal: 8,
+    marginHorizontal: 10,
   },
   headerTitle: {
-    fontSize: 20,
-    fontWeight: "bold",
-    color: "#fff",
-  },
-  headerSubtitle: {
-    fontSize: 13,
-    color: "rgba(255,255,255,0.85)",
-    marginTop: 2,
-  },
-  headerStatusBadge: {
-    paddingVertical: 4,
-    paddingHorizontal: 12,
-    borderRadius: 12,
-  },
-  headerStatusText: {
-    fontSize: 12,
-    fontWeight: "600",
-    color: "#fff",
-    textTransform: "capitalize",
-  },
-
-  // Tab Bar
-  tabBar: {
-    flexDirection: "row",
-    backgroundColor: "#fff",
-    paddingHorizontal: 16,
-    borderBottomWidth: 1,
-    borderBottomColor: Colors.borderLight,
-  },
-  tab: {
-    flex: 1,
-    paddingVertical: 14,
-    alignItems: "center",
-    borderBottomWidth: 3,
-    borderBottomColor: "transparent",
-  },
-  tabActive: {
-    borderBottomColor: Colors.primary,
-  },
-  tabText: {
-    fontSize: 14,
-    fontWeight: "600",
-    color: Colors.textMuted,
-  },
-  tabTextActive: {
-    color: Colors.primary,
-  },
-
-  // Common
-  scrollView: {
-    flex: 1,
-  },
-  scrollContent: {
-    padding: 16,
-  },
-  card: {
-    backgroundColor: "#fff",
-    borderRadius: 20,
-    padding: 18,
-    marginBottom: 14,
-    elevation: 2,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.06,
-    shadowRadius: 6,
-  },
-  cardTitle: {
-    fontSize: 17,
-    fontWeight: "bold",
-    color: Colors.textPrimary,
-    marginBottom: 14,
-  },
-
-  // Parents
-  parentsRow: {
-    flexDirection: "row",
-    gap: 12,
-  },
-  parentCard: {
-    flex: 1,
-    borderRadius: 16,
-    padding: 12,
-    alignItems: "center",
-  },
-  parentCardPhoto: {
-    width: 72,
-    height: 72,
-    borderRadius: 36,
-    marginBottom: 8,
-    borderWidth: 3,
-    borderColor: "#fff",
-  },
-  parentCardName: {
-    fontSize: 15,
-    fontWeight: "bold",
-    color: Colors.textPrimary,
-    textAlign: "center",
-  },
-  parentCardBreed: {
-    fontSize: 12,
-    color: Colors.textMuted,
-    marginTop: 2,
-    textAlign: "center",
-  },
-  parentRoleBadge: {
-    paddingVertical: 3,
-    paddingHorizontal: 10,
-    borderRadius: 10,
-    marginTop: 8,
-  },
-  parentRoleText: {
-    fontSize: 11,
-    fontWeight: "600",
-    color: "#fff",
-  },
-
-  // Stats Grid
-  statsGrid: {
-    gap: 8,
-  },
-  statsRow: {
-    flexDirection: "row",
-    gap: 8,
-  },
-  statBox: {
-    flex: 1,
-    borderRadius: 12,
-    paddingVertical: 12,
-    paddingHorizontal: 8,
-    alignItems: "center",
-  },
-  statBoxValue: {
-    fontSize: 22,
-    fontWeight: "bold",
-    color: Colors.textPrimary,
-  },
-  statBoxLabel: {
-    fontSize: 11,
-    color: Colors.textMuted,
-    marginTop: 2,
-    textTransform: "uppercase",
-    letterSpacing: 0.3,
-  },
-
-  // Milestone Timeline
-  timelineContainer: {
-    paddingLeft: 4,
-  },
-  timelineItem: {
-    flexDirection: "row",
-    alignItems: "flex-start",
-    minHeight: 64,
-    position: "relative",
-  },
-  timelineLine: {
-    position: "absolute",
-    left: 9,
-    top: 22,
-    width: 2,
-    bottom: 0,
-  },
-  timelineDot: {
-    width: 20,
-    height: 20,
-    borderRadius: 10,
-    justifyContent: "center",
-    alignItems: "center",
-    marginRight: 12,
-    marginTop: 2,
-  },
-  timelineDotCompleted: {
-    backgroundColor: Colors.success,
-  },
-  timelineDotPending: {
-    backgroundColor: "#fff",
-    borderWidth: 2,
-    borderColor: Colors.borderMedium,
-  },
-  timelineContent: {
-    flex: 1,
-    paddingBottom: 16,
-  },
-  timelineLabel: {
-    fontSize: 15,
-    fontWeight: "600",
-    color: Colors.textPrimary,
-  },
-  timelineDate: {
-    fontSize: 12,
-    color: Colors.textMuted,
-    marginTop: 2,
-  },
-  timelineDescription: {
-    fontSize: 13,
-    color: Colors.textSecondary,
-    marginTop: 2,
-    lineHeight: 18,
-  },
-
-  // Notes
-  notesText: {
-    fontSize: 14,
-    color: Colors.textSecondary,
-    lineHeight: 22,
-  },
-
-  // Contract
-  contractBanner: {
-    flexDirection: "row",
-    alignItems: "center",
-    backgroundColor: "#EFF6FF",
-    borderRadius: 12,
-    padding: 14,
-    gap: 10,
-  },
-  contractText: {
-    flex: 1,
-    fontSize: 13,
-    color: "#2563EB",
-    fontWeight: "500",
-  },
-
-  // Offspring Card
-  offspringSectionHeader: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    marginBottom: 14,
-  },
-  countBadge: {
-    paddingVertical: 3,
-    paddingHorizontal: 10,
-    borderRadius: 10,
-  },
-  countBadgeText: {
-    fontSize: 12,
-    fontWeight: "bold",
-  },
-  offspringCard: {
-    flexDirection: "row",
-    backgroundColor: Colors.bgSecondary,
-    borderRadius: 14,
-    padding: 12,
-    marginBottom: 10,
-    borderWidth: 1,
-    borderColor: Colors.borderLight,
-  },
-  offspringCardDead: {
-    opacity: 0.6,
-  },
-  offspringPhotoContainer: {
-    position: "relative",
-    marginRight: 12,
-  },
-  offspringPhoto: {
-    width: 70,
-    height: 70,
-    borderRadius: 14,
-  },
-  offspringPhotoPlaceholder: {
-    width: 70,
-    height: 70,
-    borderRadius: 14,
-    backgroundColor: Colors.bgMuted,
-    justifyContent: "center",
-    alignItems: "center",
-  },
-  sexBadge: {
-    position: "absolute",
-    bottom: -3,
-    right: -3,
-    width: 20,
-    height: 20,
-    borderRadius: 10,
-    justifyContent: "center",
-    alignItems: "center",
-    borderWidth: 2,
-    borderColor: "#fff",
-  },
-  sexBadgeText: {
-    fontSize: 10,
-    color: "#fff",
-    fontWeight: "bold",
-  },
-  offspringInfo: {
-    flex: 1,
-  },
-  offspringName: {
-    fontSize: 15,
-    fontWeight: "bold",
-    color: Colors.textPrimary,
-    marginBottom: 4,
-  },
-  offspringMeta: {
-    flexDirection: "row",
-    flexWrap: "wrap",
-    gap: 6,
-    marginBottom: 6,
-  },
-  metaChip: {
-    flexDirection: "row",
-    alignItems: "center",
-    backgroundColor: Colors.bgTertiary,
-    paddingVertical: 2,
-    paddingHorizontal: 8,
-    borderRadius: 8,
-    gap: 4,
-  },
-  metaChipText: {
-    fontSize: 11,
-    color: Colors.textMuted,
-    textTransform: "capitalize",
-  },
-  offspringAllocation: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 8,
-    marginBottom: 4,
-  },
-  allocationBadge: {
-    paddingVertical: 2,
-    paddingHorizontal: 8,
-    borderRadius: 8,
-  },
-  allocationBadgeText: {
-    fontSize: 10,
-    fontWeight: "600",
-  },
-  assignedToRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 4,
-  },
-  assignedToAvatar: {
-    width: 18,
-    height: 18,
-    borderRadius: 9,
-  },
-  assignedToName: {
-    fontSize: 11,
-    color: Colors.textMuted,
-    maxWidth: 80,
-  },
-  deathDate: {
-    fontSize: 11,
-    color: Colors.error,
-    marginTop: 2,
-  },
-  offspringNotes: {
-    fontSize: 12,
-    color: Colors.textMuted,
-    marginTop: 4,
-    fontStyle: "italic",
-    lineHeight: 16,
-  },
-  registeredBadge: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 4,
-    marginTop: 4,
-  },
-  registeredText: {
-    fontSize: 11,
-    color: Colors.success,
-    fontWeight: "500",
-  },
-  emptyTabContainer: {
-    alignItems: "center",
-    justifyContent: "center",
-    paddingVertical: 60,
-  },
-  emptyTabText: {
-    fontSize: 15,
-    color: Colors.textMuted,
-    marginTop: 12,
-  },
-
-  // Health Tab
-  healthInfoBanner: {
-    flexDirection: "row",
-    backgroundColor: "#EFF6FF",
-    borderRadius: 14,
-    padding: 14,
-    gap: 10,
-    marginBottom: 14,
-    alignItems: "flex-start",
-  },
-  healthInfoText: {
-    flex: 1,
-    fontSize: 13,
-    color: "#2563EB",
-    lineHeight: 18,
-  },
-  healthParentHeader: {
-    flexDirection: "row",
-    alignItems: "center",
-    marginBottom: 14,
-    gap: 12,
-  },
-  healthParentAvatar: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
-  },
-  healthRoleLabel: {
-    fontSize: 13,
-    fontWeight: "400",
-    color: Colors.textMuted,
-  },
-  healthBreed: {
-    fontSize: 12,
-    color: Colors.textMuted,
+    color: "#FFFFFF",
+    fontSize: 18,
+    fontWeight: "700",
+  },
+  headerSubTitle: {
     marginTop: 1,
-  },
-  healthScoreCircle: {
-    width: 52,
-    height: 52,
-    borderRadius: 26,
-    borderWidth: 3,
-    justifyContent: "center",
-    alignItems: "center",
-  },
-  healthScoreValue: {
-    fontSize: 14,
-    fontWeight: "bold",
-  },
-  healthSummaryRow: {
-    flexDirection: "row",
-    gap: 10,
-    marginBottom: 14,
-  },
-  healthSummaryItem: {
-    flex: 1,
-    backgroundColor: Colors.bgSecondary,
-    borderRadius: 12,
-    padding: 12,
-    alignItems: "center",
-  },
-  healthSummaryValue: {
-    fontSize: 16,
-    fontWeight: "bold",
-    color: Colors.textPrimary,
-  },
-  healthSummaryLabel: {
+    color: "rgba(255,255,255,0.9)",
     fontSize: 11,
-    color: Colors.textMuted,
-    marginTop: 2,
   },
-  vaccinationList: {
-    gap: 10,
-  },
-  vaccinationItem: {
-    backgroundColor: Colors.bgSecondary,
-    borderRadius: 12,
-    padding: 12,
-  },
-  vaccinationHeader: {
-    flexDirection: "row",
+  statusBadge: {
+    borderRadius: 999,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    minWidth: 88,
     alignItems: "center",
-    justifyContent: "space-between",
-    marginBottom: 8,
   },
-  vaccinationNameRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 8,
+  statusBadgeText: {
+    fontSize: 11,
+    fontWeight: "700",
+    textTransform: "capitalize",
   },
-  vaccinationName: {
-    fontSize: 14,
-    fontWeight: "600",
-    color: Colors.textPrimary,
+
+  body: {
+    flex: 1,
   },
-  requiredBadge: {
-    backgroundColor: Colors.primaryLight,
-    paddingVertical: 1,
-    paddingHorizontal: 6,
-    borderRadius: 6,
+  bodyContent: {
+    paddingBottom: 24,
   },
-  requiredBadgeText: {
-    fontSize: 9,
-    fontWeight: "600",
-    color: Colors.primaryDark,
+  topSheet: {
+    marginTop: -12,
+    backgroundColor: "#F6EEEE",
+    borderTopLeftRadius: 30,
+    borderTopRightRadius: 30,
+    paddingHorizontal: 14,
+    paddingTop: 14,
   },
-  vaccinationProgress: {
-    fontSize: 12,
-    color: Colors.textMuted,
-    marginTop: 2,
-  },
-  healthBar: {
-    height: 6,
-    backgroundColor: Colors.bgMuted,
-    borderRadius: 3,
+
+  summaryOuterCard: {
+    backgroundColor: "#F2E4DE",
+    borderRadius: 22,
     overflow: "hidden",
   },
-  healthBarFill: {
-    height: "100%",
-    borderRadius: 3,
+  summaryHead: {
+    flexDirection: "row",
+    paddingHorizontal: 14,
+    paddingTop: 14,
+    paddingBottom: 12,
   },
-  noDataText: {
+  parentPairWrap: {
+    width: 92,
+    position: "relative",
+  },
+  parentAvatarWrap: {
+    width: 54,
+    height: 54,
+    borderRadius: 27,
+    borderWidth: 2,
+    borderColor: "#FFFFFF",
+    overflow: "hidden",
+    backgroundColor: "#EDE9EF",
+  },
+  parentAvatarOverlap: {
+    position: "absolute",
+    left: 38,
+    top: 0,
+  },
+  parentAvatar: {
+    width: "100%",
+    height: "100%",
+  },
+  summaryTextWrap: {
+    flex: 1,
+    marginLeft: 8,
+  },
+  summaryPairTitle: {
+    fontSize: 18,
+    color: "#322D3C",
+    fontWeight: "700",
+  },
+  summaryPairSub: {
+    marginTop: 2,
+    fontSize: 12,
+    color: "#7A7486",
+  },
+  summaryOwnerRow: {
+    marginTop: 8,
+    flexDirection: "row",
+    alignItems: "center",
+  },
+  summaryOwnerIcon: {
     fontSize: 14,
-    color: Colors.textMuted,
-    fontStyle: "italic",
+    marginRight: 8,
+  },
+  summaryOwnerText: {
+    flex: 1,
+    fontSize: 11,
+    color: "#6D677A",
+    fontWeight: "600",
+  },
+
+  metricsRow: {
+    flexDirection: "row",
+    borderTopWidth: 1,
+    borderTopColor: "#F1D7CC",
+  },
+  metricCell: {
+    flex: 1,
+    alignItems: "center",
+    justifyContent: "center",
+    paddingVertical: 12,
+    borderRightWidth: 1,
+    borderRightColor: "#F1D7CC",
+  },
+  metricValue: {
+    fontSize: 18,
+    fontWeight: "700",
+    color: "#312C3B",
+  },
+  metricLabel: {
+    marginTop: 2,
+    fontSize: 11,
+    color: "#9A95A4",
+    fontWeight: "600",
+    textTransform: "uppercase",
+  },
+
+  sectionWrap: {
+    marginTop: 14,
+  },
+  sectionTitle: {
+    fontSize: 20,
+    color: "#2E2938",
+    fontWeight: "700",
+    marginBottom: 12,
+    textTransform: "uppercase",
+    letterSpacing: 0.5,
+  },
+  emptyCard: {
+    borderRadius: 16,
+    backgroundColor: "#FFFFFF",
+    borderWidth: 1,
+    borderColor: "#EEE7E4",
+    paddingVertical: 24,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  emptyTitle: {
+    marginTop: 8,
+    color: "#8A8594",
+    fontSize: 13,
+    fontWeight: "600",
+  },
+
+  kittenRow: {
+    borderRadius: 16,
+    backgroundColor: "#FFFFFF",
+    borderWidth: 1,
+    borderColor: "#EEE7E4",
+    padding: 12,
+    flexDirection: "row",
+    alignItems: "center",
+    marginBottom: 10,
+  },
+  kittenAvatarWrap: {
+    marginRight: 10,
+  },
+  kittenAvatar: {
+    width: 50,
+    height: 50,
+    borderRadius: 25,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  kittenPlaceholder: {
+    fontSize: 20,
+  },
+  kittenMain: {
+    flex: 1,
+  },
+  kittenNameRow: {
+    flexDirection: "row",
+    alignItems: "center",
+  },
+  kittenName: {
+    fontSize: 16,
+    color: "#2E2938",
+    fontWeight: "700",
+    maxWidth: 120,
+  },
+  kittenSexBadge: {
+    borderRadius: 999,
+    paddingHorizontal: 7,
+    paddingVertical: 3,
+    marginLeft: 8,
+  },
+  kittenSexText: {
+    fontSize: 11,
+    fontWeight: "700",
+  },
+  kittenMeta: {
+    marginTop: 3,
+    fontSize: 12,
+    color: "#7D7789",
+    textTransform: "capitalize",
+  },
+  kittenRight: {
+    alignItems: "flex-end",
+    marginLeft: 8,
+  },
+  ownerBadge: {
+    borderRadius: 999,
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    maxWidth: 128,
+  },
+  ownerBadgeAssigned: {
+    backgroundColor: "#FFE6D9",
+  },
+  ownerBadgeUnassigned: {
+    backgroundColor: "#ECE9F0",
+  },
+  ownerBadgeText: {
+    fontSize: 11,
+    fontWeight: "700",
+  },
+  ownerTextAssigned: {
+    color: "#FF8A66",
+  },
+  ownerTextUnassigned: {
+    color: "#8C8798",
+  },
+  ownerSub: {
+    marginTop: 3,
+    fontSize: 10,
+    color: "#8E8898",
   },
 });

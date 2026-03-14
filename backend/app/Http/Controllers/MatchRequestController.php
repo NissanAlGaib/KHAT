@@ -949,6 +949,9 @@ class MatchRequestController extends Controller
             $userPet = $isRequester ? $matchRequest->requesterPet : $matchRequest->targetPet;
             $otherPet = $isRequester ? $matchRequest->targetPet : $matchRequest->requesterPet;
 
+            $userPrimaryPhoto = $userPet->photos->firstWhere('is_primary', true)
+                ?? $userPet->photos->first();
+
             $primaryPhoto = $otherPet->photos->firstWhere('is_primary', true)
                 ?? $otherPet->photos->first();
 
@@ -964,6 +967,12 @@ class MatchRequestController extends Controller
                 'status' => $status,
                 'archived' => $isArchived,
                 'archived_at' => $conversation->archived_at?->toIso8601String(),
+                'user_pet' => [
+                    'pet_id' => $userPet->pet_id,
+                    'name' => $userPet->name,
+                    'breed' => $userPet->breed,
+                    'photo_url' => $userPrimaryPhoto?->photo_url,
+                ],
                 'matched_pet' => [
                     'pet_id' => $otherPet->pet_id,
                     'name' => $otherPet->name,

@@ -41,6 +41,7 @@ export interface ConversationPreview {
   archived?: boolean;
   archived_at?: string;
   // For owner conversations
+  user_pet?: MatchRequestPet;
   matched_pet?: MatchRequestPet;
   owner?: MatchRequestOwner;
   shooter?: {

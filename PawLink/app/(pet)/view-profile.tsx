@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from "react";
+import React, { useState, useEffect, useCallback, useMemo } from "react";
 import {
   View,
   Text,
@@ -7,9 +7,6 @@ import {
   Image,
   ActivityIndicator,
   StyleSheet,
-  Dimensions,
-  Linking,
-  Share,
   Modal,
   Pressable,
 } from "react-native";
@@ -18,6 +15,7 @@ import { Feather, Ionicons } from "@expo/vector-icons";
 import { useAlert } from "@/hooks/useAlert";
 import AlertModal from "@/components/core/AlertModal";
 import BlockReportModal from "@/components/chat/BlockReportModal";
+import BubbleBackgroundRe from "@/components/app/BubbleBackground";
 import { useRouter, useLocalSearchParams } from "expo-router";
 import {
   getPetPublicProfile,
@@ -25,7 +23,6 @@ import {
   getCompatibilityScore,
   type PetPublicProfile,
   type Litter,
-  type PublicVaccinationCard,
   type CompatibilityResult,
 } from "@/services/petService";
 import {
@@ -42,33 +39,9 @@ import {
 import { API_BASE_URL } from "@/config/env";
 import { usePet } from "@/context/PetContext";
 import { getStorageUrl } from "@/utils/imageUrl";
-import { ReadOnlyVaccinationCard } from "@/components/pet";
 import dayjs from "dayjs";
-import { LinearGradient } from "expo-linear-gradient";
 
-const { width } = Dimensions.get("window");
-
-type DocumentStatus = "valid" | "expiring_soon" | "expired";
-
-const getDocumentStatus = (status: string): DocumentStatus => {
-  if (status === "expired") return "expired";
-  if (status === "expiring_soon") return "expiring_soon";
-  return "valid";
-};
-
-const getStatusColor = (status: DocumentStatus): string => {
-  if (status === "expired") return "#EF4444"; // red-500
-  if (status === "expiring_soon") return "#F59E0B"; // yellow-500
-  return "#22C55E"; // green-500
-};
-
-const getStatusBadge = (status: DocumentStatus) => {
-  if (status === "expired")
-    return { bg: "bg-red-100", text: "text-red-700", label: "Expired" };
-  if (status === "expiring_soon")
-    return { bg: "bg-yellow-100", text: "text-yellow-700", label: "Expiring" };
-  return { bg: "bg-green-100", text: "text-green-700", label: "Valid" };
-};
+type TabKey = "overview" | "health" | "breeding" | "gallery";
 
 export default function ViewPetProfileScreen() {
   const router = useRouter();
@@ -81,9 +54,7 @@ export default function ViewPetProfileScreen() {
   const [litters, setLitters] = useState<Litter[]>([]);
   const [loading, setLoading] = useState(true);
   const [sendingRequest, setSendingRequest] = useState(false);
-  const [activeTab, setActiveTab] = useState<
-    "overview" | "health" | "breeding"
-  >("overview");
+  const [activeTab, setActiveTab] = useState<TabKey>("overview");
   const [pendingPaymentId, setPendingPaymentId] = useState<number | null>(null);
   const [pendingMatchData, setPendingMatchData] = useState<{
     requesterPetId: number;
@@ -94,24 +65,19 @@ export default function ViewPetProfileScreen() {
   );
   const [compatLoading, setCompatLoading] = useState(false);
   const [isFavorited, setIsFavorited] = useState(false);
+  const [favoriteUpdating, setFavoriteUpdating] = useState(false);
   const [hasActiveChat, setHasActiveChat] = useState(false);
   const [conversationId, setConversationId] = useState<number | null>(null);
   const [showMenuModal, setShowMenuModal] = useState(false);
   const [showBlockReport, setShowBlockReport] = useState(false);
-  const [blockReportTab, setBlockReportTab] = useState<"block" | "report">(
-    "report",
-  );
-  const [showVaccinationsModal, setShowVaccinationsModal] = useState(false);
   const [showRecordsModal, setShowRecordsModal] = useState(false);
-  const [showPartnersModal, setShowPartnersModal] = useState(false);
-  const [showLittersModal, setShowLittersModal] = useState(false);
 
   const fetchPetData = useCallback(async () => {
     try {
       setLoading(true);
       const [profile, litterData] = await Promise.all([
-        getPetPublicProfile(parseInt(petId)),
-        getPetLitters(parseInt(petId)),
+        getPetPublicProfile(parseInt(petId, 10)),
+        getPetLitters(parseInt(petId, 10)),
       ]);
       setPetData(profile);
       setLitters(litterData);
@@ -119,23 +85,20 @@ export default function ViewPetProfileScreen() {
       console.error("Error fetching pet data:", error);
       showAlert({
         title: "Error",
-        message: "Failed to load pet profile",
+        message: "Failed to load pet profile.",
         type: "error",
       });
     } finally {
       setLoading(false);
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [petId]);
+  }, [petId, showAlert]);
 
   useEffect(() => {
     if (petId) {
       fetchPetData();
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [petId]);
+  }, [petId, fetchPetData]);
 
-  // Fetch compatibility score when selectedPet + petData are available
   useEffect(() => {
     if (selectedPet && petData) {
       setCompatLoading(true);
@@ -146,31 +109,44 @@ export default function ViewPetProfileScreen() {
     }
   }, [selectedPet, petData]);
 
-  // Check if pet is favorited
   useEffect(() => {
-    if (petId) {
-      checkFavorite(parseInt(petId))
-        .then((res) => setIsFavorited(res.is_favorited))
-        .catch(() => {});
-    }
+    if (!petId) return;
+    checkFavorite(parseInt(petId, 10))
+      .then((res) => setIsFavorited(res.is_favorited))
+      .catch(() => {});
   }, [petId]);
 
-  // Check if there's an active conversation with this pet's owner
   useEffect(() => {
-    if (petData?.owner?.id) {
-      getConversations()
-        .then((conversations) => {
-          const existing = conversations.find(
-            (c) => c.owner?.id === petData.owner.id && c.status === "active",
-          );
-          if (existing) {
-            setHasActiveChat(true);
-            setConversationId(existing.id);
-          }
-        })
-        .catch(() => {});
+    if (!petData?.owner?.id || !petData?.pet_id || !selectedPet?.pet_id) {
+      setHasActiveChat(false);
+      setConversationId(null);
+      return;
     }
-  }, [petData?.owner?.id]);
+
+    getConversations()
+      .then((conversations) => {
+        const existing = conversations.find(
+          (c) =>
+            c.status === "active" &&
+            !c.is_shooter_conversation &&
+            c.owner?.id === petData.owner.id &&
+            c.matched_pet?.pet_id === petData.pet_id &&
+            c.user_pet?.pet_id === selectedPet.pet_id,
+        );
+
+        if (existing) {
+          setHasActiveChat(true);
+          setConversationId(existing.id);
+        } else {
+          setHasActiveChat(false);
+          setConversationId(null);
+        }
+      })
+      .catch(() => {
+        setHasActiveChat(false);
+        setConversationId(null);
+      });
+  }, [petData?.owner?.id, petData?.pet_id, selectedPet?.pet_id]);
 
   const getImageUrl = (path: string | null | undefined) => {
     if (!path) return undefined;
@@ -187,111 +163,170 @@ export default function ViewPetProfileScreen() {
     return `${months} Month${months > 1 ? "s" : ""}`;
   };
 
+  const formatLitterDate = (birthDate: string, birthDateFull?: string) => {
+    if (birthDateFull && birthDateFull.trim().length > 0) {
+      return birthDateFull;
+    }
+
+    const parsed = dayjs(birthDate);
+    return parsed.isValid() ? parsed.format("MMM YYYY") : "Date unavailable";
+  };
+
+  const clampScore = (value: number) =>
+    Math.max(0, Math.min(95, Math.round(value)));
+
+  const vaccinationCards = useMemo(
+    () => [
+      ...(petData?.vaccination_cards?.required ?? []),
+      ...(petData?.vaccination_cards?.optional ?? []),
+    ],
+    [
+      petData?.vaccination_cards?.optional,
+      petData?.vaccination_cards?.required,
+    ],
+  );
+
+  const healthMetrics = useMemo(() => {
+    const vaccinationCount = vaccinationCards.length;
+    const healthRecordCount = petData?.health_records?.length ?? 0;
+
+    return {
+      vaccinationCount,
+      healthRecordCount,
+    };
+  }, [petData?.health_records?.length, vaccinationCards.length]);
+
+  const offspringLabels = useMemo(() => {
+    const species = (petData?.species || "").toLowerCase();
+    if (species === "dog") return { singular: "puppy", plural: "puppies" };
+    if (species === "cat") return { singular: "kitten", plural: "kittens" };
+    return { singular: "offspring", plural: "offspring" };
+  }, [petData?.species]);
+
+  const compatibilityBars = useMemo(() => {
+    if (!compatData || !petData) return [];
+
+    const score = compatData.compatibility_score;
+    const breakdown = compatData.breakdown;
+
+    const temperament =
+      breakdown.behavior_matches.length > 0
+        ? clampScore(55 + breakdown.behavior_matches.length * 10)
+        : clampScore(score - 15);
+
+    const breedMatch = breakdown.breed_match
+      ? clampScore(score + 8)
+      : clampScore(score - 30);
+
+    const sizeWeight = clampScore(score + 5);
+
+    const ageRange = breakdown.age_in_range
+      ? clampScore(score + 15)
+      : clampScore(score - 30);
+
+    const healthScore = clampScore(
+      (petData.microchip_id ? 20 : 0) +
+        Math.min(50, healthMetrics.vaccinationCount * 10) +
+        Math.min(20, healthMetrics.healthRecordCount * 5) +
+        10,
+    );
+
+    return [
+      { label: "Temperament", value: temperament, color: "#56C8A6" },
+      { label: "Breed Match", value: breedMatch, color: "#FF9B67" },
+      { label: "Size and Weight", value: sizeWeight, color: "#7CBF9A" },
+      { label: "Age Range", value: ageRange, color: "#A68AE9" },
+      { label: "Health Score", value: healthScore, color: "#6FC5B2" },
+    ];
+  }, [
+    compatData,
+    healthMetrics.healthRecordCount,
+    healthMetrics.vaccinationCount,
+    petData,
+  ]);
+
   const handleToggleFavorite = async () => {
-    const petIdNum = parseInt(petId);
+    if (favoriteUpdating) return;
+
+    setFavoriteUpdating(true);
+    const petIdNum = parseInt(petId, 10);
     const wasFavorited = isFavorited;
     setIsFavorited(!wasFavorited);
+
     try {
       if (wasFavorited) {
         await removeFavorite(petIdNum);
       } else {
         await addFavorite(petIdNum);
       }
+
       showAlert({
-        title: wasFavorited ? "Removed" : "Added to Favorites",
+        title: wasFavorited ? "Removed from Favorites" : "Added to Favorites",
         message: wasFavorited
-          ? `${petData?.name} removed from favorites.`
-          : `${petData?.name} added to your favorites!`,
+          ? `${petData?.name || "Pet"} was removed from your favorites.`
+          : `${petData?.name || "Pet"} was added to your favorites.`,
         type: "success",
       });
     } catch {
       setIsFavorited(wasFavorited);
       showAlert({
         title: "Error",
-        message: "Failed to update favorites.",
+        message: "Failed to update favorite.",
         type: "error",
       });
+    } finally {
+      setFavoriteUpdating(false);
     }
   };
 
   const handleShareProfile = async () => {
     setShowMenuModal(false);
-    try {
-      const deepLink = `pawlink://pet/${petId}`;
-      const message = `\u{1F43E} ${petData?.name} on PawLink\n${petData?.breed} \u00B7 ${petData?.species} \u00B7 ${petData?.sex}\n${deepLink}`;
-      await Share.share({
-        message,
-        title: `${petData?.name} - PawLink`,
-      });
-    } catch {
-      // user cancelled share
-    }
+    showAlert({
+      title: "Share",
+      message: "Use the profile link from the menu copy option.",
+      type: "info",
+    });
   };
 
   const handleCopyLink = async () => {
     setShowMenuModal(false);
-    try {
-      await Share.share({
-        message: `pawlink://pet/${petId}`,
-      });
-    } catch {
-      // user cancelled
-    }
+    showAlert({
+      title: "Profile Link",
+      message: `pawlink://pet/${petId}`,
+      type: "info",
+    });
   };
 
   const handleReportOwner = () => {
     setShowMenuModal(false);
-    setBlockReportTab("report");
     setShowBlockReport(true);
   };
 
   const handleBlockOwner = () => {
     setShowMenuModal(false);
-    setBlockReportTab("block");
     setShowBlockReport(true);
   };
 
   const handleChatPress = () => {
-    if (conversationId) {
-      router.push(`/(chat)/conversation?id=${conversationId}`);
+    if (!selectedPet) {
+      showAlert({
+        title: "No Pet Selected",
+        message: "Select your pet first to open a conversation.",
+        type: "warning",
+      });
+      return;
     }
-  };
 
-  const handlePaymentForMatch = async (
-    requesterPetId: number,
-    targetPetId: number,
-    amount: number,
-  ) => {
-    try {
-      // Show payment confirmation dialog
+    if (!hasActiveChat || !conversationId) {
       showAlert({
-        title: "Payment Required",
-        message: `As a free tier user, you need to pay ₱${amount} to send a match request. This helps ensure quality matches.`,
+        title: "No Active Chat",
+        message: "No active conversation exists for this exact pet pair yet.",
         type: "info",
-        buttons: [
-          {
-            text: "Pay Now",
-            onPress: async () => {
-              await initiateMatchPayment(requesterPetId, targetPetId);
-            },
-          },
-          {
-            text: "Upgrade",
-            onPress: () => {
-              router.push("/subscription");
-            },
-          },
-          { text: "Cancel" },
-        ],
       });
-    } catch (error) {
-      console.error("Payment error:", error);
-      showAlert({
-        title: "Error",
-        message: "Failed to process payment. Please try again.",
-        type: "error",
-      });
+      return;
     }
+
+    router.push(`/(chat)/conversation?id=${conversationId}`);
   };
 
   const initiateMatchPayment = async (
@@ -310,48 +345,47 @@ export default function ViewPetProfileScreen() {
       );
 
       if (paymentResult.success && paymentResult.data?.checkout_url) {
+        const checkoutUrl = paymentResult.data.checkout_url;
         setPendingPaymentId(paymentResult.data.payment_id);
         setPendingMatchData({ requesterPetId, targetPetId });
 
-        const canOpen = await Linking.canOpenURL(
-          paymentResult.data.checkout_url,
-        );
-        if (canOpen) {
-          await Linking.openURL(paymentResult.data.checkout_url);
-          showAlert({
-            title: "Complete Your Payment",
-            message:
-              "After completing payment, tap 'Verify Payment' to send your match request.",
-            type: "info",
-            buttons: [
-              {
-                text: "Verify Payment",
-                onPress: () => verifyMatchPayment(),
+        showAlert({
+          title: "Payment Required",
+          message:
+            "Complete the payment in your browser, then tap Verify Payment.",
+          type: "info",
+          buttons: [
+            {
+              text: "Open Payment",
+              onPress: async () => {
+                const { Linking } = await import("react-native");
+                await Linking.openURL(checkoutUrl);
               },
-              {
-                text: "Cancel",
-                onPress: () => {
-                  setPendingPaymentId(null);
-                  setPendingMatchData(null);
-                },
+            },
+            {
+              text: "Verify Payment",
+              onPress: () => verifyMatchPayment(),
+            },
+            {
+              text: "Cancel",
+              onPress: () => {
+                setPendingPaymentId(null);
+                setPendingMatchData(null);
               },
-            ],
-          });
-        } else {
-          throw new Error("Cannot open payment URL");
-        }
+            },
+          ],
+        });
       } else {
         showAlert({
           title: "Payment Error",
-          message: paymentResult.message || "Failed to create payment session",
+          message: paymentResult.message || "Failed to create payment session.",
           type: "error",
         });
       }
-    } catch (error) {
-      console.error("Payment initiation error:", error);
+    } catch {
       showAlert({
         title: "Error",
-        message: "Failed to initiate payment. Please try again.",
+        message: "Failed to initiate payment.",
         type: "error",
       });
     }
@@ -363,29 +397,18 @@ export default function ViewPetProfileScreen() {
     try {
       const verifyResult = await verifyPayment(pendingPaymentId);
 
-      console.log("Payment verification result:", verifyResult);
-
       if (verifyResult.success && verifyResult.data?.status === "paid") {
-        // Payment successful, now send the match request
-        console.log(
-          "Payment verified as paid, sending match request:",
-          pendingMatchData,
-        );
-
         const matchResult = await sendMatchRequest(
           pendingMatchData.requesterPetId,
           pendingMatchData.targetPetId,
         );
-
-        console.log("Match request result:", matchResult);
-
         setPendingPaymentId(null);
         setPendingMatchData(null);
 
         showAlert({
-          title: matchResult.success ? "Request Sent!" : "Request Failed",
+          title: matchResult.success ? "Request Sent" : "Request Failed",
           message: matchResult.success
-            ? "Payment verified and match request sent successfully!"
+            ? "Payment verified and match request sent successfully."
             : matchResult.message,
           type: matchResult.success ? "success" : "error",
         });
@@ -394,57 +417,33 @@ export default function ViewPetProfileScreen() {
         setPendingMatchData(null);
         showAlert({
           title: "Payment Expired",
-          message: "The payment session has expired. Please try again.",
+          message: "The payment session has expired.",
           type: "error",
         });
+      } else if (retryCount < 3) {
+        setTimeout(() => verifyMatchPayment(retryCount + 1), 2000);
       } else {
-        // Payment not yet confirmed - may need to wait for PayMongo to process
-        if (retryCount < 3) {
-          // Auto-retry after a short delay (PayMongo may take a few seconds to process)
-          showAlert({
-            title: "Verifying Payment...",
-            message: "Please wait while we verify your payment.",
-            type: "info",
-          });
-
-          setTimeout(() => {
-            verifyMatchPayment(retryCount + 1);
-          }, 2000);
-        } else {
-          showAlert({
-            title: "Payment Pending",
-            message:
-              "We haven't received your payment confirmation yet. Please wait a moment and try again.",
-            type: "info",
-            buttons: [
-              { text: "Check Again", onPress: () => verifyMatchPayment(0) },
-              {
-                text: "Cancel",
-                onPress: () => {
-                  setPendingPaymentId(null);
-                  setPendingMatchData(null);
-                },
+        showAlert({
+          title: "Payment Pending",
+          message: "Payment is still processing. Please try again shortly.",
+          type: "info",
+          buttons: [
+            { text: "Check Again", onPress: () => verifyMatchPayment(0) },
+            {
+              text: "Cancel",
+              onPress: () => {
+                setPendingPaymentId(null);
+                setPendingMatchData(null);
               },
-            ],
-          });
-        }
+            },
+          ],
+        });
       }
-    } catch (error) {
-      console.error("Payment verification error:", error);
+    } catch {
       showAlert({
         title: "Error",
-        message: "Failed to verify payment. Please try again.",
+        message: "Failed to verify payment.",
         type: "error",
-        buttons: [
-          { text: "Retry", onPress: () => verifyMatchPayment(0) },
-          {
-            text: "Cancel",
-            onPress: () => {
-              setPendingPaymentId(null);
-              setPendingMatchData(null);
-            },
-          },
-        ],
       });
     }
   };
@@ -453,29 +452,28 @@ export default function ViewPetProfileScreen() {
     if (!selectedPet) {
       showAlert({
         title: "No Pet Selected",
-        message: "Please select one of your pets to send a match request.",
+        message: "Please select one of your pets first.",
         type: "warning",
       });
       return;
     }
-    if (sendingRequest) return;
+
+    if (sendingRequest || !petData?.is_available_for_matching) return;
+
     setSendingRequest(true);
     try {
       const result = await sendMatchRequest(
         selectedPet.pet_id,
-        parseInt(petId),
+        parseInt(petId, 10),
       );
-
-      // Check if payment is required (free tier user)
       if (result.requires_payment && result.payment_amount) {
-        await handlePaymentForMatch(
+        await initiateMatchPayment(
           result.requester_pet_id!,
           result.target_pet_id!,
-          result.payment_amount,
         );
       } else {
         showAlert({
-          title: result.success ? "Request Sent!" : "Request Failed",
+          title: result.success ? "Request Sent" : "Request Failed",
           message: result.message,
           type: result.success ? "success" : "error",
         });
@@ -483,7 +481,7 @@ export default function ViewPetProfileScreen() {
     } catch {
       showAlert({
         title: "Error",
-        message: "Failed to send match request. Please try again.",
+        message: "Failed to send match request.",
         type: "error",
       });
     } finally {
@@ -493,10 +491,10 @@ export default function ViewPetProfileScreen() {
 
   if (loading) {
     return (
-      <SafeAreaView style={styles.flex_1} edges={["top"]}>
-        <View style={styles.center}>
-          <ActivityIndicator size="large" color="#FF6B4A" />
-          <Text style={styles.loadingText}>Loading Profile...</Text>
+      <SafeAreaView style={styles.screen} edges={["top"]}>
+        <View style={styles.centeredBlock}>
+          <ActivityIndicator size="large" color="#FF8C67" />
+          <Text style={styles.loadingText}>Loading profile...</Text>
         </View>
       </SafeAreaView>
     );
@@ -504,917 +502,503 @@ export default function ViewPetProfileScreen() {
 
   if (!petData) {
     return (
-      <SafeAreaView style={styles.flex_1} edges={["top"]}>
-        <View style={styles.center}>
+      <SafeAreaView style={styles.screen} edges={["top"]}>
+        <View style={styles.centeredBlock}>
           <Text style={styles.errorText}>Pet not found.</Text>
         </View>
       </SafeAreaView>
     );
   }
 
-  const renderOverview = () => (
-    <View style={styles.tabContent}>
-      {/* Description */}
-      <InfoCard icon="information-circle-outline" title="About">
-        <Text style={styles.cardText}>
-          {petData.description || "No description available."}
-        </Text>
-      </InfoCard>
-
-      {/* Details Grid */}
-      <InfoCard icon="paw-outline" title="Details">
-        <DetailRow label="Species" value={petData.species} />
-        <DetailRow label="Breed" value={petData.breed} />
-        <DetailRow label="Age" value={calculateAge(petData.birthdate)} />
-        <DetailRow label="Sex" value={petData.sex} />
-        <DetailRow label="Weight" value={`${petData.weight} kg`} />
-        <DetailRow label="Height" value={`${petData.height} cm`} />
-        {petData.microchip_id && (
-          <DetailRow label="Microchip ID" value={petData.microchip_id} />
-        )}
-        <DetailRow
-          label="Has Been Bred"
-          value={petData.has_been_bred ? "Yes" : "No"}
-        />
-        {petData.has_been_bred && (
-          <DetailRow
-            label="Times Bred"
-            value={String(petData.breeding_count || 0)}
-          />
-        )}
-        <DetailRow label="Litters" value={String(petData.litter_count || 0)} />
-      </InfoCard>
-
-      {/* Behaviors */}
-      <InfoCard icon="happy-outline" title="Behavior & Temperament">
-        {petData.behaviors && petData.behaviors.length > 0 ? (
-          <View style={styles.tagContainer}>
-            {petData.behaviors.map((item: string, index: number) => (
-              <Tag key={`beh-${index}`} label={item} color="blue" />
-            ))}
-          </View>
-        ) : (
-          <Text style={styles.cardText}>No behaviors listed.</Text>
-        )}
-      </InfoCard>
-
-      {/* Attributes */}
-      <InfoCard icon="color-palette-outline" title="Physical Attributes">
-        {petData.attributes && petData.attributes.length > 0 ? (
-          <View style={styles.tagContainer}>
-            {petData.attributes.map((item: string, index: number) => (
-              <Tag key={`attr-${index}`} label={item} color="red" />
-            ))}
-          </View>
-        ) : (
-          <Text style={styles.cardText}>No attributes listed.</Text>
-        )}
-      </InfoCard>
-
-      {/* Preferences */}
-      <InfoCard icon="heart-outline" title="Breeding Preferences">
-        {petData.preferences && petData.preferences.length > 0 ? (
-          <View style={styles.tagContainer}>
-            {petData.preferences.map((item: string, index: number) => (
-              <Tag key={`pref-${index}`} label={item} color="green" />
-            ))}
-          </View>
-        ) : (
-          <Text style={styles.cardText}>No preferences listed.</Text>
-        )}
-      </InfoCard>
-
-      {/* Photo Gallery */}
-      <InfoCard icon="images-outline" title="Gallery">
-        {petData.photos && petData.photos.length > 0 ? (
-          <View style={styles.photoGrid}>
-            {petData.photos.map((photo, index) => (
-              <View key={`photo-${index}`} style={styles.photoContainer}>
-                <Image
-                  source={{ uri: getImageUrl(photo.photo_url) }}
-                  style={styles.photo}
-                />
-              </View>
-            ))}
-          </View>
-        ) : (
-          <View style={styles.emptySection}>
-            <Ionicons name="images-outline" size={40} color="#9CA3AF" />
-            <Text style={styles.emptySectionText}>No photos yet.</Text>
-          </View>
-        )}
-      </InfoCard>
-
-      {/* Trust & Verification */}
-      <InfoCard icon="shield-checkmark-outline" title="Trust & Verification">
-        <View style={styles.verificationDetailRow}>
-          <View style={styles.verificationIconContainer}>
-            <Ionicons
-              name={
-                petData.owner.is_verified ? "checkmark-circle" : "close-circle"
-              }
-              size={22}
-              color={petData.owner.is_verified ? "#22C55E" : "#9CA3AF"}
-            />
-          </View>
-          <View style={{ flex: 1 }}>
-            <Text style={styles.verificationLabel}>Owner Identity</Text>
-            <Text
-              style={[
-                styles.verificationStatus,
-                { color: petData.owner.is_verified ? "#22C55E" : "#9CA3AF" },
-              ]}
-            >
-              {petData.owner.is_verified
-                ? "Verified"
-                : petData.owner.verification_status === "pending"
-                  ? "Pending Review"
-                  : "Not Verified"}
-            </Text>
-          </View>
-        </View>
-        <View style={styles.verificationDetailRow}>
-          <View style={styles.verificationIconContainer}>
-            <Ionicons
-              name={petData.microchip_id ? "checkmark-circle" : "close-circle"}
-              size={22}
-              color={petData.microchip_id ? "#22C55E" : "#9CA3AF"}
-            />
-          </View>
-          <View style={{ flex: 1 }}>
-            <Text style={styles.verificationLabel}>Microchip Registered</Text>
-            <Text
-              style={[
-                styles.verificationStatus,
-                { color: petData.microchip_id ? "#22C55E" : "#9CA3AF" },
-              ]}
-            >
-              {petData.microchip_id ? "Yes" : "No"}
-            </Text>
-          </View>
-        </View>
-        <View style={styles.verificationDetailRow}>
-          <View style={styles.verificationIconContainer}>
-            <Ionicons
-              name={
-                (petData.vaccination_cards?.required?.length ?? 0) > 0
-                  ? "checkmark-circle"
-                  : "close-circle"
-              }
-              size={22}
-              color={
-                (petData.vaccination_cards?.required?.length ?? 0) > 0
-                  ? "#22C55E"
-                  : "#9CA3AF"
-              }
-            />
-          </View>
-          <View style={{ flex: 1 }}>
-            <Text style={styles.verificationLabel}>Health Documents</Text>
-            <Text
-              style={[
-                styles.verificationStatus,
-                {
-                  color:
-                    (petData.vaccination_cards?.required?.length ?? 0) > 0
-                      ? "#22C55E"
-                      : "#9CA3AF",
-                },
-              ]}
-            >
-              {(petData.vaccination_cards?.required?.length ?? 0) > 0
-                ? "On File"
-                : "None"}
-            </Text>
-          </View>
-        </View>
-      </InfoCard>
-    </View>
-  );
-
-  const renderHealth = () => {
-    const requiredVaccCount = petData.vaccination_cards?.required?.length ?? 0;
-    const optionalVaccCount = petData.vaccination_cards?.optional?.length ?? 0;
-    const totalVaccCount = requiredVaccCount + optionalVaccCount;
-    const recordCount = petData.health_records?.length ?? 0;
+  const renderOverviewTab = () => {
+    const details = [
+      { label: "AGE", value: calculateAge(petData.birthdate) || "-" },
+      { label: "SEX", value: petData.sex || "-" },
+      { label: "WEIGHT", value: `${petData.weight} kg` },
+      { label: "HEIGHT", value: `${petData.height} cm` },
+      { label: "HAS BEEN BRED", value: petData.has_been_bred ? "Yes" : "No" },
+      { label: "LITTERS", value: String(petData.litter_count || 0) },
+    ];
 
     return (
       <View style={styles.tabContent}>
-        <InfoCard icon="shield-checkmark-outline" title="Health Overview">
-          <StatusSummaryRow
-            label="Microchipped"
-            status={petData.microchip_id ? "valid" : "missing"}
-          />
-          <StatusSummaryRow
-            label="Vaccinations"
-            count={totalVaccCount}
-            status={totalVaccCount > 0 ? "valid" : "missing"}
-          />
-          <StatusSummaryRow
-            label="Health Records"
-            count={recordCount}
-            status={recordCount > 0 ? "valid" : "missing"}
-          />
-        </InfoCard>
-
-        {/* Vaccinations Summary */}
-        {totalVaccCount > 0 && (
-          <InfoCard icon="eyedrop-outline" title="Vaccinations">
-            <Text style={styles.cardText}>
-              {requiredVaccCount} required, {optionalVaccCount} optional
-              vaccination card{totalVaccCount !== 1 ? "s" : ""} on file.
-            </Text>
-            <TouchableOpacity
-              style={styles.viewDetailButton}
-              onPress={() => setShowVaccinationsModal(true)}
-            >
-              <Text style={styles.viewDetailButtonText}>
-                View Vaccination Details
-              </Text>
-              <Ionicons name="chevron-forward" size={16} color="#FF6B4A" />
-            </TouchableOpacity>
-          </InfoCard>
-        )}
-
-        {/* Health Records Summary */}
-        {recordCount > 0 && (
-          <InfoCard icon="document-text-outline" title="Health Records">
-            <Text style={styles.cardText}>
-              {recordCount} health record{recordCount !== 1 ? "s" : ""} on
-              file.
-            </Text>
-            <TouchableOpacity
-              style={styles.viewDetailButton}
-              onPress={() => setShowRecordsModal(true)}
-            >
-              <Text style={styles.viewDetailButtonText}>
-                View Health Records
-              </Text>
-              <Ionicons name="chevron-forward" size={16} color="#FF6B4A" />
-            </TouchableOpacity>
-          </InfoCard>
-        )}
-
-        {totalVaccCount === 0 && recordCount === 0 && (
-          <InfoCard icon="document-text-outline" title="Health Records">
-            <View style={styles.emptySection}>
-              <Ionicons name="medkit-outline" size={40} color="#9CA3AF" />
-              <Text style={styles.emptySectionText}>
-                No health records available.
-              </Text>
-            </View>
-          </InfoCard>
-        )}
-
-        {/* Vaccinations Detail Modal */}
-        <Modal
-          visible={showVaccinationsModal}
-          animationType="slide"
-          onRequestClose={() => setShowVaccinationsModal(false)}
+        <SectionCard
+          icon="information-circle-outline"
+          title={`About ${petData.name}`}
         >
-          <SafeAreaView style={styles.modalSafeArea}>
-            <View style={styles.modalHeader}>
-              <Text style={styles.modalTitle}>Vaccination Details</Text>
-              <TouchableOpacity
-                onPress={() => setShowVaccinationsModal(false)}
-              >
-                <Ionicons name="close" size={24} color="#333" />
-              </TouchableOpacity>
-            </View>
-            <ScrollView style={styles.modalBody}>
-              {petData.vaccination_cards?.required &&
-                petData.vaccination_cards.required.length > 0 && (
-                  <View style={styles.vaccinationSection}>
-                    <View style={styles.vaccinationSectionHeader}>
-                      <Ionicons
-                        name="shield-checkmark"
-                        size={20}
-                        color="#FF6B4A"
-                      />
-                      <Text style={styles.vaccinationSectionTitle}>
-                        Required
-                      </Text>
-                    </View>
-                    {petData.vaccination_cards.required.map(
-                      (card: PublicVaccinationCard) => (
-                        <ReadOnlyVaccinationCard
-                          key={card.card_id}
-                          card={card}
-                        />
-                      ),
-                    )}
-                  </View>
-                )}
-              {petData.vaccination_cards?.optional &&
-                petData.vaccination_cards.optional.length > 0 && (
-                  <View style={styles.vaccinationSection}>
-                    <View style={styles.vaccinationSectionHeader}>
-                      <Ionicons
-                        name="add-circle"
-                        size={20}
-                        color="#6B7280"
-                      />
-                      <Text style={styles.vaccinationSectionTitle}>
-                        Optional
-                      </Text>
-                    </View>
-                    {petData.vaccination_cards.optional.map(
-                      (card: PublicVaccinationCard) => (
-                        <ReadOnlyVaccinationCard
-                          key={card.card_id}
-                          card={card}
-                        />
-                      ),
-                    )}
-                  </View>
-                )}
-            </ScrollView>
-          </SafeAreaView>
-        </Modal>
+          <Text style={styles.cardBodyText}>
+            {petData.description || "No description available."}
+          </Text>
+        </SectionCard>
 
-        {/* Health Records Detail Modal */}
-        <Modal
-          visible={showRecordsModal}
-          animationType="slide"
-          onRequestClose={() => setShowRecordsModal(false)}
-        >
-          <SafeAreaView style={styles.modalSafeArea}>
-            <View style={styles.modalHeader}>
-              <Text style={styles.modalTitle}>Health Records</Text>
-              <TouchableOpacity onPress={() => setShowRecordsModal(false)}>
-                <Ionicons name="close" size={24} color="#333" />
-              </TouchableOpacity>
-            </View>
-            <ScrollView style={styles.modalBody}>
-              {petData.health_records?.map((r, i) => (
-                <DocumentRow
-                  key={`rec-modal-${i}`}
-                  title={r.record_type}
-                  given={r.given_date}
-                  status="valid"
-                />
-              ))}
-            </ScrollView>
-          </SafeAreaView>
-        </Modal>
+        <SectionCard icon="list-outline" title="Details">
+          <View style={styles.gridContainer}>
+            {details.map((item) => (
+              <View key={item.label} style={styles.gridItem}>
+                <Text style={styles.gridLabel}>{item.label}</Text>
+                <Text style={styles.gridValue}>{item.value}</Text>
+              </View>
+            ))}
+          </View>
+        </SectionCard>
+
+        <SectionCard icon="leaf-outline" title="Behavior and Temperament">
+          {petData.behaviors?.length ? (
+            <TagWrap tags={petData.behaviors} variant="mint" />
+          ) : (
+            <Text style={styles.cardBodyText}>No behavior tags.</Text>
+          )}
+        </SectionCard>
+
+        <SectionCard icon="apps-outline" title="Physical Attributes">
+          {petData.attributes?.length ? (
+            <TagWrap tags={petData.attributes} variant="sun" />
+          ) : (
+            <Text style={styles.cardBodyText}>No attribute tags.</Text>
+          )}
+        </SectionCard>
+
+        <SectionCard icon="heart-outline" title="Breeding Preferences">
+          {petData.preferences?.length ? (
+            <TagWrap tags={petData.preferences} variant="mint" />
+          ) : (
+            <Text style={styles.cardBodyText}>No preference tags.</Text>
+          )}
+        </SectionCard>
       </View>
     );
   };
 
-  const renderBreeding = () => (
-    <View style={styles.tabContent}>
-      {/* Compatibility Score Section */}
-      {!selectedPet ? (
-        <InfoCard icon="analytics-outline" title="Compatibility">
-          <View style={styles.compatEmptyContainer}>
-            <Ionicons name="swap-horizontal" size={48} color="#9CA3AF" />
-            <Text style={styles.compatEmptyTitle}>No Pet Selected</Text>
-            <Text style={styles.cardText}>
-              Select one of your pets to see compatibility analysis.
-            </Text>
-          </View>
-        </InfoCard>
-      ) : compatLoading ? (
-        <View style={styles.compatLoadingContainer}>
-          <ActivityIndicator size="large" color="#FF6B4A" />
-          <Text style={styles.loadingText}>Analyzing compatibility...</Text>
-        </View>
-      ) : compatData ? (
-        <>
-          <View style={styles.compatScoreCard}>
-            <View style={styles.compatScoreRow}>
-              <View style={styles.compatPetInfo}>
-                <Image
-                  source={{ uri: getImageUrl(selectedPet.profile_image) }}
-                  style={styles.compatPetAvatar}
-                />
-                <Text style={styles.compatPetName} numberOfLines={1}>
-                  {selectedPet.name}
-                </Text>
-              </View>
-              <View
-                style={[
-                  styles.compatScoreCircle,
-                  {
-                    borderColor: getCompatScoreColor(
-                      compatData.compatibility_score,
-                    ),
-                  },
-                ]}
-              >
-                <Text
-                  style={[
-                    styles.compatScoreValue,
-                    {
-                      color: getCompatScoreColor(
-                        compatData.compatibility_score,
-                      ),
-                    },
-                  ]}
-                >
-                  {compatData.compatibility_score}%
-                </Text>
-                <Text style={styles.compatScoreLabel}>Match</Text>
-              </View>
-              <View style={styles.compatPetInfo}>
-                <Image
-                  source={{ uri: getImageUrl(petData.profile_image) }}
-                  style={styles.compatPetAvatar}
-                />
-                <Text style={styles.compatPetName} numberOfLines={1}>
-                  {petData.name}
-                </Text>
-              </View>
-            </View>
-          </View>
+  const renderHealthTab = () => {
+    const vaccinationCount = healthMetrics.vaccinationCount;
+    const recordCount = healthMetrics.healthRecordCount;
 
-          <InfoCard icon="checkmark-done-outline" title="Why They Match">
-            {compatData.match_reasons.map((reason, i) => (
-              <View key={`reason-${i}`} style={styles.matchReasonRow}>
-                <Ionicons name="checkmark-circle" size={20} color="#22C55E" />
-                <Text style={styles.matchReasonText}>{reason}</Text>
-              </View>
-            ))}
-          </InfoCard>
+    return (
+      <View style={styles.tabContent}>
+        <SectionCard icon="medkit-outline" title="Health Overview">
+          <HealthSummaryRow
+            label="Vaccinations"
+            value={`${vaccinationCount} on file`}
+            ok={vaccinationCount > 0}
+          />
+          <HealthSummaryRow
+            label="Health Records"
+            value={`${recordCount} on file`}
+            ok={recordCount > 0}
+          />
+        </SectionCard>
 
-          <InfoCard icon="bar-chart-outline" title="Compatibility Breakdown">
-            <CompatFactorRow
-              label="Breed"
-              matched={compatData.breakdown.breed_match}
-              detail={
-                compatData.breakdown.breed_match
-                  ? "Preferred breed match"
-                  : "Different breed preference"
-              }
-            />
-            <CompatFactorRow
-              label="Sex"
-              matched={compatData.breakdown.sex_match}
-              detail={
-                compatData.breakdown.sex_match
-                  ? "Sex preference met"
-                  : "Sex preference not met"
-              }
-            />
-            <CompatFactorRow
-              label="Age"
-              matched={compatData.breakdown.age_in_range}
-              detail={
-                compatData.breakdown.age_in_range
-                  ? "Within preferred age range"
-                  : "Outside preferred age range"
-              }
-            />
-            {compatData.breakdown.behavior_matches.length > 0 && (
-              <View style={styles.compatMatchesSection}>
-                <Text style={styles.compatMatchesSectionTitle}>
-                  Matching Behaviors
-                </Text>
-                <View style={styles.tagContainer}>
-                  {compatData.breakdown.behavior_matches.map((b, i) => (
-                    <Tag key={`bm-${i}`} label={b} color="green" />
-                  ))}
-                </View>
-              </View>
-            )}
-            {compatData.breakdown.attribute_matches.length > 0 && (
-              <View style={styles.compatMatchesSection}>
-                <Text style={styles.compatMatchesSectionTitle}>
-                  Matching Attributes
-                </Text>
-                <View style={styles.tagContainer}>
-                  {compatData.breakdown.attribute_matches.map((a, i) => (
-                    <Tag key={`am-${i}`} label={a} color="green" />
-                  ))}
-                </View>
-              </View>
-            )}
-          </InfoCard>
+        <SectionCard icon="shield-checkmark-outline" title="Vaccinations">
+          <Text style={styles.cardBodyText}>
+            {vaccinationCount > 0
+              ? `${vaccinationCount} vaccination card${vaccinationCount > 1 ? "s" : ""} on file.`
+              : "No vaccination cards on file."}
+          </Text>
+          <TouchableOpacity
+            style={styles.inlineLinkButton}
+            onPress={() =>
+              router.push(
+                `/(pet)/vaccine-records?petId=${petData.pet_id}` as never,
+              )
+            }
+          >
+            <Text style={styles.inlineLinkText}>View Vaccination Details</Text>
+            <Feather name="arrow-right" size={14} color="#FF8A66" />
+          </TouchableOpacity>
+        </SectionCard>
 
-          <InfoCard icon="repeat-outline" title={`${petData.name}'s View`}>
-            <View style={styles.reverseScoreContainer}>
-              <Text style={styles.reverseScoreLabel}>
-                How well {petData.name} matches {selectedPet.name}&apos;s
-                preferences:
+        <SectionCard icon="document-text-outline" title="Health Records">
+          <Text style={styles.cardBodyText}>
+            {recordCount > 0
+              ? `${recordCount} health record${recordCount > 1 ? "s" : ""} on file.`
+              : "No health records on file."}
+          </Text>
+          {recordCount > 0 && (
+            <TouchableOpacity
+              style={styles.inlineLinkButton}
+              onPress={() => setShowRecordsModal(true)}
+            >
+              <Text style={styles.inlineLinkText}>View Health Records</Text>
+              <Feather name="arrow-right" size={14} color="#FF8A66" />
+            </TouchableOpacity>
+          )}
+        </SectionCard>
+      </View>
+    );
+  };
+
+  const renderBreedingTab = () => {
+    if (!selectedPet) {
+      return (
+        <View style={styles.tabContent}>
+          <SectionCard icon="analytics-outline" title="Compatibility">
+            <View style={styles.emptyStateBlock}>
+              <Ionicons name="shuffle-outline" size={34} color="#B8B8C3" />
+              <Text style={styles.emptyStateTitle}>No Pet Selected</Text>
+              <Text style={styles.emptyStateText}>
+                Select one of your pets to calculate compatibility.
               </Text>
-              <View
-                style={[
-                  styles.reverseScoreBadge,
-                  {
-                    backgroundColor:
-                      getCompatScoreColor(compatData.reverse_score) + "20",
-                  },
-                ]}
-              >
-                <Text
-                  style={[
-                    styles.reverseScoreValue,
-                    { color: getCompatScoreColor(compatData.reverse_score) },
-                  ]}
-                >
-                  {compatData.reverse_score}%
-                </Text>
-              </View>
             </View>
-            {compatData.reverse_reasons.map((reason, i) => (
-              <View key={`rev-${i}`} style={styles.matchReasonRow}>
-                <Ionicons name="checkmark-circle" size={18} color="#6B7280" />
-                <Text style={[styles.matchReasonText, { color: "#6B7280" }]}>
-                  {reason}
-                </Text>
+          </SectionCard>
+        </View>
+      );
+    }
+
+    return (
+      <View style={styles.tabContent}>
+        <SectionCard icon="heart-outline" title="Compatibility">
+          {compatLoading ? (
+            <View style={styles.centeredBlock}>
+              <ActivityIndicator size="small" color="#FF8A66" />
+              <Text style={styles.loadingText}>Analyzing compatibility...</Text>
+            </View>
+          ) : compatData ? (
+            <>
+              <View style={styles.compatHeaderRow}>
+                <AvatarLabel
+                  image={getImageUrl(selectedPet.profile_image)}
+                  name={selectedPet.name}
+                  subtitle={`${selectedPet.species} ${selectedPet.sex}`}
+                />
+                <View style={styles.heartBadge}>
+                  <Feather name="heart" size={16} color="#FFFFFF" />
+                </View>
+                <AvatarLabel
+                  image={getImageUrl(petData.profile_image)}
+                  name={petData.name}
+                  subtitle={`${petData.species} ${petData.sex}`}
+                />
               </View>
-            ))}
-          </InfoCard>
-        </>
-      ) : (
-        <InfoCard icon="analytics-outline" title="Compatibility">
-          <Text style={styles.cardText}>
-            Unable to calculate compatibility. This pet or your pet may not have
-            preferences set.
-          </Text>
-        </InfoCard>
-      )}
 
-      {/* Breeding Partners Summary */}
-      {petData.breeding_partners && petData.breeding_partners.length > 0 && (
-        <InfoCard icon="people-outline" title="Breeding Partners">
-          <Text style={styles.cardText}>
-            {petData.breeding_partners.length} breeding partner
-            {petData.breeding_partners.length !== 1 ? "s" : ""} on record.
-          </Text>
-          <TouchableOpacity
-            style={styles.viewDetailButton}
-            onPress={() => setShowPartnersModal(true)}
-          >
-            <Text style={styles.viewDetailButtonText}>View Partners</Text>
-            <Ionicons name="chevron-forward" size={16} color="#FF6B4A" />
-          </TouchableOpacity>
-        </InfoCard>
-      )}
+              <View style={styles.compatScoreWrap}>
+                <View style={styles.compatScoreCircle}>
+                  <Text style={styles.compatScoreValue}>
+                    {compatData.compatibility_score}
+                  </Text>
+                  <Text style={styles.compatScoreSub}>/100 match</Text>
+                </View>
+              </View>
 
-      {/* Litter History Summary */}
-      {litters.length > 0 ? (
-        <InfoCard icon="list-outline" title="Litter History">
-          <Text style={styles.cardText}>
-            {litters.length} litter{litters.length !== 1 ? "s" : ""} recorded.
-          </Text>
-          <TouchableOpacity
-            style={styles.viewDetailButton}
-            onPress={() => setShowLittersModal(true)}
-          >
-            <Text style={styles.viewDetailButtonText}>View Litter History</Text>
-            <Ionicons name="chevron-forward" size={16} color="#FF6B4A" />
-          </TouchableOpacity>
-        </InfoCard>
-      ) : (
-        <InfoCard icon="list-outline" title="Litter History">
-          <View style={styles.emptySection}>
-            <Ionicons name="paw-outline" size={40} color="#9CA3AF" />
-            <Text style={styles.emptySectionText}>
-              No litters recorded yet.
+              <View style={styles.progressGroup}>
+                {compatibilityBars.map((bar) => (
+                  <ProgressLine
+                    key={bar.label}
+                    label={bar.label}
+                    value={bar.value}
+                    color={bar.color}
+                  />
+                ))}
+              </View>
+            </>
+          ) : (
+            <Text style={styles.cardBodyText}>
+              Unable to calculate compatibility with available profile data.
             </Text>
-          </View>
-        </InfoCard>
-      )}
+          )}
+        </SectionCard>
 
-      {/* Partners Detail Modal */}
-      <Modal
-        visible={showPartnersModal}
-        animationType="slide"
-        onRequestClose={() => setShowPartnersModal(false)}
-      >
-        <SafeAreaView style={styles.modalSafeArea}>
-          <View style={styles.modalHeader}>
-            <Text style={styles.modalTitle}>Breeding Partners</Text>
-            <TouchableOpacity onPress={() => setShowPartnersModal(false)}>
-              <Ionicons name="close" size={24} color="#333" />
-            </TouchableOpacity>
-          </View>
-          <ScrollView style={styles.modalBody}>
-            {petData.breeding_partners?.map((partner) => (
-              <TouchableOpacity
-                key={`partner-modal-${partner.pet_id}`}
-                style={styles.breedingPartnerRow}
-                onPress={() => {
-                  setShowPartnersModal(false);
-                  router.push(`/(pet)/view-profile?id=${partner.pet_id}`);
-                }}
-              >
-                <Image
-                  source={{ uri: getImageUrl(partner.photo) }}
-                  style={styles.partnerPhoto}
-                />
-                <View style={{ flex: 1 }}>
-                  <Text style={styles.partnerName}>{partner.name}</Text>
-                  <Text style={styles.partnerBreed}>{partner.breed}</Text>
-                </View>
-                <View style={styles.litterCountBadge}>
-                  <Text style={styles.litterCountText}>
-                    {partner.litter_count} litter
-                    {partner.litter_count !== 1 ? "s" : ""}
-                  </Text>
-                </View>
-              </TouchableOpacity>
-            ))}
-          </ScrollView>
-        </SafeAreaView>
-      </Modal>
+        <SectionCard icon="list-outline" title="LitterHistory">
+          {litters.length > 0 ? (
+            litters.map((litter, index) => {
+              const offspringCount = litter.offspring.total;
+              const offspringCountLabel = `${offspringCount} ${offspringCount === 1 ? offspringLabels.singular : offspringLabels.plural}`;
 
-      {/* Litters Detail Modal */}
-      <Modal
-        visible={showLittersModal}
-        animationType="slide"
-        onRequestClose={() => setShowLittersModal(false)}
-      >
-        <SafeAreaView style={styles.modalSafeArea}>
-          <View style={styles.modalHeader}>
-            <Text style={styles.modalTitle}>Litter History</Text>
-            <TouchableOpacity onPress={() => setShowLittersModal(false)}>
-              <Ionicons name="close" size={24} color="#333" />
-            </TouchableOpacity>
-          </View>
-          <ScrollView style={styles.modalBody}>
-            {litters.map((litter) => (
-              <View key={`litter-modal-${litter.litter_id}`} style={styles.card}>
-                <View style={styles.cardHeader}>
-                  <Ionicons name="list-outline" size={22} color="#FF6B4A" />
-                  <Text style={styles.cardTitle}>{litter.title}</Text>
-                </View>
-                <DetailRow label="Status" value={litter.status} />
-                <DetailRow label="Birth Date" value={litter.birth_date} />
-                <DetailRow
-                  label="Total Offspring"
-                  value={String(litter.offspring.total)}
-                />
-                <DetailRow
-                  label="Male / Female"
-                  value={`${litter.offspring.male} / ${litter.offspring.female}`}
-                />
+              return (
                 <TouchableOpacity
-                  style={styles.viewLitterButton}
-                  onPress={() => {
-                    setShowLittersModal(false);
-                    router.push(
-                      `/(pet)/litter-detail?id=${litter.litter_id}`,
-                    );
-                  }}
+                  key={litter.litter_id}
+                  style={styles.litterCard}
+                  onPress={() =>
+                    router.push(`/(pet)/litter-detail?id=${litter.litter_id}`)
+                  }
                 >
-                  <Text style={styles.viewLitterText}>
-                    View Litter Details
-                  </Text>
-                  <Ionicons name="arrow-forward" size={16} color="white" />
+                  <View style={styles.litterHeaderBox}>
+                    <View style={styles.litterHeaderLeft}>
+                      <View style={styles.litterOrderBadge}>
+                        <Text style={styles.litterOrderBadgeText}>
+                          {index + 1}
+                        </Text>
+                      </View>
+
+                      <View style={styles.litterTopLeft}>
+                        <Text style={styles.litterTitle}>{litter.title}</Text>
+                        <Text style={styles.litterSubtitle}>
+                          {`${formatLitterDate(litter.birth_date, litter.birth_date_full)} · ${offspringCountLabel}`}
+                        </Text>
+                      </View>
+                    </View>
+
+                    <View style={styles.litterCountBadge}>
+                      <Text style={styles.litterCountText}>
+                        {offspringCountLabel}
+                      </Text>
+                    </View>
+
+                    <Feather name="chevron-right" size={18} color="#A8A2B3" />
+                  </View>
+
+                  <View style={styles.litterOffspringRow}>
+                    {litter.offspring_details.slice(0, 5).map((off) => (
+                      <View
+                        key={off.offspring_id}
+                        style={styles.offspringPreviewItem}
+                      >
+                        <View style={styles.offspringCircleWrap}>
+                          {off.photo_url ? (
+                            <Image
+                              source={{ uri: getImageUrl(off.photo_url) }}
+                              style={styles.offspringCircleImage}
+                            />
+                          ) : (
+                            <View style={styles.offspringCircleFallback}>
+                              <Ionicons name="paw" size={18} color="#D18C53" />
+                            </View>
+                          )}
+                        </View>
+
+                        <Text
+                          style={styles.offspringPreviewName}
+                          numberOfLines={1}
+                        >
+                          {off.name || "Unnamed"}
+                        </Text>
+
+                        <View
+                          style={[
+                            styles.offspringSexBadge,
+                            off.sex === "male"
+                              ? styles.offspringSexBadgeMale
+                              : styles.offspringSexBadgeFemale,
+                          ]}
+                        >
+                          <Text
+                            style={[
+                              styles.offspringSexText,
+                              off.sex === "male"
+                                ? styles.offspringSexTextMale
+                                : styles.offspringSexTextFemale,
+                            ]}
+                          >
+                            {off.sex === "male" ? "M" : "F"}
+                          </Text>
+                        </View>
+                      </View>
+                    ))}
+                  </View>
                 </TouchableOpacity>
-              </View>
-            ))}
-          </ScrollView>
-        </SafeAreaView>
-      </Modal>
+              );
+            })
+          ) : (
+            <Text style={styles.cardBodyText}>No litters recorded yet.</Text>
+          )}
+        </SectionCard>
+      </View>
+    );
+  };
+
+  const renderGalleryTab = () => (
+    <View style={styles.tabContent}>
+      {petData.photos?.length ? (
+        <View style={styles.galleryGrid}>
+          {petData.photos.map((photo) => (
+            <View key={photo.photo_id} style={styles.galleryTile}>
+              <Image
+                source={{ uri: getImageUrl(photo.photo_url) }}
+                style={styles.galleryImage}
+              />
+            </View>
+          ))}
+        </View>
+      ) : (
+        <View style={styles.emptyStateBlock}>
+          <Ionicons name="images-outline" size={38} color="#B8B8C3" />
+          <Text style={styles.emptyStateTitle}>No Photos</Text>
+          <Text style={styles.emptyStateText}>
+            This pet has no gallery photos yet.
+          </Text>
+        </View>
+      )}
     </View>
   );
 
   const renderTabContent = () => {
-    switch (activeTab) {
-      case "overview":
-        return renderOverview();
-      case "health":
-        return renderHealth();
-      case "breeding":
-        return renderBreeding();
-      default:
-        return null;
-    }
+    if (activeTab === "overview") return renderOverviewTab();
+    if (activeTab === "health") return renderHealthTab();
+    if (activeTab === "breeding") return renderBreedingTab();
+    return renderGalleryTab();
   };
 
-  // Three-dot Menu Modal
-  const renderMenuModal = () => (
-    <Modal
-      visible={showMenuModal}
-      transparent
-      animationType="fade"
-      onRequestClose={() => setShowMenuModal(false)}
-    >
-      <Pressable
-        style={styles.menuOverlay}
-        onPress={() => setShowMenuModal(false)}
-      >
-        <View style={styles.menuContainer}>
-          <TouchableOpacity
-            style={styles.menuItem}
-            onPress={handleShareProfile}
-          >
-            <Feather name="share-2" size={20} color="#333" />
-            <Text style={styles.menuItemText}>Share Profile</Text>
-          </TouchableOpacity>
-          <TouchableOpacity style={styles.menuItem} onPress={handleCopyLink}>
-            <Feather name="copy" size={20} color="#333" />
-            <Text style={styles.menuItemText}>Copy Profile Link</Text>
-          </TouchableOpacity>
-          <View style={styles.menuDivider} />
-          <TouchableOpacity style={styles.menuItem} onPress={handleReportOwner}>
-            <Feather name="flag" size={20} color="#EF4444" />
-            <Text style={[styles.menuItemText, { color: "#EF4444" }]}>
-              Report
-            </Text>
-          </TouchableOpacity>
-          <TouchableOpacity style={styles.menuItem} onPress={handleBlockOwner}>
-            <Feather name="slash" size={20} color="#EF4444" />
-            <Text style={[styles.menuItemText, { color: "#EF4444" }]}>
-              Block Owner
-            </Text>
-          </TouchableOpacity>
-        </View>
-      </Pressable>
-    </Modal>
-  );
-
   return (
-    <SafeAreaView style={styles.flex_1} edges={["top"]}>
-      <ScrollView showsVerticalScrollIndicator={false} style={styles.flex_1}>
-        <LinearGradient
-          colors={["#FF6B4A", "#FF9A8B"]}
-          style={styles.headerGradient}
-        >
-          <View style={styles.headerContent}>
-            <TouchableOpacity
-              onPress={() => router.back()}
-              style={styles.headerButton}
-            >
-              <Feather name="arrow-left" size={26} color="white" />
-            </TouchableOpacity>
-            <TouchableOpacity
-              style={styles.headerButton}
-              onPress={() => setShowMenuModal(true)}
-            >
-              <Feather name="more-vertical" size={24} color="white" />
-            </TouchableOpacity>
-          </View>
-        </LinearGradient>
-
-        <View style={styles.profileHeader}>
-          <View style={styles.profilePicContainer}>
-            <Image
-              source={{ uri: getImageUrl(petData.profile_image) }}
-              style={styles.profilePic}
+    <SafeAreaView style={styles.screen} edges={["top"]}>
+      <ScrollView style={styles.screen} showsVerticalScrollIndicator={false}>
+        <View style={styles.heroHeader}>
+          <View style={StyleSheet.absoluteFillObject}>
+            <BubbleBackgroundRe
+              backgroundColor="#F98D67"
+              bubbleColor="rgba(255, 192, 170, 0.35)"
+              bigCount={4}
+              smallCount={7}
             />
-            {compatData && (
-              <View
+          </View>
+
+          <View style={styles.heroTopRow}>
+            <TouchableOpacity
+              style={styles.iconCircle}
+              onPress={() => router.back()}
+            >
+              <Feather name="chevron-left" size={18} color="#FFFFFF" />
+            </TouchableOpacity>
+
+            <View style={styles.heroRightButtons}>
+              <TouchableOpacity
                 style={[
-                  styles.compatBadge,
-                  {
-                    backgroundColor: getCompatScoreColor(
-                      compatData.compatibility_score,
-                    ),
-                  },
+                  styles.iconCircle,
+                  isFavorited && styles.iconCircleActive,
+                  favoriteUpdating && styles.iconCircleDisabled,
                 ]}
+                onPress={handleToggleFavorite}
+                disabled={favoriteUpdating}
               >
-                <Text style={styles.compatBadgeText}>
-                  {compatData.compatibility_score}%
-                </Text>
-              </View>
-            )}
-          </View>
-          <Text style={styles.petName}>{petData.name}</Text>
-          <Text style={styles.speciesLabel}>{petData.species}</Text>
-
-          {/* Quick Stats - Compact 2-Row */}
-          <View style={styles.statsChipsRow}>
-            <View style={styles.statsRow}>
-              <View style={styles.statChip}>
-                <Ionicons name="paw" size={14} color="#FF6B4A" />
-                <Text style={styles.statChipText}>{petData.breed}</Text>
-              </View>
-              <View style={styles.statChip}>
-                <Ionicons name="calendar-outline" size={14} color="#FF6B4A" />
-                <Text style={styles.statChipText}>
-                  {calculateAge(petData.birthdate)}
-                </Text>
-              </View>
-            </View>
-            <View style={styles.statsRow}>
-              <View style={styles.statChip}>
-                <Ionicons
-                  name={petData.sex === "male" ? "male" : "female"}
-                  size={14}
-                  color="#FF6B4A"
-                />
-                <Text style={styles.statChipText}>{petData.sex}</Text>
-              </View>
-              <View style={styles.statChip}>
-                <Ionicons name="fitness-outline" size={14} color="#FF6B4A" />
-                <Text style={styles.statChipText}>{petData.weight} kg</Text>
-              </View>
+                {favoriteUpdating ? (
+                  <ActivityIndicator
+                    size="small"
+                    color={isFavorited ? "#F98961" : "#FFFFFF"}
+                  />
+                ) : (
+                  <Ionicons
+                    name={isFavorited ? "heart" : "heart-outline"}
+                    size={18}
+                    color={isFavorited ? "#F98961" : "#FFFFFF"}
+                  />
+                )}
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={styles.iconCircle}
+                onPress={() => setShowMenuModal(true)}
+              >
+                <Feather name="more-vertical" size={16} color="#FFFFFF" />
+              </TouchableOpacity>
             </View>
           </View>
 
-          {/* Owner Card */}
+          <View style={styles.heroCenterContent}>
+            <View style={styles.avatarWrap}>
+              <Image
+                source={{ uri: getImageUrl(petData.profile_image) }}
+                style={styles.avatar}
+              />
+              <View style={styles.verifyBadge}>
+                <Ionicons name="checkmark" size={14} color="#FFFFFF" />
+              </View>
+            </View>
+
+            <Text style={styles.petName}>{petData.name}</Text>
+            <Text style={styles.petSubTitle}>
+              {petData.breed} - {petData.species}
+            </Text>
+
+            <View style={styles.chipsRow}>
+              <HeaderChip
+                icon="calendar-outline"
+                text={calculateAge(petData.birthdate)}
+              />
+              <HeaderChip
+                icon={
+                  petData.sex === "male" ? "male-outline" : "female-outline"
+                }
+                text={petData.sex}
+              />
+              {petData.microchip_id ? (
+                <HeaderChip icon="checkmark-outline" text="Microchip" />
+              ) : null}
+            </View>
+          </View>
+        </View>
+
+        <View style={styles.contentTopWrap}>
           <TouchableOpacity
             style={styles.ownerCard}
             onPress={() => router.push(`/(breeder)/${petData.owner.id}`)}
-            activeOpacity={0.7}
           >
             <Image
               source={{ uri: getImageUrl(petData.owner.profile_image) }}
-              style={styles.ownerCardImage}
+              style={styles.ownerAvatar}
             />
-            <View style={{ flex: 1 }}>
-              <View style={styles.ownerCardNameRow}>
-                <Text style={styles.ownerCardName}>{petData.owner.name}</Text>
-                {petData.owner.is_verified && (
-                  <Ionicons name="checkmark-circle" size={16} color="#22C55E" />
-                )}
+
+            <View style={styles.ownerBody}>
+              <View style={styles.ownerNameRow}>
+                <Text style={styles.ownerName}>{petData.owner.name}</Text>
+                {petData.owner.is_verified ? (
+                  <Ionicons name="checkmark-circle" size={14} color="#4DC9A6" />
+                ) : null}
               </View>
-              {petData.owner.location && (
-                <View style={styles.ownerCardLocationRow}>
-                  <Ionicons name="location-outline" size={13} color="#6B7280" />
-                  <Text style={styles.ownerCardLocation}>
-                    {petData.owner.location}
-                  </Text>
-                </View>
-              )}
-              <Text style={styles.ownerCardSubtext}>View Breeder Profile</Text>
+              <Text style={styles.ownerLocation}>
+                {petData.owner.location || "Location unavailable"}
+              </Text>
+              <Text style={styles.ownerLinkText}>View Breeder Profile</Text>
             </View>
-            <Ionicons name="chevron-forward" size={20} color="#9CA3AF" />
+
+            <Feather name="chevron-right" size={16} color="#B5B3BE" />
           </TouchableOpacity>
 
-          {/* Availability / Cooldown Status */}
-          {!petData.is_available_for_matching && (
+          {!petData.is_available_for_matching ? (
             <View style={styles.unavailableBanner}>
-              <Ionicons name="information-circle" size={16} color="#92400E" />
-              <Text style={styles.unavailableBannerText}>
+              <Ionicons name="alert-circle-outline" size={16} color="#A15A1B" />
+              <Text style={styles.unavailableText}>
                 {petData.is_on_cooldown
-                  ? `On cooldown for ${petData.cooldown_days_remaining} more days`
-                  : "Not available for matching"}
+                  ? `On cooldown for ${petData.cooldown_days_remaining || 0} more days.`
+                  : "This pet is not currently available for matching."}
               </Text>
             </View>
-          )}
+          ) : null}
 
-          {/* Primary CTA: Send Match Request */}
           <TouchableOpacity
-            style={styles.primaryCTA}
+            style={[
+              styles.primaryButton,
+              (!petData.is_available_for_matching || sendingRequest) &&
+                styles.primaryButtonDisabled,
+            ]}
+            disabled={!petData.is_available_for_matching || sendingRequest}
             onPress={handleMatchRequest}
-            disabled={sendingRequest}
-            activeOpacity={0.8}
           >
             {sendingRequest ? (
-              <ActivityIndicator size="small" color="white" />
+              <ActivityIndicator color="#FFFFFF" size="small" />
             ) : (
               <>
-                <Feather name="heart" size={18} color="white" />
-                <Text style={styles.primaryCTAText}>Send Match Request</Text>
+                <Feather name="heart" size={16} color="#FFFFFF" />
+                <Text style={styles.primaryButtonText}>Send Match Request</Text>
               </>
             )}
           </TouchableOpacity>
 
-          {/* Secondary Action Pills */}
-          <View style={styles.secondaryActionsRow}>
+          <View style={styles.featureRow}>
             <TouchableOpacity
-              style={[
-                styles.actionPill,
-                isFavorited && styles.actionPillActive,
-              ]}
-              onPress={handleToggleFavorite}
-            >
-              <Ionicons
-                name={isFavorited ? "star" : "star-outline"}
-                size={16}
-                color={isFavorited ? "#F59E0B" : "#6B7280"}
-              />
-              <Text
-                style={[
-                  styles.actionPillText,
-                  isFavorited && { color: "#F59E0B" },
-                ]}
-              >
-                {isFavorited ? "Favorited" : "Favorite"}
-              </Text>
-            </TouchableOpacity>
-
-            <TouchableOpacity
-              style={styles.actionPill}
+              style={styles.featureCard}
               onPress={() => {
                 if (!selectedPet) {
                   showAlert({
                     title: "No Pet Selected",
                     message:
-                      "Please select one of your pets to see AI offspring prediction.",
+                      "Please select one of your pets to preview offspring.",
                     type: "warning",
                   });
                   return;
                 }
+
                 const primaryPhoto =
                   selectedPet.photos?.find((p) => p.is_primary) ||
                   selectedPet.photos?.[0];
+
                 router.push({
                   pathname: "/(pet)/ai-offspring",
                   params: {
                     pet1Id: selectedPet.pet_id,
-                    pet2Id: petData?.pet_id,
+                    pet2Id: petData.pet_id,
                     pet1Name: selectedPet.name,
-                    pet2Name: petData?.name || "Unknown",
+                    pet2Name: petData.name,
                     pet1Photo: primaryPhoto?.photo_url || "",
-                    pet2Photo: petData?.profile_image || "",
+                    pet2Photo: petData.profile_image || "",
                     pet1Breed: selectedPet.breed || "Unknown",
-                    pet2Breed: petData?.breed || "Unknown",
+                    pet2Breed: petData.breed || "Unknown",
                     compatibilityScore: String(
                       compatData?.compatibility_score ?? "85",
                     ),
@@ -1422,54 +1006,165 @@ export default function ViewPetProfileScreen() {
                 });
               }}
             >
-              <Image
-                source={require("@/assets/images/AI_Rec.png")}
-                style={styles.aiRecSmall}
-              />
-              <Text style={styles.actionPillText}>AI Offspring</Text>
+              <View
+                style={[styles.featureIconWrap, { backgroundColor: "#EFE8FF" }]}
+              >
+                <Ionicons name="sparkles-outline" size={16} color="#8677E3" />
+              </View>
+              <View style={styles.featureBody}>
+                <Text style={styles.featureTitle}>AI Offspring</Text>
+                <Text style={styles.featureSubTitle}>
+                  {`Preview ${offspringLabels.plural}`}
+                </Text>
+              </View>
             </TouchableOpacity>
 
-            {hasActiveChat && (
-              <TouchableOpacity
-                style={[styles.actionPill, { borderColor: "#3B82F6" }]}
-                onPress={handleChatPress}
+            <TouchableOpacity
+              style={[
+                styles.featureCard,
+                !hasActiveChat && styles.featureCardDisabled,
+              ]}
+              disabled={!selectedPet || !hasActiveChat}
+              onPress={handleChatPress}
+            >
+              <View
+                style={[styles.featureIconWrap, { backgroundColor: "#E6F8F2" }]}
               >
-                <Feather name="message-circle" size={16} color="#3B82F6" />
-                <Text style={[styles.actionPillText, { color: "#3B82F6" }]}>
+                <Feather
+                  name="message-square"
+                  size={15}
+                  color={selectedPet && hasActiveChat ? "#58BEA3" : "#9FA2AA"}
+                />
+              </View>
+              <View style={styles.featureBody}>
+                <Text
+                  style={[
+                    styles.featureTitle,
+                    (!selectedPet || !hasActiveChat) && styles.disabledText,
+                  ]}
+                >
                   Chat
                 </Text>
-              </TouchableOpacity>
-            )}
+                <Text
+                  style={[
+                    styles.featureSubTitle,
+                    (!selectedPet || !hasActiveChat) && styles.disabledText,
+                  ]}
+                >
+                  {!selectedPet
+                    ? "Select your pet"
+                    : hasActiveChat
+                      ? "Message owner"
+                      : "Match required"}
+                </Text>
+              </View>
+            </TouchableOpacity>
           </View>
-        </View>
 
-        {/* 3 Tabs */}
-        <View style={styles.tabContainer}>
-          <TabButton
-            title="Overview"
-            isActive={activeTab === "overview"}
-            onPress={() => setActiveTab("overview")}
-          />
-          <TabButton
-            title="Health"
-            isActive={activeTab === "health"}
-            onPress={() => setActiveTab("health")}
-          />
-          <TabButton
-            title="Breeding"
-            isActive={activeTab === "breeding"}
-            onPress={() => setActiveTab("breeding")}
-          />
-        </View>
+          <View style={styles.tabsWrap}>
+            <TabPill
+              label="Overview"
+              active={activeTab === "overview"}
+              onPress={() => setActiveTab("overview")}
+            />
+            <TabPill
+              label="Health"
+              active={activeTab === "health"}
+              onPress={() => setActiveTab("health")}
+            />
+            <TabPill
+              label="Breeding"
+              active={activeTab === "breeding"}
+              onPress={() => setActiveTab("breeding")}
+            />
+            <TabPill
+              label="Gallery"
+              active={activeTab === "gallery"}
+              onPress={() => setActiveTab("gallery")}
+            />
+          </View>
 
-        {renderTabContent()}
+          {renderTabContent()}
+        </View>
       </ScrollView>
 
-      {renderMenuModal()}
+      <Modal
+        visible={showMenuModal}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setShowMenuModal(false)}
+      >
+        <Pressable
+          style={styles.menuOverlay}
+          onPress={() => setShowMenuModal(false)}
+        >
+          <View style={styles.menuCard}>
+            <TouchableOpacity
+              style={styles.menuItem}
+              onPress={handleShareProfile}
+            >
+              <Feather name="share-2" size={16} color="#4A4B53" />
+              <Text style={styles.menuText}>Share Profile</Text>
+            </TouchableOpacity>
+            <TouchableOpacity style={styles.menuItem} onPress={handleCopyLink}>
+              <Feather name="copy" size={16} color="#4A4B53" />
+              <Text style={styles.menuText}>Copy Profile Link</Text>
+            </TouchableOpacity>
+            <View style={styles.menuDivider} />
+            <TouchableOpacity
+              style={styles.menuItem}
+              onPress={handleReportOwner}
+            >
+              <Feather name="flag" size={16} color="#DD4A4A" />
+              <Text style={[styles.menuText, { color: "#DD4A4A" }]}>
+                Report
+              </Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={styles.menuItem}
+              onPress={handleBlockOwner}
+            >
+              <Feather name="slash" size={16} color="#DD4A4A" />
+              <Text style={[styles.menuText, { color: "#DD4A4A" }]}>
+                Block Owner
+              </Text>
+            </TouchableOpacity>
+          </View>
+        </Pressable>
+      </Modal>
+
+      <Modal
+        visible={showRecordsModal}
+        animationType="slide"
+        onRequestClose={() => setShowRecordsModal(false)}
+      >
+        <SafeAreaView style={styles.modalScreen} edges={["top"]}>
+          <View style={styles.modalHeader}>
+            <Text style={styles.modalTitle}>Health Records</Text>
+            <TouchableOpacity onPress={() => setShowRecordsModal(false)}>
+              <Ionicons name="close" size={22} color="#4F4C57" />
+            </TouchableOpacity>
+          </View>
+
+          <ScrollView style={styles.modalBody}>
+            {(petData.health_records || []).map((record, index) => (
+              <View
+                key={`${record.record_type}-${index}`}
+                style={styles.recordItem}
+              >
+                <Text style={styles.recordTitle}>{record.record_type}</Text>
+                <Text style={styles.recordSub}>
+                  {dayjs(record.given_date).format("MMMM D, YYYY")}
+                </Text>
+              </View>
+            ))}
+          </ScrollView>
+        </SafeAreaView>
+      </Modal>
 
       <AlertModal {...{ visible, ...alertOptions, onClose: hideAlert }} />
 
-      {petData?.owner && (
+      {petData?.owner ? (
         <BlockReportModal
           visible={showBlockReport}
           onClose={() => setShowBlockReport(false)}
@@ -1480,782 +1175,923 @@ export default function ViewPetProfileScreen() {
             router.back();
           }}
         />
-      )}
+      ) : null}
     </SafeAreaView>
   );
 }
 
-// Reusable Components
-const getCompatScoreColor = (score: number): string => {
-  if (score >= 80) return "#22C55E"; // green
-  if (score >= 60) return "#F59E0B"; // amber
-  if (score >= 40) return "#F97316"; // orange
-  return "#EF4444"; // red
-};
-
-const InfoCard = ({
+function SectionCard({
   icon,
   title,
   children,
 }: {
-  icon: any;
+  icon: keyof typeof Ionicons.glyphMap;
   title: string;
   children: React.ReactNode;
-}) => (
-  <View style={styles.card}>
-    <View style={styles.cardHeader}>
-      <Ionicons name={icon} size={22} color="#FF6B4A" />
-      <Text style={styles.cardTitle}>{title}</Text>
-    </View>
-    {children}
-  </View>
-);
-
-const DetailRow = ({ label, value }: { label: string; value: string }) => (
-  <View style={styles.detailRow}>
-    <Text style={styles.detailLabel}>{label}</Text>
-    <Text style={styles.detailValue}>{value}</Text>
-  </View>
-);
-
-const TabButton = ({
-  title,
-  isActive,
-  onPress,
-}: {
-  title: string;
-  isActive: boolean;
-  onPress: () => void;
-}) => (
-  <TouchableOpacity
-    onPress={onPress}
-    style={[styles.tabButton, isActive && styles.tabActive]}
-  >
-    <Text style={[styles.tabText, isActive && styles.tabTextActive]}>
-      {title}
-    </Text>
-  </TouchableOpacity>
-);
-
-const Tag = ({
-  label,
-  color,
-}: {
-  label: string;
-  color: "blue" | "red" | "green";
-}) => {
-  const colorStyles = {
-    blue: "bg-blue-100 border-blue-200 text-blue-800",
-    red: "bg-red-100 border-red-200 text-red-800",
-    green: "bg-green-100 border-green-200 text-green-800",
-  };
-  const style = colorStyles[color] || colorStyles.blue;
+}) {
   return (
-    <View
-      className={`rounded-full px-3 py-1.5 border ${style.split(" ")[0]} ${style.split(" ")[1]}`}
-    >
-      <Text className={`text-xs font-medium ${style.split(" ")[2]}`}>
-        {label}
-      </Text>
+    <View style={styles.sectionCard}>
+      <View style={styles.sectionHead}>
+        <View style={styles.sectionIconBubble}>
+          <Ionicons name={icon} size={15} color="#FF8A66" />
+        </View>
+        <Text style={styles.sectionTitle}>{title}</Text>
+      </View>
+      {children}
     </View>
   );
-};
+}
 
-const StatusSummaryRow = ({
+function HeaderChip({
+  icon,
+  text,
+}: {
+  icon: keyof typeof Ionicons.glyphMap;
+  text: string;
+}) {
+  return (
+    <View style={styles.headerChip}>
+      <Ionicons name={icon} size={12} color="#FFFFFF" />
+      <Text style={styles.headerChipText}>{text}</Text>
+    </View>
+  );
+}
+
+function TabPill({
   label,
-  count,
-  status,
+  active,
+  onPress,
 }: {
   label: string;
-  count?: number;
-  status: "valid" | "missing" | "expired" | "expiring";
-}) => {
-  const info = {
-    valid: { icon: "checkmark-circle", color: "#22C55E", text: count !== undefined ? `${count} on File` : "Yes" },
-    missing: { icon: "close-circle", color: "#6B7280", text: "Not Present" },
-    expired: {
-      icon: "alert-circle",
-      color: "#EF4444",
-      text: `${count} Expired`,
-    },
-    expiring: { icon: "time", color: "#F59E0B", text: `${count} Expiring` },
-  }[status];
-
+  active: boolean;
+  onPress: () => void;
+}) {
   return (
-    <View style={styles.summaryRow}>
-      <Text style={styles.detailLabel}>{label}</Text>
-      <View style={styles.summaryStatus}>
-        <Ionicons name={info.icon as any} size={20} color={info.color} />
-        <Text style={[styles.summaryStatusText, { color: info.color }]}>
-          {info.text}
+    <TouchableOpacity style={styles.tabButton} onPress={onPress}>
+      <Text style={[styles.tabLabel, active && styles.tabLabelActive]}>
+        {label}
+      </Text>
+      {active ? <View style={styles.tabUnderline} /> : null}
+    </TouchableOpacity>
+  );
+}
+
+function TagWrap({
+  tags,
+  variant,
+}: {
+  tags: string[];
+  variant: "mint" | "sun";
+}) {
+  return (
+    <View style={styles.tagWrap}>
+      {tags.map((tag, idx) => (
+        <View
+          key={`${tag}-${idx}`}
+          style={[
+            styles.tag,
+            variant === "mint" ? styles.tagMint : styles.tagSun,
+          ]}
+        >
+          <Text
+            style={[
+              styles.tagText,
+              variant === "mint" ? styles.tagTextMint : styles.tagTextSun,
+            ]}
+          >
+            {tag}
+          </Text>
+        </View>
+      ))}
+    </View>
+  );
+}
+
+function HealthSummaryRow({
+  label,
+  value,
+  ok,
+}: {
+  label: string;
+  value: string;
+  ok: boolean;
+}) {
+  return (
+    <View style={styles.healthSummaryRow}>
+      <Text style={styles.healthSummaryLabel}>{label}</Text>
+      <View style={styles.healthSummaryValueWrap}>
+        <Ionicons
+          name={ok ? "checkmark" : "close"}
+          size={12}
+          color={ok ? "#58BEA3" : "#D16C6C"}
+        />
+        <Text
+          style={[
+            styles.healthSummaryValue,
+            ok ? styles.healthSummaryValueOk : styles.healthSummaryValueBad,
+          ]}
+        >
+          {value}
         </Text>
       </View>
     </View>
   );
-};
+}
 
-const DocumentRow = ({
-  title,
-  expiry,
-  given,
-  status,
-}: {
-  title: string;
-  expiry?: string;
-  given?: string;
-  status: DocumentStatus;
-}) => {
-  const badge = getStatusBadge(status);
-  return (
-    <View style={styles.documentRow}>
-      <View style={styles.documentTouchable}>
-        <View
-          style={[
-            styles.statusDot,
-            { backgroundColor: getStatusColor(status) },
-          ]}
-        />
-        <View style={styles.flex_1}>
-          <Text style={styles.documentTitle}>{title}</Text>
-          {expiry && (
-            <Text style={styles.documentSubtitle}>
-              Expires: {dayjs(expiry).format("MMMM D, YYYY")}
-            </Text>
-          )}
-          {given && (
-            <Text style={styles.documentSubtitle}>
-              Given: {dayjs(given).format("MMMM D, YYYY")}
-            </Text>
-          )}
-        </View>
-        <View className={`${badge.bg} rounded-full px-3 py-1`}>
-          <Text className={`${badge.text} text-xs font-semibold`}>
-            {badge.label}
-          </Text>
-        </View>
-      </View>
-    </View>
-  );
-};
-
-const CompatFactorRow = ({
+function ProgressLine({
   label,
-  matched,
-  detail,
+  value,
+  color,
 }: {
   label: string;
-  matched: boolean;
-  detail: string;
-}) => (
-  <View style={styles.compatFactorRow}>
-    <Ionicons
-      name={matched ? "checkmark-circle" : "close-circle"}
-      size={20}
-      color={matched ? "#22C55E" : "#EF4444"}
-    />
-    <View style={{ flex: 1, marginLeft: 10 }}>
-      <Text style={styles.compatFactorLabel}>{label}</Text>
-      <Text style={styles.compatFactorDetail}>{detail}</Text>
+  value: number;
+  color: string;
+}) {
+  return (
+    <View style={styles.progressRow}>
+      <Text style={styles.progressLabel}>{label}</Text>
+      <View style={styles.progressTrack}>
+        <View
+          style={[
+            styles.progressFill,
+            { width: `${value}%`, backgroundColor: color },
+          ]}
+        />
+      </View>
+      <Text style={styles.progressValue}>{value}</Text>
     </View>
-  </View>
-);
+  );
+}
+
+function AvatarLabel({
+  image,
+  name,
+  subtitle,
+}: {
+  image?: string;
+  name: string;
+  subtitle: string;
+}) {
+  return (
+    <View style={styles.avatarLabelWrap}>
+      <Image source={{ uri: image }} style={styles.compatAvatar} />
+      <Text style={styles.avatarLabelName} numberOfLines={1}>
+        {name}
+      </Text>
+      <Text style={styles.avatarLabelSub} numberOfLines={1}>
+        {subtitle}
+      </Text>
+    </View>
+  );
+}
 
 const styles = StyleSheet.create({
-  flex_1: { flex: 1, backgroundColor: "#FDF4F4" },
-  center: { flex: 1, justifyContent: "center", alignItems: "center" },
-  loadingText: { marginTop: 10, color: "#555" },
-  errorText: { color: "#B91C1C" },
-  headerGradient: {
-    height: 160,
-    borderBottomLeftRadius: 30,
-    borderBottomRightRadius: 30,
+  screen: {
+    flex: 1,
+    backgroundColor: "#F8F1EF",
   },
-  headerContent: {
-    flexDirection: "row",
-    justifyContent: "space-between",
+  centeredBlock: {
     alignItems: "center",
-    paddingTop: 40,
-    paddingHorizontal: 20,
-  },
-  headerButton: { padding: 8 },
-  profileHeader: { alignItems: "center", marginTop: -80 },
-  profilePicContainer: {
-    width: 140,
-    height: 140,
-    borderRadius: 70,
-    backgroundColor: "white",
     justifyContent: "center",
-    alignItems: "center",
-    elevation: 10,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 5 },
-    shadowOpacity: 0.3,
-    shadowRadius: 5,
+    paddingVertical: 30,
   },
-  profilePic: { width: 130, height: 130, borderRadius: 65 },
-  petName: {
-    fontSize: 28,
-    fontWeight: "bold",
-    color: "#2C2C2C",
-    marginTop: 12,
-    marginBottom: 2,
-  },
-  speciesLabel: {
-    fontSize: 15,
-    color: "#6B7280",
-    fontWeight: "500",
-    marginBottom: 4,
-    textTransform: "capitalize",
-  },
-  // Owner card
-  ownerCard: {
-    flexDirection: "row",
-    alignItems: "center",
-    backgroundColor: "white",
-    borderRadius: 16,
-    padding: 14,
-    marginHorizontal: 20,
-    marginTop: 12,
-    elevation: 2,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.08,
-    shadowRadius: 4,
-  },
-  ownerCardImage: {
-    width: 48,
-    height: 48,
-    borderRadius: 24,
-    marginRight: 12,
-  },
-  ownerCardNameRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 5,
-  },
-  ownerCardName: {
-    fontSize: 16,
-    fontWeight: "bold",
-    color: "#333",
-  },
-  ownerCardLocationRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 3,
-    marginTop: 2,
-  },
-  ownerCardLocation: {
+  loadingText: {
+    marginTop: 10,
     fontSize: 13,
-    color: "#6B7280",
+    color: "#7E7B87",
   },
-  ownerCardSubtext: {
-    fontSize: 12,
-    color: "#9CA3AF",
-    marginTop: 2,
-  },
-  // Primary CTA
-  primaryCTA: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
-    alignSelf: "center",
-    backgroundColor: "#FF6B4A",
-    borderRadius: 25,
-    paddingVertical: 12,
-    paddingHorizontal: 32,
-    marginTop: 16,
-    gap: 8,
-    elevation: 4,
-    shadowColor: "#FF6B4A",
-    shadowOffset: { width: 0, height: 3 },
-    shadowOpacity: 0.3,
-    shadowRadius: 6,
-  },
-  primaryCTAText: {
-    fontSize: 16,
-    fontWeight: "bold",
-    color: "white",
-  },
-  // Secondary action pills
-  secondaryActionsRow: {
-    flexDirection: "row",
-    justifyContent: "center",
-    flexWrap: "wrap",
-    gap: 10,
-    marginTop: 12,
-    marginBottom: 8,
-    paddingHorizontal: 20,
-  },
-  actionPill: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 6,
-    borderWidth: 1.5,
-    borderColor: "#E5E7EB",
-    borderRadius: 20,
-    paddingVertical: 8,
-    paddingHorizontal: 14,
-    backgroundColor: "white",
-  },
-  actionPillActive: {
-    borderColor: "#F59E0B",
-    backgroundColor: "#FFFBEB",
-  },
-  actionPillText: {
-    fontSize: 13,
-    color: "#6B7280",
+  errorText: {
+    color: "#D15C5C",
+    fontSize: 14,
     fontWeight: "600",
   },
-  aiRecSmall: {
-    width: 18,
-    height: 18,
+
+  heroHeader: {
+    height: 360,
+    overflow: "hidden",
   },
-  // Menu modal
+  heroTopRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    paddingHorizontal: 16,
+    paddingTop: 16,
+  },
+  heroRightButtons: {
+    flexDirection: "row",
+    alignItems: "center",
+  },
+  iconCircle: {
+    width: 34,
+    height: 34,
+    borderRadius: 17,
+    backgroundColor: "rgba(255,255,255,0.27)",
+    alignItems: "center",
+    justifyContent: "center",
+    marginLeft: 8,
+  },
+  iconCircleActive: {
+    backgroundColor: "#FFFFFF",
+  },
+  iconCircleDisabled: {
+    opacity: 0.72,
+  },
+  heroCenterContent: {
+    marginTop: 24,
+    paddingHorizontal: 16,
+    alignItems: "center",
+  },
+
+  contentTopWrap: {
+    marginTop: -18,
+    borderTopLeftRadius: 34,
+    borderTopRightRadius: 34,
+    backgroundColor: "#F8F1EF",
+    paddingTop: 14,
+    paddingHorizontal: 16,
+    paddingBottom: 20,
+  },
+  avatarWrap: {
+    width: 112,
+    height: 112,
+    borderRadius: 56,
+    borderWidth: 3,
+    borderColor: "#FFFFFF",
+    alignSelf: "center",
+    overflow: "visible",
+    backgroundColor: "#FFFFFF",
+  },
+  avatar: {
+    width: "100%",
+    height: "100%",
+    borderRadius: 56,
+  },
+  verifyBadge: {
+    position: "absolute",
+    right: -4,
+    bottom: -4,
+    width: 30,
+    height: 30,
+    borderRadius: 15,
+    backgroundColor: "#4CCAA6",
+    alignItems: "center",
+    justifyContent: "center",
+    borderWidth: 3,
+    borderColor: "#FFFFFF",
+  },
+  petName: {
+    textAlign: "center",
+    fontSize: 52,
+    fontWeight: "700",
+    color: "#FFFFFF",
+    marginTop: 12,
+    lineHeight: 56,
+  },
+  petSubTitle: {
+    textAlign: "center",
+    fontSize: 13,
+    color: "#FFFFFF",
+    opacity: 0.98,
+    marginTop: 4,
+  },
+  chipsRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    marginTop: 14,
+    flexWrap: "wrap",
+  },
+  headerChip: {
+    flexDirection: "row",
+    alignItems: "center",
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: "rgba(255,255,255,0.62)",
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    marginHorizontal: 4,
+    marginBottom: 6,
+  },
+  headerChipText: {
+    marginLeft: 4,
+    color: "#FFFFFF",
+    fontSize: 13,
+    fontWeight: "600",
+    textTransform: "capitalize",
+  },
+
+  ownerCard: {
+    marginTop: 10,
+    backgroundColor: "#FFFFFF",
+    borderRadius: 14,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    flexDirection: "row",
+    alignItems: "center",
+  },
+  ownerAvatar: {
+    width: 42,
+    height: 42,
+    borderRadius: 21,
+  },
+  ownerBody: {
+    flex: 1,
+    marginLeft: 10,
+  },
+  ownerNameRow: {
+    flexDirection: "row",
+    alignItems: "center",
+  },
+  ownerName: {
+    fontSize: 14,
+    fontWeight: "700",
+    color: "#2F2B3A",
+    marginRight: 4,
+  },
+  ownerLocation: {
+    fontSize: 11,
+    color: "#9793A1",
+    marginTop: 1,
+  },
+  ownerLinkText: {
+    fontSize: 11,
+    color: "#FF8A66",
+    marginTop: 2,
+    fontWeight: "600",
+  },
+
+  unavailableBanner: {
+    marginTop: 10,
+    borderRadius: 12,
+    backgroundColor: "#FEF1D9",
+    paddingHorizontal: 10,
+    paddingVertical: 8,
+    flexDirection: "row",
+    alignItems: "center",
+  },
+  unavailableText: {
+    marginLeft: 6,
+    flex: 1,
+    color: "#A15A1B",
+    fontSize: 12,
+    fontWeight: "600",
+  },
+
+  primaryButton: {
+    marginTop: 12,
+    borderRadius: 18,
+    backgroundColor: "#F98961",
+    height: 48,
+    alignItems: "center",
+    justifyContent: "center",
+    flexDirection: "row",
+  },
+  primaryButtonDisabled: {
+    backgroundColor: "#CFC8C6",
+  },
+  primaryButtonText: {
+    color: "#FFFFFF",
+    fontSize: 16,
+    fontWeight: "700",
+    marginLeft: 8,
+  },
+
+  featureRow: {
+    marginTop: 12,
+    flexDirection: "row",
+    justifyContent: "space-between",
+  },
+  featureCard: {
+    width: "48.5%",
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: "#E9E3E0",
+    backgroundColor: "#FFFFFF",
+    padding: 12,
+    flexDirection: "row",
+    alignItems: "center",
+  },
+  featureCardDisabled: {
+    opacity: 0.55,
+  },
+  featureIconWrap: {
+    width: 30,
+    height: 30,
+    borderRadius: 9,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  featureBody: {
+    marginLeft: 9,
+  },
+  featureTitle: {
+    fontSize: 14,
+    fontWeight: "700",
+    color: "#2F2B3A",
+  },
+  featureSubTitle: {
+    fontSize: 11,
+    marginTop: 1,
+    color: "#7EA89A",
+  },
+  disabledText: {
+    color: "#90939B",
+  },
+
+  tabsWrap: {
+    marginTop: 13,
+    borderRadius: 14,
+    backgroundColor: "#FFFFFF",
+    paddingVertical: 6,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-around",
+  },
+  tabButton: {
+    alignItems: "center",
+    justifyContent: "center",
+    minWidth: 66,
+    paddingVertical: 6,
+  },
+  tabLabel: {
+    fontSize: 12,
+    color: "#8C8895",
+    fontWeight: "700",
+  },
+  tabLabelActive: {
+    color: "#F98961",
+  },
+  tabUnderline: {
+    width: 26,
+    height: 3,
+    borderRadius: 2,
+    backgroundColor: "#F98961",
+    marginTop: 6,
+  },
+
+  tabContent: {
+    marginTop: 12,
+  },
+
+  sectionCard: {
+    borderRadius: 16,
+    padding: 14,
+    backgroundColor: "#FFFFFF",
+    marginBottom: 12,
+  },
+  sectionHead: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginBottom: 10,
+  },
+  sectionIconBubble: {
+    width: 24,
+    height: 24,
+    borderRadius: 8,
+    backgroundColor: "#FFF1EB",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  sectionTitle: {
+    marginLeft: 8,
+    fontSize: 18,
+    color: "#2F2B3A",
+    fontWeight: "700",
+  },
+  cardBodyText: {
+    fontSize: 13,
+    color: "#6E6B77",
+    lineHeight: 19,
+  },
+
+  gridContainer: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    flexWrap: "wrap",
+  },
+  gridItem: {
+    width: "48.5%",
+    borderRadius: 10,
+    backgroundColor: "#FBF8F7",
+    paddingHorizontal: 10,
+    paddingVertical: 9,
+    marginBottom: 8,
+  },
+  gridLabel: {
+    fontSize: 10,
+    color: "#AEAAB8",
+    fontWeight: "700",
+  },
+  gridValue: {
+    marginTop: 3,
+    fontSize: 15,
+    color: "#2F2B3A",
+    fontWeight: "700",
+    textTransform: "capitalize",
+  },
+
+  tagWrap: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+  },
+  tag: {
+    borderRadius: 999,
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    marginRight: 7,
+    marginBottom: 7,
+  },
+  tagMint: {
+    backgroundColor: "#DCF7EE",
+  },
+  tagSun: {
+    backgroundColor: "#FFF2CF",
+  },
+  tagText: {
+    fontSize: 12,
+    fontWeight: "600",
+  },
+  tagTextMint: {
+    color: "#3CA58B",
+  },
+  tagTextSun: {
+    color: "#A58B34",
+  },
+
+  healthSummaryRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    paddingVertical: 8,
+    borderBottomWidth: 1,
+    borderBottomColor: "#F2ECE9",
+  },
+  healthSummaryLabel: {
+    fontSize: 14,
+    color: "#3A3644",
+    fontWeight: "600",
+  },
+  healthSummaryValueWrap: {
+    borderRadius: 999,
+    backgroundColor: "#F6FBF9",
+    flexDirection: "row",
+    alignItems: "center",
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+  },
+  healthSummaryValue: {
+    marginLeft: 4,
+    fontSize: 11,
+    fontWeight: "700",
+  },
+  healthSummaryValueOk: {
+    color: "#58BEA3",
+  },
+  healthSummaryValueBad: {
+    color: "#D16C6C",
+  },
+  inlineLinkButton: {
+    marginTop: 12,
+    borderWidth: 1,
+    borderColor: "#FFD8CC",
+    borderRadius: 16,
+    paddingVertical: 10,
+    alignItems: "center",
+    justifyContent: "center",
+    flexDirection: "row",
+  },
+  inlineLinkText: {
+    fontSize: 13,
+    color: "#FF8A66",
+    fontWeight: "700",
+    marginRight: 6,
+  },
+
+  emptyStateBlock: {
+    alignItems: "center",
+    justifyContent: "center",
+    paddingVertical: 18,
+  },
+  emptyStateTitle: {
+    marginTop: 8,
+    fontSize: 15,
+    fontWeight: "700",
+    color: "#4A4654",
+  },
+  emptyStateText: {
+    marginTop: 5,
+    color: "#8E8A97",
+    fontSize: 12,
+    textAlign: "center",
+    maxWidth: 220,
+    lineHeight: 18,
+  },
+
+  compatHeaderRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+  },
+  avatarLabelWrap: {
+    width: 102,
+    alignItems: "center",
+  },
+  compatAvatar: {
+    width: 76,
+    height: 76,
+    borderRadius: 38,
+  },
+  avatarLabelName: {
+    marginTop: 5,
+    fontSize: 15,
+    fontWeight: "700",
+    color: "#3A3644",
+  },
+  avatarLabelSub: {
+    marginTop: 2,
+    fontSize: 11,
+    color: "#9A97A3",
+  },
+  heartBadge: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: "#F98961",
+    alignItems: "center",
+    justifyContent: "center",
+    marginHorizontal: 8,
+  },
+  compatScoreWrap: {
+    marginTop: 12,
+    alignItems: "center",
+  },
+  compatScoreCircle: {
+    width: 106,
+    height: 106,
+    borderRadius: 53,
+    borderWidth: 6,
+    borderColor: "#FFD0BF",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  compatScoreValue: {
+    fontSize: 22,
+    color: "#2F2B3A",
+    fontWeight: "700",
+  },
+  compatScoreSub: {
+    fontSize: 10,
+    marginTop: 1,
+    color: "#9592A0",
+    fontWeight: "600",
+  },
+  progressGroup: {
+    marginTop: 12,
+  },
+  progressRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginBottom: 8,
+  },
+  progressLabel: {
+    width: 96,
+    fontSize: 12,
+    color: "#6B6675",
+    fontWeight: "600",
+  },
+  progressTrack: {
+    flex: 1,
+    height: 6,
+    borderRadius: 8,
+    backgroundColor: "#F2E6E1",
+    marginHorizontal: 8,
+    overflow: "hidden",
+  },
+  progressFill: {
+    height: "100%",
+    borderRadius: 8,
+  },
+  progressValue: {
+    width: 26,
+    fontSize: 14,
+    color: "#4A4654",
+    fontWeight: "700",
+    textAlign: "right",
+  },
+
+  litterCard: {
+    borderWidth: 1,
+    borderColor: "#F1DDD3",
+    borderRadius: 16,
+    marginBottom: 10,
+    overflow: "hidden",
+    backgroundColor: "#FFFFFF",
+  },
+  litterHeaderBox: {
+    backgroundColor: "#FFF3EE",
+    borderBottomWidth: 1,
+    borderBottomColor: "#F1DDD3",
+    paddingHorizontal: 10,
+    paddingVertical: 10,
+    flexDirection: "row",
+    alignItems: "center",
+  },
+  litterHeaderLeft: {
+    flex: 1,
+    flexDirection: "row",
+    alignItems: "center",
+  },
+  litterOrderBadge: {
+    width: 40,
+    height: 40,
+    borderRadius: 12,
+    backgroundColor: "#FF9A67",
+    alignItems: "center",
+    justifyContent: "center",
+    marginRight: 10,
+  },
+  litterOrderBadgeText: {
+    color: "#FFFFFF",
+    fontSize: 24,
+    fontWeight: "700",
+  },
+  litterTopLeft: {
+    flex: 1,
+    marginRight: 6,
+  },
+  litterTitle: {
+    fontSize: 16,
+    fontWeight: "700",
+    color: "#3B3645",
+  },
+  litterSubtitle: {
+    marginTop: 2,
+    fontSize: 12,
+    color: "#9A97A3",
+  },
+  litterCountBadge: {
+    borderRadius: 999,
+    backgroundColor: "#DCF7EE",
+    paddingHorizontal: 12,
+    paddingVertical: 7,
+    marginRight: 8,
+  },
+  litterCountText: {
+    color: "#3FA58C",
+    fontSize: 12,
+    fontWeight: "700",
+  },
+  litterOffspringRow: {
+    minHeight: 106,
+    flexDirection: "row",
+    alignItems: "flex-start",
+    paddingHorizontal: 10,
+    paddingVertical: 10,
+  },
+  offspringPreviewItem: {
+    width: 86,
+    marginRight: 8,
+    alignItems: "center",
+  },
+  offspringCircleWrap: {
+    width: 56,
+    height: 56,
+    borderRadius: 28,
+    borderWidth: 2,
+    borderColor: "#FFD6C2",
+    overflow: "hidden",
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: "#FFF4EE",
+  },
+  offspringCircleImage: {
+    width: "100%",
+    height: "100%",
+  },
+  offspringCircleFallback: {
+    width: "100%",
+    height: "100%",
+    backgroundColor: "#FFDDBB",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  offspringPreviewName: {
+    marginTop: 6,
+    fontSize: 12,
+    fontWeight: "700",
+    color: "#5B5764",
+    textAlign: "center",
+  },
+  offspringSexBadge: {
+    marginTop: 5,
+    borderRadius: 999,
+    paddingHorizontal: 14,
+    paddingVertical: 4,
+    minWidth: 50,
+    alignItems: "center",
+  },
+  offspringSexBadgeMale: {
+    backgroundColor: "#DDEAFE",
+  },
+  offspringSexBadgeFemale: {
+    backgroundColor: "#FCE2EE",
+    borderWidth: 1,
+    borderColor: "#EC6BA5",
+  },
+  offspringSexText: {
+    fontSize: 11,
+    fontWeight: "700",
+  },
+  offspringSexTextMale: {
+    color: "#6EA0D1",
+  },
+  offspringSexTextFemale: {
+    color: "#E55C97",
+  },
+
+  galleryGrid: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    justifyContent: "space-between",
+  },
+  galleryTile: {
+    width: "48.8%",
+    aspectRatio: 1,
+    borderRadius: 12,
+    overflow: "hidden",
+    marginBottom: 8,
+    backgroundColor: "#EEE7E6",
+  },
+  galleryImage: {
+    width: "100%",
+    height: "100%",
+  },
+
   menuOverlay: {
     flex: 1,
-    backgroundColor: "rgba(0,0,0,0.3)",
-    justifyContent: "flex-start",
+    backgroundColor: "rgba(0,0,0,0.25)",
     alignItems: "flex-end",
-    paddingTop: 90,
-    paddingRight: 16,
+    paddingTop: 86,
+    paddingRight: 12,
   },
-  menuContainer: {
-    backgroundColor: "white",
-    borderRadius: 16,
-    paddingVertical: 8,
-    minWidth: 200,
-    elevation: 8,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.15,
-    shadowRadius: 12,
+  menuCard: {
+    width: 200,
+    borderRadius: 14,
+    backgroundColor: "#FFFFFF",
+    paddingVertical: 6,
   },
   menuItem: {
     flexDirection: "row",
     alignItems: "center",
-    paddingVertical: 12,
-    paddingHorizontal: 16,
-    gap: 12,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
   },
-  menuItemText: {
-    fontSize: 15,
-    color: "#333",
+  menuText: {
+    marginLeft: 10,
+    color: "#4A4B53",
+    fontSize: 14,
     fontWeight: "500",
   },
   menuDivider: {
     height: 1,
-    backgroundColor: "#F3F4F6",
-    marginVertical: 4,
-  },
-  // Empty section
-  emptySection: {
-    alignItems: "center",
-    paddingVertical: 24,
-    gap: 8,
-  },
-  emptySectionText: {
-    fontSize: 14,
-    color: "#9CA3AF",
-  },
-  tabContainer: {
-    flexDirection: "row",
-    justifyContent: "space-around",
-    marginHorizontal: 20,
-    marginTop: 10,
-    backgroundColor: "white",
-    borderRadius: 25,
-    padding: 6,
-    elevation: 2,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.1,
-    shadowRadius: 2,
-  },
-  tabButton: {
-    flex: 1,
-    paddingVertical: 10,
-    alignItems: "center",
-    borderRadius: 20,
-  },
-  tabActive: { backgroundColor: "#FF6B4A" },
-  tabText: { fontSize: 13, fontWeight: "600", color: "#555" },
-  tabTextActive: { color: "white" },
-  tabContent: { padding: 20 },
-  card: {
-    backgroundColor: "white",
-    borderRadius: 20,
-    padding: 20,
-    marginBottom: 16,
-    elevation: 2,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.08,
-    shadowRadius: 5,
-  },
-  cardHeader: { flexDirection: "row", alignItems: "center", marginBottom: 12 },
-  cardTitle: { fontSize: 18, fontWeight: "bold", color: "#333", marginLeft: 8 },
-  cardText: { fontSize: 15, color: "#666", lineHeight: 22 },
-  detailRow: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    paddingVertical: 8,
-    borderBottomWidth: 1,
-    borderBottomColor: "#F3F4F6",
-  },
-  detailLabel: { fontSize: 15, color: "#555" },
-  detailValue: { fontSize: 15, color: "#111", fontWeight: "bold" },
-  tagContainer: { flexDirection: "row", flexWrap: "wrap", gap: 8 },
-  summaryRow: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-    paddingVertical: 10,
-    borderBottomWidth: 1,
-    borderBottomColor: "#F3F4F6",
-  },
-  summaryStatus: { flexDirection: "row", alignItems: "center" },
-  summaryStatusText: { marginLeft: 8, fontWeight: "600" },
-  documentRow: {
-    paddingVertical: 12,
-    borderBottomWidth: 1,
-    borderBottomColor: "#F3F4F6",
-  },
-  documentTouchable: { flexDirection: "row", alignItems: "center" },
-  statusDot: { width: 10, height: 10, borderRadius: 5, marginRight: 12 },
-  documentTitle: { fontSize: 16, fontWeight: "600", color: "#333" },
-  documentSubtitle: { fontSize: 13, color: "#777", marginTop: 2 },
-  photoGrid: {
-    flexDirection: "row",
-    flexWrap: "wrap",
-    justifyContent: "flex-start",
-    gap: 10,
-  },
-  photoContainer: {
-    width: (width - 90) / 2,
-    aspectRatio: 1,
-    borderRadius: 12,
-    backgroundColor: "#F9FAFB",
-    elevation: 2,
-    overflow: "hidden",
-  },
-  photo: { width: "100%", height: "100%" },
-  viewLitterButton: {
-    backgroundColor: "#FF6B4A",
-    borderRadius: 20,
-    paddingVertical: 12,
-    paddingHorizontal: 20,
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
-    marginTop: 10,
-  },
-  viewLitterText: { color: "white", fontWeight: "bold", marginRight: 8 },
-  vaccinationSection: { marginBottom: 16 },
-  vaccinationSectionHeader: {
-    flexDirection: "row",
-    alignItems: "center",
-    marginBottom: 12,
-  },
-  vaccinationSectionTitle: {
-    fontSize: 18,
-    fontWeight: "bold",
-    color: "#1F2937",
-    marginLeft: 8,
-  },
-  // Stat chips
-  statsChipsRow: {
-    alignItems: "center",
-    gap: 6,
-    marginTop: 8,
-    marginBottom: 4,
-    paddingHorizontal: 20,
-  },
-  statsRow: {
-    flexDirection: "row",
-    justifyContent: "center",
-    gap: 8,
-  },
-  statChip: {
-    flexDirection: "row",
-    alignItems: "center",
-    backgroundColor: "#FFF5F3",
-    borderRadius: 20,
-    paddingVertical: 6,
-    paddingHorizontal: 12,
-    gap: 4,
-    borderWidth: 1,
-    borderColor: "#FFE0D9",
-  },
-  statChipText: {
-    fontSize: 13,
-    fontWeight: "600",
-    color: "#333",
-    textTransform: "capitalize",
+    backgroundColor: "#F1EEEF",
   },
 
-  // Compatibility badge on avatar
-  compatBadge: {
-    position: "absolute",
-    bottom: 0,
-    right: 0,
-    borderRadius: 14,
-    paddingVertical: 3,
-    paddingHorizontal: 8,
-    borderWidth: 2,
-    borderColor: "white",
-  },
-  compatBadgeText: {
-    fontSize: 11,
-    fontWeight: "bold",
-    color: "white",
-  },
-  // Unavailable banner
-  unavailableBanner: {
-    flexDirection: "row",
-    alignItems: "center",
-    backgroundColor: "#FEF3C7",
-    borderRadius: 12,
-    paddingVertical: 8,
-    paddingHorizontal: 14,
-    marginTop: 8,
-    gap: 6,
-  },
-  unavailableBannerText: {
-    fontSize: 13,
-    fontWeight: "600",
-    color: "#92400E",
-  },
-  // Trust & Verification detail
-  verificationDetailRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    paddingVertical: 10,
-    borderBottomWidth: 1,
-    borderBottomColor: "#F3F4F6",
-  },
-  verificationIconContainer: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    backgroundColor: "#F9FAFB",
-    justifyContent: "center",
-    alignItems: "center",
-    marginRight: 12,
-  },
-  verificationLabel: {
-    fontSize: 15,
-    fontWeight: "600",
-    color: "#333",
-  },
-  verificationStatus: {
-    fontSize: 13,
-    marginTop: 2,
-  },
-  // Breeding partners & litters
-  breedingPartnerRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    paddingVertical: 12,
-    borderBottomWidth: 1,
-    borderBottomColor: "#F3F4F6",
-  },
-  partnerPhoto: {
-    width: 48,
-    height: 48,
-    borderRadius: 24,
-    marginRight: 12,
-  },
-  partnerName: {
-    fontSize: 16,
-    fontWeight: "600",
-    color: "#333",
-  },
-  partnerBreed: {
-    fontSize: 13,
-    color: "#777",
-    marginTop: 2,
-  },
-  litterCountBadge: {
-    backgroundColor: "#FFF5F3",
-    borderRadius: 12,
-    paddingVertical: 4,
-    paddingHorizontal: 10,
-  },
-  litterCountText: {
-    fontSize: 12,
-    fontWeight: "600",
-    color: "#FF6B4A",
-  },
-  // Compatibility tab styles
-  compatEmptyContainer: {
-    alignItems: "center",
-    paddingVertical: 24,
-    gap: 8,
-  },
-  compatEmptyTitle: {
-    fontSize: 18,
-    fontWeight: "bold",
-    color: "#333",
-  },
-  compatLoadingContainer: {
-    alignItems: "center",
-    justifyContent: "center",
-    paddingVertical: 60,
-  },
-  compatScoreCard: {
-    backgroundColor: "white",
-    borderRadius: 20,
-    padding: 24,
-    marginBottom: 16,
-    elevation: 2,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.08,
-    shadowRadius: 5,
-  },
-  compatScoreRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-around",
-  },
-  compatPetInfo: {
-    alignItems: "center",
-    width: 80,
-  },
-  compatPetAvatar: {
-    width: 56,
-    height: 56,
-    borderRadius: 28,
-    marginBottom: 6,
-  },
-  compatPetName: {
-    fontSize: 13,
-    fontWeight: "600",
-    color: "#333",
-    textAlign: "center",
-  },
-  compatScoreCircle: {
-    width: 90,
-    height: 90,
-    borderRadius: 45,
-    borderWidth: 4,
-    justifyContent: "center",
-    alignItems: "center",
-    backgroundColor: "white",
-  },
-  compatScoreValue: {
-    fontSize: 24,
-    fontWeight: "bold",
-  },
-  compatScoreLabel: {
-    fontSize: 11,
-    color: "#9CA3AF",
-    fontWeight: "600",
-  },
-  matchReasonRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 10,
-    paddingVertical: 8,
-    borderBottomWidth: 1,
-    borderBottomColor: "#F3F4F6",
-  },
-  matchReasonText: {
-    fontSize: 15,
-    color: "#333",
+  modalScreen: {
     flex: 1,
-  },
-  compatFactorRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    paddingVertical: 10,
-    borderBottomWidth: 1,
-    borderBottomColor: "#F3F4F6",
-  },
-  compatFactorLabel: {
-    fontSize: 15,
-    fontWeight: "600",
-    color: "#333",
-  },
-  compatFactorDetail: {
-    fontSize: 13,
-    color: "#777",
-    marginTop: 2,
-  },
-  compatMatchesSection: {
-    marginTop: 12,
-    paddingTop: 12,
-    borderTopWidth: 1,
-    borderTopColor: "#F3F4F6",
-  },
-  compatMatchesSectionTitle: {
-    fontSize: 14,
-    fontWeight: "600",
-    color: "#555",
-    marginBottom: 8,
-  },
-  reverseScoreContainer: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    paddingVertical: 10,
-    borderBottomWidth: 1,
-    borderBottomColor: "#F3F4F6",
-    marginBottom: 8,
-  },
-  reverseScoreLabel: {
-    fontSize: 14,
-    color: "#555",
-    flex: 1,
-    marginRight: 12,
-  },
-  reverseScoreBadge: {
-    borderRadius: 16,
-    paddingVertical: 6,
-    paddingHorizontal: 14,
-  },
-  reverseScoreValue: {
-    fontSize: 18,
-    fontWeight: "bold",
-  },
-  // View detail button
-  viewDetailButton: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
-    marginTop: 12,
-    paddingVertical: 10,
-    borderRadius: 12,
-    backgroundColor: "#FFF5F3",
-    gap: 4,
-  },
-  viewDetailButtonText: {
-    fontSize: 14,
-    fontWeight: "600",
-    color: "#FF6B4A",
-  },
-  // Modal styles
-  modalSafeArea: {
-    flex: 1,
-    backgroundColor: "#FDF4F4",
+    backgroundColor: "#F8F1EF",
   },
   modalHeader: {
+    backgroundColor: "#FFFFFF",
+    paddingHorizontal: 16,
+    paddingVertical: 14,
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
-    paddingHorizontal: 20,
-    paddingVertical: 16,
-    borderBottomWidth: 1,
-    borderBottomColor: "#F3F4F6",
-    backgroundColor: "white",
   },
   modalTitle: {
-    fontSize: 20,
-    fontWeight: "bold",
-    color: "#333",
+    fontSize: 18,
+    color: "#302C3A",
+    fontWeight: "700",
   },
   modalBody: {
-    flex: 1,
-    padding: 20,
+    paddingHorizontal: 16,
+    paddingTop: 10,
+  },
+  recordItem: {
+    borderRadius: 12,
+    backgroundColor: "#FFFFFF",
+    padding: 12,
+    marginBottom: 10,
+  },
+  recordTitle: {
+    fontSize: 14,
+    color: "#3B3645",
+    fontWeight: "700",
+  },
+  recordSub: {
+    marginTop: 3,
+    fontSize: 12,
+    color: "#9693A0",
   },
 });

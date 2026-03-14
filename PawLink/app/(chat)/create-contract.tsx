@@ -441,8 +441,8 @@ export default function CreateContractScreen() {
       contentContainerStyle={{ paddingBottom: 24 }}
     >
       <Text className="text-sm text-gray-500 mb-4">
-        Select one or more ways you&apos;d like to be compensated. You can combine
-        them!
+        Select one or more ways you&apos;d like to be compensated. You can
+        combine them!
       </Text>
 
       <CompensationOption
@@ -786,7 +786,9 @@ export default function CreateContractScreen() {
         )}
 
         {shooterSelectionError && (
-          <Text className="text-red-600 text-xs mt-2">{shooterSelectionError}</Text>
+          <Text className="text-red-600 text-xs mt-2">
+            {shooterSelectionError}
+          </Text>
         )}
 
         {loadingShooters ? (
@@ -834,7 +836,9 @@ export default function CreateContractScreen() {
                         </Text>
                         <Text className="text-xs text-gray-500">
                           {(shooter.experience_years ?? 0).toString()} yrs exp •{" "}
-                          {shooter.rating ? `${shooter.rating.toFixed(1)} rating` : "No ratings yet"}
+                          {shooter.rating
+                            ? `${shooter.rating.toFixed(1)} rating`
+                            : "No ratings yet"}
                         </Text>
                       </View>
 
