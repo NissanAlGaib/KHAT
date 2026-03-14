@@ -3,22 +3,37 @@
 @section('title', 'Subscription & Billing - KHAT Admin')
 
 @section('content')
-<h1 class="text-3xl font-bold text-gray-900 mb-6">Subscription & Billing</h1>
+<h1 class="text-3xl font-bold text-gray-900 mb-2">Subscription & Billing</h1>
+<p class="text-sm text-gray-500 mb-6">Monitor subscription plans, revenue estimates, and billing activity</p>
+
+<!-- Date Range Filter -->
+@include('admin.partials.filter-bar', [
+'action' => route('admin.billing'),
+'showSearch' => false,
+'filters' => [],
+'dateFilter' => true,
+'datePresets' => true,
+'exports' => false,
+'perPage' => false,
+])
 
 <div class="grid grid-cols-1 md:grid-cols-4 gap-6 mb-6">
-    <div class="bg-white p-5 rounded-xl shadow-sm border border-gray-50">
+    <div class="bg-white p-5 rounded-xl shadow-sm border border-gray-50 hover:shadow-md transition-all cursor-pointer group" onclick="openStatsDetail('free_users')">
         <div class="flex justify-between items-start mb-2">
             <span class="text-sm font-semibold text-gray-500">Free Tier Users</span>
-            <i data-lucide="users" class="w-5 h-5 text-gray-400"></i>
+            <div class="w-10 h-10 rounded-lg bg-gray-100 flex items-center justify-center group-hover:scale-110 transition-transform"><i data-lucide="users" class="w-5 h-5 text-gray-600"></i></div>
         </div>
         <p class="text-3xl font-bold text-gray-900 mb-1">{{ number_format($freeUsers) }}</p>
         <span class="text-sm text-gray-500">{{ $freePercentage }}% of total users</span>
+        @if($hasDateFilter && $filteredFreeUsers !== null)
+        <p class="text-xs text-blue-500 font-semibold mt-1">{{ number_format($filteredFreeUsers) }} in selected period</p>
+        @endif
     </div>
 
-    <div class="bg-white p-5 rounded-xl shadow-sm border border-gray-50">
+    <div class="bg-white p-5 rounded-xl shadow-sm border border-gray-50 hover:shadow-md transition-all cursor-pointer group" onclick="openStatsDetail('match_payments')">
         <div class="flex justify-between items-start mb-2">
             <span class="text-sm font-semibold text-gray-500">Free Tier Match Payments</span>
-            <i data-lucide="heart" class="w-5 h-5 text-gray-400"></i>
+            <div class="w-10 h-10 rounded-lg bg-pink-100 flex items-center justify-center group-hover:scale-110 transition-transform"><i data-lucide="heart" class="w-5 h-5 text-pink-600"></i></div>
         </div>
         <p class="text-3xl font-bold text-gray-900 mb-1">{{ number_format($matchRequestPayments) }}</p>
         <span class="text-sm {{ $matchRequestGrowth >= 0 ? 'text-green-500' : 'text-red-500' }} font-medium">
@@ -26,26 +41,32 @@
         </span>
     </div>
 
-    <div class="bg-white p-5 rounded-xl shadow-sm border border-gray-50">
+    <div class="bg-white p-5 rounded-xl shadow-sm border border-gray-50 hover:shadow-md transition-all cursor-pointer group" onclick="openStatsDetail('standard_billing')">
         <div class="flex justify-between items-start mb-2">
             <span class="text-sm font-semibold text-gray-500">Standard Subscribers</span>
-            <i data-lucide="star" class="w-5 h-5 text-gray-400"></i>
+            <div class="w-10 h-10 rounded-lg bg-orange-100 flex items-center justify-center group-hover:scale-110 transition-transform"><i data-lucide="star" class="w-5 h-5 text-orange-600"></i></div>
         </div>
         <p class="text-3xl font-bold text-gray-900 mb-1">{{ number_format($standardUsers) }}</p>
         <span class="text-sm {{ $standardGrowth >= 0 ? 'text-green-500' : 'text-red-500' }} font-medium">
             {{ $standardGrowth >= 0 ? '+' : '' }}{{ $standardGrowth }}% this month
         </span>
+        @if($hasDateFilter && $filteredStandardUsers !== null)
+        <p class="text-xs text-blue-500 font-semibold mt-1">{{ number_format($filteredStandardUsers) }} in selected period</p>
+        @endif
     </div>
 
-    <div class="bg-white p-5 rounded-xl shadow-sm border border-gray-50">
+    <div class="bg-white p-5 rounded-xl shadow-sm border border-gray-50 hover:shadow-md transition-all cursor-pointer group" onclick="openStatsDetail('premium_billing')">
         <div class="flex justify-between items-start mb-2">
             <span class="text-sm font-semibold text-gray-500">Premium Subscribers</span>
-            <i data-lucide="crown" class="w-5 h-5 text-gray-400"></i>
+            <div class="w-10 h-10 rounded-lg bg-amber-100 flex items-center justify-center group-hover:scale-110 transition-transform"><i data-lucide="crown" class="w-5 h-5 text-amber-600"></i></div>
         </div>
         <p class="text-3xl font-bold text-gray-900 mb-1">{{ number_format($premiumUsers) }}</p>
         <span class="text-sm {{ $premiumGrowth >= 0 ? 'text-green-500' : 'text-red-500' }} font-medium">
             {{ $premiumGrowth >= 0 ? '+' : '' }}{{ $premiumGrowth }}% this month
         </span>
+        @if($hasDateFilter && $filteredPremiumUsers !== null)
+        <p class="text-xs text-blue-500 font-semibold mt-1">{{ number_format($filteredPremiumUsers) }} in selected period</p>
+        @endif
     </div>
 </div>
 
@@ -115,16 +136,16 @@
     <div class="overflow-x-auto">
         <table class="w-full text-left">
             <thead>
-                <tr class="border-b border-gray-200">
-                    <th class="px-4 py-3 text-sm font-semibold text-gray-600">User</th>
-                    <th class="px-4 py-3 text-sm font-semibold text-gray-600">Email</th>
-                    <th class="px-4 py-3 text-sm font-semibold text-gray-600">Plan</th>
-                    <th class="px-4 py-3 text-sm font-semibold text-gray-600">Updated</th>
+                <tr class="bg-[#E75234] text-white rounded-t-lg">
+                    <th class="px-4 py-3 text-sm font-semibold text-white">User</th>
+                    <th class="px-4 py-3 text-sm font-semibold text-white">Email</th>
+                    <th class="px-4 py-3 text-sm font-semibold text-white">Plan</th>
+                    <th class="px-4 py-3 text-sm font-semibold text-white">Updated</th>
                 </tr>
             </thead>
             <tbody class="divide-y divide-gray-100">
                 @foreach($recentSubscriptions as $subscription)
-                <tr class="hover:bg-gray-50">
+                <tr class="hover:bg-orange-50/50">
                     <td class="px-4 py-3">
                         <div class="flex items-center gap-3">
                             <div class="w-8 h-8 rounded-full bg-orange-100 flex items-center justify-center text-orange-600 font-bold text-sm">
@@ -136,11 +157,11 @@
                     <td class="px-4 py-3 text-sm text-gray-600">{{ $subscription->email }}</td>
                     <td class="px-4 py-3">
                         @php
-                            $tierColors = [
-                                'standard' => 'bg-orange-100 text-orange-700',
-                                'premium' => 'bg-yellow-100 text-yellow-700',
-                            ];
-                            $tierColor = $tierColors[$subscription->subscription_tier] ?? 'bg-gray-100 text-gray-700';
+                        $tierColors = [
+                        'standard' => 'bg-orange-100 text-orange-700',
+                        'premium' => 'bg-yellow-100 text-yellow-700',
+                        ];
+                        $tierColor = $tierColors[$subscription->subscription_tier] ?? 'bg-gray-100 text-gray-700';
                         @endphp
                         <span class="inline-flex items-center px-2.5 py-1 rounded-md text-xs font-semibold {{ $tierColor }}">
                             {{ ucfirst($subscription->subscription_tier) }}
@@ -182,7 +203,9 @@
                 responsive: true,
                 maintainAspectRatio: false,
                 plugins: {
-                    legend: { display: false }
+                    legend: {
+                        display: false
+                    }
                 },
                 cutout: '70%'
             }

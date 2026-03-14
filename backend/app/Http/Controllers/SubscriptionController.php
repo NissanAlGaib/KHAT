@@ -149,7 +149,7 @@ class SubscriptionController extends Controller
     /**
      * Get available subscription plans
      */
-    public function getPlans()
+    public function getPlans(Request $request)
     {
         $plans = [
             [
@@ -158,12 +158,18 @@ class SubscriptionController extends Controller
                 'monthly_price' => 199,
                 'yearly_price' => 1990,
                 'features' => [
-                    'Up to 3 pet profiles',
-                    'Basic matching algorithm',
+                    'Up to 5 pet profiles',
+                    '20 matches per month',
+                    '5 AI generations per day',
                     'Standard support',
                     'Access to all pets',
                     'View shooter profiles',
                 ],
+                'highlighted' => false,
+                'tier_level' => 1,
+                'color_primary' => '#3B82F6',
+                'color_secondary' => '#93C5FD',
+                'icon' => 'star',
             ],
             [
                 'id' => 'premium',
@@ -172,7 +178,8 @@ class SubscriptionController extends Controller
                 'yearly_price' => 4990,
                 'features' => [
                     'Unlimited pet profiles',
-                    'Advanced AI matching',
+                    'Unlimited matches',
+                    '20 AI generations per day',
                     'Priority support',
                     'Featured pet listings',
                     'Verified badge',
@@ -181,13 +188,28 @@ class SubscriptionController extends Controller
                     'Direct shooter booking',
                 ],
                 'highlighted' => true,
+                'tier_level' => 2,
+                'color_primary' => '#F59E0B',
+                'color_secondary' => '#FCD34D',
+                'icon' => 'award',
             ],
         ];
+
+        // Include current subscription info if user is authenticated
+        $currentSubscription = null;
+        if ($user = $request->user()) {
+            $currentSubscription = [
+                'tier' => $user->subscription_tier ?? 'free',
+                'expires_at' => $user->subscription_expires_at ?? null,
+                'is_active' => in_array($user->subscription_tier, ['basic', 'standard', 'premium']),
+            ];
+        }
 
         return response()->json([
             'success' => true,
             'data' => $plans,
             'payment_configured' => $this->payMongoService->isConfigured(),
+            'current_subscription' => $currentSubscription,
         ]);
     }
 

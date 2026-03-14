@@ -4,6 +4,7 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Builder;
 
 class BreedingContract extends Model
@@ -239,15 +240,15 @@ class BreedingContract extends Model
         // In these cases, the male pet owner can complete.
         $this->load('conversation.matchRequest.requesterPet', 'conversation.matchRequest.targetPet');
         $matchRequest = $this->conversation->matchRequest;
-        
+
         // Find the male pet owner
         $requesterPet = $matchRequest->requesterPet;
         $targetPet = $matchRequest->targetPet;
-        
-        $malePetOwnerId = $requesterPet->sex === 'male' 
-            ? $requesterPet->user_id 
+
+        $malePetOwnerId = $requesterPet->sex === 'male'
+            ? $requesterPet->user_id
             : $targetPet->user_id;
-        
+
         return $malePetOwnerId === $user->id;
     }
 
@@ -280,15 +281,15 @@ class BreedingContract extends Model
         // In these cases, the male pet owner can input.
         $this->load('conversation.matchRequest.requesterPet', 'conversation.matchRequest.targetPet');
         $matchRequest = $this->conversation->matchRequest;
-        
+
         // Find the male pet owner
         $requesterPet = $matchRequest->requesterPet;
         $targetPet = $matchRequest->targetPet;
-        
-        $malePetOwnerId = $requesterPet->sex === 'male' 
-            ? $requesterPet->user_id 
+
+        $malePetOwnerId = $requesterPet->sex === 'male'
+            ? $requesterPet->user_id
             : $targetPet->user_id;
-        
+
         return $malePetOwnerId === $user->id;
     }
 
@@ -299,14 +300,14 @@ class BreedingContract extends Model
     {
         $this->load('conversation.matchRequest.requesterPet', 'conversation.matchRequest.targetPet');
         $matchRequest = $this->conversation->matchRequest;
-        
+
         $requesterPet = $matchRequest->requesterPet;
         $targetPet = $matchRequest->targetPet;
-        
+
         if ($requesterPet->sex === 'male') {
             return ['sire' => $requesterPet, 'dam' => $targetPet];
         }
-        
+
         return ['sire' => $targetPet, 'dam' => $requesterPet];
     }
 
@@ -354,5 +355,58 @@ class BreedingContract extends Model
         return static::accessibleByUser($userId)
             ->where('conversation_id', $conversationId)
             ->first();
+    }
+
+    /**
+     * Get the pool transactions for this contract.
+     */
+    public function poolTransactions(): HasMany
+    {
+        return $this->hasMany(PoolTransaction::class, 'contract_id');
+    }
+
+    /**
+     * Get the disputes for this contract.
+     */
+    public function disputes(): HasMany
+    {
+        return $this->hasMany(Dispute::class, 'contract_id');
+    }
+
+    /**
+     * Get the payments for this contract.
+     */
+    public function payments(): HasMany
+    {
+        return $this->hasMany(Payment::class, 'contract_id');
+    }
+
+    /**
+     * Calculate the current pool balance for this contract.
+     * (Total deposits - total releases/refunds)
+     */
+    public function getPoolBalanceAttribute(): float
+    {
+        $deposits = $this->poolTransactions()
+            ->whereIn('type', [PoolTransaction::TYPE_DEPOSIT, PoolTransaction::TYPE_HOLD, PoolTransaction::TYPE_FEE_DEDUCTION, PoolTransaction::TYPE_CANCELLATION_PENALTY])
+            ->where('status', '!=', PoolTransaction::STATUS_CANCELLED)
+            ->sum('amount');
+
+        $releases = $this->poolTransactions()
+            ->whereIn('type', [PoolTransaction::TYPE_RELEASE, PoolTransaction::TYPE_REFUND])
+            ->where('status', '!=', PoolTransaction::STATUS_CANCELLED)
+            ->sum('amount');
+
+        return (float) $deposits - (float) $releases;
+    }
+
+    /**
+     * Check if this contract has any active (unresolved) disputes.
+     */
+    public function hasActiveDispute(): bool
+    {
+        return $this->disputes()
+            ->whereIn('status', [Dispute::STATUS_OPEN, Dispute::STATUS_UNDER_REVIEW])
+            ->exists();
     }
 }

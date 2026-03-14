@@ -83,7 +83,8 @@ export default function AddCertificateScreen() {
   const [issueDate, setIssueDate] = useState(new Date());
   const [expirationDate, setExpirationDate] = useState(new Date());
   const [showIssueDatePicker, setShowIssueDatePicker] = useState(false);
-  const [showExpirationDatePicker, setShowExpirationDatePicker] = useState(false);
+  const [showExpirationDatePicker, setShowExpirationDatePicker] =
+    useState(false);
 
   const formatDate = (date: Date) => {
     const day = String(date.getDate()).padStart(2, "0");
@@ -153,7 +154,10 @@ export default function AddCertificateScreen() {
       formData.append(`${prefix}_number`, certificateNumber);
       formData.append(`${prefix}_issuing_authority`, issuingAuthority);
       formData.append(`${prefix}_issue_date`, issueDate.toISOString());
-      formData.append(`${prefix}_expiration_date`, expirationDate.toISOString());
+      formData.append(
+        `${prefix}_expiration_date`,
+        expirationDate.toISOString(),
+      );
 
       await axiosInstance.post("/api/verification/submit", formData, {
         headers: {
@@ -163,7 +167,8 @@ export default function AddCertificateScreen() {
 
       showAlert({
         title: "Success!",
-        message: "Your certificate has been submitted for review. We'll notify you once it's verified.",
+        message:
+          "Your certificate has been submitted for review. We'll notify you once it's verified.",
         type: "success",
         buttons: [
           {
@@ -199,11 +204,15 @@ export default function AddCertificateScreen() {
               <Feather name="arrow-left" size={20} color="#374151" />
             </TouchableOpacity>
             <View className="ml-4">
-              <Text className="text-2xl font-bold text-gray-900">Add Certificate</Text>
+              <Text className="text-2xl font-bold text-gray-900">
+                Add Certificate
+              </Text>
               <Text className="text-sm text-gray-500">{config.title}</Text>
             </View>
           </View>
-          <View className={`w-10 h-10 rounded-full ${config.bgColor} items-center justify-center`}>
+          <View
+            className={`w-10 h-10 rounded-full ${config.bgColor} items-center justify-center`}
+          >
             <Feather name={config.icon} size={20} color={config.iconColor} />
           </View>
         </View>
@@ -214,13 +223,15 @@ export default function AddCertificateScreen() {
         <View className="absolute inset-0 bg-black/50 z-50 items-center justify-center">
           <View className="bg-white p-6 rounded-2xl items-center">
             <ActivityIndicator size="large" color="#FF6B4A" />
-            <Text className="mt-4 text-lg font-semibold">Submitting certificate...</Text>
+            <Text className="mt-4 text-lg font-semibold">
+              Submitting certificate...
+            </Text>
           </View>
         </View>
       )}
 
       <KeyboardAvoidingView
-        behavior={Platform.OS === "ios" ? "padding" : "height"}
+        behavior={Platform.OS === "ios" ? "padding" : undefined}
         className="flex-1"
         keyboardVerticalOffset={Platform.OS === "ios" ? 100 : 0}
       >
@@ -232,7 +243,9 @@ export default function AddCertificateScreen() {
         >
           <View className="px-5 pt-6">
             {/* Info Banner */}
-            <View className={`${config.infoBgColor} rounded-2xl p-4 mb-6 flex-row items-start`}>
+            <View
+              className={`${config.infoBgColor} rounded-2xl p-4 mb-6 flex-row items-start`}
+            >
               <Feather name="info" size={18} color={config.iconColor} />
               <Text className={`text-sm ${config.infoTextColor} ml-3 flex-1`}>
                 {config.infoMessage}
@@ -297,7 +310,10 @@ export default function AddCertificateScreen() {
                   >
                     <View className="flex-row items-center flex-1">
                       <Feather name="calendar" size={16} color="#9CA3AF" />
-                      <Text className="text-sm text-gray-900 ml-2" numberOfLines={1}>
+                      <Text
+                        className="text-sm text-gray-900 ml-2"
+                        numberOfLines={1}
+                      >
                         {formatDate(issueDate)}
                       </Text>
                     </View>
@@ -330,7 +346,10 @@ export default function AddCertificateScreen() {
                   >
                     <View className="flex-row items-center flex-1">
                       <Feather name="calendar" size={16} color="#9CA3AF" />
-                      <Text className="text-sm text-gray-900 ml-2" numberOfLines={1}>
+                      <Text
+                        className="text-sm text-gray-900 ml-2"
+                        numberOfLines={1}
+                      >
                         {formatDate(expirationDate)}
                       </Text>
                     </View>

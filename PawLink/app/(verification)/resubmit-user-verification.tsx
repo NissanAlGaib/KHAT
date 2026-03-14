@@ -37,7 +37,8 @@ export default function ResubmitUserVerificationScreen() {
   const [issueDate, setIssueDate] = useState<Date>(new Date());
   const [expirationDate, setExpirationDate] = useState<Date>(new Date());
   const [showIssueDatePicker, setShowIssueDatePicker] = useState(false);
-  const [showExpirationDatePicker, setShowExpirationDatePicker] = useState(false);
+  const [showExpirationDatePicker, setShowExpirationDatePicker] =
+    useState(false);
 
   const isIdDocument = authType === "id";
   const title = `Resubmit ${documentType || "Document"}`;
@@ -91,14 +92,14 @@ export default function ResubmitUserVerificationScreen() {
       // Get file extension from URI
       const uriParts = document.split(".");
       const fileExtension = uriParts[uriParts.length - 1].toLowerCase();
-      
+
       const mimeTypes: Record<string, string> = {
         jpg: "image/jpeg",
         jpeg: "image/jpeg",
         png: "image/png",
         pdf: "application/pdf",
       };
-      
+
       const mimeType = mimeTypes[fileExtension] || "image/jpeg";
       const filename = `document_${Date.now()}.${fileExtension || "jpg"}`;
 
@@ -111,15 +112,20 @@ export default function ResubmitUserVerificationScreen() {
 
       if (documentNumber) formData.append("document_number", documentNumber);
       if (documentName) formData.append("document_name", documentName);
-      if (issuingAuthority) formData.append("issuing_authority", issuingAuthority);
+      if (issuingAuthority)
+        formData.append("issuing_authority", issuingAuthority);
       formData.append("issue_date", issueDate.toISOString());
       formData.append("expiration_date", expirationDate.toISOString());
 
-      await axiosInstance.post(`/api/verification/${authId}/resubmit`, formData, {
-        headers: {
-          "Content-Type": "multipart/form-data",
+      await axiosInstance.post(
+        `/api/verification/${authId}/resubmit`,
+        formData,
+        {
+          headers: {
+            "Content-Type": "multipart/form-data",
+          },
         },
-      });
+      );
 
       // Refresh notifications
       await refreshNotifications();
@@ -127,7 +133,8 @@ export default function ResubmitUserVerificationScreen() {
 
       showAlert({
         title: "Success",
-        message: "Your document has been resubmitted for review. We'll notify you once it's reviewed.",
+        message:
+          "Your document has been resubmitted for review. We'll notify you once it's reviewed.",
         type: "success",
         buttons: [
           {
@@ -170,8 +177,14 @@ export default function ResubmitUserVerificationScreen() {
               <Text className="text-sm text-gray-500">{documentType}</Text>
             </View>
           </View>
-          <View className={`w-10 h-10 rounded-full ${colors.bg} items-center justify-center`}>
-            <Feather name={getDocumentIcon() as any} size={20} color={colors.icon} />
+          <View
+            className={`w-10 h-10 rounded-full ${colors.bg} items-center justify-center`}
+          >
+            <Feather
+              name={getDocumentIcon() as any}
+              size={20}
+              color={colors.icon}
+            />
           </View>
         </View>
       </View>
@@ -189,7 +202,7 @@ export default function ResubmitUserVerificationScreen() {
       )}
 
       <KeyboardAvoidingView
-        behavior={Platform.OS === "ios" ? "padding" : "height"}
+        behavior={Platform.OS === "ios" ? "padding" : undefined}
         className="flex-1"
         keyboardVerticalOffset={Platform.OS === "ios" ? 100 : 0}
       >
@@ -208,7 +221,8 @@ export default function ResubmitUserVerificationScreen() {
                   Previous submission was rejected
                 </Text>
                 <Text className="text-sm text-red-700 mt-1">
-                  Please upload a clear, valid document and ensure all information is correct.
+                  Please upload a clear, valid document and ensure all
+                  information is correct.
                 </Text>
               </View>
             </View>
@@ -273,7 +287,10 @@ export default function ResubmitUserVerificationScreen() {
                   >
                     <View className="flex-row items-center flex-1">
                       <Feather name="calendar" size={16} color="#9CA3AF" />
-                      <Text className="text-sm text-gray-900 ml-2" numberOfLines={1}>
+                      <Text
+                        className="text-sm text-gray-900 ml-2"
+                        numberOfLines={1}
+                      >
                         {formatDate(issueDate)}
                       </Text>
                     </View>
@@ -306,7 +323,10 @@ export default function ResubmitUserVerificationScreen() {
                   >
                     <View className="flex-row items-center flex-1">
                       <Feather name="calendar" size={16} color="#9CA3AF" />
-                      <Text className="text-sm text-gray-900 ml-2" numberOfLines={1}>
+                      <Text
+                        className="text-sm text-gray-900 ml-2"
+                        numberOfLines={1}
+                      >
                         {formatDate(expirationDate)}
                       </Text>
                     </View>

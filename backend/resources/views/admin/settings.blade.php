@@ -3,7 +3,8 @@
 @section('title', 'Settings - KHAT Admin')
 
 @section('content')
-<h1 class="text-3xl font-bold text-gray-900 mb-6">Settings</h1>
+<h1 class="text-3xl font-bold text-gray-900 mb-2">Settings</h1>
+<p class="text-sm text-gray-500 mb-6">Configure your admin panel preferences. Changes will take effect upon implementation.</p>
 
 <div class="space-y-6">
     <div class="bg-white p-6 rounded-xl shadow-sm border border-gray-100">

@@ -7,31 +7,91 @@ import {
   Image,
   StyleSheet,
   Dimensions,
+  ActivityIndicator,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { Feather, Ionicons } from "@expo/vector-icons";
+import { Feather, Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
 import { useRouter, useLocalSearchParams } from "expo-router";
 import { LinearGradient } from "expo-linear-gradient";
 import { getStorageUrl } from "@/utils/imageUrl";
+import { generateOffspringImage } from "@/services/aiImageService";
+import { useAlert } from "@/hooks/useAlert";
 
 const { width } = Dimensions.get("window");
 
 export default function AIOffspringScreen() {
   const router = useRouter();
   const params = useLocalSearchParams();
-  
+  const { showAlert } = useAlert();
+
+  const [generatedImage, setGeneratedImage] = React.useState<string | null>(
+    null,
+  );
+  const [isGenerating, setIsGenerating] = React.useState(false);
+  const [error, setError] = React.useState<string | null>(null);
+  const [remainingGenerations, setRemainingGenerations] = React.useState<
+    number | null
+  >(null);
+
   // Get pet data from params
-  const pet1Name = params.pet1Name as string || "Pet 1";
-  const pet2Name = params.pet2Name as string || "Pet 2";
+  const pet1Id = parseInt(params.pet1Id as string, 10);
+  const pet2Id = parseInt(params.pet2Id as string, 10);
+  const pet1Name = (params.pet1Name as string) || "Pet 1";
+  const pet2Name = (params.pet2Name as string) || "Pet 2";
   const pet1Photo = params.pet1Photo as string;
   const pet2Photo = params.pet2Photo as string;
-  const pet1Breed = params.pet1Breed as string || "Unknown";
-  const pet2Breed = params.pet2Breed as string || "Unknown";
-  const compatibilityScore = params.compatibilityScore as string || "85";
+  const pet1Breed = (params.pet1Breed as string) || "Unknown";
+  const pet2Breed = (params.pet2Breed as string) || "Unknown";
+  const compatibilityScore = (params.compatibilityScore as string) || "85";
+
+  const handleGenerate = async () => {
+    if (!pet1Id || !pet2Id) {
+      showAlert({
+        title: "Error",
+        message: "Missing pet information. Please try again.",
+        type: "error",
+      });
+      return;
+    }
+
+    setIsGenerating(true);
+    setError(null);
+
+    try {
+      const response = await generateOffspringImage(pet1Id, pet2Id);
+
+      if (response.success && response.image_url) {
+        setGeneratedImage(response.image_url);
+        if (response.remaining_generations !== undefined) {
+          setRemainingGenerations(response.remaining_generations);
+        }
+      } else {
+        const msg = response.message || "Failed to generate image.";
+        setError(msg);
+        showAlert({
+          title: "Generation Failed",
+          message: msg,
+          type: "error",
+        });
+      }
+    } catch (err) {
+      const msg =
+        err instanceof Error ? err.message : "An unexpected error occurred.";
+      setError(msg);
+      showAlert({
+        title: "Error",
+        message: msg,
+        type: "error",
+      });
+    } finally {
+      setIsGenerating(false);
+    }
+  };
 
   // Mock offspring traits - in a real app, this would come from an AI service
   const offspringTraits = {
-    predictedBreed: pet1Breed === pet2Breed ? pet1Breed : `${pet1Breed} x ${pet2Breed} Mix`,
+    predictedBreed:
+      pet1Breed === pet2Breed ? pet1Breed : `${pet1Breed} x ${pet2Breed} Mix`,
     coatColor: "Mixed patterns possible",
     size: "Medium",
     temperament: "Friendly & Active",
@@ -79,7 +139,11 @@ export default function AIOffspringScreen() {
                   />
                 ) : (
                   <View style={[styles.parentImage, styles.placeholderImage]}>
-                    <Text style={styles.placeholderText}>🐾</Text>
+                    <MaterialCommunityIcons
+                      name="paw"
+                      size={24}
+                      color="#9CA3AF"
+                    />
                   </View>
                 )}
               </View>
@@ -109,7 +173,11 @@ export default function AIOffspringScreen() {
                   />
                 ) : (
                   <View style={[styles.parentImage, styles.placeholderImage]}>
-                    <Text style={styles.placeholderText}>🐾</Text>
+                    <MaterialCommunityIcons
+                      name="paw"
+                      size={24}
+                      color="#9CA3AF"
+                    />
                   </View>
                 )}
               </View>
@@ -133,28 +201,62 @@ export default function AIOffspringScreen() {
             <Text style={styles.sectionTitle}>Predicted Offspring</Text>
           </View>
 
-          {/* Offspring Image Placeholder */}
+          {/* Offspring Image Area */}
           <View style={styles.offspringImageContainer}>
             <LinearGradient
               colors={["#FFE0D8", "#FFF4F0"]}
               style={styles.offspringImageWrapper}
             >
-              <View style={styles.offspringImagePlaceholder}>
-                <Ionicons name="sparkles" size={40} color="#FF6B4A" />
-                <Text style={styles.offspringImageText}>
-                  AI Generated Preview
-                </Text>
-                <Text style={styles.offspringImageSubtext}>
-                  Coming Soon
-                </Text>
-              </View>
+              {generatedImage ? (
+                <Image
+                  source={{ uri: generatedImage }}
+                  style={styles.generatedImage}
+                  resizeMode="cover"
+                />
+              ) : (
+                <View style={styles.offspringImagePlaceholder}>
+                  {isGenerating ? (
+                    <>
+                      <ActivityIndicator size="large" color="#FF6B4A" />
+                      <Text style={styles.offspringImageText}>
+                        Generating offspring preview...
+                      </Text>
+                      <Text style={styles.offspringImageSubtext}>
+                        This may take a few moments
+                      </Text>
+                    </>
+                  ) : (
+                    <>
+                      <Ionicons name="sparkles" size={40} color="#FF6B4A" />
+                      <Text style={styles.offspringImageText}>
+                        AI Generated Preview
+                      </Text>
+                      <TouchableOpacity
+                        style={styles.generateButton}
+                        onPress={handleGenerate}
+                        disabled={isGenerating}
+                      >
+                        <Text style={styles.generateButtonText}>
+                          Generate Preview
+                        </Text>
+                      </TouchableOpacity>
+                      {remainingGenerations !== null && (
+                        <Text style={styles.remainingText}>
+                          {remainingGenerations} generations remaining today
+                        </Text>
+                      )}
+                      {error && <Text style={styles.errorText}>{error}</Text>}
+                    </>
+                  )}
+                </View>
+              )}
             </LinearGradient>
           </View>
 
           {/* Predicted Traits */}
           <View style={styles.traitsCard}>
             <Text style={styles.traitsTitle}>Predicted Traits</Text>
-            
+
             <TraitRow
               icon="paw-outline"
               label="Breed"
@@ -190,10 +292,14 @@ export default function AIOffspringScreen() {
 
           {/* Disclaimer */}
           <View style={styles.disclaimerContainer}>
-            <Ionicons name="information-circle-outline" size={20} color="#888" />
+            <Ionicons
+              name="information-circle-outline"
+              size={20}
+              color="#888"
+            />
             <Text style={styles.disclaimerText}>
-              This prediction is generated by AI and is for entertainment purposes only.
-              Actual offspring characteristics may vary.
+              This prediction is generated by AI and is for entertainment
+              purposes only. Actual offspring characteristics may vary.
             </Text>
           </View>
         </View>
@@ -419,5 +525,33 @@ const styles = StyleSheet.create({
     marginLeft: 8,
     flex: 1,
     lineHeight: 18,
+  },
+  generatedImage: {
+    width: width - 80,
+    height: width - 80,
+    borderRadius: 20,
+  },
+  generateButton: {
+    backgroundColor: "#FF6B4A",
+    paddingVertical: 12,
+    paddingHorizontal: 24,
+    borderRadius: 25,
+    marginTop: 15,
+  },
+  generateButtonText: {
+    color: "white",
+    fontWeight: "bold",
+    fontSize: 16,
+  },
+  remainingText: {
+    fontSize: 12,
+    color: "#888",
+    marginTop: 8,
+  },
+  errorText: {
+    fontSize: 12,
+    color: "red",
+    marginTop: 8,
+    textAlign: "center",
   },
 });

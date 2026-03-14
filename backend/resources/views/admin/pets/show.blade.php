@@ -37,6 +37,10 @@
     <div class="flex justify-between items-start">
         <h1 class="text-3xl font-bold text-gray-900">Pet Profile: {{ $pet->name }}</h1>
         <div class="flex gap-3">
+            <a href="{{ route('admin.vaccination-shots.pet', $pet->pet_id) }}" class="px-4 py-2 bg-amber-50 text-amber-700 text-sm font-medium rounded-lg hover:bg-amber-100 transition border border-amber-200">
+                <i data-lucide="syringe" class="w-4 h-4 inline mr-1"></i>
+                All Vaccination Shots
+            </a>
             <button onclick="openDocumentTrackerModal()" class="px-4 py-2 bg-[#E75234] text-white text-sm font-medium rounded-lg hover:bg-[#d14024] transition">
                 <i data-lucide="file-text" class="w-4 h-4 inline mr-1"></i>
                 Document Tracker
@@ -49,6 +53,43 @@
                 <i data-lucide="trash-2" class="w-4 h-4 inline mr-1"></i>
                 Delete Pet
             </button>
+            {{-- Testing Tools Dropdown --}}
+            <div class="relative">
+                <button onclick="document.getElementById('testingToolsDropdown').classList.toggle('hidden')" class="px-4 py-2 bg-amber-100 text-amber-700 text-sm font-medium rounded-lg hover:bg-amber-200 transition flex items-center gap-1">
+                    <i data-lucide="flask-conical" class="w-4 h-4"></i>
+                    Testing Tools
+                    <i data-lucide="chevron-down" class="w-3 h-3"></i>
+                </button>
+                <div id="testingToolsDropdown" class="hidden absolute right-0 mt-2 w-56 bg-white rounded-lg shadow-lg border border-gray-200 py-2 z-50">
+                    @if($pet->cooldown_until && $pet->cooldown_until > now())
+                    <form action="{{ route('admin.testing-tools.clear-cooldown', $pet->pet_id) }}" method="POST">
+                        @csrf
+                        <button type="submit" class="w-full text-left px-4 py-2 text-sm text-blue-700 hover:bg-blue-50 flex items-center gap-2">
+                            <i data-lucide="timer-off" class="w-4 h-4"></i> Clear Cooldown
+                        </button>
+                    </form>
+                    @endif
+                    <form action="{{ route('admin.testing-tools.reset-breeding', $pet->pet_id) }}" method="POST" data-confirm="Reset breeding history for {{ $pet->name }}?" data-confirm-title="Reset Breeding History" data-confirm-icon="warning" data-confirm-btn="Yes, reset it">
+                        @csrf
+                        <button type="submit" class="w-full text-left px-4 py-2 text-sm text-green-700 hover:bg-green-50 flex items-center gap-2">
+                            <i data-lucide="rotate-ccw" class="w-4 h-4"></i> Reset Breeding History
+                        </button>
+                    </form>
+                    <form action="{{ route('admin.testing-tools.reset-pet-matches', $pet->pet_id) }}" method="POST" data-confirm="Delete ALL match requests for {{ $pet->name }}?" data-confirm-title="Reset Match Requests" data-confirm-icon="warning" data-confirm-btn="Yes, delete all">
+                        @csrf
+                        <button type="submit" class="w-full text-left px-4 py-2 text-sm text-pink-700 hover:bg-pink-50 flex items-center gap-2">
+                            <i data-lucide="heart-off" class="w-4 h-4"></i> Reset Match Requests
+                        </button>
+                    </form>
+                    <hr class="my-1 border-gray-100">
+                    <form action="{{ route('admin.testing-tools.reset-pet-full', $pet->pet_id) }}" method="POST" data-confirm="Perform FULL RESET for {{ $pet->name }}? This clears cooldown and breeding history." data-confirm-title="Full Reset" data-confirm-icon="warning" data-confirm-btn="Yes, full reset">
+                        @csrf
+                        <button type="submit" class="w-full text-left px-4 py-2 text-sm text-[#E75234] hover:bg-red-50 font-medium flex items-center gap-2">
+                            <i data-lucide="refresh-cw" class="w-4 h-4"></i> Full Reset
+                        </button>
+                    </form>
+                </div>
+            </div>
         </div>
     </div>
 </div>
@@ -121,7 +162,7 @@
                 </div>
                 <div>
                     <p class="text-xs text-gray-500 mb-1">Owner</p>
-                    <p class="text-sm font-semibold text-gray-900">{{ $pet->owner->name ?? 'Unknown' }}</p>
+                    <p class="text-sm font-semibold text-gray-900">{{ optional($pet->owner)->name ?? 'Unknown' }}</p>
                 </div>
             </div>
 
@@ -185,8 +226,8 @@
                 <div>
                     <p class="text-xs text-gray-500 mb-1">Verification Status</p>
                     @php
-                    $userAuthRecord = $pet->owner->userAuth->first();
-                    $verificationStatus = $userAuthRecord->status ?? 'unknown';
+                    $userAuthRecord = optional($pet->owner)->userAuth ? optional($pet->owner)->userAuth->first() : null;
+                    $verificationStatus = optional($userAuthRecord)->status ?? 'unknown';
                     @endphp
                     <span class="inline-block px-3 py-1 rounded-full text-xs font-medium
                         @if($verificationStatus === 'approved') bg-green-100 text-green-700
@@ -267,7 +308,7 @@
                 @forelse($breedCounts as $breed => $count)
                 <div>
                     <div class="flex justify-between items-center mb-1">
-                        <span class="text-xs text-gray-600">Litter {{ $loop->iteration }}</span>
+                        <span class="text-xs text-gray-600">{{ $breed }}</span>
                         <span class="text-xs font-semibold text-gray-900">{{ $count }}</span>
                     </div>
                     <div class="w-full bg-gray-200 rounded-full h-8">
@@ -293,12 +334,12 @@
         <table class="w-full text-left border-collapse">
             <thead>
                 <tr class="bg-[#E75234] text-white text-sm">
-                    <th class="px-6 py-3 font-medium rounded-tl-lg">Match ID</th>
-                    <th class="px-6 py-3 font-medium">Partner</th>
-                    <th class="px-6 py-3 font-medium">Status</th>
-                    <th class="px-6 py-3 font-medium">Date</th>
-                    <th class="px-6 py-3 font-medium">Offspring Count</th>
-                    <th class="px-6 py-3 font-medium rounded-tr-lg">Actions</th>
+                    <th class="px-6 py-3 font-semibold rounded-tl-lg">Match ID</th>
+                    <th class="px-6 py-3 font-semibold">Partner</th>
+                    <th class="px-6 py-3 font-semibold">Status</th>
+                    <th class="px-6 py-3 font-semibold">Date</th>
+                    <th class="px-6 py-3 font-semibold">Offspring Count</th>
+                    <th class="px-6 py-3 font-semibold rounded-tr-lg">Actions</th>
                 </tr>
             </thead>
             <tbody class="divide-y divide-gray-100 text-sm text-gray-700">
@@ -323,8 +364,8 @@
                 <tr class="hover:bg-orange-50 transition-colors {{ $loop->even ? 'bg-gray-50/30' : '' }}">
                     <td class="px-6 py-4 font-mono text-xs text-gray-500">MTC-{{ str_pad($litter->litter_id, 5, '0', STR_PAD_LEFT) }}</td>
                     <td class="px-6 py-4">
-                        <span class="font-medium">{{ $partner->name ?? 'Unknown' }}</span>
-                        <span class="text-gray-500 text-xs">(ID: PET-{{ str_pad($partner->pet_id ?? 0, 5, '0', STR_PAD_LEFT) }})</span>
+                        <span class="font-medium">{{ optional($partner)->name ?? 'Unknown' }}</span>
+                        <span class="text-gray-500 text-xs">(ID: PET-{{ str_pad(optional($partner)->pet_id ?? 0, 5, '0', STR_PAD_LEFT) }})</span>
                     </td>
                     <td class="px-6 py-4">
                         <span class="px-3 py-1 rounded-full text-xs font-medium {{ $statusClass }}">
@@ -359,7 +400,7 @@
     <div class="bg-white rounded-xl shadow-xl max-w-6xl w-full max-h-[90vh] overflow-hidden flex flex-col">
         <!-- Modal Header -->
         <div class="px-6 py-4 border-b border-gray-200 flex justify-between items-center">
-            <h2 class="text-xl font-bold text-gray-900">User Verification Details: <span>{{ $pet->owner->name ?? 'Unknown' }}</span></h2>
+            <h2 class="text-xl font-bold text-gray-900">User Verification Details: <span>{{ optional($pet->owner)->name ?? 'Unknown' }}</span></h2>
             <button onclick="closeDocumentTrackerModal()" class="text-gray-400 hover:text-gray-600 transition-colors">
                 <i data-lucide="x" class="w-6 h-6"></i>
             </button>
@@ -409,7 +450,8 @@
                                         <div class="flex items-center gap-2 mb-1">
                                             <h4 class="font-semibold text-gray-900">Rabies Vaccination</h4>
                                             @php
-                                            $daysRemaining = \Carbon\Carbon::now()->diffInDays(\Carbon\Carbon::parse($rabiesVaccination->expiration_date), false);
+                                            $expiryDate = $rabiesVaccination->expiration_date ? \Carbon\Carbon::parse($rabiesVaccination->expiration_date) : null;
+                                            $daysRemaining = $expiryDate ? \Carbon\Carbon::now()->diffInDays($expiryDate, false) : 0;
                                             @endphp
                                             <span class="px-2 py-0.5 {{ $daysRemaining > 30 ? 'bg-green-100 text-green-700' : ($daysRemaining > 0 ? 'bg-yellow-100 text-yellow-700' : 'bg-red-100 text-red-700') }} text-xs font-medium rounded-full">
                                                 {{ $daysRemaining > 0 ? 'Active' : 'Expired' }}
@@ -419,13 +461,13 @@
                                         <div class="text-xs text-gray-500 space-y-1">
                                             <p><span class="font-medium">Clinic:</span> {{ $rabiesVaccination->clinic_name }}</p>
                                             <p><span class="font-medium">Veterinarian:</span> {{ $rabiesVaccination->veterinarian_name }}</p>
-                                            <p><span class="font-medium">Given Date:</span> {{ \Carbon\Carbon::parse($rabiesVaccination->given_date)->format('d M Y') }}</p>
-                                            <p><span class="font-medium">Expiry:</span> {{ \Carbon\Carbon::parse($rabiesVaccination->expiration_date)->format('d M Y') }}</p>
+                                            <p><span class="font-medium">Given Date:</span> {{ $rabiesVaccination->given_date ? \Carbon\Carbon::parse($rabiesVaccination->given_date)->format('d M Y') : 'N/A' }}</p>
+                                            <p><span class="font-medium">Expiry:</span> {{ $expiryDate ? $expiryDate->format('d M Y') : 'N/A' }}</p>
                                         </div>
                                     </div>
                                 </div>
                                 <div class="flex items-center gap-2">
-                                    <button onclick="viewDocument('{{ asset('storage/' . $rabiesVaccination->vaccination_record) }}')" class="px-3 py-1.5 bg-white border border-gray-300 text-gray-700 text-xs font-medium rounded hover:bg-gray-50 transition">
+                                    <button onclick="viewDocument('{{ $rabiesVaccination->vaccination_record ? Storage::disk('do_spaces')->url($rabiesVaccination->vaccination_record) : '#' }}')" class="px-3 py-1.5 bg-white border border-gray-300 text-gray-700 text-xs font-medium rounded hover:bg-gray-50 transition">
                                         View
                                     </button>
                                     @if($rabiesVaccination->status === 'pending')
@@ -461,7 +503,8 @@
                                         <div class="flex items-center gap-2 mb-1">
                                             <h4 class="font-semibold text-gray-900">DHPP Vaccination</h4>
                                             @php
-                                            $daysRemaining = \Carbon\Carbon::now()->diffInDays(\Carbon\Carbon::parse($dhppVaccination->expiration_date), false);
+                                            $expiryDate = $dhppVaccination->expiration_date ? \Carbon\Carbon::parse($dhppVaccination->expiration_date) : null;
+                                            $daysRemaining = $expiryDate ? \Carbon\Carbon::now()->diffInDays($expiryDate, false) : 0;
                                             @endphp
                                             <span class="px-2 py-0.5 {{ $daysRemaining > 30 ? 'bg-green-100 text-green-700' : ($daysRemaining > 0 ? 'bg-yellow-100 text-yellow-700' : 'bg-red-100 text-red-700') }} text-xs font-medium rounded-full">
                                                 {{ $daysRemaining > 0 ? 'Active' : 'Expired' }}
@@ -471,13 +514,13 @@
                                         <div class="text-xs text-gray-500 space-y-1">
                                             <p><span class="font-medium">Clinic:</span> {{ $dhppVaccination->clinic_name }}</p>
                                             <p><span class="font-medium">Veterinarian:</span> {{ $dhppVaccination->veterinarian_name }}</p>
-                                            <p><span class="font-medium">Given Date:</span> {{ \Carbon\Carbon::parse($dhppVaccination->given_date)->format('d M Y') }}</p>
-                                            <p><span class="font-medium">Expiry:</span> {{ \Carbon\Carbon::parse($dhppVaccination->expiration_date)->format('d M Y') }}</p>
+                                            <p><span class="font-medium">Given Date:</span> {{ $dhppVaccination->given_date ? \Carbon\Carbon::parse($dhppVaccination->given_date)->format('d M Y') : 'N/A' }}</p>
+                                            <p><span class="font-medium">Expiry:</span> {{ $expiryDate ? $expiryDate->format('d M Y') : 'N/A' }}</p>
                                         </div>
                                     </div>
                                 </div>
                                 <div class="flex items-center gap-2">
-                                    <button onclick="viewDocument('{{ asset('storage/' . $dhppVaccination->vaccination_record) }}')" class="px-3 py-1.5 bg-white border border-gray-300 text-gray-700 text-xs font-medium rounded hover:bg-gray-50 transition">
+                                    <button onclick="viewDocument('{{ $dhppVaccination->vaccination_record ? Storage::disk('do_spaces')->url($dhppVaccination->vaccination_record) : '#' }}')" class="px-3 py-1.5 bg-white border border-gray-300 text-gray-700 text-xs font-medium rounded hover:bg-gray-50 transition">
                                         View
                                     </button>
                                     @if($dhppVaccination->status === 'pending')
@@ -513,7 +556,8 @@
                                         <div class="flex items-center gap-2 mb-1">
                                             <h4 class="font-semibold text-gray-900">{{ $vaccination->vaccine_name }} Vaccination</h4>
                                             @php
-                                            $daysRemaining = \Carbon\Carbon::now()->diffInDays(\Carbon\Carbon::parse($vaccination->expiration_date), false);
+                                            $expiryDate = $vaccination->expiration_date ? \Carbon\Carbon::parse($vaccination->expiration_date) : null;
+                                            $daysRemaining = $expiryDate ? \Carbon\Carbon::now()->diffInDays($expiryDate, false) : 0;
                                             @endphp
                                             <span class="px-2 py-0.5 {{ $daysRemaining > 30 ? 'bg-green-100 text-green-700' : ($daysRemaining > 0 ? 'bg-yellow-100 text-yellow-700' : 'bg-red-100 text-red-700') }} text-xs font-medium rounded-full">
                                                 {{ $daysRemaining > 0 ? 'Active' : 'Expired' }}
@@ -523,13 +567,13 @@
                                         <div class="text-xs text-gray-500 space-y-1">
                                             <p><span class="font-medium">Clinic:</span> {{ $vaccination->clinic_name }}</p>
                                             <p><span class="font-medium">Veterinarian:</span> {{ $vaccination->veterinarian_name }}</p>
-                                            <p><span class="font-medium">Given Date:</span> {{ \Carbon\Carbon::parse($vaccination->given_date)->format('d M Y') }}</p>
-                                            <p><span class="font-medium">Expiry:</span> {{ \Carbon\Carbon::parse($vaccination->expiration_date)->format('d M Y') }}</p>
+                                            <p><span class="font-medium">Given Date:</span> {{ $vaccination->given_date ? \Carbon\Carbon::parse($vaccination->given_date)->format('d M Y') : 'N/A' }}</p>
+                                            <p><span class="font-medium">Expiry:</span> {{ $expiryDate ? $expiryDate->format('d M Y') : 'N/A' }}</p>
                                         </div>
                                     </div>
                                 </div>
                                 <div class="flex items-center gap-2">
-                                    <button onclick="viewDocument('{{ asset('storage/' . $vaccination->vaccination_record) }}')" class="px-3 py-1.5 bg-white border border-gray-300 text-gray-700 text-xs font-medium rounded hover:bg-gray-50 transition">
+                                    <button onclick="viewDocument('{{ $vaccination->vaccination_record ? Storage::disk('do_spaces')->url($vaccination->vaccination_record) : '#' }}')" class="px-3 py-1.5 bg-white border border-gray-300 text-gray-700 text-xs font-medium rounded hover:bg-gray-50 transition">
                                         View
                                     </button>
                                     @if($vaccination->status === 'pending')
@@ -565,7 +609,8 @@
                                         <div class="flex items-center gap-2 mb-1">
                                             <h4 class="font-semibold text-gray-900">Health Certificate</h4>
                                             @php
-                                            $daysRemaining = \Carbon\Carbon::now()->diffInDays(\Carbon\Carbon::parse($healthRecord->expiration_date), false);
+                                            $expiryDate = $healthRecord->expiration_date ? \Carbon\Carbon::parse($healthRecord->expiration_date) : null;
+                                            $daysRemaining = $expiryDate ? \Carbon\Carbon::now()->diffInDays($expiryDate, false) : 0;
                                             @endphp
                                             <span class="px-2 py-0.5 {{ $daysRemaining > 30 ? 'bg-green-100 text-green-700' : ($daysRemaining > 0 ? 'bg-yellow-100 text-yellow-700' : 'bg-red-100 text-red-700') }} text-xs font-medium rounded-full">
                                                 {{ $daysRemaining > 0 ? 'Active' : 'Expired' }}
@@ -575,13 +620,13 @@
                                         <div class="text-xs text-gray-500 space-y-1">
                                             <p><span class="font-medium">Clinic:</span> {{ $healthRecord->clinic_name }}</p>
                                             <p><span class="font-medium">Veterinarian:</span> {{ $healthRecord->veterinarian_name }}</p>
-                                            <p><span class="font-medium">Given Date:</span> {{ \Carbon\Carbon::parse($healthRecord->given_date)->format('d M Y') }}</p>
-                                            <p><span class="font-medium">Expiry:</span> {{ \Carbon\Carbon::parse($healthRecord->expiration_date)->format('d M Y') }}</p>
+                                            <p><span class="font-medium">Given Date:</span> {{ $healthRecord->given_date ? \Carbon\Carbon::parse($healthRecord->given_date)->format('d M Y') : 'N/A' }}</p>
+                                            <p><span class="font-medium">Expiry:</span> {{ $expiryDate ? $expiryDate->format('d M Y') : 'N/A' }}</p>
                                         </div>
                                     </div>
                                 </div>
                                 <div class="flex items-center gap-2">
-                                    <button onclick="viewDocument('{{ asset('storage/' . $healthRecord->record_path) }}')" class="px-3 py-1.5 bg-white border border-gray-300 text-gray-700 text-xs font-medium rounded hover:bg-gray-50 transition">
+                                    <button onclick="viewDocument('{{ $healthRecord->record_path ? Storage::disk('do_spaces')->url($healthRecord->record_path) : '#' }}')" class="px-3 py-1.5 bg-white border border-gray-300 text-gray-700 text-xs font-medium rounded hover:bg-gray-50 transition">
                                         View
                                     </button>
                                     @if($healthRecord->status === 'pending')
@@ -810,18 +855,49 @@
 <div id="statusModal" class="hidden fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center">
     <div class="bg-white rounded-xl shadow-xl max-w-md w-full mx-4 p-6">
         <h3 class="text-xl font-bold text-gray-900 mb-4">Change Pet Status</h3>
-        <form action="{{ route('admin.pets.status.update', $pet->pet_id) }}" method="POST">
+
+        @if(session('error'))
+        <div class="mb-4 bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg text-sm">
+            {{ session('error') }}
+        </div>
+        @endif
+
+        <form action="{{ route('admin.pets.status.update', $pet->pet_id) }}" method="POST" id="petStatusForm" onsubmit="return validatePetStatusForm()">
             @csrf
-            <div class="mb-6">
-                <label class="block text-sm font-semibold text-gray-700 mb-2">Select New Status</label>
-                <select name="status" class="w-full appearance-none bg-white border border-gray-300 text-gray-700 py-2.5 px-4 pr-8 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#E75234] focus:border-transparent">
-                    <option value="active" {{ $pet->status === 'active' ? 'selected' : '' }}>Active</option>
-                    <option value="disabled" {{ $pet->status === 'disabled' ? 'selected' : '' }}>Disabled</option>
-                    <option value="cooldown" {{ $pet->status === 'cooldown' ? 'selected' : '' }}>Cooldown</option>
-                    <option value="banned" {{ $pet->status === 'banned' ? 'selected' : '' }}>Banned</option>
-                </select>
+            <div class="space-y-4">
+                <div>
+                    <label class="block text-sm font-semibold text-gray-700 mb-2">Select New Status</label>
+                    <select name="status" id="petStatusSelect" class="w-full appearance-none bg-white border border-gray-300 text-gray-700 py-2.5 px-4 pr-8 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#E75234] focus:border-transparent" onchange="togglePetStatusFields()">
+                        <option value="active" {{ $pet->status === 'active' ? 'selected' : '' }}>Active</option>
+                        <option value="disabled" {{ $pet->status === 'disabled' ? 'selected' : '' }}>Disabled</option>
+                        <option value="cooldown" {{ $pet->status === 'cooldown' ? 'selected' : '' }}>Cooldown</option>
+                        <option value="banned" {{ $pet->status === 'banned' ? 'selected' : '' }}>Banned</option>
+                    </select>
+                </div>
+
+                <!-- Reason and Duration fields (shown for disabled/banned) -->
+                <div id="petReasonFields" class="{{ in_array($pet->status, ['disabled', 'banned']) ? '' : 'hidden' }} space-y-4">
+                    <div>
+                        <label class="block text-sm font-semibold text-gray-700 mb-1.5">Duration</label>
+                        <select name="suspension_duration" id="petDurationSelect" class="w-full bg-white border border-gray-300 text-gray-700 py-2.5 px-4 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#E75234] focus:border-transparent" onchange="togglePetCustomDate()">
+                            <option value="1_day">24 Hours</option>
+                            <option value="3_days">3 Days</option>
+                            <option value="7_days" selected>7 Days</option>
+                            <option value="30_days">30 Days</option>
+                            <option value="indefinite">Indefinite</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-sm font-semibold text-gray-700 mb-1.5">
+                            Reason <span class="text-red-500">*</span>
+                        </label>
+                        <textarea name="suspension_reason" id="petSuspensionReason" rows="3" class="w-full bg-white border border-gray-300 text-gray-700 py-2.5 px-4 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#E75234] focus:border-transparent" placeholder="Explain why this pet's status is being changed...">{{ $pet->suspension_reason }}</textarea>
+                        <p id="petReasonError" class="mt-1 text-xs text-red-600 hidden">Reason is required.</p>
+                    </div>
+                </div>
             </div>
-            <div class="flex gap-3">
+
+            <div class="flex gap-3 mt-6">
                 <button type="submit" class="flex-1 px-4 py-2.5 bg-[#E75234] text-white text-sm font-medium rounded-lg hover:bg-[#d14024] transition">
                     Update Status
                 </button>
@@ -882,10 +958,6 @@
         const selectedTab = document.getElementById('tab-' + tabName);
         selectedTab.classList.remove('text-gray-600', 'border-transparent');
         selectedTab.classList.add('text-white', 'bg-[#E75234]', 'border-[#E75234]');
-    }
-
-    function viewDocument(url) {
-        window.open(url, '_blank');
     }
 
     function requestUpdate(documentType) {
@@ -978,10 +1050,46 @@
 
     function openStatusModal() {
         document.getElementById('statusModal').classList.remove('hidden');
+        togglePetStatusFields();
     }
 
     function closeStatusModal() {
         document.getElementById('statusModal').classList.add('hidden');
+    }
+
+    function togglePetStatusFields() {
+        const status = document.getElementById('petStatusSelect').value;
+        const reasonFields = document.getElementById('petReasonFields');
+        const reasonError = document.getElementById('petReasonError');
+
+        if (reasonError) reasonError.classList.add('hidden');
+
+        if (status === 'disabled' || status === 'banned') {
+            reasonFields.classList.remove('hidden');
+        } else {
+            reasonFields.classList.add('hidden');
+        }
+    }
+
+    function togglePetCustomDate() {
+        // Reserved for future custom date support
+    }
+
+    function validatePetStatusForm() {
+        const status = document.getElementById('petStatusSelect').value;
+        const reason = document.getElementById('petSuspensionReason').value.trim();
+        const reasonError = document.getElementById('petReasonError');
+
+        if ((status === 'disabled' || status === 'banned') && reason === '') {
+            reasonError.classList.remove('hidden');
+            document.getElementById('petSuspensionReason').focus();
+            document.getElementById('petSuspensionReason').classList.add('border-red-500');
+            return false;
+        }
+
+        if (reasonError) reasonError.classList.add('hidden');
+        document.getElementById('petSuspensionReason').classList.remove('border-red-500');
+        return true;
     }
 
     function confirmDeletePet() {

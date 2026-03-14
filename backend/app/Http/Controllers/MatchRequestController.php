@@ -7,6 +7,7 @@ use App\Models\MatchRequest;
 use App\Models\Message;
 use App\Models\Payment;
 use App\Models\Pet;
+use App\Services\ActivityNotificationService;
 use App\Services\PayMongoService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -126,14 +127,29 @@ class MatchRequestController extends Controller
             ], 400);
         }
 
-        // Check if a match request already exists between these pets
-        $existingRequest = MatchRequest::where(function ($query) use ($validated) {
-            $query->where('requester_pet_id', $validated['requester_pet_id'])
-                ->where('target_pet_id', $validated['target_pet_id']);
-        })->orWhere(function ($query) use ($validated) {
-            $query->where('requester_pet_id', $validated['target_pet_id'])
-                ->where('target_pet_id', $validated['requester_pet_id']);
-        })->first();
+        // Prevent same-sex match requests (breeding requires male + female)
+        if ($requesterPet->sex === $targetPet->sex) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Match requests can only be sent between opposite-sex pets (breeding requires a male and female pair)',
+            ], 400);
+        }
+
+        // Check if an active (pending/accepted) match request already exists between these pets
+        // Completed or declined match requests should NOT block re-matching
+        $pairQuery = function ($query) use ($validated) {
+            $query->where(function ($q) use ($validated) {
+                $q->where('requester_pet_id', $validated['requester_pet_id'])
+                    ->where('target_pet_id', $validated['target_pet_id']);
+            })->orWhere(function ($q) use ($validated) {
+                $q->where('requester_pet_id', $validated['target_pet_id'])
+                    ->where('target_pet_id', $validated['requester_pet_id']);
+            });
+        };
+
+        $existingRequest = MatchRequest::where($pairQuery)
+            ->whereIn('status', ['pending', 'accepted'])
+            ->first();
 
         if ($existingRequest) {
             return response()->json([
@@ -169,16 +185,33 @@ class MatchRequestController extends Controller
         // }
 
         try {
+            // Clean up old cancelled/declined requests between this pair so they
+            // don't accumulate and (if the unique index hasn't been dropped yet)
+            // don't block the new insert.
+            MatchRequest::where($pairQuery)
+                ->whereIn('status', ['cancelled', 'declined'])
+                ->delete();
+
             $matchRequest = MatchRequest::create([
                 'requester_pet_id' => $validated['requester_pet_id'],
                 'target_pet_id' => $validated['target_pet_id'],
                 'status' => 'pending',
             ]);
 
+            // Notify the target pet's owner about the new match request
+            $matchRequest->load(['requesterPet', 'targetPet']);
+            $targetOwner = $matchRequest->targetPet->user_id;
+            ActivityNotificationService::matchRequestReceived(
+                $targetOwner,
+                $matchRequest->requesterPet->name ?? 'A pet',
+                $matchRequest->targetPet->name ?? 'your pet',
+                ['match_request_id' => $matchRequest->id]
+            );
+
             return response()->json([
                 'success' => true,
                 'message' => 'Match request sent successfully',
-                'data' => $matchRequest->load(['requesterPet', 'targetPet']),
+                'data' => $matchRequest,
             ], 201);
         } catch (\Exception $e) {
             return response()->json([
@@ -584,6 +617,18 @@ class MatchRequestController extends Controller
 
             DB::commit();
 
+            // Notify the requester pet's owner about the accepted match
+            $matchRequest->load(['requesterPet', 'targetPet']);
+            $requesterOwner = $matchRequest->requesterPet->user_id;
+            ActivityNotificationService::matchAccepted(
+                $requesterOwner,
+                $targetPet->name ?? 'A pet',
+                [
+                    'match_request_id' => $matchRequest->id,
+                    'conversation_id' => $conversation->id,
+                ]
+            );
+
             return response()->json([
                 'success' => true,
                 'message' => 'Match request accepted',
@@ -635,6 +680,15 @@ class MatchRequestController extends Controller
         try {
             $matchRequest->update(['status' => 'declined']);
 
+            // Notify the requester pet's owner about the declined match
+            $matchRequest->load(['requesterPet', 'targetPet']);
+            $requesterOwner = $matchRequest->requesterPet->user_id;
+            ActivityNotificationService::matchDeclined(
+                $requesterOwner,
+                $targetPet->name ?? 'A pet',
+                ['match_request_id' => $matchRequest->id]
+            );
+
             return response()->json([
                 'success' => true,
                 'message' => 'Match request declined',
@@ -647,6 +701,137 @@ class MatchRequestController extends Controller
                 'error' => $e->getMessage(),
             ], 500);
         }
+    }
+
+    /**
+     * Cancel an outgoing match request (requester withdraws)
+     */
+    public function cancel(Request $request, $id)
+    {
+        $user = $request->user();
+
+        // Get the match request
+        $matchRequest = MatchRequest::findOrFail($id);
+
+        // Verify the user owns the requester pet
+        $requesterPet = Pet::where('pet_id', $matchRequest->requester_pet_id)
+            ->where('user_id', $user->id)
+            ->first();
+
+        if (! $requesterPet) {
+            return response()->json([
+                'success' => false,
+                'message' => 'You can only cancel your own match requests',
+            ], 403);
+        }
+
+        if ($matchRequest->status !== 'pending') {
+            return response()->json([
+                'success' => false,
+                'message' => 'Only pending requests can be cancelled',
+            ], 400);
+        }
+
+        try {
+            $matchRequest->update(['status' => 'cancelled']);
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Match request cancelled',
+                'data' => $matchRequest,
+            ]);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to cancel match request',
+                'error' => $e->getMessage(),
+            ], 500);
+        }
+    }
+
+    /**
+     * Get match request history (declined, cancelled, expired)
+     */
+    public function history(Request $request)
+    {
+        $user = $request->user();
+
+        // Get all pet IDs owned by the user
+        $userPetIds = Pet::where('user_id', $user->id)->pluck('pet_id');
+
+        // Build query for terminal statuses
+        $query = MatchRequest::where(function ($q) use ($userPetIds) {
+            $q->whereIn('requester_pet_id', $userPetIds)
+                ->orWhereIn('target_pet_id', $userPetIds);
+        })->whereIn('status', ['declined', 'cancelled', 'completed']);
+
+        // Optional status filter
+        if ($request->has('status') && in_array($request->status, ['declined', 'cancelled', 'completed'])) {
+            $query->where('status', $request->status);
+        }
+
+        // Optional date filter
+        if ($request->has('from_date')) {
+            $query->where('created_at', '>=', $request->from_date);
+        }
+        if ($request->has('to_date')) {
+            $query->where('created_at', '<=', $request->to_date);
+        }
+
+        $requests = $query->with([
+            'requesterPet' => function ($q) {
+                $q->with(['owner:id,name,profile_image', 'photos']);
+            },
+            'targetPet' => function ($q) {
+                $q->with(['owner:id,name,profile_image', 'photos']);
+            },
+            'conversation',
+        ])
+            ->orderBy('updated_at', 'desc')
+            ->paginate(20);
+
+        $formattedRequests = $requests->getCollection()->map(function ($matchRequest) use ($userPetIds) {
+            $isOutgoing = $userPetIds->contains($matchRequest->requester_pet_id);
+            $otherPet = $isOutgoing ? $matchRequest->targetPet : $matchRequest->requesterPet;
+            $userPet = $isOutgoing ? $matchRequest->requesterPet : $matchRequest->targetPet;
+
+            $primaryPhoto = $otherPet->photos->firstWhere('is_primary', true)
+                ?? $otherPet->photos->first();
+
+            return [
+                'id' => $matchRequest->id,
+                'direction' => $isOutgoing ? 'outgoing' : 'incoming',
+                'user_pet' => [
+                    'pet_id' => $userPet->pet_id,
+                    'name' => $userPet->name,
+                ],
+                'other_pet' => [
+                    'pet_id' => $otherPet->pet_id,
+                    'name' => $otherPet->name,
+                    'breed' => $otherPet->breed,
+                    'photo_url' => $primaryPhoto?->photo_url,
+                ],
+                'owner' => [
+                    'id' => $otherPet->owner->id,
+                    'name' => $otherPet->owner->name,
+                    'profile_image' => $otherPet->owner->profile_image,
+                ],
+                'status' => $matchRequest->status,
+                'conversation_id' => $matchRequest->conversation?->id,
+                'created_at' => $matchRequest->created_at,
+                'updated_at' => $matchRequest->updated_at,
+            ];
+        });
+
+        return response()->json([
+            'success' => true,
+            'data' => $formattedRequests,
+            'meta' => [
+                'current_page' => $requests->currentPage(),
+                'last_page' => $requests->lastPage(),
+                'total' => $requests->total(),
+            ],
+        ]);
     }
 
     /**
@@ -880,13 +1065,13 @@ class MatchRequestController extends Controller
             $pet1Photo = $pet1->photos->firstWhere('is_primary', true) ?? $pet1->photos->first();
             $pet2Photo = $pet2->photos->firstWhere('is_primary', true) ?? $pet2->photos->first();
 
-        return response()->json([
-            'success' => true,
-            'data' => [
-                'conversation_id' => $conversation->id,
-                'is_shooter_view' => true,
-                'match_accepted_at' => $matchRequest->updated_at,
-                'pet1' => [
+            return response()->json([
+                'success' => true,
+                'data' => [
+                    'conversation_id' => $conversation->id,
+                    'is_shooter_view' => true,
+                    'match_accepted_at' => $matchRequest->updated_at,
+                    'pet1' => [
                         'pet_id' => $pet1->pet_id,
                         'name' => $pet1->name,
                         'photo_url' => $pet1Photo?->photo_url,
@@ -912,9 +1097,12 @@ class MatchRequestController extends Controller
         }
 
         $otherPet = $isRequester ? $matchRequest->targetPet : $matchRequest->requesterPet;
+        $userPet = $isRequester ? $matchRequest->requesterPet : $matchRequest->targetPet;
 
         $primaryPhoto = $otherPet->photos->firstWhere('is_primary', true)
             ?? $otherPet->photos->first();
+        $userPetPhoto = $userPet->photos->firstWhere('is_primary', true)
+            ?? $userPet->photos->first();
 
         return response()->json([
             'success' => true,
@@ -926,6 +1114,11 @@ class MatchRequestController extends Controller
                     'pet_id' => $otherPet->pet_id,
                     'name' => $otherPet->name,
                     'photo_url' => $primaryPhoto?->photo_url,
+                ],
+                'user_pet' => [
+                    'pet_id' => $userPet->pet_id,
+                    'name' => $userPet->name,
+                    'photo_url' => $userPetPhoto?->photo_url,
                 ],
                 'owner' => [
                     'id' => $otherPet->owner->id,
@@ -973,6 +1166,36 @@ class MatchRequestController extends Controller
                 'sender_id' => $user->id,
                 'content' => $validated['content'],
             ]);
+
+            // Notify other participants about the new message
+            $matchRequest = $conversation->matchRequest;
+            if ($matchRequest) {
+                $recipientUserIds = collect();
+
+                // Add requester pet owner
+                $requesterPet = Pet::find($matchRequest->requester_pet_id);
+                if ($requesterPet && $requesterPet->user_id !== $user->id) {
+                    $recipientUserIds->push($requesterPet->user_id);
+                }
+                // Add target pet owner
+                $targetPet = Pet::find($matchRequest->target_pet_id);
+                if ($targetPet && $targetPet->user_id !== $user->id) {
+                    $recipientUserIds->push($targetPet->user_id);
+                }
+                // Add shooter if present
+                if ($conversation->shooter_user_id && $conversation->shooter_user_id !== $user->id) {
+                    $recipientUserIds->push($conversation->shooter_user_id);
+                }
+
+                foreach ($recipientUserIds->unique() as $recipientId) {
+                    ActivityNotificationService::newMessage(
+                        $recipientId,
+                        $user->name ?? 'Someone',
+                        $validated['content'],
+                        ['conversation_id' => (int) $id]
+                    );
+                }
+            }
 
             return response()->json([
                 'success' => true,

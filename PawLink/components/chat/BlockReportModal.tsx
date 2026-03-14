@@ -6,10 +6,11 @@ import {
   TouchableOpacity,
   TextInput,
   ActivityIndicator,
-  Alert,
   ScrollView,
 } from "react-native";
 import { Feather } from "@expo/vector-icons";
+import { useAlert } from "@/hooks/useAlert";
+import AlertModal from "@/components/core/AlertModal";
 import {
   blockUser,
   unblockUser,
@@ -45,6 +46,7 @@ export default function BlockReportModal({
   const [selectedReason, setSelectedReason] = useState<string>("");
   const [description, setDescription] = useState("");
   const [fetchingStatus, setFetchingStatus] = useState(true);
+  const { visible: alertVisible, alertOptions, showAlert, hideAlert } = useAlert();
 
   useEffect(() => {
     if (visible && userId) {
@@ -69,31 +71,50 @@ export default function BlockReportModal({
   };
 
   const handleBlock = () => {
-    Alert.alert(
-      "Block User",
-      `Are you sure you want to block ${userName}? You won't be able to see their pets in matching or receive messages from them.`,
-      [
+    showAlert({
+      title: "Block User",
+      message: `Are you sure you want to block ${userName}? You won't be able to see their pets in matching or receive messages from them.`,
+      type: "warning",
+      buttons: [
         { text: "Cancel", style: "cancel" },
         {
           text: "Block",
           style: "destructive",
-          onPress: async () => {
-            setLoading(true);
-            const result = await blockUser(userId);
-            setLoading(false);
+          onPress: () => confirmBlock(),
+        },
+      ],
+    });
+  };
 
-            if (result.success) {
-              Alert.alert("Blocked", `${userName} has been blocked.`);
-              setBlockStatus({ ...blockStatus, is_blocked: true });
+  const confirmBlock = async () => {
+    setLoading(true);
+    const result = await blockUser(userId);
+    setLoading(false);
+
+    if (result.success) {
+      showAlert({
+        title: "Blocked",
+        message: `${userName} has been blocked.`,
+        type: "success",
+        buttons: [
+          {
+            text: "OK",
+            style: "default",
+            onPress: () => {
               onBlockSuccess?.();
               onClose();
-            } else {
-              Alert.alert("Error", result.message);
-            }
+            },
           },
-        },
-      ]
-    );
+        ],
+      });
+      setBlockStatus({ ...blockStatus, is_blocked: true });
+    } else {
+      showAlert({
+        title: "Error",
+        message: result.message,
+        type: "error",
+      });
+    }
   };
 
   const handleUnblock = async () => {
@@ -102,16 +123,28 @@ export default function BlockReportModal({
     setLoading(false);
 
     if (result.success) {
-      Alert.alert("Unblocked", `${userName} has been unblocked.`);
+      showAlert({
+        title: "Unblocked",
+        message: `${userName} has been unblocked.`,
+        type: "success",
+      });
       setBlockStatus({ ...blockStatus, is_blocked: false });
     } else {
-      Alert.alert("Error", result.message);
+      showAlert({
+        title: "Error",
+        message: result.message,
+        type: "error",
+      });
     }
   };
 
   const handleReport = async () => {
     if (!selectedReason) {
-      Alert.alert("Error", "Please select a reason for your report.");
+      showAlert({
+        title: "Error",
+        message: "Please select a reason for your report.",
+        type: "error",
+      });
       return;
     }
 
@@ -120,15 +153,20 @@ export default function BlockReportModal({
     setLoading(false);
 
     if (result.success) {
-      Alert.alert(
-        "Report Submitted",
-        "Thank you for your report. Our team will review it shortly.",
-        [{ text: "OK", onPress: onClose }]
-      );
+      showAlert({
+        title: "Report Submitted",
+        message: "Thank you for your report. Our team will review it shortly.",
+        type: "success",
+        buttons: [{ text: "OK", style: "default", onPress: onClose }],
+      });
       setSelectedReason("");
       setDescription("");
     } else {
-      Alert.alert("Error", result.message);
+      showAlert({
+        title: "Error",
+        message: result.message,
+        type: "error",
+      });
     }
   };
 
@@ -140,12 +178,13 @@ export default function BlockReportModal({
   };
 
   return (
-    <Modal
-      visible={visible}
-      animationType="slide"
-      transparent
-      onRequestClose={handleClose}
-    >
+    <>
+      <Modal
+        visible={visible}
+        animationType="slide"
+        transparent
+        onRequestClose={handleClose}
+      >
       <View className="flex-1 bg-black/50 justify-end">
         <View className="bg-white rounded-t-3xl max-h-[80%]">
           {/* Header */}
@@ -364,5 +403,12 @@ export default function BlockReportModal({
         </View>
       </View>
     </Modal>
+
+      <AlertModal
+        visible={alertVisible}
+        {...alertOptions}
+        onClose={hideAlert}
+      />
+    </>
   );
 }

@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\Pet;
+use App\Models\MatchRequest;
 use Illuminate\Http\Request;
 
 class MatchController extends Controller
@@ -34,9 +35,17 @@ class MatchController extends Controller
             }
 
             // Get all other pets available for matching (not owned by the user, not on cooldown, not owned by blocked users)
+            // Only show opposite-sex pets (breeding requires male + female)
+            $userPetSexes = $userPets->pluck('sex')->unique()->toArray();
             $query = Pet::where('user_id', '!=', $user->id)
                 ->availableForMatching()
                 ->with(['owner:id,name,profile_image', 'photos']);
+
+            // Filter to opposite sex only (if user has only male pets, show only female, and vice versa)
+            if (count($userPetSexes) === 1) {
+                $oppositeSex = $userPetSexes[0] === 'Male' ? 'Female' : 'Male';
+                $query->where('sex', $oppositeSex);
+            }
 
             // Only add whereNotIn if there are blocked users
             if (!empty($blockedUserIds)) {
@@ -129,25 +138,50 @@ class MatchController extends Controller
 
             $potentialMatches = $query->get();
 
+            // Get pet IDs that have active (pending/accepted) match requests with user's pets
+            $userPetIds = $userPets->pluck('pet_id')->toArray();
+            $activeRequestPairs = MatchRequest::where(function ($query) use ($userPetIds) {
+                $query->whereIn('requester_pet_id', $userPetIds)
+                    ->orWhereIn('target_pet_id', $userPetIds);
+            })->whereIn('status', ['pending', 'accepted'])
+                ->get()
+                ->map(function ($request) use ($userPetIds) {
+                    // Return the pair as [userPetId => otherPetId]
+                    if (in_array($request->requester_pet_id, $userPetIds)) {
+                        return ['user_pet' => $request->requester_pet_id, 'other_pet' => $request->target_pet_id];
+                    }
+                    return ['user_pet' => $request->target_pet_id, 'other_pet' => $request->requester_pet_id];
+                });
+
             $topMatches = [];
 
             foreach ($userPets as $userPet) {
-                $bestMatch = null;
-                $bestScore = 0;
+                // Build set of pet IDs that have active requests with this user pet
+                $excludedPetIds = $activeRequestPairs
+                    ->where('user_pet', $userPet->pet_id)
+                    ->pluck('other_pet')
+                    ->toArray();
 
                 foreach ($potentialMatches as $potentialPet) {
+                    // Skip pets of a different species (e.g. Dog should not match with Cat)
+                    if ($potentialPet->species !== $userPet->species) {
+                        continue;
+                    }
+
+                    // Skip same-sex pets (breeding requires male + female)
+                    if ($potentialPet->sex === $userPet->sex) {
+                        continue;
+                    }
+
+                    // Skip pets that already have an active match request with this user pet
+                    if (in_array($potentialPet->pet_id, $excludedPetIds)) {
+                        continue;
+                    }
+
                     $compatibility = $this->calculateCompatibilityScore($potentialPet, $userPet);
 
-                    if ($compatibility['score'] > $bestScore) {
-                        $bestScore = $compatibility['score'];
-                        $bestMatch = $potentialPet;
-                    }
-                }
-
-                // Show match if there's any potential match (removed 50% threshold)
-                if ($bestMatch) {
                     $primaryPhoto1 = $userPet->photos->firstWhere('is_primary', true) ?? $userPet->photos->first();
-                    $primaryPhoto2 = $bestMatch->photos->firstWhere('is_primary', true) ?? $bestMatch->photos->first();
+                    $primaryPhoto2 = $potentialPet->photos->firstWhere('is_primary', true) ?? $potentialPet->photos->first();
 
                     $topMatches[] = [
                         'pet1' => [
@@ -155,22 +189,27 @@ class MatchController extends Controller
                             'name' => $userPet->name,
                             'photo_url' => $primaryPhoto1?->photo_url,
                             'breed' => $userPet->breed,
+                            'species' => $userPet->species,
                             'sex' => $userPet->sex,
                             'birthdate' => $userPet->birthdate,
                         ],
                         'pet2' => [
-                            'pet_id' => $bestMatch->pet_id,
-                            'name' => $bestMatch->name,
+                            'pet_id' => $potentialPet->pet_id,
+                            'name' => $potentialPet->name,
                             'photo_url' => $primaryPhoto2?->photo_url,
-                            'breed' => $bestMatch->breed,
-                            'sex' => $bestMatch->sex,
-                            'birthdate' => $bestMatch->birthdate,
+                            'breed' => $potentialPet->breed,
+                            'species' => $potentialPet->species,
+                            'sex' => $potentialPet->sex,
+                            'birthdate' => $potentialPet->birthdate,
                         ],
-                        'compatibility_score' => $bestScore,
+                        'compatibility_score' => $compatibility['score'],
                         'match_reasons' => $compatibility['reasons'],
                     ];
                 }
             }
+
+            // Sort all matches by compatibility score descending
+            usort($topMatches, fn($a, $b) => $b['compatibility_score'] <=> $a['compatibility_score']);
 
             return response()->json([
                 'success' => true,
@@ -182,6 +221,83 @@ class MatchController extends Controller
                 'message' => 'Failed to get top matches',
                 'error' => $e->getMessage(),
             ], 500);
+        }
+    }
+
+    /**
+     * Get compatibility score between two specific pets
+     */
+    public function getCompatibilityScore(Request $request, $petId, $otherPetId)
+    {
+        try {
+            $userPet = Pet::with(['partnerPreferences'])->findOrFail($petId);
+            $otherPet = Pet::with(['partnerPreferences'])->findOrFail($otherPetId);
+
+            // Verify the requesting user owns the user pet
+            if ($userPet->user_id !== $request->user()->id) {
+                return response()->json(['success' => false, 'message' => 'Unauthorized'], 403);
+            }
+
+            $result = $this->calculateCompatibilityScore($otherPet, $userPet);
+
+            // Also calculate reverse compatibility
+            $reverseResult = $this->calculateCompatibilityScore($userPet, $otherPet);
+
+            // Feature breakdown for detailed view
+            $preferences = $userPet->partnerPreferences->first();
+            $breakdown = [
+                'breed_match' => false,
+                'sex_match' => false,
+                'age_in_range' => false,
+                'behavior_matches' => [],
+                'attribute_matches' => [],
+            ];
+
+            if ($preferences) {
+                $breakdown['breed_match'] = $preferences->preferred_breed
+                    ? ($otherPet->breed === $preferences->preferred_breed || $this->breedMatchesMixed($otherPet->breed, $preferences->preferred_breed))
+                    : true;
+                $breakdown['sex_match'] = $preferences->preferred_sex
+                    ? $otherPet->sex === $preferences->preferred_sex
+                    : true;
+                if ($preferences->min_age && $preferences->max_age && $otherPet->birthdate) {
+                    $ageMonths = $otherPet->birthdate->diffInMonths(now());
+                    $breakdown['age_in_range'] = $ageMonths >= $preferences->min_age && $ageMonths <= $preferences->max_age;
+                }
+                if ($preferences->preferred_behaviors && $otherPet->behaviors) {
+                    $prefBehaviors = is_array($preferences->preferred_behaviors) ? $preferences->preferred_behaviors : json_decode($preferences->preferred_behaviors, true) ?? [];
+                    $petBehaviors = is_array($otherPet->behaviors) ? $otherPet->behaviors : json_decode($otherPet->behaviors, true) ?? [];
+                    $breakdown['behavior_matches'] = array_values(array_intersect($prefBehaviors, $petBehaviors));
+                }
+                if ($preferences->preferred_attributes && $otherPet->attributes) {
+                    $prefAttributes = is_array($preferences->preferred_attributes) ? $preferences->preferred_attributes : json_decode($preferences->preferred_attributes, true) ?? [];
+                    $petAttributes = is_array($otherPet->attributes) ? $otherPet->attributes : json_decode($otherPet->attributes, true) ?? [];
+                    $breakdown['attribute_matches'] = array_values(array_intersect($prefAttributes, $petAttributes));
+                }
+            }
+
+            return response()->json([
+                'success' => true,
+                'data' => [
+                    'compatibility_score' => $result['score'],
+                    'match_reasons' => $result['reasons'],
+                    'reverse_score' => $reverseResult['score'],
+                    'reverse_reasons' => $reverseResult['reasons'],
+                    'breakdown' => $breakdown,
+                    'user_pet' => [
+                        'pet_id' => $userPet->pet_id,
+                        'name' => $userPet->name,
+                    ],
+                    'other_pet' => [
+                        'pet_id' => $otherPet->pet_id,
+                        'name' => $otherPet->name,
+                    ],
+                ],
+            ]);
+        } catch (\Illuminate\Database\Eloquent\ModelNotFoundException $e) {
+            return response()->json(['success' => false, 'message' => 'Pet not found'], 404);
+        } catch (\Exception $e) {
+            return response()->json(['success' => false, 'message' => 'Failed to calculate compatibility'], 500);
         }
     }
 
@@ -228,11 +344,14 @@ class MatchController extends Controller
     {
         $features = [];
 
-        // Breed feature (exact match = 1.0, same species different breed = 0.3, no match = 0)
+        // Breed feature (exact match = 1.0, mixed breed parent match = 0.8, same species different breed = 0.3, no match = 0)
+        // Supports mixed breeds ("Breed1 × Breed2 Mix") by checking if either parent breed matches
         $features['breed'] = 0.0;
         if ($preferences->preferred_breed) {
             if ($pet->breed === $preferences->preferred_breed) {
                 $features['breed'] = 1.0;
+            } elseif ($this->breedMatchesMixed($pet->breed, $preferences->preferred_breed)) {
+                $features['breed'] = 0.8;
             } elseif ($pet->species === $userPet->species) {
                 $features['breed'] = 0.3;
             }
@@ -344,8 +463,8 @@ class MatchController extends Controller
         // Hidden Neuron 3: Feature interaction term (multiplicative interaction)
         // Captures synergy between good breed match AND good behavior match
         $interactionTerm = $inputFeatures['breed'] * $inputFeatures['behaviors'] * 0.5 +
-                          $inputFeatures['breed'] * $inputFeatures['attributes'] * 0.3 +
-                          $inputFeatures['age'] * $inputFeatures['sex'] * 0.2;
+            $inputFeatures['breed'] * $inputFeatures['attributes'] * 0.3 +
+            $inputFeatures['age'] * $inputFeatures['sex'] * 0.2;
         $hidden['interaction'] = $this->tanh($interactionTerm);
 
         // Hidden Neuron 4: Bonus neuron for multiple feature matches
@@ -465,5 +584,28 @@ class MatchController extends Controller
     private function softplus(float $x): float
     {
         return $x > 20 ? $x : log(1 + exp($x));
+    }
+
+    /**
+     * Check if a breed string (possibly mixed) matches a target breed.
+     * Supports mixed breed format "Breed1 × Breed2 Mix" by checking if either parent matches.
+     */
+    private function breedMatchesMixed(?string $petBreed, string $targetBreed): bool
+    {
+        if (!$petBreed || !str_contains($petBreed, '×')) {
+            return false;
+        }
+
+        $parts = array_map(function ($part) {
+            return trim(preg_replace('/\s*Mix$/i', '', trim($part)));
+        }, explode('×', $petBreed));
+
+        foreach ($parts as $parentBreed) {
+            if (strcasecmp($parentBreed, $targetBreed) === 0) {
+                return true;
+            }
+        }
+
+        return false;
     }
 }
