@@ -3,6 +3,44 @@
 @section('title', 'Vaccination Shots - ' . $pet->name . ' - KHAT Admin')
 
 @section('content')
+@php
+    $safeFormatDate = static function ($value, string $format = 'M d, Y'): string {
+        if (empty($value)) {
+            return '—';
+        }
+
+        try {
+            return \Carbon\Carbon::parse($value)->format($format);
+        } catch (\Throwable $e) {
+            return '—';
+        }
+    };
+
+    $safeDiffInDays = static function ($value): ?int {
+        if (empty($value)) {
+            return null;
+        }
+
+        try {
+            return now()->diffInDays(\Carbon\Carbon::parse($value), false);
+        } catch (\Throwable $e) {
+            return null;
+        }
+    };
+
+    $safeStorageUrl = static function ($path): ?string {
+        if (empty($path)) {
+            return null;
+        }
+
+        try {
+            return \Illuminate\Support\Facades\Storage::disk('do_spaces')->url($path);
+        } catch (\Throwable $e) {
+            return null;
+        }
+    };
+@endphp
+
 <!-- Breadcrumb -->
 <div class="flex items-center gap-2 text-sm text-gray-500 mb-4">
     <a href="{{ route('admin.pets.index') }}" class="hover:text-[#E75234] transition">
@@ -137,7 +175,7 @@
             @php
             $completedCount = $card->shots->where('verification_status', 'approved')->count();
             $pendingCount = $card->shots->where('verification_status', 'pending')->count();
-            $totalRequired = $card->protocol->series_doses ?? 0;
+            $totalRequired = (int) data_get($card, 'protocol.series_doses', 0);
             $progress = $totalRequired > 0 ? min(100, round(($completedCount / $totalRequired) * 100)) : ($completedCount > 0 ? 100 : 0);
             $statusColor = match($card->status) {
                 'completed'     => 'green',
@@ -150,8 +188,8 @@
             <div class="border border-gray-200 rounded-lg p-4 hover:border-[#E75234]/30 hover:shadow-sm transition-all">
                 <div class="flex items-start justify-between mb-2">
                     <div>
-                        <h3 class="text-sm font-semibold text-gray-900">{{ $card->protocol->name ?? $card->vaccine_name ?? 'Unknown' }}</h3>
-                        <p class="text-xs text-gray-500 mt-0.5">{{ $card->protocol->description ?? '' }}</p>
+                        <h3 class="text-sm font-semibold text-gray-900">{{ data_get($card, 'protocol.name') ?? $card->vaccine_name ?? 'Unknown' }}</h3>
+                        <p class="text-xs text-gray-500 mt-0.5">{{ data_get($card, 'protocol.description', '') }}</p>
                     </div>
                     @php
                     $badgeColors = [
@@ -272,13 +310,13 @@
                 <tr class="hover:bg-gray-50 border-l-4 {{ $rowBorderColor }} {{ $rowHighlightClass }} transition-colors">
                     <td class="px-5 py-3.5">
                         <div class="flex items-center gap-2 flex-wrap">
-                            <p class="font-semibold text-gray-900">{{ $shot->card->protocol->name ?? 'Unknown' }}</p>
+                            <p class="font-semibold text-gray-900">{{ data_get($shot, 'card.protocol.name', 'Unknown') }}</p>
                             @if($isLatestShot)
                             <span class="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-semibold bg-emerald-100 text-emerald-700 ring-1 ring-inset ring-emerald-600/20">Latest Shot</span>
                             @endif
                         </div>
-                        @if($shot->card->protocol && $shot->card->protocol->category)
-                        <p class="text-xs text-gray-400">{{ $shot->card->protocol->category->name }}</p>
+                        @if(data_get($shot, 'card.protocol.category'))
+                        <p class="text-xs text-gray-400">{{ data_get($shot, 'card.protocol.category.name') }}</p>
                         @endif
                     </td>
                     <td class="px-5 py-3.5">
@@ -289,16 +327,16 @@
                         @else
                         <span class="text-sm text-gray-700">
                             Dose {{ $shot->shot_number }}
-                            @if($shot->card->protocol && $shot->card->protocol->series_doses > 0)
-                            <span class="text-gray-400">/ {{ $shot->card->protocol->series_doses }}</span>
+                            @if((int) data_get($shot, 'card.protocol.series_doses', 0) > 0)
+                            <span class="text-gray-400">/ {{ data_get($shot, 'card.protocol.series_doses') }}</span>
                             @endif
                         </span>
                         @endif
                     </td>
                     <td class="px-5 py-3.5 text-gray-600">
-                        {{ $shot->date_administered ? \Carbon\Carbon::parse($shot->date_administered)->format('M d, Y') : '—' }}
-                        @if($shot->expiration_date)
-                        <p class="text-xs text-gray-400 mt-0.5">Exp: {{ \Carbon\Carbon::parse($shot->expiration_date)->format('M d, Y') }}</p>
+                        {{ $safeFormatDate($shot->getRawOriginal('date_administered')) }}
+                        @if(!empty($shot->getRawOriginal('expiration_date')))
+                        <p class="text-xs text-gray-400 mt-0.5">Exp: {{ $safeFormatDate($shot->getRawOriginal('expiration_date')) }}</p>
                         @endif
                     </td>
                     <td class="px-5 py-3.5">
@@ -316,15 +354,15 @@
                             <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold ring-1 ring-inset {{ $verClass }}">
                                 {{ ucfirst($shot->verification_status) }}
                             </span>
-                            @if($shot->verification_status === 'approved' && $shot->expiration_date)
+                            @if($shot->verification_status === 'approved' && !empty($shot->getRawOriginal('expiration_date')))
                             @php
-                                $expDaysLeft = now()->diffInDays(\Carbon\Carbon::parse($shot->expiration_date), false);
+                                $expDaysLeft = $safeDiffInDays($shot->getRawOriginal('expiration_date'));
                             @endphp
-                            @if($expDaysLeft < 0)
+                            @if($expDaysLeft !== null && $expDaysLeft < 0)
                             <span class="inline-flex items-center gap-0.5 px-2 py-0.5 rounded-full text-[10px] font-semibold bg-red-100 text-red-700">
                                 <i data-lucide="alert-circle" class="w-2.5 h-2.5"></i> Expired
                             </span>
-                            @elseif($expDaysLeft <= 30)
+                            @elseif($expDaysLeft !== null && $expDaysLeft <= 30)
                             <span class="inline-flex items-center gap-0.5 px-2 py-0.5 rounded-full text-[10px] font-semibold bg-yellow-100 text-yellow-700">
                                 <i data-lucide="clock" class="w-2.5 h-2.5"></i> Expiring Soon
                             </span>
@@ -336,8 +374,11 @@
                         </div>
                     </td>
                     <td class="px-5 py-3.5">
-                        @if($shot->vaccination_record)
-                        <button type="button" onclick="viewDocument('{{ Storage::disk('do_spaces')->url($shot->vaccination_record) }}', 'Proof — Dose {{ $shot->shot_number }}')" class="inline-flex items-center gap-1.5 px-2.5 py-1.5 text-xs font-medium text-[#E75234] bg-[#FDF4F2] rounded-lg hover:bg-orange-100 transition-colors">
+                        @php
+                            $proofUrl = $safeStorageUrl($shot->vaccination_record);
+                        @endphp
+                        @if($proofUrl)
+                        <button type="button" onclick="viewDocument('{{ $proofUrl }}', 'Proof — Dose {{ $shot->shot_number }}')" class="inline-flex items-center gap-1.5 px-2.5 py-1.5 text-xs font-medium text-[#E75234] bg-[#FDF4F2] rounded-lg hover:bg-orange-100 transition-colors">
                             <i data-lucide="file-text" class="w-3.5 h-3.5"></i>
                             View
                         </button>

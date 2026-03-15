@@ -343,8 +343,9 @@ class VaccineProtocolController extends Controller
             ->map(function ($shots) {
                 $latestShot = $shots->sortByDesc(function ($shot) {
                     $dateKey = 0;
-                    if (!empty($shot->date_administered)) {
-                        $timestamp = strtotime((string) $shot->date_administered);
+                    $rawDateAdministered = $shot->getRawOriginal('date_administered');
+                    if (!empty($rawDateAdministered)) {
+                        $timestamp = strtotime((string) $rawDateAdministered);
                         $dateKey = $timestamp !== false ? $timestamp : 0;
                     }
 
@@ -358,7 +359,7 @@ class VaccineProtocolController extends Controller
 
         $query = VaccinationShot::whereHas('card', function ($q) use ($petId) {
             $q->where('pet_id', $petId);
-        })->with(['card.protocol']);
+        })->with(['card.protocol.category']);
 
         if ($request->get('view_mode') === 'latest') {
             if ($latestShotIdsByCard->isNotEmpty()) {
@@ -398,11 +399,15 @@ class VaccineProtocolController extends Controller
 
         // Get vaccination cards summary for this pet
         $cards = \App\Models\VaccinationCard::where('pet_id', $petId)
-            ->with(['protocol', 'shots'])
+            ->with(['protocol.category', 'shots'])
             ->get();
 
         foreach ($cards as $card) {
-            $card->updateStatus();
+            try {
+                $card->updateStatus();
+            } catch (\Throwable $e) {
+                report($e);
+            }
         }
 
         // Stats — shot-level counts
