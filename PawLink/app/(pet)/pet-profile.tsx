@@ -842,6 +842,25 @@ export default function PetProfileScreen() {
                 <Ionicons name="checkmark" size={14} color="#FFFFFF" />
               </View>
             </View>
+
+            <Text style={styles.petName}>{petData.name}</Text>
+            <Text style={styles.petSubTitle}>
+              {petData.breed} - {petData.species}
+            </Text>
+
+            <View style={styles.chipsRow}>
+              <HeaderChip
+                icon="calendar-outline"
+                text={calculateAge(petData.birthdate)}
+              />
+              <HeaderChip
+                icon={petData.sex === "male" ? "male-outline" : "female-outline"}
+                text={petData.sex}
+              />
+              {petData.microchip_id ? (
+                <HeaderChip icon="checkmark-outline" text="Microchip" />
+              ) : null}
+            </View>
           </View>
         </View>
 

@@ -305,7 +305,7 @@ export const uploadPetPhotos = async (
 ): Promise<PetPhoto[]> => {
   const form = new FormData();
   assets.forEach((asset, i) => {
-    form.append(`photos[${i}]`, {
+    form.append("photos[]", {
       uri: asset.uri,
       name: asset.fileName || `photo_${i}.jpg`,
       type: asset.mimeType || "image/jpeg",

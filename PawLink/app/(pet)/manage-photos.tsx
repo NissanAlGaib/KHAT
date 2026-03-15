@@ -65,6 +65,8 @@ export default function ManagePhotosScreen() {
 
   useEffect(() => {
     if (!petId || Number.isNaN(petId)) {
+      setLoading(false);
+      setRefreshing(false);
       showAlert({
         title: "Error",
         message: "Missing pet ID.",
@@ -103,6 +105,7 @@ export default function ManagePhotosScreen() {
       if (result.canceled || !result.assets?.length) return;
 
       setUploading(true);
+
       const updated = await uploadPetPhotos(
         petId,
         result.assets.map((a) => ({
@@ -111,7 +114,7 @@ export default function ManagePhotosScreen() {
           mimeType: a.mimeType ?? undefined,
         })),
       );
-      setPhotos(updated);
+      setPhotos(Array.isArray(updated) ? updated : []);
     } catch (err: any) {
       showAlert({
         title: "Upload Failed",

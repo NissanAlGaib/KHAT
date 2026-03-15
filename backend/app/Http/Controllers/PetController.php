@@ -513,7 +513,7 @@ class PetController extends Controller
 
         return response()->json([
             'photos' => $pet->photos->map(fn($p) => [
-                'photo_id' => $p->photo_id,
+                'photo_id' => $p->id,
                 'photo_url' => $p->photo_url,
                 'is_primary' => $p->is_primary,
             ]),
@@ -549,7 +549,7 @@ class PetController extends Controller
             ]);
             $isFirstPhoto = false;
             $added[] = [
-                'photo_id' => $photo->photo_id,
+                'photo_id' => $photo->id,
                 'photo_url' => $photo->photo_url,
                 'is_primary' => $photo->is_primary,
             ];
@@ -561,7 +561,7 @@ class PetController extends Controller
             'message' => 'Photo(s) uploaded successfully.',
             'added' => $added,
             'photos' => $pet->photos->map(fn($p) => [
-                'photo_id' => $p->photo_id,
+                'photo_id' => $p->id,
                 'photo_url' => $p->photo_url,
                 'is_primary' => $p->is_primary,
             ]),
@@ -574,7 +574,7 @@ class PetController extends Controller
     public function deletePhoto($petId, $photoId)
     {
         $pet = Pet::where('user_id', Auth::id())->with('photos')->findOrFail($petId);
-        $photo = $pet->photos->firstWhere('photo_id', $photoId);
+        $photo = $pet->photos->firstWhere('id', (int) $photoId);
 
         if (!$photo) {
             return response()->json(['message' => 'Photo not found.'], 404);
@@ -585,7 +585,7 @@ class PetController extends Controller
 
         // If we deleted the primary photo, promote the first remaining photo
         if ($wasPrimary) {
-            $remaining = $pet->photos->where('photo_id', '!=', $photoId)->first();
+            $remaining = $pet->photos->where('id', '!=', (int) $photoId)->first();
             if ($remaining) {
                 $remaining->update(['is_primary' => true]);
             }
@@ -596,7 +596,7 @@ class PetController extends Controller
         return response()->json([
             'message' => 'Photo deleted successfully.',
             'photos' => $pet->photos->map(fn($p) => [
-                'photo_id' => $p->photo_id,
+                'photo_id' => $p->id,
                 'photo_url' => $p->photo_url,
                 'is_primary' => $p->is_primary,
             ]),
@@ -609,7 +609,7 @@ class PetController extends Controller
     public function setPrimaryPhoto($petId, $photoId)
     {
         $pet = Pet::where('user_id', Auth::id())->with('photos')->findOrFail($petId);
-        $photo = $pet->photos->firstWhere('photo_id', $photoId);
+        $photo = $pet->photos->firstWhere('id', (int) $photoId);
 
         if (!$photo) {
             return response()->json(['message' => 'Photo not found.'], 404);
@@ -624,7 +624,7 @@ class PetController extends Controller
         return response()->json([
             'message' => 'Primary photo updated.',
             'photos' => $pet->photos->map(fn($p) => [
-                'photo_id' => $p->photo_id,
+                'photo_id' => $p->id,
                 'photo_url' => $p->photo_url,
                 'is_primary' => $p->is_primary,
             ]),
@@ -837,7 +837,7 @@ class PetController extends Controller
             ],
             'photos' => $pet->photos->map(function ($photo) {
                 return [
-                    'photo_id' => $photo->photo_id,
+                    'photo_id' => $photo->id,
                     'photo_url' => $photo->photo_url,
                     'is_primary' => $photo->is_primary,
                 ];
