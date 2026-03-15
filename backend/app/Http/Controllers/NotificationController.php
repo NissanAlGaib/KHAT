@@ -10,6 +10,7 @@ use App\Models\HealthRecord;
 use App\Models\SafetyReport;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Log;
+use Carbon\Carbon;
 
 class NotificationController extends Controller
 {
@@ -30,17 +31,24 @@ class NotificationController extends Controller
                 ->get();
 
             foreach ($userVerifications as $verification) {
+                $isExpired = $verification->status === 'approved'
+                    && $verification->expiry_date
+                    && Carbon::parse($verification->expiry_date)->isPast();
+
+                $effectiveStatus = $isExpired ? 'warning' : $verification->status;
+
                 $notifications[] = [
                     'id' => 'user_auth_' . $verification->auth_id,
                     'type' => 'user_verification',
                     'auth_id' => $verification->auth_id,
                     'auth_type' => $verification->auth_type,
                     'document_type' => $this->getDocumentTypeLabel($verification->auth_type),
-                    'status' => $verification->status,
+                    'status' => $effectiveStatus,
                     'rejection_reason' => $verification->rejection_reason,
+                    'expiry_date' => $verification->expiry_date,
                     'created_at' => $verification->date_created,
                     'updated_at' => $verification->updated_at,
-                    'message' => $this->getUserVerificationMessage($verification),
+                    'message' => $this->getUserVerificationMessage($verification, $isExpired),
                 ];
             }
 
@@ -185,6 +193,13 @@ class NotificationController extends Controller
                 ->where('status', 'rejected')
                 ->count();
 
+            // Count expired approved user verifications (also needs action)
+            $expiredUserVerifications = UserAuth::where('user_id', $userId)
+                ->where('status', 'approved')
+                ->whereNotNull('expiry_date')
+                ->whereDate('expiry_date', '<', Carbon::today())
+                ->count();
+
             // Count rejected pet verifications
             $pets = Pet::where('user_id', $userId)->pluck('pet_id');
             
@@ -202,7 +217,7 @@ class NotificationController extends Controller
                 ->whereIn('status', [SafetyReport::STATUS_REVIEWED, SafetyReport::STATUS_RESOLVED])
                 ->count();
 
-            $totalActionable = $rejectedUserVerifications + $rejectedVaccinations + $rejectedHealthRecords + $warningCount;
+            $totalActionable = $rejectedUserVerifications + $expiredUserVerifications + $rejectedVaccinations + $rejectedHealthRecords + $warningCount;
 
             return response()->json([
                 'success' => true,
@@ -239,9 +254,13 @@ class NotificationController extends Controller
     /**
      * Helper function to create user verification message
      */
-    private function getUserVerificationMessage($verification)
+    private function getUserVerificationMessage($verification, bool $isExpired = false)
     {
         $documentType = $this->getDocumentTypeLabel($verification->auth_type);
+
+        if ($isExpired) {
+            return "Your {$documentType} has expired. Please resubmit to stay verified.";
+        }
 
         switch ($verification->status) {
             case 'pending':

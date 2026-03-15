@@ -91,7 +91,23 @@ export default function VerificationStatusScreen() {
     return verifications.find((v) => v.auth_type === type) || null;
   };
 
-  const getStatusBadge = (status: string | undefined) => {
+  const isDocumentExpired = (doc: VerificationStatus | null) => {
+    if (!doc?.expiry_date) return false;
+    return dayjs(doc.expiry_date).endOf("day").isBefore(dayjs());
+  };
+
+  const getStatusBadge = (doc: VerificationStatus | null) => {
+    if (isDocumentExpired(doc)) {
+      return {
+        text: "Expired",
+        bgColor: "bg-red-100",
+        textColor: "text-red-700",
+        icon: "alert-circle" as const,
+        iconColor: "#DC2626",
+      };
+    }
+
+    const status = doc?.status;
     switch (status) {
       case "approved":
         return {
@@ -158,7 +174,8 @@ export default function VerificationStatusScreen() {
   };
 
   // Calculate summary stats
-  const approvedCount = verifications.filter((v) => v.status === "approved").length;
+  const expiredCount = verifications.filter((v) => isDocumentExpired(v)).length;
+  const approvedCount = verifications.filter((v) => v.status === "approved" && !isDocumentExpired(v)).length;
   const pendingCount = verifications.filter((v) => v.status === "pending").length;
   const rejectedCount = verifications.filter((v) => v.status === "rejected").length;
   const totalSubmitted = verifications.length;
@@ -166,6 +183,9 @@ export default function VerificationStatusScreen() {
   const getSummaryMessage = () => {
     if (totalSubmitted === 0) {
       return "No documents submitted yet";
+    }
+    if (expiredCount > 0) {
+      return `${expiredCount} document${expiredCount > 1 ? "s" : ""} expired`;
     }
     if (rejectedCount > 0) {
       return `${rejectedCount} document${rejectedCount > 1 ? "s" : ""} need${rejectedCount === 1 ? "s" : ""} attention`;
@@ -180,6 +200,7 @@ export default function VerificationStatusScreen() {
   };
 
   const getSummaryColor = () => {
+    if (expiredCount > 0) return { bg: "bg-red-500", text: "text-white" };
     if (rejectedCount > 0) return { bg: "bg-red-500", text: "text-white" };
     if (pendingCount > 0) return { bg: "bg-amber-500", text: "text-white" };
     if (approvedCount > 0) return { bg: "bg-green-500", text: "text-white" };
@@ -238,13 +259,13 @@ export default function VerificationStatusScreen() {
                 </Text>
                 <Text className={`text-sm ${summaryColors.text} opacity-80 mt-1`}>
                   {totalSubmitted > 0
-                    ? `${approvedCount} verified, ${pendingCount} pending, ${rejectedCount} rejected`
+                    ? `${approvedCount} verified, ${pendingCount} pending, ${rejectedCount} rejected, ${expiredCount} expired`
                     : "Submit your documents to get verified"}
                 </Text>
               </View>
               <View className="w-14 h-14 rounded-full bg-white/20 items-center justify-center">
                 <Feather
-                  name={rejectedCount > 0 ? "alert-circle" : pendingCount > 0 ? "clock" : approvedCount > 0 ? "check-circle" : "file-plus"}
+                  name={expiredCount > 0 ? "alert-circle" : rejectedCount > 0 ? "alert-circle" : pendingCount > 0 ? "clock" : approvedCount > 0 ? "check-circle" : "file-plus"}
                   size={28}
                   color="white"
                 />
@@ -257,9 +278,10 @@ export default function VerificationStatusScreen() {
 
           {DOCUMENT_CONFIGS.map((config) => {
             const doc = getDocumentStatus(config.type);
-            const statusInfo = getStatusBadge(doc?.status);
+            const statusInfo = getStatusBadge(doc);
+            const isExpired = isDocumentExpired(doc);
             const isRejected = doc?.status === "rejected";
-            const isApproved = doc?.status === "approved";
+            const isApproved = doc?.status === "approved" && !isExpired;
             const isPending = doc?.status === "pending";
             const notSubmitted = !doc;
 
@@ -267,7 +289,7 @@ export default function VerificationStatusScreen() {
               <View
                 key={config.type}
                 className={`bg-white rounded-3xl p-5 mb-4 border-2 ${
-                  isRejected
+                  isExpired || isRejected
                     ? "border-red-200"
                     : isApproved
                     ? "border-green-200"
@@ -343,8 +365,21 @@ export default function VerificationStatusScreen() {
                   </View>
                 )}
 
+                {/* Expired Reason */}
+                {isExpired && doc && (
+                  <View className="bg-red-50 rounded-xl p-3 mb-3 flex-row items-start">
+                    <Feather name="alert-circle" size={16} color="#DC2626" />
+                    <View className="ml-2 flex-1">
+                      <Text className="text-xs font-semibold text-red-800">Document Expired</Text>
+                      <Text className="text-sm text-red-700 mt-0.5">
+                        This document is past its expiry date. Please resubmit a valid document.
+                      </Text>
+                    </View>
+                  </View>
+                )}
+
                 {/* Action Button */}
-                {isRejected && doc && (
+                {(isRejected || isExpired) && doc && (
                   <TouchableOpacity
                     className="bg-[#FF6B4A] rounded-xl py-3 flex-row items-center justify-center"
                     onPress={() => handleResubmit(doc)}

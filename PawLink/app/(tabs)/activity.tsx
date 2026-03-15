@@ -118,6 +118,11 @@ const VerificationCard = ({
   notification: NotificationItem;
   onResubmit: (notification: NotificationItem) => void;
 }) => {
+  const needsResubmitAction =
+    notification.status === "rejected" ||
+    (notification.status === "warning" &&
+      notification.type === "user_verification");
+
   const getStatusColor = (status: string) => {
     switch (status) {
       case "approved":
@@ -257,9 +262,8 @@ const VerificationCard = ({
           </View>
         )}
 
-        {/* Resubmit button for rejected items (not for warnings) */}
-        {notification.status === "rejected" &&
-          notification.type !== "admin_warning" && (
+        {/* Resubmit button for rejected or expired user verification items */}
+        {needsResubmitAction && notification.type !== "admin_warning" && (
             <TouchableOpacity
               style={styles.resubmitButton}
               onPress={() => onResubmit(notification)}

@@ -341,16 +341,15 @@ class VaccineProtocolController extends Controller
             ->get(['shot_id', 'card_id', 'date_administered', 'shot_number'])
             ->groupBy('card_id')
             ->map(function ($shots) {
-                $latestShot = $shots->sort(function ($a, $b) {
-                    return [
-                        $b->date_administered?->format('Y-m-d'),
-                        (int) $b->shot_number,
-                        (int) $b->shot_id,
-                    ] <=> [
-                        $a->date_administered?->format('Y-m-d'),
-                        (int) $a->shot_number,
-                        (int) $a->shot_id,
-                    ];
+                $latestShot = $shots->sortByDesc(function ($shot) {
+                    $dateKey = 0;
+                    if (!empty($shot->date_administered)) {
+                        $timestamp = strtotime((string) $shot->date_administered);
+                        $dateKey = $timestamp !== false ? $timestamp : 0;
+                    }
+
+                    // Deterministic ordering: date, then shot number, then id.
+                    return sprintf('%010d-%05d-%010d', $dateKey, (int) $shot->shot_number, (int) $shot->shot_id);
                 })->first();
 
                 return $latestShot?->shot_id;

@@ -174,10 +174,17 @@
             <h2 class="text-lg font-bold text-gray-900 mb-4">Verification Documents</h2>
 
             @forelse($user->userAuth as $auth)
+            @php
+            $isExpiredDocument = $auth->status === 'approved'
+            && $auth->expiry_date
+            && \Carbon\Carbon::parse($auth->expiry_date)->isPast();
+            @endphp
             <div class="mb-4 last:mb-0 p-3 bg-gray-50 rounded-lg border border-gray-200">
                 <div class="flex justify-between items-start mb-2">
                     <span class="text-sm font-bold text-gray-900 capitalize">{{ str_replace('_', ' ', $auth->auth_type) }}</span>
-                    @if($auth->status === 'approved')
+                    @if($isExpiredDocument)
+                    <span class="px-2 py-0.5 rounded text-[10px] font-bold bg-red-100 text-red-700 uppercase">Expired</span>
+                    @elseif($auth->status === 'approved')
                     <span class="px-2 py-0.5 rounded text-[10px] font-bold bg-green-100 text-green-700 uppercase">Verified</span>
                     @elseif($auth->status === 'pending')
                     <span class="px-2 py-0.5 rounded text-[10px] font-bold bg-yellow-100 text-yellow-700 uppercase">Pending</span>
@@ -185,6 +192,15 @@
                     <span class="px-2 py-0.5 rounded text-[10px] font-bold bg-red-100 text-red-700 uppercase">Rejected</span>
                     @endif
                 </div>
+
+                @if($auth->expiry_date)
+                <p class="text-xs {{ $isExpiredDocument ? 'text-red-600' : 'text-gray-500' }} mb-2">
+                    Expiry: {{ \Carbon\Carbon::parse($auth->expiry_date)->format('M d, Y') }}
+                    @if($isExpiredDocument)
+                    <span class="font-semibold">(expired)</span>
+                    @endif
+                </p>
+                @endif
 
                 @if($auth->document_path)
                 <button onclick="viewDocument('{{ Storage::disk('do_spaces')->url($auth->document_path) }}', '{{ $auth->auth_type }}')" class="text-xs text-[#E75234] hover:underline flex items-center gap-1 focus:outline-none">

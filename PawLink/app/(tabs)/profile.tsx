@@ -85,6 +85,11 @@ export default function ProfileScreen() {
     }, [fetchAllData]),
   );
 
+  const isDocumentExpired = (doc?: VerificationStatus | null) => {
+    if (!doc?.expiry_date) return false;
+    return dayjs(doc.expiry_date).endOf("day").isBefore(dayjs());
+  };
+
   const getVerificationDisplay = () => {
     if (!verificationStatus || verificationStatus.length === 0)
       return {
@@ -92,10 +97,12 @@ export default function ProfileScreen() {
         color: "#6B7280",
         showButton: true,
         hasRejected: false,
+        hasExpired: false,
         hasPending: false,
       };
 
     const idVerification = verificationStatus.find((v) => v.auth_type === "id");
+    const hasAnyExpired = verificationStatus.some((v) => isDocumentExpired(v));
     const hasAnyRejected = verificationStatus.some(
       (v) => v.status === "rejected",
     );
@@ -113,8 +120,26 @@ export default function ProfileScreen() {
         color: "#6B7280",
         showButton: true,
         hasRejected: false,
+        hasExpired: false,
         hasPending: false,
       };
+
+    if (hasAnyExpired) {
+      const expiredCount = verificationStatus.filter((v) =>
+        isDocumentExpired(v),
+      ).length;
+      return {
+        text:
+          expiredCount > 1
+            ? `${expiredCount} Documents Expired`
+            : "Document Expired",
+        color: "#DC2626",
+        showButton: true,
+        hasRejected: false,
+        hasExpired: true,
+        hasPending: hasAnyPending,
+      };
+    }
 
     // Check for rejected documents first (highest priority)
     if (hasAnyRejected) {
@@ -129,6 +154,7 @@ export default function ProfileScreen() {
         color: "#DC2626",
         showButton: true,
         hasRejected: true,
+        hasExpired: false,
         hasPending: hasAnyPending,
       };
     }
@@ -140,17 +166,19 @@ export default function ProfileScreen() {
         color: "#F59E0B",
         showButton: true,
         hasRejected: false,
+        hasExpired: false,
         hasPending: true,
       };
     }
 
     // All approved
-    if (allApproved && idVerification.status === "approved") {
+    if (allApproved && idVerification.status === "approved" && !isDocumentExpired(idVerification)) {
       return {
         text: "Verified",
         color: "#16A34A",
         showButton: true,
         hasRejected: false,
+        hasExpired: false,
         hasPending: false,
       };
     }
@@ -160,6 +188,7 @@ export default function ProfileScreen() {
       color: "#6B7280",
       showButton: true,
       hasRejected: false,
+      hasExpired: false,
       hasPending: false,
     };
   };
@@ -177,7 +206,7 @@ export default function ProfileScreen() {
   const isIdVerified = () => {
     if (!verificationStatus || verificationStatus.length === 0) return false;
     const idVerification = verificationStatus.find((v) => v.auth_type === "id");
-    return idVerification?.status === "approved";
+    return idVerification?.status === "approved" && !isDocumentExpired(idVerification);
   };
 
   // Handle add pet button - check verification first
@@ -186,13 +215,15 @@ export default function ProfileScreen() {
       const verification = getVerificationDisplay();
       showAlert({
         title: "Verification Required",
-        message: verification.hasRejected
+        message: verification.hasExpired
+          ? "One of your verification documents has expired. Please resubmit your document before adding a pet."
+          : verification.hasRejected
           ? "Your verification was rejected. Please resubmit your document before adding a pet."
           : "You must complete identity verification before adding a pet",
         type: "warning",
         buttons: [
           {
-            text: verification.hasRejected ? "View Status" : "Verify Now",
+            text: verification.hasRejected || verification.hasExpired ? "View Status" : "Verify Now",
             onPress: handleVerifyPress,
           },
           { text: "Later" },
