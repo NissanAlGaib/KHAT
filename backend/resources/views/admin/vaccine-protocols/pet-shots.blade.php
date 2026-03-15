@@ -219,6 +219,13 @@
             ['value' => 'valid',         'label' => 'Valid (>30 days)'],
         ],
     ],
+    [
+        'name'    => 'view_mode',
+        'label'   => 'View Mode',
+        'options' => [
+            ['value' => 'latest', 'label' => 'Latest Shot Only'],
+        ],
+    ],
 ],
 'dateFilter' => false,
 'exports' => false,
@@ -259,10 +266,17 @@
                 'rejected' => 'border-l-red-400',
                 default => 'border-l-gray-300',
                 };
+                $isLatestShot = (int) ($latestShotIdsByCard->get($shot->card_id) ?? 0) === (int) $shot->shot_id;
+                $rowHighlightClass = $isLatestShot ? 'bg-emerald-50/40' : '';
                 @endphp
-                <tr class="hover:bg-gray-50 border-l-4 {{ $rowBorderColor }} transition-colors">
+                <tr class="hover:bg-gray-50 border-l-4 {{ $rowBorderColor }} {{ $rowHighlightClass }} transition-colors">
                     <td class="px-5 py-3.5">
-                        <p class="font-semibold text-gray-900">{{ $shot->card->protocol->name ?? 'Unknown' }}</p>
+                        <div class="flex items-center gap-2 flex-wrap">
+                            <p class="font-semibold text-gray-900">{{ $shot->card->protocol->name ?? 'Unknown' }}</p>
+                            @if($isLatestShot)
+                            <span class="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-semibold bg-emerald-100 text-emerald-700 ring-1 ring-inset ring-emerald-600/20">Latest Shot</span>
+                            @endif
+                        </div>
                         @if($shot->card->protocol && $shot->card->protocol->category)
                         <p class="text-xs text-gray-400">{{ $shot->card->protocol->category->name }}</p>
                         @endif
@@ -298,26 +312,28 @@
                         @endif
                     </td>
                     <td class="px-5 py-3.5">
-                        <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold ring-1 ring-inset {{ $verClass }}">
-                            {{ ucfirst($shot->verification_status) }}
-                        </span>
-                        @if($shot->verification_status === 'approved' && $shot->expiration_date)
-                        @php
-                            $expDaysLeft = now()->diffInDays(\Carbon\Carbon::parse($shot->expiration_date), false);
-                        @endphp
-                        @if($expDaysLeft < 0)
-                        <span class="inline-flex items-center gap-0.5 mt-1 px-2 py-0.5 rounded-full text-[10px] font-semibold bg-red-100 text-red-700">
-                            <i data-lucide="alert-circle" class="w-2.5 h-2.5"></i> Expired
-                        </span>
-                        @elseif($expDaysLeft <= 30)
-                        <span class="inline-flex items-center gap-0.5 mt-1 px-2 py-0.5 rounded-full text-[10px] font-semibold bg-yellow-100 text-yellow-700">
-                            <i data-lucide="clock" class="w-2.5 h-2.5"></i> Expiring Soon
-                        </span>
-                        @endif
-                        @endif
-                        @if($shot->verification_status === 'rejected' && $shot->rejection_reason)
-                        <p class="text-xs text-red-500 mt-1 max-w-[180px] truncate" title="{{ $shot->rejection_reason }}">{{ $shot->rejection_reason }}</p>
-                        @endif
+                        <div class="flex flex-col items-start gap-1">
+                            <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold ring-1 ring-inset {{ $verClass }}">
+                                {{ ucfirst($shot->verification_status) }}
+                            </span>
+                            @if($shot->verification_status === 'approved' && $shot->expiration_date)
+                            @php
+                                $expDaysLeft = now()->diffInDays(\Carbon\Carbon::parse($shot->expiration_date), false);
+                            @endphp
+                            @if($expDaysLeft < 0)
+                            <span class="inline-flex items-center gap-0.5 px-2 py-0.5 rounded-full text-[10px] font-semibold bg-red-100 text-red-700">
+                                <i data-lucide="alert-circle" class="w-2.5 h-2.5"></i> Expired
+                            </span>
+                            @elseif($expDaysLeft <= 30)
+                            <span class="inline-flex items-center gap-0.5 px-2 py-0.5 rounded-full text-[10px] font-semibold bg-yellow-100 text-yellow-700">
+                                <i data-lucide="clock" class="w-2.5 h-2.5"></i> Expiring Soon
+                            </span>
+                            @endif
+                            @endif
+                            @if($shot->verification_status === 'rejected' && $shot->rejection_reason)
+                            <p class="text-xs text-red-500 max-w-[180px] truncate" title="{{ $shot->rejection_reason }}">{{ $shot->rejection_reason }}</p>
+                            @endif
+                        </div>
                     </td>
                     <td class="px-5 py-3.5">
                         @if($shot->vaccination_record)

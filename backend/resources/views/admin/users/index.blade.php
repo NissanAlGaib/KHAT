@@ -56,6 +56,8 @@
 ['value' => 'admin', 'label' => 'Admin'],
 ]],
 ['name' => 'doc_status', 'label' => 'Document Status', 'options' => [
+['value' => 'pending', 'label' => 'Pending'],
+['value' => 'rejected', 'label' => 'Rejected'],
 ['value' => 'valid', 'label' => 'Valid'],
 ['value' => 'expired', 'label' => 'Expired'],
 ['value' => 'missing', 'label' => 'Missing'],
@@ -212,40 +214,20 @@ collect($subscriptionTiers)->map(fn($tier) => ['value' => $tier->slug, 'label' =
                     </td>
                     <td class="px-6 py-4">
                         @php
-                        $userAuthRecords = $user->userAuth;
-                        $hasDocuments = $userAuthRecords->isNotEmpty();
-                        $hasExpiry = false;
-                        $isExpired = false;
-
-                        if ($hasDocuments) {
-                        foreach ($userAuthRecords as $auth) {
-                        if ($auth->expiry_date) {
-                        $hasExpiry = true;
-                        if (\Carbon\Carbon::parse($auth->expiry_date)->isPast()) {
-                        $isExpired = true;
-                        break;
-                        }
-                        }
-                        }
-                        }
+                        $documentBadges = [
+                        'missing' => ['label' => 'Missing', 'icon' => 'file-x', 'classes' => 'bg-gray-100 text-gray-600'],
+                        'expired' => ['label' => 'Expired', 'icon' => 'alert-circle', 'classes' => 'bg-red-100 text-red-700'],
+                        'rejected' => ['label' => 'Rejected', 'icon' => 'x-circle', 'classes' => 'bg-red-100 text-red-700'],
+                        'pending' => ['label' => 'Pending', 'icon' => 'clock', 'classes' => 'bg-yellow-100 text-yellow-700'],
+                        'valid' => ['label' => 'Valid', 'icon' => 'check-circle', 'classes' => 'bg-green-100 text-green-700'],
+                        ];
+                        $documentBadge = $documentBadges[$user->document_status ?? 'pending'] ?? $documentBadges['pending'];
                         @endphp
 
-                        @if(!$hasDocuments)
-                        <span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-md bg-gray-100 text-gray-600 text-xs font-semibold">
-                            <i data-lucide="file-x" class="w-3.5 h-3.5"></i>
-                            Missing
+                        <span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-md text-xs font-semibold {{ $documentBadge['classes'] }}">
+                            <i data-lucide="{{ $documentBadge['icon'] }}" class="w-3.5 h-3.5"></i>
+                            {{ $documentBadge['label'] }}
                         </span>
-                        @elseif($isExpired)
-                        <span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-md bg-red-100 text-red-700 text-xs font-semibold">
-                            <i data-lucide="alert-circle" class="w-3.5 h-3.5"></i>
-                            Expired
-                        </span>
-                        @else
-                        <span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-md bg-green-100 text-green-700 text-xs font-semibold">
-                            <i data-lucide="check-circle" class="w-3.5 h-3.5"></i>
-                            Valid
-                        </span>
-                        @endif
                     </td>
                     <td class="px-6 py-4">
                         @php

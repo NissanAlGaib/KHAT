@@ -127,7 +127,12 @@ class VaccinationCard extends Model
      */
     public function latestApprovedShot()
     {
-        return $this->approvedShots()->latest('shot_number')->first();
+        return $this->hasMany(VaccinationShot::class, 'card_id', 'card_id')
+            ->where('verification_status', 'approved')
+            ->orderByDesc('date_administered')
+            ->orderByDesc('shot_number')
+            ->orderByDesc('shot_id')
+            ->first();
     }
 
     /**
@@ -135,7 +140,11 @@ class VaccinationCard extends Model
      */
     public function latestShot()
     {
-        return $this->shots()->latest('shot_number')->first();
+        return $this->hasMany(VaccinationShot::class, 'card_id', 'card_id')
+            ->orderByDesc('date_administered')
+            ->orderByDesc('shot_number')
+            ->orderByDesc('shot_id')
+            ->first();
     }
 
     /**
@@ -344,7 +353,9 @@ class VaccinationCard extends Model
             $this->status = self::STATUS_IN_PROGRESS;
         }
 
-        $this->save();
+        if ($this->isDirty('status')) {
+            $this->save();
+        }
     }
 
     /**

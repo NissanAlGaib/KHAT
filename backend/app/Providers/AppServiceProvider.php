@@ -64,7 +64,7 @@ class AppServiceProvider extends ServiceProvider
                         'color' => 'yellow',
                         'title' => "{$pendingVerifications} pending verification" . ($pendingVerifications > 1 ? 's' : ''),
                         'message' => 'User documents awaiting review',
-                        'url' => route('admin.users.index') . '?verification_status=pending',
+                        'url' => route('admin.users.index', ['status' => 'pending']),
                         'count' => $pendingVerifications,
                         'priority' => 1,
                     ]);

@@ -226,6 +226,8 @@ Route::middleware(['auth:sanctum'])
 
         // AI Offspring Generation
         Route::post('/ai/generate-offspring', [AiOffspringController::class, 'generate']);
+        Route::get('/ai/generation-history', [AiOffspringController::class, 'history']);
+        Route::delete('/ai/generation-history/{id}', [AiOffspringController::class, 'deleteHistory']);
 
         // Money Pool routes
         Route::get('/pool/my-transactions', [PoolController::class, 'index']);

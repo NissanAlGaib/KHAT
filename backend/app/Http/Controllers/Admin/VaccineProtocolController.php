@@ -9,7 +9,6 @@ use App\Models\VaccinationShot;
 use App\Models\AuditLog;
 use App\Http\Controllers\Admin\Traits\Exportable;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Storage;
 
 class VaccineProtocolController extends Controller
 {
@@ -336,9 +335,39 @@ class VaccineProtocolController extends Controller
     {
         $pet = \App\Models\Pet::with('owner')->findOrFail($petId);
 
+        $latestShotIdsByCard = VaccinationShot::whereHas('card', function ($q) use ($petId) {
+            $q->where('pet_id', $petId);
+        })
+            ->get(['shot_id', 'card_id', 'date_administered', 'shot_number'])
+            ->groupBy('card_id')
+            ->map(function ($shots) {
+                $latestShot = $shots->sort(function ($a, $b) {
+                    return [
+                        $b->date_administered?->format('Y-m-d'),
+                        (int) $b->shot_number,
+                        (int) $b->shot_id,
+                    ] <=> [
+                        $a->date_administered?->format('Y-m-d'),
+                        (int) $a->shot_number,
+                        (int) $a->shot_id,
+                    ];
+                })->first();
+
+                return $latestShot?->shot_id;
+            })
+            ->filter();
+
         $query = VaccinationShot::whereHas('card', function ($q) use ($petId) {
             $q->where('pet_id', $petId);
         })->with(['card.protocol']);
+
+        if ($request->get('view_mode') === 'latest') {
+            if ($latestShotIdsByCard->isNotEmpty()) {
+                $query->whereIn('shot_id', $latestShotIdsByCard->values());
+            } else {
+                $query->whereRaw('1 = 0');
+            }
+        }
 
         // Filter by verification status
         if ($request->filled('status')) {
@@ -373,9 +402,11 @@ class VaccineProtocolController extends Controller
             ->with(['protocol', 'shots'])
             ->get();
 
-        // Stats — shot-level counts
-        $petShotBase = fn($q) => $q->whereHas('card', fn($c) => $c->where('pet_id', $petId));
+        foreach ($cards as $card) {
+            $card->updateStatus();
+        }
 
+        // Stats — shot-level counts
         $totalShots    = VaccinationShot::whereHas('card', fn($q) => $q->where('pet_id', $petId))->count();
         $approvedShots = VaccinationShot::whereHas('card', fn($q) => $q->where('pet_id', $petId))->where('verification_status', 'approved')->count();
         $pendingShots  = VaccinationShot::whereHas('card', fn($q) => $q->where('pet_id', $petId))->where('verification_status', 'pending')->count();
@@ -406,7 +437,8 @@ class VaccineProtocolController extends Controller
             'rejectedShots',
             'expiringSoonShots',
             'overdueShots',
-            'cardsWithNoRecord'
+            'cardsWithNoRecord',
+            'latestShotIdsByCard'
         ));
     }
 

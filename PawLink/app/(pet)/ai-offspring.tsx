@@ -13,16 +13,24 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { Feather, Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
 import { useRouter, useLocalSearchParams } from "expo-router";
 import { LinearGradient } from "expo-linear-gradient";
+import AlertModal from "@/components/core/AlertModal";
 import { getStorageUrl } from "@/utils/imageUrl";
-import { generateOffspringImage } from "@/services/aiImageService";
+import {
+  generateOffspringImage,
+  type SourceMode,
+} from "@/services/aiImageService";
 import { useAlert } from "@/hooks/useAlert";
 
 const { width } = Dimensions.get("window");
 
+const formatSourceModeLabel = (mode: SourceMode) => {
+  return mode === "count" ? "Use Multiple Photos" : "Primary Photo";
+};
+
 export default function AIOffspringScreen() {
   const router = useRouter();
   const params = useLocalSearchParams();
-  const { showAlert } = useAlert();
+  const { visible, alertOptions, showAlert, hideAlert } = useAlert();
 
   const [generatedImage, setGeneratedImage] = React.useState<string | null>(
     null,
@@ -30,6 +38,16 @@ export default function AIOffspringScreen() {
   const [isGenerating, setIsGenerating] = React.useState(false);
   const [error, setError] = React.useState<string | null>(null);
   const [remainingGenerations, setRemainingGenerations] = React.useState<
+    number | null
+  >(null);
+  const [selectedSourceMode, setSelectedSourceMode] = React.useState<SourceMode>(
+    "primary",
+  );
+  const [selectedSourcePhotoCount, setSelectedSourcePhotoCount] = React.useState(2);
+  const [effectiveSourceMode, setEffectiveSourceMode] = React.useState<SourceMode | null>(
+    null,
+  );
+  const [effectiveSourcePhotoCount, setEffectiveSourcePhotoCount] = React.useState<
     number | null
   >(null);
 
@@ -43,6 +61,12 @@ export default function AIOffspringScreen() {
   const pet1Breed = (params.pet1Breed as string) || "Unknown";
   const pet2Breed = (params.pet2Breed as string) || "Unknown";
   const compatibilityScore = (params.compatibilityScore as string) || "85";
+
+  const adjustSourcePhotoCount = (delta: number) => {
+    setSelectedSourcePhotoCount((currentCount) => {
+      return Math.min(3, Math.max(1, currentCount + delta));
+    });
+  };
 
   const handleGenerate = async () => {
     if (!pet1Id || !pet2Id) {
@@ -58,16 +82,27 @@ export default function AIOffspringScreen() {
     setError(null);
 
     try {
-      const response = await generateOffspringImage(pet1Id, pet2Id);
+      const response = await generateOffspringImage(pet1Id, pet2Id, {
+        sourceMode: selectedSourceMode,
+        sourcePhotoCount: selectedSourcePhotoCount,
+      });
 
       if (response.success && response.image_url) {
         setGeneratedImage(response.image_url);
         if (response.remaining_generations !== undefined) {
           setRemainingGenerations(response.remaining_generations);
         }
+        setEffectiveSourceMode(response.source_mode ?? selectedSourceMode);
+        setEffectiveSourcePhotoCount(
+          response.source_photo_count ??
+            (selectedSourceMode === "count" ? selectedSourcePhotoCount : 1),
+        );
       } else {
         const msg = response.message || "Failed to generate image.";
         setError(msg);
+        if (response.remaining_generations !== undefined) {
+          setRemainingGenerations(response.remaining_generations);
+        }
         showAlert({
           title: "Generation Failed",
           message: msg,
@@ -104,6 +139,11 @@ export default function AIOffspringScreen() {
     if (path.startsWith("http")) return path;
     return getStorageUrl(path) ?? undefined;
   };
+
+  const effectiveModeSummary =
+    effectiveSourceMode && effectiveSourcePhotoCount
+      ? `${formatSourceModeLabel(effectiveSourceMode)} • ${effectiveSourcePhotoCount} photo${effectiveSourcePhotoCount === 1 ? "" : "s"} per parent`
+      : null;
 
   return (
     <SafeAreaView style={styles.container} edges={["top"]}>
@@ -191,6 +231,108 @@ export default function AIOffspringScreen() {
           </View>
         </View>
 
+        <View style={styles.controlsSection}>
+          <View style={styles.controlsCard}>
+            <View style={styles.controlsHeader}>
+              <View>
+                <Text style={styles.controlsTitle}>Source Photos</Text>
+                <Text style={styles.controlsSubtitle}>
+                  Choose how the AI should pull parent references.
+                </Text>
+              </View>
+              <TouchableOpacity
+                style={styles.historyNavButton}
+                onPress={() => router.push("/(pet)/ai-offspring-history")}
+              >
+                <Ionicons name="time-outline" size={16} color="#FF6B4A" />
+                <Text style={styles.historyNavButtonText}>History</Text>
+              </TouchableOpacity>
+            </View>
+
+            <View style={styles.modeToggleRow}>
+              <TouchableOpacity
+                style={[
+                  styles.modeToggleButton,
+                  selectedSourceMode === "primary" && styles.modeToggleButtonActive,
+                ]}
+                onPress={() => setSelectedSourceMode("primary")}
+              >
+                <Text
+                  style={[
+                    styles.modeToggleText,
+                    selectedSourceMode === "primary" && styles.modeToggleTextActive,
+                  ]}
+                >
+                  Primary Photo
+                </Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={[
+                  styles.modeToggleButton,
+                  selectedSourceMode === "count" && styles.modeToggleButtonActive,
+                ]}
+                onPress={() => setSelectedSourceMode("count")}
+              >
+                <Text
+                  style={[
+                    styles.modeToggleText,
+                    selectedSourceMode === "count" && styles.modeToggleTextActive,
+                  ]}
+                >
+                  Use Multiple Photos
+                </Text>
+              </TouchableOpacity>
+            </View>
+
+            {selectedSourceMode === "count" ? (
+              <View style={styles.stepperCard}>
+                <Text style={styles.stepperLabel}>Photos per parent</Text>
+                <View style={styles.stepperControls}>
+                  <TouchableOpacity
+                    style={[
+                      styles.stepperButton,
+                      selectedSourcePhotoCount === 1 && styles.stepperButtonDisabled,
+                    ]}
+                    onPress={() => adjustSourcePhotoCount(-1)}
+                    disabled={selectedSourcePhotoCount === 1}
+                  >
+                    <Ionicons
+                      name="remove"
+                      size={18}
+                      color={selectedSourcePhotoCount === 1 ? "#C7C7C7" : "#FF6B4A"}
+                    />
+                  </TouchableOpacity>
+
+                  <View style={styles.stepperValueContainer}>
+                    <Text style={styles.stepperValue}>{selectedSourcePhotoCount}</Text>
+                  </View>
+
+                  <TouchableOpacity
+                    style={[
+                      styles.stepperButton,
+                      selectedSourcePhotoCount === 3 && styles.stepperButtonDisabled,
+                    ]}
+                    onPress={() => adjustSourcePhotoCount(1)}
+                    disabled={selectedSourcePhotoCount === 3}
+                  >
+                    <Ionicons
+                      name="add"
+                      size={18}
+                      color={selectedSourcePhotoCount === 3 ? "#C7C7C7" : "#FF6B4A"}
+                    />
+                  </TouchableOpacity>
+                </View>
+              </View>
+            ) : null}
+
+            <Text style={styles.controlsHelperText}>
+              The server uses the same count for both parents and automatically
+              adjusts based on available photos.
+            </Text>
+          </View>
+        </View>
+
         {/* Offspring Preview Section */}
         <View style={styles.offspringSection}>
           <View style={styles.sectionHeader}>
@@ -208,11 +350,25 @@ export default function AIOffspringScreen() {
               style={styles.offspringImageWrapper}
             >
               {generatedImage ? (
-                <Image
-                  source={{ uri: generatedImage }}
-                  style={styles.generatedImage}
-                  resizeMode="cover"
-                />
+                <View style={styles.generatedContentContainer}>
+                  <Image
+                    source={{ uri: getImageUrl(generatedImage) }}
+                    style={styles.generatedImage}
+                    resizeMode="cover"
+                  />
+
+                  <TouchableOpacity
+                    style={styles.regenerateButton}
+                    onPress={handleGenerate}
+                    disabled={isGenerating}
+                  >
+                    {isGenerating ? (
+                      <ActivityIndicator size="small" color="white" />
+                    ) : (
+                      <Text style={styles.regenerateButtonText}>Generate Again</Text>
+                    )}
+                  </TouchableOpacity>
+                </View>
               ) : (
                 <View style={styles.offspringImagePlaceholder}>
                   {isGenerating ? (
@@ -240,17 +396,29 @@ export default function AIOffspringScreen() {
                           Generate Preview
                         </Text>
                       </TouchableOpacity>
-                      {remainingGenerations !== null && (
-                        <Text style={styles.remainingText}>
-                          {remainingGenerations} generations remaining today
-                        </Text>
-                      )}
-                      {error && <Text style={styles.errorText}>{error}</Text>}
                     </>
                   )}
                 </View>
               )}
             </LinearGradient>
+
+            {generatedImage && effectiveModeSummary ? (
+              <View style={styles.effectiveSourceCard}>
+                <View style={styles.effectiveSourceBadge}>
+                  <Ionicons name="sparkles-outline" size={16} color="#FF6B4A" />
+                  <Text style={styles.effectiveSourceBadgeText}>Server Applied</Text>
+                </View>
+                <Text style={styles.effectiveSourceText}>{effectiveModeSummary}</Text>
+              </View>
+            ) : null}
+
+            {remainingGenerations !== null && (
+              <Text style={styles.remainingText}>
+                {remainingGenerations} generations remaining today
+              </Text>
+            )}
+
+            {error && <Text style={styles.errorText}>{error}</Text>}
           </View>
 
           {/* Predicted Traits */}
@@ -304,6 +472,8 @@ export default function AIOffspringScreen() {
           </View>
         </View>
       </ScrollView>
+
+      <AlertModal {...{ visible, ...alertOptions, onClose: hideAlert }} />
     </SafeAreaView>
   );
 }
@@ -364,6 +534,125 @@ const styles = StyleSheet.create({
     color: "#888",
     marginBottom: 12,
     textAlign: "center",
+  },
+  controlsSection: {
+    paddingHorizontal: 20,
+    paddingTop: 20,
+  },
+  controlsCard: {
+    backgroundColor: "white",
+    borderRadius: 20,
+    padding: 18,
+    elevation: 3,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.08,
+    shadowRadius: 4,
+  },
+  controlsHeader: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    marginBottom: 14,
+  },
+  controlsTitle: {
+    fontSize: 18,
+    fontWeight: "bold",
+    color: "#333",
+  },
+  controlsSubtitle: {
+    fontSize: 13,
+    color: "#888",
+    marginTop: 3,
+  },
+  historyNavButton: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "#FFF1ED",
+    borderRadius: 18,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    gap: 6,
+  },
+  historyNavButtonText: {
+    fontSize: 13,
+    fontWeight: "700",
+    color: "#FF6B4A",
+  },
+  modeToggleRow: {
+    flexDirection: "row",
+    gap: 10,
+  },
+  modeToggleButton: {
+    flex: 1,
+    paddingVertical: 12,
+    paddingHorizontal: 10,
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: "#FFD3C8",
+    backgroundColor: "#FFF8F6",
+  },
+  modeToggleButtonActive: {
+    backgroundColor: "#FF6B4A",
+    borderColor: "#FF6B4A",
+  },
+  modeToggleText: {
+    textAlign: "center",
+    fontSize: 14,
+    fontWeight: "700",
+    color: "#FF6B4A",
+  },
+  modeToggleTextActive: {
+    color: "white",
+  },
+  stepperCard: {
+    marginTop: 14,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    backgroundColor: "#FFF8F6",
+    borderRadius: 16,
+    paddingHorizontal: 14,
+    paddingVertical: 12,
+  },
+  stepperLabel: {
+    fontSize: 14,
+    fontWeight: "600",
+    color: "#555",
+  },
+  stepperControls: {
+    flexDirection: "row",
+    alignItems: "center",
+  },
+  stepperButton: {
+    width: 34,
+    height: 34,
+    borderRadius: 17,
+    backgroundColor: "white",
+    alignItems: "center",
+    justifyContent: "center",
+    borderWidth: 1,
+    borderColor: "#FFD3C8",
+  },
+  stepperButtonDisabled: {
+    borderColor: "#E5E7EB",
+    backgroundColor: "#F9FAFB",
+  },
+  stepperValueContainer: {
+    minWidth: 42,
+    alignItems: "center",
+    marginHorizontal: 12,
+  },
+  stepperValue: {
+    fontSize: 18,
+    fontWeight: "bold",
+    color: "#333",
+  },
+  controlsHelperText: {
+    fontSize: 12,
+    lineHeight: 18,
+    color: "#888",
+    marginTop: 14,
   },
   parentsContainer: {
     flexDirection: "row",
@@ -445,6 +734,9 @@ const styles = StyleSheet.create({
   offspringImageWrapper: {
     borderRadius: 20,
     padding: 20,
+    alignItems: "center",
+  },
+  generatedContentContainer: {
     alignItems: "center",
   },
   offspringImagePlaceholder: {
@@ -531,6 +823,49 @@ const styles = StyleSheet.create({
     height: width - 80,
     borderRadius: 20,
   },
+  regenerateButton: {
+    marginTop: 14,
+    backgroundColor: "#FF6B4A",
+    paddingVertical: 12,
+    paddingHorizontal: 24,
+    borderRadius: 25,
+    minWidth: 180,
+    alignItems: "center",
+  },
+  regenerateButtonText: {
+    color: "white",
+    fontWeight: "bold",
+    fontSize: 16,
+  },
+  effectiveSourceCard: {
+    marginTop: 14,
+    backgroundColor: "white",
+    borderRadius: 16,
+    padding: 14,
+    borderWidth: 1,
+    borderColor: "#FFE0D8",
+  },
+  effectiveSourceBadge: {
+    alignSelf: "flex-start",
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "#FFF1ED",
+    borderRadius: 999,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    gap: 6,
+  },
+  effectiveSourceBadgeText: {
+    fontSize: 12,
+    fontWeight: "700",
+    color: "#FF6B4A",
+  },
+  effectiveSourceText: {
+    marginTop: 10,
+    fontSize: 14,
+    color: "#555",
+    lineHeight: 20,
+  },
   generateButton: {
     backgroundColor: "#FF6B4A",
     paddingVertical: 12,
@@ -546,7 +881,8 @@ const styles = StyleSheet.create({
   remainingText: {
     fontSize: 12,
     color: "#888",
-    marginTop: 8,
+    marginTop: 10,
+    textAlign: "center",
   },
   errorText: {
     fontSize: 12,

@@ -53,6 +53,7 @@ return [
         'api_key' => env('GEMINI_API_KEY'),
         'api_url' => env('GEMINI_API_URL', 'https://generativelanguage.googleapis.com/v1beta/openai'),
         'image_model' => env('GEMINI_IMAGE_MODEL', 'imagen-3.0-generate-002'),
+        'vision_model' => env('GEMINI_VISION_MODEL', 'gemini-2.0-flash'),
     ],
 
 ];

@@ -44,6 +44,40 @@ class AdminController extends Controller
     }
 
     /**
+     * Derive a single aggregate document status from a user's verification records.
+     */
+    private function getAggregateDocumentStatus($userAuthRecords): string
+    {
+        if ($userAuthRecords->isEmpty()) {
+            return 'missing';
+        }
+
+        $now = Carbon::now();
+
+        $hasExpired = $userAuthRecords->contains(function ($auth) use ($now) {
+            return $auth->expiry_date && Carbon::parse($auth->expiry_date)->lt($now);
+        });
+
+        if ($hasExpired) {
+            return 'expired';
+        }
+
+        if ($userAuthRecords->contains(fn($auth) => $auth->status === 'rejected')) {
+            return 'rejected';
+        }
+
+        if ($userAuthRecords->contains(fn($auth) => $auth->status === 'pending')) {
+            return 'pending';
+        }
+
+        if ($userAuthRecords->contains(fn($auth) => $auth->status === 'approved')) {
+            return 'valid';
+        }
+
+        return 'pending';
+    }
+
+    /**
      * Display the admin login form.
      */
     public function showLoginForm()
@@ -409,6 +443,7 @@ class AdminController extends Controller
         // Filter by document status
         if ($request->filled('doc_status')) {
             $docStatus = $request->doc_status;
+
             if ($docStatus === 'missing') {
                 $query->whereDoesntHave('userAuth');
             } elseif ($docStatus === 'expired') {
@@ -416,8 +451,24 @@ class AdminController extends Controller
                     $q->whereNotNull('expiry_date')
                         ->where('expiry_date', '<', Carbon::now());
                 });
+            } elseif ($docStatus === 'rejected') {
+                $query->whereHas('userAuth', function ($q) {
+                    $q->where('status', 'rejected');
+                });
+            } elseif ($docStatus === 'pending') {
+                $query->whereHas('userAuth', function ($q) {
+                    $q->where('status', 'pending');
+                });
             } elseif ($docStatus === 'valid') {
-                $query->whereHas('userAuth')
+                $query->whereHas('userAuth', function ($q) {
+                    $q->where('status', 'approved');
+                })
+                    ->whereDoesntHave('userAuth', function ($q) {
+                        $q->where('status', 'pending');
+                    })
+                    ->whereDoesntHave('userAuth', function ($q) {
+                        $q->where('status', 'rejected');
+                    })
                     ->whereDoesntHave('userAuth', function ($q) {
                         $q->whereNotNull('expiry_date')
                             ->where('expiry_date', '<', Carbon::now());
@@ -448,8 +499,7 @@ class AdminController extends Controller
                     return $user->status ?? 'active';
                 },
                 'Document Status' => function ($user) {
-                    $auth = $user->userAuth->first();
-                    return $auth ? $auth->status : 'missing';
+                    return ucfirst($this->getAggregateDocumentStatus($user->userAuth));
                 },
                 'Subscription' => function ($user) {
                     return $user->subscription_tier ?? 'free';
@@ -464,6 +514,11 @@ class AdminController extends Controller
 
         $perPage = $request->input('per_page', 15);
         $users = $query->filterByDate($request)->paginate($perPage)->appends($request->all());
+        $users->getCollection()->transform(function ($user) {
+            $user->document_status = $this->getAggregateDocumentStatus($user->userAuth);
+
+            return $user;
+        });
 
         $subscriptionTiers = SubscriptionTier::where('is_active', true)->orderBy('price')->get();
 
