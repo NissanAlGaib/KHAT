@@ -275,7 +275,7 @@ export default function PetProfileScreen() {
   }, [petData?.species]);
 
   const handleEditInfo = () => {
-    router.push(`/(pet)/edit-profile?petId=${petId}` as never);
+    router.push(`/(pet)/edit-profile?id=${petId}` as never);
   };
 
   const handleManageVaccinations = () => {

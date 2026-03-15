@@ -360,7 +360,7 @@ class PetController extends Controller
 
         $validated = $request->validate([
             'name' => 'required|string|max:255',
-            'sex' => ['required', Rule::in(['male', 'female'])],
+            'sex' => 'prohibited',
             'birthdate' => 'required|date|before:today',
             'microchip' => [
                 'nullable',
@@ -390,8 +390,7 @@ class PetController extends Controller
             'max_age' => 'nullable|integer|min:0|gte:min_age',
         ], [
             'name.required' => 'Pet name is required.',
-            'sex.required' => 'Please select a sex.',
-            'sex.in' => 'Sex must be either male or female.',
+            'sex.prohibited' => 'Pet sex cannot be changed after registration.',
             'birthdate.required' => 'Birthdate is required.',
             'birthdate.before' => 'Birthdate must be in the past.',
             'height.required' => 'Height is required.',
@@ -427,14 +426,17 @@ class PetController extends Controller
 
             $pet->update([
                 'name' => $validated['name'],
-                'sex' => $validated['sex'],
                 'birthdate' => $validated['birthdate'],
                 'microchip_id' => $validated['microchip'] ?? null,
                 'height' => $validated['height'],
                 'weight' => $validated['weight'],
                 'description' => $validated['description'],
-                'has_been_bred' => $validated['has_been_bred'] ?? false,
-                'breeding_count' => $validated['breeding_count'] ?? 0,
+                'has_been_bred' => array_key_exists('has_been_bred', $validated)
+                    ? (bool) $validated['has_been_bred']
+                    : $pet->has_been_bred,
+                'breeding_count' => array_key_exists('breeding_count', $validated)
+                    ? ($validated['breeding_count'] ?? 0)
+                    : $pet->breeding_count,
                 'behaviors' => $allBehaviors,
                 'attributes' => $allAttributes,
             ]);

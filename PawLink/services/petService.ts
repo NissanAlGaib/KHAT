@@ -267,13 +267,10 @@ export interface PetDetails {
 
 export interface UpdatePetPayload {
   name: string;
-  sex: "male" | "female";
   birthdate: string;
   microchip?: string;
   height: string;
   weight: string;
-  has_been_bred: boolean;
-  breeding_count?: string;
   behaviors: string[];
   behavior_tags?: string;
   attributes: string[];
