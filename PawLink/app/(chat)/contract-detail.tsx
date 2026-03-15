@@ -12,7 +12,6 @@ import {
   ScrollView,
   ActivityIndicator,
   RefreshControl,
-  Alert,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import {
@@ -45,6 +44,8 @@ import {
 import { getContractPayments, Payment } from "@/services/paymentService";
 import { useSession } from "@/context/AuthContext";
 import { ReviewModal } from "@/components/reviews";
+import { useAlert } from "@/hooks/useAlert";
+import AlertModal from "@/components/core/AlertModal";
 import {
   submitBreederReview,
   submitShooterReview,
@@ -195,6 +196,7 @@ export default function ContractDetailScreen() {
   const router = useRouter();
   const params = useLocalSearchParams();
   const conversationId = params.conversationId as string;
+  const { visible, alertOptions, showAlert, hideAlert } = useAlert();
 
   const { user } = useSession();
   const currentUserId = Number(user?.id ?? 0);
@@ -361,18 +363,23 @@ export default function ContractDetailScreen() {
         ) {
           setTimeout(() => setShowShooterReview(true), 400);
         } else {
-          Alert.alert("Thank you!", "Your review has been submitted.");
+          showAlert({
+            title: "Thank you!",
+            message: "Your review has been submitted.",
+            type: "success",
+          });
         }
       } catch (err: any) {
-        Alert.alert(
-          "Error",
-          err?.response?.data?.message || "Failed to submit review.",
-        );
+        showAlert({
+          title: "Error",
+          message: err?.response?.data?.message || "Failed to submit review.",
+          type: "error",
+        });
       } finally {
         setReviewSubmitting(false);
       }
     },
-    [contract],
+    [contract, showAlert],
   );
 
   const handleShooterReviewSubmit = useCallback(
@@ -390,17 +397,22 @@ export default function ContractDetailScreen() {
           const status = await getReviewStatus(contract.match_request_id);
           setReviewStatus(status);
         }
-        Alert.alert("Thank you!", "Your shooter review has been submitted.");
+        showAlert({
+          title: "Thank you!",
+          message: "Your shooter review has been submitted.",
+          type: "success",
+        });
       } catch (err: any) {
-        Alert.alert(
-          "Error",
-          err?.response?.data?.message || "Failed to submit review.",
-        );
+        showAlert({
+          title: "Error",
+          message: err?.response?.data?.message || "Failed to submit review.",
+          type: "error",
+        });
       } finally {
         setReviewSubmitting(false);
       }
     },
-    [contract],
+    [contract, showAlert],
   );
 
   const handleReviewSkip = useCallback(
@@ -835,6 +847,15 @@ export default function ContractDetailScreen() {
         onSubmit={handleShooterReviewSubmit}
         onSkip={() => handleReviewSkip("shooter")}
         loading={reviewSubmitting}
+      />
+
+      <AlertModal
+        visible={visible}
+        title={alertOptions.title}
+        message={alertOptions.message}
+        type={alertOptions.type}
+        buttons={alertOptions.buttons}
+        onClose={hideAlert}
       />
     </SafeAreaView>
   );

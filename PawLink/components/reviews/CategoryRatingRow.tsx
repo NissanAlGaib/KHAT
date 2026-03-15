@@ -12,7 +12,6 @@ import {
   Text,
   TouchableOpacity,
   StyleSheet,
-  LayoutChangeEvent,
 } from "react-native";
 import { Feather } from "@expo/vector-icons";
 import { Colors } from "../../constants/colors";
@@ -25,8 +24,8 @@ interface CategoryRatingRowProps {
 }
 
 const STAR_COUNT = 5;
-const STAR_SIZE = 28;
-const STAR_GAP = 4;
+const STAR_SIZE = 26;
+const STAR_GAP = 6;
 
 const CategoryRatingRow: React.FC<CategoryRatingRowProps> = ({
   label,
@@ -47,9 +46,13 @@ const CategoryRatingRow: React.FC<CategoryRatingRowProps> = ({
   const renderStar = (index: number) => {
     const full = value >= index + 1;
     const half = !full && value >= index + 0.5;
+    const isActive = full || half;
 
     return (
-      <View key={index} style={styles.starTouchArea}>
+      <View
+        key={index}
+        style={[styles.starTouchArea, isActive && styles.starTouchAreaActive]}
+      >
         {/* Left half */}
         <TouchableOpacity
           activeOpacity={0.6}
@@ -62,7 +65,7 @@ const CategoryRatingRow: React.FC<CategoryRatingRowProps> = ({
             <Feather
               name="star"
               size={STAR_SIZE}
-              color={full || half ? "#F59E0B" : Colors.borderMedium}
+              color={isActive ? "#F59E0B" : Colors.borderMedium}
             />
           </View>
         </TouchableOpacity>
@@ -88,13 +91,21 @@ const CategoryRatingRow: React.FC<CategoryRatingRowProps> = ({
   };
 
   return (
-    <View style={styles.row}>
-      <Text style={styles.label} numberOfLines={2}>
-        {label}
-      </Text>
+    <View style={[styles.row, disabled && styles.rowDisabled]}>
+      <View style={styles.rowHeader}>
+        <Text style={styles.label} numberOfLines={2}>
+          {label}
+        </Text>
+
+        <View style={styles.valueBadge}>
+          <Text style={styles.valueBadgeText}>
+            {value > 0 ? value.toFixed(1) : "Tap stars"}
+          </Text>
+        </View>
+      </View>
+
       <View style={styles.starsRow}>
         {Array.from({ length: STAR_COUNT }, (_, i) => renderStar(i))}
-        {value > 0 && <Text style={styles.valueText}>{value.toFixed(1)}</Text>}
       </View>
     </View>
   );
@@ -103,24 +114,57 @@ const CategoryRatingRow: React.FC<CategoryRatingRowProps> = ({
 const styles = StyleSheet.create({
   row: {
     paddingVertical: 10,
-    borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: Colors.borderLight,
+  },
+  rowDisabled: {
+    opacity: 0.55,
+  },
+  rowHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    gap: 10,
   },
   label: {
     fontSize: 14,
-    fontWeight: "600",
+    fontWeight: "700",
     color: Colors.textPrimary,
-    marginBottom: 6,
+    flex: 1,
+  },
+  valueBadge: {
+    minWidth: 70,
+    borderRadius: 999,
+    backgroundColor: Colors.bgWarmSecondary,
+    borderWidth: 1,
+    borderColor: Colors.borderLight,
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    alignItems: "center",
+  },
+  valueBadgeText: {
+    fontSize: 12,
+    fontWeight: "700",
+    color: Colors.textSecondary,
   },
   starsRow: {
     flexDirection: "row",
     alignItems: "center",
+    marginTop: 10,
+    flexWrap: "nowrap",
   },
   starTouchArea: {
     flexDirection: "row",
     width: STAR_SIZE + STAR_GAP,
     height: STAR_SIZE,
-    marginRight: 2,
+    marginRight: 6,
+    borderRadius: 10,
+    backgroundColor: Colors.bgWarmSecondary,
+    borderWidth: 1,
+    borderColor: Colors.borderLight,
+    overflow: "hidden",
+  },
+  starTouchAreaActive: {
+    borderColor: "#FCD34D",
+    backgroundColor: "#FFFAEB",
   },
   halfTouch: {
     width: (STAR_SIZE + STAR_GAP) / 2,
@@ -133,13 +177,6 @@ const styles = StyleSheet.create({
   },
   halfStarRight: {
     marginLeft: -(STAR_SIZE + STAR_GAP) / 2,
-  },
-  valueText: {
-    fontSize: 14,
-    fontWeight: "700",
-    color: "#F59E0B",
-    marginLeft: 8,
-    minWidth: 28,
   },
 });
 
