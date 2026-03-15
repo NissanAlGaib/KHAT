@@ -189,7 +189,6 @@ export default function DailyReportModal({
     setIsSubmitting(true);
     try {
       const result = await submitDailyReport(contract.id, {
-        report_date: reportDate,
         progress_notes: progressNotes,
         health_status: healthStatus,
         health_notes: healthNotes || undefined,

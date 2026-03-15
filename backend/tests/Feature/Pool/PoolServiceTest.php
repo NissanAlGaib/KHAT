@@ -237,6 +237,34 @@ test('release shooter payment also returns shooter collateral', function () {
     expect($shooterCollateral->pool_status)->toBe(Payment::POOL_REFUNDED);
 });
 
+test('release monetary compensation marks payment released and stores recipient metadata', function () {
+    $payment = createPaidPayment(
+        $this->owner1->id,
+        $this->contract->id,
+        Payment::TYPE_MONETARY_COMPENSATION,
+        750.00,
+        'pay_mc'
+    );
+
+    $this->poolService->depositToPool($payment);
+
+    $result = $this->poolService->releaseMonetaryCompensation($this->contract);
+
+    expect($result['success'])->toBeTrue();
+    expect($result['released'])->toBe(1);
+
+    $payment->refresh();
+    expect($payment->pool_status)->toBe(Payment::POOL_RELEASED);
+
+    $releaseTx = PoolTransaction::where('payment_id', $payment->id)
+        ->where('type', PoolTransaction::TYPE_RELEASE)
+        ->first();
+
+    expect($releaseTx)->not->toBeNull();
+    expect($releaseTx->metadata['released_from_user_id'] ?? null)->toBe($this->owner1->id);
+    expect($releaseTx->metadata['released_to_user_id'] ?? null)->toBe($this->owner2->id);
+});
+
 // -------------------------------------------------------
 // CANCELLATION TESTS
 // -------------------------------------------------------

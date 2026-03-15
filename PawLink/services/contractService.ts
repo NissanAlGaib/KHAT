@@ -6,7 +6,13 @@ export interface BreedingContract {
   match_request_id?: number;
   created_by: number;
   last_edited_by?: number;
-  status: "draft" | "pending_review" | "accepted" | "rejected" | "fulfilled";
+  status:
+    | "draft"
+    | "pending_review"
+    | "accepted"
+    | "rejected"
+    | "cancelled"
+    | "fulfilled";
 
   // Shooter Agreement
   shooter_name?: string;
@@ -64,6 +70,9 @@ export interface BreedingContract {
   // Timestamps
   accepted_at?: string;
   rejected_at?: string;
+  cancelled_at?: string;
+  cancellation_reason?: string;
+  cancelled_by?: number;
   created_at: string;
   updated_at: string;
 
@@ -237,6 +246,30 @@ export const rejectContract = async (
   } catch (error: any) {
     const errorMessage =
       error.response?.data?.message || "Failed to reject contract";
+    return { success: false, message: errorMessage };
+  }
+};
+
+/**
+ * Cancel an active breeding contract
+ */
+export const cancelContract = async (
+  contractId: number,
+  reason: string,
+): Promise<ApiResponse<BreedingContract>> => {
+  try {
+    const response = await axiosInstance.post(
+      `/api/contracts/${contractId}/cancel`,
+      { reason },
+    );
+    return {
+      success: true,
+      message: response.data.message,
+      data: response.data.data,
+    };
+  } catch (error: any) {
+    const errorMessage =
+      error.response?.data?.message || "Failed to cancel contract";
     return { success: false, message: errorMessage };
   }
 };
@@ -544,7 +577,7 @@ export const getOffspring = async (
       `/api/contracts/${contractId}/offspring`,
     );
     return response.data.data || null;
-  } catch (error: any) {
+  } catch {
     // Return null to indicate no offspring data available
     // The calling component can handle this gracefully
     return null;
@@ -654,7 +687,6 @@ export const completeMatch = async (
 // ==================== DAILY REPORT INTERFACES ====================
 
 export interface DailyReportData {
-  report_date: string;
   progress_notes: string;
   health_status: "excellent" | "good" | "fair" | "poor" | "concerning";
   health_notes?: string;
@@ -704,7 +736,6 @@ export const submitDailyReport = async (
   try {
     // Use FormData to support file upload
     const formData = new FormData();
-    formData.append("report_date", data.report_date);
     formData.append("progress_notes", data.progress_notes);
     formData.append("health_status", data.health_status);
     formData.append("breeding_attempted", data.breeding_attempted ? "1" : "0");

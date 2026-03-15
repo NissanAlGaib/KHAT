@@ -148,6 +148,26 @@ export default function BlockReportModal({
       return;
     }
 
+    showAlert({
+      title: "Submit Report",
+      message: `Are you sure you want to submit this report against ${userName}?`,
+      type: "warning",
+      buttons: [
+        { text: "Cancel", style: "cancel" },
+        {
+          text: "Submit",
+          style: "default",
+          onPress: () => confirmReportSubmission(),
+        },
+      ],
+    });
+  };
+
+  const confirmReportSubmission = async () => {
+    if (!selectedReason) {
+      return;
+    }
+
     setLoading(true);
     const result = await reportUser(userId, selectedReason, description);
     setLoading(false);
@@ -280,19 +300,19 @@ export default function BlockReportModal({
                         <View className="flex-row items-start">
                           <Text className="text-red-500 mr-2">•</Text>
                           <Text className="text-gray-600 flex-1">
-                            Their pets won't appear in your matching pool
+                            Their pets won&apos;t appear in your matching pool
                           </Text>
                         </View>
                         <View className="flex-row items-start">
                           <Text className="text-red-500 mr-2">•</Text>
                           <Text className="text-gray-600 flex-1">
-                            You won't receive messages from them
+                            You won&apos;t receive messages from them
                           </Text>
                         </View>
                         <View className="flex-row items-start">
                           <Text className="text-red-500 mr-2">•</Text>
                           <Text className="text-gray-600 flex-1">
-                            They won't be able to see your pets
+                            They won&apos;t be able to see your pets
                           </Text>
                         </View>
                       </View>

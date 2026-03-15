@@ -126,10 +126,21 @@ class PoolService
         }
 
         $results = [];
+        $recipientUserId = $contract->shooter_user_id ? (int) $contract->shooter_user_id : null;
         foreach ($shooterPayments as $payment) {
             // Mark as released in pool (actual payout to shooter is manual)
-            $result = DB::transaction(function () use ($payment) {
+            $result = DB::transaction(function () use ($payment, $recipientUserId) {
                 $currentBalance = $this->getPoolBalance();
+
+                $metadata = [
+                    'payment_type' => $payment->payment_type,
+                    'released_from_user_id' => (int) $payment->user_id,
+                    'note' => 'Marked as released; actual payout to shooter handled separately.',
+                ];
+
+                if ($recipientUserId) {
+                    $metadata['released_to_user_id'] = $recipientUserId;
+                }
 
                 $transaction = PoolTransaction::create([
                     'payment_id' => $payment->id,
@@ -141,16 +152,21 @@ class PoolService
                     'balance_after' => $currentBalance - (float) $payment->amount,
                     'status' => PoolTransaction::STATUS_COMPLETED,
                     'description' => "Shooter payment released - Contract #{$payment->contract_id}",
-                    'metadata' => [
-                        'payment_type' => $payment->payment_type,
-                        'note' => 'Marked as released; actual payout to shooter handled separately.',
-                    ],
+                    'metadata' => $metadata,
                     'processed_at' => now(),
                 ]);
 
                 $payment->update(['pool_status' => Payment::POOL_RELEASED]);
 
-                return ['success' => true, 'transaction_id' => $transaction->id];
+                return [
+                    'success' => true,
+                    'transaction_id' => $transaction->id,
+                    'payment_id' => $payment->id,
+                    'amount' => (float) $payment->amount,
+                    'payer_user_id' => (int) $payment->user_id,
+                    'recipient_user_id' => $recipientUserId,
+                    'payment_type' => $payment->payment_type,
+                ];
             });
 
             $results[] = $result;
@@ -165,6 +181,83 @@ class PoolService
 
         foreach ($shooterCollateralPayments as $payment) {
             $results[] = $this->releasePayment($payment, 'Shooter collateral return - breeding completed', isRelease: true);
+        }
+
+        return [
+            'success' => true,
+            'released' => count(array_filter($results, fn($r) => $r['success'])),
+            'details' => $results,
+        ];
+    }
+
+    /**
+     * Release monetary compensation payments on match completion.
+     *
+     * This marks compensation as released in the pool ledger and records
+     * both payer and recipient in metadata for user-facing visibility.
+     */
+    public function releaseMonetaryCompensation(BreedingContract $contract): array
+    {
+        if ($contract->hasActiveDispute()) {
+            Log::warning('Cannot release monetary compensation - active dispute exists', ['contract_id' => $contract->id]);
+            return ['success' => false, 'error' => 'Active dispute exists for this contract'];
+        }
+
+        $compensationPayments = Payment::where('contract_id', $contract->id)
+            ->where('payment_type', Payment::TYPE_MONETARY_COMPENSATION)
+            ->where('status', Payment::STATUS_PAID)
+            ->where('pool_status', Payment::POOL_IN_POOL)
+            ->get();
+
+        if ($compensationPayments->isEmpty()) {
+            return ['success' => true, 'message' => 'No monetary compensation to release', 'released' => 0];
+        }
+
+        $results = [];
+
+        foreach ($compensationPayments as $payment) {
+            $recipientUserId = $this->resolveCounterpartyOwnerId($contract, (int) $payment->user_id);
+
+            $result = DB::transaction(function () use ($payment, $recipientUserId) {
+                $currentBalance = $this->getPoolBalance();
+
+                $metadata = [
+                    'payment_type' => $payment->payment_type,
+                    'released_from_user_id' => (int) $payment->user_id,
+                ];
+
+                if ($recipientUserId) {
+                    $metadata['released_to_user_id'] = $recipientUserId;
+                }
+
+                $transaction = PoolTransaction::create([
+                    'payment_id' => $payment->id,
+                    'contract_id' => $payment->contract_id,
+                    'user_id' => $payment->user_id,
+                    'type' => PoolTransaction::TYPE_RELEASE,
+                    'amount' => $payment->amount,
+                    'currency' => $payment->currency ?? 'PHP',
+                    'balance_after' => $currentBalance - (float) $payment->amount,
+                    'status' => PoolTransaction::STATUS_COMPLETED,
+                    'description' => "Monetary compensation released - Contract #{$payment->contract_id}",
+                    'metadata' => $metadata,
+                    'processed_at' => now(),
+                ]);
+
+                $payment->update(['pool_status' => Payment::POOL_RELEASED]);
+
+                return [
+                    'success' => true,
+                    'transaction_id' => $transaction->id,
+                    'payment_id' => $payment->id,
+                    'amount' => (float) $payment->amount,
+                    'payer_user_id' => (int) $payment->user_id,
+                    'recipient_user_id' => $recipientUserId,
+                    'payment_type' => $payment->payment_type,
+                ];
+            });
+
+            $results[] = $result;
         }
 
         return [
@@ -818,5 +911,27 @@ class PoolService
         }
 
         return ['success' => true, 'action' => 'Disputing party funds forfeited, other party refunded'];
+    }
+
+    /**
+     * Resolve the other owner in the contract for a payer.
+     */
+    private function resolveCounterpartyOwnerId(BreedingContract $contract, int $payerUserId): ?int
+    {
+        $contract->loadMissing('conversation.matchRequest.requesterPet', 'conversation.matchRequest.targetPet');
+
+        $matchRequest = $contract->conversation->matchRequest ?? null;
+        if (! $matchRequest) {
+            return null;
+        }
+
+        $ownerIds = collect([
+            $matchRequest->requesterPet->user_id ?? null,
+            $matchRequest->targetPet->user_id ?? null,
+        ])->filter()->unique()->values();
+
+        $counterpartyId = $ownerIds->first(fn($ownerId) => (int) $ownerId !== $payerUserId);
+
+        return $counterpartyId ? (int) $counterpartyId : null;
     }
 }

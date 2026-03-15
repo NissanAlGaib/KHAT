@@ -580,6 +580,7 @@ class MatchRequestController extends Controller
             return [
                 'id' => $request->id,
                 'conversation_id' => $request->conversation?->id,
+                'has_contract' => (bool) $request->conversation?->breedingContract,
                 'user_pet' => [
                     'pet_id' => $userPet->pet_id,
                     'name' => $userPet->name,
@@ -786,6 +787,86 @@ class MatchRequestController extends Controller
             return response()->json([
                 'success' => false,
                 'message' => 'Failed to cancel match request',
+                'error' => $e->getMessage(),
+            ], 500);
+        }
+    }
+
+    /**
+     * Unmatch an accepted match request when no contract exists yet.
+     */
+    public function unmatch(Request $request, $id)
+    {
+        $user = $request->user();
+        $userPetIds = Pet::where('user_id', $user->id)->pluck('pet_id');
+
+        $matchRequest = MatchRequest::with([
+            'requesterPet',
+            'targetPet',
+            'conversation.breedingContract',
+        ])->findOrFail($id);
+
+        $isRequesterOwner = $userPetIds->contains($matchRequest->requester_pet_id);
+        $isTargetOwner = $userPetIds->contains($matchRequest->target_pet_id);
+
+        if (! $isRequesterOwner && ! $isTargetOwner) {
+            return response()->json([
+                'success' => false,
+                'message' => 'You can only unmatch your own accepted matches',
+            ], 403);
+        }
+
+        if ($matchRequest->status !== 'accepted') {
+            return response()->json([
+                'success' => false,
+                'message' => 'Only accepted matches can be unmatched',
+            ], 400);
+        }
+
+        $contract = $matchRequest->conversation?->breedingContract;
+        if ($contract && ! in_array($contract->status, ['cancelled', 'rejected'])) {
+            return response()->json([
+                'success' => false,
+                'message' => 'A contract already exists for this match. Please use contract cancellation instead.',
+            ], 409);
+        }
+
+        try {
+            DB::beginTransaction();
+
+            $matchRequest->update(['status' => 'cancelled']);
+
+            if ($matchRequest->conversation) {
+                $matchRequest->conversation->archive();
+            }
+
+            DB::commit();
+
+            $otherOwnerId = $isRequesterOwner
+                ? $matchRequest->targetPet->user_id
+                : $matchRequest->requesterPet->user_id;
+
+            ActivityNotificationService::notify(
+                $otherOwnerId,
+                \App\Models\ActivityNotification::TYPE_MATCH_DECLINED,
+                'Match Ended',
+                'An accepted match was cancelled before contract creation.',
+                ['match_request_id' => $matchRequest->id]
+            );
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Match cancelled successfully',
+                'data' => [
+                    'match_request_id' => $matchRequest->id,
+                ],
+            ]);
+        } catch (\Exception $e) {
+            DB::rollBack();
+
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to cancel accepted match',
                 'error' => $e->getMessage(),
             ], 500);
         }

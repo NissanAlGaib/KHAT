@@ -1,11 +1,17 @@
 import React, { useState } from "react";
-import { View, Text, TouchableOpacity, ActivityIndicator } from "react-native";
+import {
+  View,
+  Text,
+  TouchableOpacity,
+  ActivityIndicator,
+  Modal,
+  TextInput,
+} from "react-native";
 import { useAlert } from "@/hooks/useAlert";
 import AlertModal from "@/components/core/AlertModal";
 import {
   FileText,
   DollarSign,
-  Users,
   Shield,
   Calendar,
   Check,
@@ -30,6 +36,7 @@ import {
   BreedingContract,
   acceptContract,
   rejectContract,
+  cancelContract,
   acceptShooterRequest,
   declineShooterRequest,
 } from "@/services/contractService";
@@ -109,6 +116,9 @@ export default function ContractOverviewTab({
 }: OverviewTabProps) {
   const [isAccepting, setIsAccepting] = useState(false);
   const [isRejecting, setIsRejecting] = useState(false);
+  const [isCancelling, setIsCancelling] = useState(false);
+  const [cancelModalVisible, setCancelModalVisible] = useState(false);
+  const [cancellationReason, setCancellationReason] = useState("");
   const [isAcceptingShooter, setIsAcceptingShooter] = useState(false);
   const [isDecliningShooter, setIsDecliningShooter] = useState(false);
   const {
@@ -197,6 +207,62 @@ export default function ContractOverviewTab({
       console.error("Error declining shooter:", error);
     } finally {
       setIsDecliningShooter(false);
+    }
+  };
+
+  const openCancelModal = () => {
+    if (isCancelling) return;
+    setCancellationReason("");
+    setCancelModalVisible(true);
+  };
+
+  const closeCancelModal = () => {
+    if (isCancelling) return;
+    setCancelModalVisible(false);
+  };
+
+  const handleConfirmCancelContract = async () => {
+    const reason = cancellationReason.trim();
+
+    if (reason.length < 10) {
+      showAlert({
+        title: "Reason Required",
+        message: "Please provide at least 10 characters for the cancellation reason.",
+        type: "warning",
+      });
+      return;
+    }
+
+    setIsCancelling(true);
+    try {
+      const result = await cancelContract(contract.id, reason);
+
+      if (result.success && result.data) {
+        onContractUpdate(result.data);
+        setCancelModalVisible(false);
+        showAlert({
+          title: "Contract Cancelled",
+          message:
+            result.message ||
+            "The contract has been cancelled and the conversation archived.",
+          type: "success",
+        });
+      } else {
+        showAlert({
+          title: "Unable to Cancel",
+          message: result.message || "Failed to cancel contract",
+          type: "error",
+        });
+      }
+    } catch (error) {
+      console.error("Error cancelling contract:", error);
+      showAlert({
+        title: "Error",
+        message: "Failed to cancel contract",
+        type: "error",
+      });
+    } finally {
+      setIsCancelling(false);
     }
   };
 
@@ -319,6 +385,29 @@ export default function ContractOverviewTab({
               ` on ${dayjs(contract.breeding_completed_at).format("MMMM D, YYYY")}`}
             .
           </Text>
+        </View>
+      )}
+
+      {contract.status === "cancelled" && (
+        <View className="mx-4 mt-3 bg-gray-50 rounded-2xl p-4 border border-gray-300">
+          <View className="flex-row items-center mb-1">
+            <XCircle size={18} color="#374151" />
+            <Text className="text-gray-800 font-bold text-base ml-2">
+              Contract Cancelled
+            </Text>
+          </View>
+          <Text className="text-gray-700 text-sm">
+            This contract was cancelled
+            {contract.cancelled_at
+              ? ` on ${dayjs(contract.cancelled_at).format("MMMM D, YYYY")}`
+              : ""}
+            .
+          </Text>
+          {contract.cancellation_reason && (
+            <Text className="text-gray-600 text-xs mt-2">
+              Reason: {contract.cancellation_reason}
+            </Text>
+          )}
         </View>
       )}
 
@@ -528,7 +617,7 @@ export default function ContractOverviewTab({
                       <View className="bg-blue-50 rounded-lg p-2 mt-3 flex-row items-center">
                         <Clock size={14} color="#3b82f6" />
                         <Text className="text-blue-700 text-xs ml-2">
-                          You've accepted. Waiting for the other owner.
+                          You&apos;ve accepted. Waiting for the other owner.
                         </Text>
                       </View>
                     )}
@@ -606,11 +695,10 @@ export default function ContractOverviewTab({
         </View>
       </SectionCard>
 
-      {/* Edit Button for accepted contracts */}
-      {contract.status === "accepted" &&
-        contract.can_edit &&
-        !contract.can_shooter_edit && (
-          <View className="mx-4 mt-4">
+      {/* Actions for accepted contracts */}
+      {contract.status === "accepted" && (
+        <View className="mx-4 mt-4">
+          {contract.can_edit && !contract.can_shooter_edit && (
             <TouchableOpacity
               onPress={onEdit}
               className="bg-[#FF6B6B] py-3.5 rounded-full flex-row items-center justify-center"
@@ -618,8 +706,28 @@ export default function ContractOverviewTab({
               <Edit size={18} color="white" />
               <Text className="text-white font-bold ml-2">Edit Contract</Text>
             </TouchableOpacity>
-          </View>
-        )}
+          )}
+
+          <TouchableOpacity
+            onPress={openCancelModal}
+            disabled={isCancelling}
+            className={`py-3.5 rounded-full flex-row items-center justify-center border-2 border-red-400 ${
+              contract.can_edit && !contract.can_shooter_edit ? "mt-3" : ""
+            }`}
+          >
+            {isCancelling ? (
+              <ActivityIndicator color="#ef4444" size="small" />
+            ) : (
+              <>
+                <X size={18} color="#ef4444" />
+                <Text className="text-red-500 font-bold ml-2">
+                  Cancel Contract
+                </Text>
+              </>
+            )}
+          </TouchableOpacity>
+        </View>
+      )}
 
       {/* Footer */}
       <View className="mx-4 mt-4">
@@ -636,6 +744,70 @@ export default function ContractOverviewTab({
         {...alertOptions}
         onClose={hideAlert}
       />
+
+      <Modal
+        visible={cancelModalVisible}
+        transparent
+        animationType="fade"
+        onRequestClose={closeCancelModal}
+      >
+        <View className="flex-1 bg-black/50 justify-center px-5">
+          <View className="bg-white rounded-3xl p-5">
+            <Text className="text-xl font-baloo text-text-primary mb-2">
+              Cancel Contract
+            </Text>
+            <Text className="text-text-muted text-sm mb-3">
+              Tell your partner why this match is being cancelled.
+            </Text>
+
+            <TextInput
+              value={cancellationReason}
+              onChangeText={setCancellationReason}
+              placeholder="Enter cancellation reason"
+              multiline
+              numberOfLines={4}
+              maxLength={1000}
+              textAlignVertical="top"
+              editable={!isCancelling}
+              className="border border-gray-200 rounded-2xl p-3 text-gray-800 min-h-[110px]"
+            />
+
+            <Text className="text-xs text-gray-400 mt-2 text-right">
+              {cancellationReason.trim().length}/1000 (min 10)
+            </Text>
+
+            <View className="flex-row mt-4 gap-3">
+              <TouchableOpacity
+                onPress={closeCancelModal}
+                disabled={isCancelling}
+                className="flex-1 bg-bg-muted py-3 rounded-full"
+              >
+                <Text className="text-center font-mulish-bold text-text-secondary">
+                  Keep Contract
+                </Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                onPress={handleConfirmCancelContract}
+                disabled={isCancelling || cancellationReason.trim().length < 10}
+                className={`flex-1 py-3 rounded-full ${
+                  isCancelling || cancellationReason.trim().length < 10
+                    ? "bg-gray-400"
+                    : "bg-error"
+                }`}
+              >
+                {isCancelling ? (
+                  <ActivityIndicator color="white" size="small" />
+                ) : (
+                  <Text className="text-center font-mulish-bold text-white">
+                    Cancel Contract
+                  </Text>
+                )}
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
     </View>
   );
 }

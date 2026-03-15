@@ -12,6 +12,7 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { useRouter, useLocalSearchParams } from "expo-router";
 import { Feather } from "@expo/vector-icons";
 import DateTimePicker from "@react-native-community/datetimepicker";
+import dayjs from "dayjs";
 import { useAlert } from "@/hooks/useAlert";
 import AlertModal from "@/components/core/AlertModal";
 import DocumentUploader from "@/components/verification/DocumentUploader";
@@ -44,9 +45,6 @@ export default function ResubmitDocumentScreen() {
     useState(false);
 
   const isVaccination = documentType === "vaccination";
-  const title = isVaccination
-    ? `Resubmit ${vaccineName}`
-    : `Resubmit ${recordType}`;
 
   const formatDate = (date: Date) => {
     const day = String(date.getDate()).padStart(2, "0");
@@ -54,6 +52,8 @@ export default function ResubmitDocumentScreen() {
     const year = date.getFullYear();
     return `${day}/${month}/${year}`;
   };
+
+  const formatApiDate = (date: Date) => dayjs(date).format("YYYY-MM-DD");
 
   const handleSubmit = async () => {
     // Validation
@@ -81,12 +81,21 @@ export default function ResubmitDocumentScreen() {
       });
       return;
     }
+    if (!dayjs(expirationDate).isAfter(dayjs(givenDate), "day")) {
+      showAlert({
+        title: "Invalid Expiration Date",
+        message: "Expiration date must be after the given date.",
+        type: "warning",
+      });
+      return;
+    }
 
     setIsSubmitting(true);
 
     try {
       // Get file extension from URI
-      const uriParts = document.split(".");
+      const normalizedUri = document.split("?")[0];
+      const uriParts = normalizedUri.split(".");
       const fileExtension = uriParts[uriParts.length - 1].toLowerCase();
 
       const mimeTypes: Record<string, string> = {
@@ -94,6 +103,8 @@ export default function ResubmitDocumentScreen() {
         jpeg: "image/jpeg",
         png: "image/png",
         pdf: "application/pdf",
+        heic: "image/heic",
+        heif: "image/heif",
       };
 
       const mimeType = mimeTypes[fileExtension] || "image/jpeg";
@@ -107,8 +118,8 @@ export default function ResubmitDocumentScreen() {
       } as any);
       formData.append("clinic_name", clinicName);
       formData.append("veterinarian_name", veterinarianName);
-      formData.append("given_date", givenDate.toISOString());
-      formData.append("expiration_date", expirationDate.toISOString());
+      formData.append("given_date", formatApiDate(givenDate));
+      formData.append("expiration_date", formatApiDate(expirationDate));
 
       let endpoint = "";
       if (isVaccination) {
@@ -142,9 +153,18 @@ export default function ResubmitDocumentScreen() {
       });
     } catch (error: any) {
       console.error("Error resubmitting document:", error);
+      const validationErrors = error.response?.data?.errors;
+      const firstValidationError = validationErrors
+        ? Object.values(validationErrors)[0]
+        : null;
+      const validationMessage = Array.isArray(firstValidationError)
+        ? firstValidationError[0]
+        : null;
+
       showAlert({
         title: "Error",
         message:
+          validationMessage ||
           error.response?.data?.message ||
           "Failed to resubmit document. Please try again.",
         type: "error",

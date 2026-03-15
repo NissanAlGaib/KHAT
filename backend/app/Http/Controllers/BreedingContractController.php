@@ -1058,6 +1058,9 @@ class BreedingContractController extends Controller
             // Timestamps
             'accepted_at' => $contract->accepted_at?->toISOString(),
             'rejected_at' => $contract->rejected_at?->toISOString(),
+            'cancelled_at' => $contract->cancelled_at?->toISOString(),
+            'cancellation_reason' => $contract->cancellation_reason,
+            'cancelled_by' => $contract->cancelled_by,
             'created_at' => $contract->created_at->toISOString(),
             'updated_at' => $contract->updated_at->toISOString(),
             // Breeding completion fields
@@ -1866,6 +1869,61 @@ class BreedingContractController extends Controller
                 // Don't fail the match completion - pool release can be retried by admin
             }
 
+            // Release monetary compensation to the counterparty owner
+            try {
+                $compensationRelease = $this->poolService->releaseMonetaryCompensation($contract);
+                Log::info('Monetary compensation released from pool on match completion', [
+                    'contract_id' => $contract->id,
+                    'released_count' => $compensationRelease['released'] ?? 0,
+                ]);
+
+                foreach (($compensationRelease['details'] ?? []) as $detail) {
+                    if (!($detail['success'] ?? false)) {
+                        continue;
+                    }
+
+                    $amount = (float) ($detail['amount'] ?? 0);
+                    $payerUserId = $detail['payer_user_id'] ?? null;
+                    $recipientUserId = $detail['recipient_user_id'] ?? null;
+
+                    if ($payerUserId) {
+                        ActivityNotificationService::paymentEvent(
+                            (int) $payerUserId,
+                            'Compensation Released',
+                            'Your compensation payment of ₱' . number_format($amount, 2) . ' for Contract #' . $contract->id . ' has been released from the pool.',
+                            [
+                                'contract_id' => $contract->id,
+                                'amount' => $amount,
+                                'payment_type' => 'monetary_compensation',
+                                'release_role' => 'payer',
+                                'recipient_user_id' => $recipientUserId,
+                            ]
+                        );
+                    }
+
+                    if ($recipientUserId) {
+                        ActivityNotificationService::paymentEvent(
+                            (int) $recipientUserId,
+                            'Compensation Received',
+                            'Compensation of ₱' . number_format($amount, 2) . ' for Contract #' . $contract->id . ' has been released to you.',
+                            [
+                                'contract_id' => $contract->id,
+                                'amount' => $amount,
+                                'payment_type' => 'monetary_compensation',
+                                'release_role' => 'recipient',
+                                'payer_user_id' => $payerUserId,
+                            ]
+                        );
+                    }
+                }
+            } catch (\Exception $e) {
+                Log::error('Failed to release monetary compensation from pool', [
+                    'contract_id' => $contract->id,
+                    'error' => $e->getMessage(),
+                ]);
+                // Don't fail the match completion - pool release can be retried by admin
+            }
+
             // Mark the conversation as completed and archive it
             $conversation = $contract->conversation;
             $conversation->markAsCompleted();
@@ -1993,6 +2051,13 @@ class BreedingContractController extends Controller
             // Archive the conversation
             if ($contract->conversation) {
                 $contract->conversation->archive();
+
+                // Update match request status so pets are not left in accepted-lock state
+                if ($contract->conversation->matchRequest) {
+                    $contract->conversation->matchRequest->update([
+                        'status' => 'cancelled',
+                    ]);
+                }
             }
 
             DB::commit();
@@ -2151,7 +2216,6 @@ class BreedingContractController extends Controller
     public function storeDailyReport(Request $request, $contractId)
     {
         $validated = $request->validate([
-            'report_date' => 'required|date|before_or_equal:today',
             'progress_notes' => 'required|string|max:1000',
             'health_status' => 'required|in:excellent,good,fair,poor,concerning',
             'health_notes' => 'nullable|string|max:500',
@@ -2191,9 +2255,12 @@ class BreedingContractController extends Controller
             ], 403);
         }
 
+        // Report date is server-controlled to avoid client/server timezone drift.
+        $reportDate = now()->toDateString();
+
         // Check if report already exists for this date
         $existingReport = \App\Models\DailyReport::where('contract_id', $contractId)
-            ->where('report_date', $validated['report_date'])
+            ->where('report_date', $reportDate)
             ->first();
 
         if ($existingReport) {
@@ -2213,7 +2280,7 @@ class BreedingContractController extends Controller
             $report = \App\Models\DailyReport::create([
                 'contract_id' => $contractId,
                 'reported_by' => $user->id,
-                'report_date' => $validated['report_date'],
+                'report_date' => $reportDate,
                 'progress_notes' => $validated['progress_notes'],
                 'health_status' => $validated['health_status'],
                 'health_notes' => $validated['health_notes'] ?? null,

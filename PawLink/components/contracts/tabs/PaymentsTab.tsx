@@ -251,11 +251,35 @@ export default function ContractPaymentsTab({
             </Text>
           </View>
           {payments.map((payment) => {
+            const effectiveStatus =
+              payment.pool_status === "released"
+                ? "released"
+                : payment.pool_status === "in_pool" && payment.status === "paid"
+                  ? "in_pool"
+                  : payment.pool_status === "frozen"
+                    ? "frozen"
+                    : payment.status;
+
             const statusIconMap: Record<
               string,
               { iconComponent: React.ReactNode; color: string; label: string }
             > = {
               paid: { iconComponent: <CheckCircle size={18} color="#15803d" />, color: "text-green-700", label: "Paid" },
+              released: {
+                iconComponent: <CheckCircle size={18} color="#2563eb" />,
+                color: "text-blue-700",
+                label: "Released",
+              },
+              in_pool: {
+                iconComponent: <Clock size={18} color="#1d4ed8" />,
+                color: "text-blue-700",
+                label: "Held in Pool",
+              },
+              frozen: {
+                iconComponent: <AlertCircle size={18} color="#1d4ed8" />,
+                color: "text-blue-700",
+                label: "Frozen",
+              },
               pending: {
                 iconComponent: <Clock size={18} color="#a16207" />,
                 color: "text-yellow-700",
@@ -283,7 +307,7 @@ export default function ContractPaymentsTab({
                 label: "Processing",
               },
             };
-            const config = statusIconMap[payment.status] || statusIconMap.pending;
+            const config = statusIconMap[effectiveStatus] || statusIconMap.pending;
 
             return (
               <View

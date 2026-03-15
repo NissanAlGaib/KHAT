@@ -13,10 +13,12 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Validation\Rule;
+use Illuminate\Validation\ValidationException;
 
 class PetController extends Controller
 {
-    private const MIN_PET_AGE_DAYS = 30;
+    private const MIN_DOG_AGE_MONTHS = 6;
+    private const MIN_CAT_AGE_MONTHS = 4;
 
     /**
      * Check if a user has verified their identity (approved ID verification)
@@ -27,6 +29,35 @@ class PetController extends Controller
             ->where('auth_type', 'id')
             ->where('status', 'approved')
             ->exists();
+    }
+
+    private function getMinimumAgeMonthsBySpecies(?string $species): int
+    {
+        $normalizedSpecies = strtolower(trim((string) $species));
+        return $normalizedSpecies === 'cat'
+            ? self::MIN_CAT_AGE_MONTHS
+            : self::MIN_DOG_AGE_MONTHS;
+    }
+
+    private function getMinimumBirthdateBySpecies(?string $species): string
+    {
+        $minimumAgeMonths = $this->getMinimumAgeMonthsBySpecies($species);
+        return now()->subMonthsNoOverflow($minimumAgeMonths)->toDateString();
+    }
+
+    private function getMinimumAgeMessageBySpecies(?string $species, bool $forRegistration = false): string
+    {
+        $normalizedSpecies = strtolower(trim((string) $species));
+
+        if ($normalizedSpecies === 'cat') {
+            return $forRegistration
+                ? 'Cat must be at least 4 months old to be registered.'
+                : 'Cat must be at least 4 months old.';
+        }
+
+        return $forRegistration
+            ? 'Dog must be at least 6 months old to be registered.'
+            : 'Dog must be at least 6 months old.';
     }
 
     /**
@@ -58,7 +89,8 @@ class PetController extends Controller
             ], 403);
         }
 
-        $minimumBirthdate = now()->subDays(self::MIN_PET_AGE_DAYS)->toDateString();
+        $minimumBirthdate = $this->getMinimumBirthdateBySpecies($request->input('species'));
+        $minimumAgeMessage = $this->getMinimumAgeMessageBySpecies($request->input('species'), true);
 
         // Validate all pet data
         $validated = $request->validate([
@@ -134,7 +166,7 @@ class PetController extends Controller
             'sex.required' => 'Please select a sex.',
             'sex.in' => 'Sex must be either male or female.',
             'birthdate.required' => 'Birthdate is required.',
-            'birthdate.before_or_equal' => 'Pet must be at least 30 days old to be registered.',
+            'birthdate.before_or_equal' => $minimumAgeMessage,
             'height.required' => 'Height is required.',
             'height.numeric' => 'Height must be a number.',
             'weight.required' => 'Weight is required.',
@@ -363,7 +395,8 @@ class PetController extends Controller
             ->where('user_id', Auth::id())
             ->findOrFail($id);
 
-        $minimumBirthdate = now()->subDays(self::MIN_PET_AGE_DAYS)->toDateString();
+        $minimumBirthdate = $this->getMinimumBirthdateBySpecies($pet->species);
+        $minimumAgeMessage = $this->getMinimumAgeMessageBySpecies($pet->species);
 
         $validated = $request->validate([
             'name' => 'required|string|max:255',
@@ -399,7 +432,7 @@ class PetController extends Controller
             'name.required' => 'Pet name is required.',
             'sex.prohibited' => 'Pet sex cannot be changed after registration.',
             'birthdate.required' => 'Birthdate is required.',
-            'birthdate.before_or_equal' => 'Pet must be at least 30 days old.',
+            'birthdate.before_or_equal' => $minimumAgeMessage,
             'height.required' => 'Height is required.',
             'height.numeric' => 'Height must be a number.',
             'weight.required' => 'Weight is required.',
@@ -959,8 +992,8 @@ class PetController extends Controller
                 ->where('vaccination_id', $vaccinationId)
                 ->firstOrFail();
 
-            $request->validate([
-                'document' => 'required|file|mimes:jpg,jpeg,png,pdf|max:20480',
+            $validated = $request->validate([
+                'document' => 'required|file|mimes:jpg,jpeg,png,pdf,heic,heif|max:20480',
                 'clinic_name' => 'required|string|max:255',
                 'veterinarian_name' => 'required|string|max:255',
                 'given_date' => 'required|date|before_or_equal:today',
@@ -973,10 +1006,10 @@ class PetController extends Controller
             // Update the vaccination record
             $vaccination->update([
                 'vaccination_record' => $documentPath,
-                'clinic_name' => $request->input('clinic_name'),
-                'veterinarian_name' => $request->input('veterinarian_name'),
-                'given_date' => $request->input('given_date'),
-                'expiration_date' => $request->input('expiration_date'),
+                'clinic_name' => $validated['clinic_name'],
+                'veterinarian_name' => $validated['veterinarian_name'],
+                'given_date' => $validated['given_date'],
+                'expiration_date' => $validated['expiration_date'],
                 'status' => 'pending',
                 'rejection_reason' => null,
             ]);
@@ -986,6 +1019,12 @@ class PetController extends Controller
                 'message' => 'Vaccination record resubmitted successfully',
                 'data' => $vaccination,
             ], 200);
+        } catch (ValidationException $e) {
+            return response()->json([
+                'success' => false,
+                'message' => $e->validator->errors()->first() ?: 'Invalid vaccination resubmission data.',
+                'errors' => $e->errors(),
+            ], 422);
         } catch (\Exception $e) {
             return response()->json([
                 'success' => false,
@@ -1009,8 +1048,8 @@ class PetController extends Controller
                 ->where('health_record_id', $healthRecordId)
                 ->firstOrFail();
 
-            $request->validate([
-                'document' => 'required|file|mimes:jpg,jpeg,png,pdf|max:20480',
+            $validated = $request->validate([
+                'document' => 'required|file|mimes:jpg,jpeg,png,pdf,heic,heif|max:20480',
                 'clinic_name' => 'required|string|max:255',
                 'veterinarian_name' => 'required|string|max:255',
                 'given_date' => 'required|date|before_or_equal:today',
@@ -1020,13 +1059,16 @@ class PetController extends Controller
             // Store the new document
             $documentPath = $request->file('document')->store('health_certificates', 'do_spaces');
 
-            // Update the health record
-            $healthRecord->update([
+            // Create a new version so previous records remain in the timeline history.
+            $newHealthRecord = HealthRecord::create([
+                'pet_id' => $pet->pet_id,
+                'record_type' => $healthRecord->record_type,
                 'health_certificate' => $documentPath,
-                'clinic_name' => $request->input('clinic_name'),
-                'veterinarian_name' => $request->input('veterinarian_name'),
-                'given_date' => $request->input('given_date'),
-                'expiration_date' => $request->input('expiration_date'),
+                'clinic_name' => $validated['clinic_name'],
+                'veterinarian_name' => $validated['veterinarian_name'],
+                'given_date' => $validated['given_date'],
+                'expiration_date' => $validated['expiration_date'],
+                'notes' => $healthRecord->notes,
                 'status' => 'pending',
                 'rejection_reason' => null,
             ]);
@@ -1034,8 +1076,15 @@ class PetController extends Controller
             return response()->json([
                 'success' => true,
                 'message' => 'Health record resubmitted successfully',
-                'data' => $healthRecord,
+                'data' => $newHealthRecord,
+                'previous_health_record_id' => $healthRecord->health_record_id,
             ], 200);
+        } catch (ValidationException $e) {
+            return response()->json([
+                'success' => false,
+                'message' => $e->validator->errors()->first() ?: 'Invalid health record resubmission data.',
+                'errors' => $e->errors(),
+            ], 422);
         } catch (\Exception $e) {
             return response()->json([
                 'success' => false,

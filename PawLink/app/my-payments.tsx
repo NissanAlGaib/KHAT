@@ -29,6 +29,7 @@ import {
   getDisputeStatusColor,
   Dispute,
 } from "@/services/disputeService";
+import { useSession } from "@/context/AuthContext";
 import { SettingsLayout } from "@/components/settings";
 import { Colors } from "@/constants";
 
@@ -37,6 +38,8 @@ type FilterType = "all" | PoolTransactionType;
 
 export default function MyPaymentsScreen() {
   const router = useRouter();
+  const { user } = useSession();
+  const currentUserId = Number(user?.id ?? 0);
   const [activeTab, setActiveTab] = useState<TabType>("transactions");
   const [filter, setFilter] = useState<FilterType>("all");
   const [transactions, setTransactions] = useState<PoolTransaction[]>([]);
@@ -158,9 +161,12 @@ export default function MyPaymentsScreen() {
           </View>
           <View className="w-px bg-gray-200" />
           <View className="items-center">
-            <Text className="text-gray-400 text-xs mb-0.5">Released</Text>
+            <Text className="text-gray-400 text-xs mb-0.5">Released Out</Text>
             <Text className="text-green-600 text-sm font-semibold">
               {formatPoolAmount(balance.total_released)}
+            </Text>
+            <Text className="text-emerald-600 text-[10px] mt-0.5">
+              In: {formatPoolAmount(balance.incoming_releases ?? 0)}
             </Text>
           </View>
         </View>
@@ -169,11 +175,29 @@ export default function MyPaymentsScreen() {
   };
 
   const renderTransactionItem = ({ item }: { item: PoolTransaction }) => {
+    const releaseToUserId = Number(item.metadata?.released_to_user_id ?? 0);
+    const isIncomingReleaseForViewer =
+      item.type === "release" &&
+      currentUserId > 0 &&
+      releaseToUserId === currentUserId;
+    const isOutgoingReleaseForViewer =
+      item.type === "release" &&
+      currentUserId > 0 &&
+      item.user_id === currentUserId &&
+      releaseToUserId > 0 &&
+      releaseToUserId !== currentUserId;
+
     const typeColor = getTransactionTypeColor(item.type);
     const statusColor = getPoolStatusColor(item.status);
     const credit = isCredit(item.type);
-    const earned = isEarned(item.type);
-    const direction = getTransactionDirectionLabel(item.type);
+    const earned =
+      isIncomingReleaseForViewer ||
+      (isEarned(item.type) && !isOutgoingReleaseForViewer);
+    const direction = isIncomingReleaseForViewer
+      ? { label: "Compensation received", icon: "arrow-down-left" }
+      : isOutgoingReleaseForViewer
+        ? { label: "Released to partner", icon: "arrow-up-right" }
+        : getTransactionDirectionLabel(item.type);
     const date = new Date(item.created_at);
 
     // Determine amount color: green for money coming to user, red for money going out

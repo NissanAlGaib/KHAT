@@ -252,9 +252,7 @@ export default function ContractReportsTab({
 
     setIsSubmitting(true);
     try {
-      const reportDate = dayjs().format("YYYY-MM-DD");
       const result = await submitDailyReport(contract.id, {
-        report_date: reportDate,
         progress_notes: progressNotes,
         health_status: healthStatus,
         health_notes: healthNotes || undefined,

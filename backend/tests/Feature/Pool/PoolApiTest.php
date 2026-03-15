@@ -122,6 +122,38 @@ test('user only sees their own transactions', function () {
     expect($data[0]['user_id'])->toBe($this->owner1->id);
 });
 
+test('recipient can see release transactions addressed to them', function () {
+    $payment = createPooledPayment($this->owner1->id, $this->contract->id, Payment::TYPE_MONETARY_COMPENSATION, 1200.00);
+
+    PoolTransaction::create([
+        'payment_id' => $payment->id,
+        'contract_id' => $this->contract->id,
+        'user_id' => $this->owner1->id,
+        'type' => PoolTransaction::TYPE_RELEASE,
+        'amount' => 1200.00,
+        'currency' => 'PHP',
+        'balance_after' => 0,
+        'status' => PoolTransaction::STATUS_COMPLETED,
+        'description' => 'Monetary compensation released',
+        'metadata' => [
+            'released_from_user_id' => $this->owner1->id,
+            'released_to_user_id' => $this->owner2->id,
+            'payment_type' => Payment::TYPE_MONETARY_COMPENSATION,
+        ],
+        'processed_at' => now(),
+    ]);
+
+    $response = $this->actingAs($this->owner2)
+        ->getJson('/api/pool/my-transactions?type=release');
+
+    $response->assertStatus(200)
+        ->assertJson(['success' => true]);
+
+    $data = $response->json('data.data');
+    expect($data)->toHaveCount(1);
+    expect($data[0]['type'])->toBe(PoolTransaction::TYPE_RELEASE);
+});
+
 test('transactions can be filtered by type', function () {
     createPooledPayment($this->owner1->id, $this->contract->id, Payment::TYPE_COLLATERAL);
 
@@ -169,6 +201,40 @@ test('user can get their pool balance', function () {
             'success' => true,
             'data' => [
                 'total_deposited' => 1000.00,
+            ],
+        ]);
+});
+
+test('pool balance includes incoming release metric for recipients', function () {
+    $payment = createPooledPayment($this->owner1->id, $this->contract->id, Payment::TYPE_MONETARY_COMPENSATION, 1000.00);
+
+    PoolTransaction::create([
+        'payment_id' => $payment->id,
+        'contract_id' => $this->contract->id,
+        'user_id' => $this->owner1->id,
+        'type' => PoolTransaction::TYPE_RELEASE,
+        'amount' => 1000.00,
+        'currency' => 'PHP',
+        'balance_after' => 0,
+        'status' => PoolTransaction::STATUS_COMPLETED,
+        'description' => 'Monetary compensation released',
+        'metadata' => [
+            'released_from_user_id' => $this->owner1->id,
+            'released_to_user_id' => $this->owner2->id,
+            'payment_type' => Payment::TYPE_MONETARY_COMPENSATION,
+        ],
+        'processed_at' => now(),
+    ]);
+
+    $response = $this->actingAs($this->owner2)
+        ->getJson('/api/pool/balance');
+
+    $response->assertStatus(200)
+        ->assertJson([
+            'success' => true,
+            'data' => [
+                'held' => 0,
+                'incoming_releases' => 1000.00,
             ],
         ]);
 });

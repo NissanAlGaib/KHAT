@@ -156,13 +156,13 @@ class SafetyController extends Controller
             // Check for existing pending report
             $existingReport = SafetyReport::where('reporter_id', $user->id)
                 ->where('reported_id', $userToReport->id)
-                ->where('status', SafetyReport::STATUS_PENDING)
+                ->where('reason', $request->reason)
                 ->first();
 
             if ($existingReport) {
                 return response()->json([
                     'success' => false,
-                    'message' => 'You already have a pending report for this user',
+                    'message' => 'You already submitted a report for this reason against this user',
                 ], 400);
             }
 

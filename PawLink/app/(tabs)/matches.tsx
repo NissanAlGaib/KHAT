@@ -24,6 +24,7 @@ import {
   acceptMatchRequest,
   declineMatchRequest,
   cancelMatchRequest,
+  unmatchAcceptedRequest,
   getMatchHistory,
   type MatchRequest,
   type AcceptedMatch,
@@ -263,7 +264,7 @@ const Matches = () => {
           type: "error",
         });
       }
-    } catch (error) {
+    } catch {
       showAlert({
         title: "Error",
         message: "Failed to accept match request",
@@ -294,7 +295,7 @@ const Matches = () => {
           type: "error",
         });
       }
-    } catch (error) {
+    } catch {
       showAlert({
         title: "Error",
         message: "Failed to decline match request",
@@ -333,7 +334,7 @@ const Matches = () => {
                   type: "error",
                 });
               }
-            } catch (error) {
+            } catch {
               showAlert({
                 title: "Error",
                 message: "Failed to cancel match request",
@@ -345,6 +346,44 @@ const Matches = () => {
           },
         },
         { text: "No, Keep It", style: "cancel" },
+      ],
+    });
+  };
+
+  const handleUnmatchAccepted = async (requestId: number) => {
+    if (processingId) return;
+
+    showAlert({
+      title: "Unmatch Pet?",
+      message:
+        "This will cancel your accepted match before a contract is created. This action cannot be undone.",
+      type: "warning",
+      buttons: [
+        {
+          text: "Yes, Unmatch",
+          onPress: async () => {
+            setProcessingId(requestId);
+            try {
+              await unmatchAcceptedRequest(requestId);
+              showAlert({
+                title: "Match Cancelled",
+                message: "The accepted match has been cancelled.",
+                type: "info",
+              });
+              fetchData();
+            } catch (error: any) {
+              showAlert({
+                title: "Error",
+                message:
+                  error?.message || "Failed to cancel accepted match",
+                type: "error",
+              });
+            } finally {
+              setProcessingId(null);
+            }
+          },
+        },
+        { text: "Keep Match", style: "cancel" },
       ],
     });
   };
@@ -518,6 +557,19 @@ const Matches = () => {
         >
           <Feather name="message-circle" size={18} color="white" />
         </TouchableOpacity>
+        {!match.has_contract && (
+          <TouchableOpacity
+            className="w-10 h-10 bg-gray-100 rounded-full items-center justify-center ml-2"
+            onPress={() => handleUnmatchAccepted(match.id)}
+            disabled={processingId === match.id}
+          >
+            {processingId === match.id ? (
+              <ActivityIndicator size="small" color="#666" />
+            ) : (
+              <Feather name="x-circle" size={18} color="#EF4444" />
+            )}
+          </TouchableOpacity>
+        )}
       </View>
     </TouchableOpacity>
   );

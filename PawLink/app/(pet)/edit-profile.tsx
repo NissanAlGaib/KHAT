@@ -104,7 +104,20 @@ const TAG_ICON_MAP: Partial<Record<string, keyof typeof Ionicons.glyphMap>> = {
 
 type ValidationErrors = Partial<Record<string, string>>;
 
-const MIN_PET_AGE_DAYS = 30;
+const MIN_DOG_AGE_MONTHS = 6;
+const MIN_CAT_AGE_MONTHS = 4;
+
+function getMinimumAgeMonths(species?: string | null): number {
+  const normalizedSpecies = String(species || "").toLowerCase();
+  return normalizedSpecies === "cat" ? MIN_CAT_AGE_MONTHS : MIN_DOG_AGE_MONTHS;
+}
+
+function getMinimumAgeMessage(species?: string | null): string {
+  const normalizedSpecies = String(species || "").toLowerCase();
+  return normalizedSpecies === "cat"
+    ? `Cat must be at least ${MIN_CAT_AGE_MONTHS} months old`
+    : `Dog must be at least ${MIN_DOG_AGE_MONTHS} months old`;
+}
 
 function normalizeTags(values?: string[] | null): string[] {
   if (!Array.isArray(values)) return [];
@@ -497,8 +510,9 @@ export default function EditPetProfileScreen() {
 
   const validate = () => {
     const nextErrors: ValidationErrors = {};
+    const minimumAgeMonths = getMinimumAgeMonths(pet?.species);
     const latestAllowedBirthdate = dayjs()
-      .subtract(MIN_PET_AGE_DAYS, "day")
+      .subtract(minimumAgeMonths, "month")
       .startOf("day");
 
     if (!name.trim()) nextErrors.name = "Pet name is required";
@@ -507,7 +521,7 @@ export default function EditPetProfileScreen() {
       birthdate &&
       dayjs(birthdate).startOf("day").isAfter(latestAllowedBirthdate)
     ) {
-      nextErrors.birthdate = "Pet must be at least 30 days old";
+      nextErrors.birthdate = getMinimumAgeMessage(pet?.species);
     }
     if (!height.trim()) nextErrors.height = "Height is required";
     if (!weight.trim()) nextErrors.weight = "Weight is required";
@@ -892,7 +906,9 @@ export default function EditPetProfileScreen() {
           value={birthdate || new Date(2020, 0, 1)}
           mode="date"
           display={Platform.OS === "ios" ? "spinner" : "default"}
-          maximumDate={dayjs().subtract(MIN_PET_AGE_DAYS, "day").toDate()}
+          maximumDate={dayjs()
+            .subtract(getMinimumAgeMonths(pet?.species), "month")
+            .toDate()}
           onChange={(_, selectedDate) => {
             if (Platform.OS !== "ios") {
               setShowDatePicker(false);

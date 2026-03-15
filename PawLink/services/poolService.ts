@@ -50,6 +50,8 @@ export interface PoolBalance {
   total_deposited: number;
   /** Lifetime total released/refunded */
   total_released: number;
+  /** Lifetime total released to this user as recipient */
+  incoming_releases?: number;
 }
 
 export interface ContractPoolSummary {

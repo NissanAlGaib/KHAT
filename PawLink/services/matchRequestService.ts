@@ -27,6 +27,7 @@ export interface AcceptedMatch {
   id: number;
   conversation_id?: number;
   user_pet: MatchRequestPet;
+  has_contract?: boolean;
   matched_pet: MatchRequestPet;
   owner: MatchRequestOwner;
   status: "accepted";
@@ -333,6 +334,23 @@ export const cancelMatchRequest = async (
     const errorMessage =
       error.response?.data?.message || "Failed to cancel match request";
     return { success: false, message: errorMessage };
+  }
+};
+
+export const unmatchAcceptedRequest = async (requestId: number): Promise<any> => {
+  try {
+    const response = await axiosInstance.put(`/api/match-requests/${requestId}/unmatch`);
+
+    if (response.data.success) {
+      return response.data;
+    }
+
+    throw new Error(response.data.message || "Failed to unmatch accepted request");
+  } catch (error: any) {
+    console.error("Error unmatching accepted request:", error.response?.data || error.message);
+    throw new Error(
+      error.response?.data?.message || "Failed to unmatch accepted request"
+    );
   }
 };
 

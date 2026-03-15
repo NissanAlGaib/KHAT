@@ -147,6 +147,7 @@ Route::middleware(['auth:sanctum'])
         Route::put('/match-requests/{id}/accept', [MatchRequestController::class, 'accept']);
         Route::put('/match-requests/{id}/decline', [MatchRequestController::class, 'decline']);
         Route::put('/match-requests/{id}/cancel', [MatchRequestController::class, 'cancel']);
+        Route::put('/match-requests/{id}/unmatch', [MatchRequestController::class, 'unmatch']);
         Route::get('/match-requests/history', [MatchRequestController::class, 'history']);
         Route::post('/match-requests/{match}/review', [UserReviewController::class, 'store']);
         Route::get('/match-requests/{match}/review-status', [UserReviewController::class, 'reviewStatus']);

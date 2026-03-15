@@ -2,6 +2,7 @@
 import {
   ActivityIndicator,
   Image,
+  Linking,
   Modal,
   Pressable,
   ScrollView,
@@ -98,6 +99,95 @@ const getStatusMeta = (status: DocumentStatus) => {
   };
 };
 
+const formatOptionalDate = (value?: string | null, fallback = "Date unavailable") => {
+  if (!value) return fallback;
+
+  const parsed = dayjs(value);
+  return parsed.isValid() ? parsed.format("MMMM D, YYYY") : fallback;
+};
+
+const getVerificationStatusLabel = (status?: string | null) => {
+  const normalized = String(status || "").toLowerCase();
+
+  if (normalized === "approved" || normalized === "verified") return "Verified";
+  if (normalized === "rejected") return "Rejected";
+  if (normalized === "expired") return "Expired";
+  if (normalized === "pending") return "Pending Review";
+
+  return "Pending Review";
+};
+
+const getExpiryMetaText = (expirationDate?: string | null) => {
+  if (!expirationDate) return "No expiration date on file";
+
+  const expiration = dayjs(expirationDate);
+  if (!expiration.isValid()) return "Expiration date unavailable";
+
+  const today = dayjs().startOf("day");
+  const expiryDay = expiration.startOf("day");
+  const dayDiff = expiryDay.diff(today, "day");
+
+  if (dayDiff < 0) {
+    const expiredDays = Math.abs(dayDiff);
+    return `Expired ${expiredDays} day${expiredDays === 1 ? "" : "s"} ago`;
+  }
+
+  if (dayDiff === 0) return "Expires today";
+
+  return `Expires in ${dayDiff} day${dayDiff === 1 ? "" : "s"}`;
+};
+
+type TimelineEventTone = "neutral" | "good" | "warn" | "bad";
+
+type TimelineEvent = {
+  label: string;
+  date: string;
+  tone: TimelineEventTone;
+};
+
+const getHealthTimelineEvents = (record: any): TimelineEvent[] => {
+  const events: TimelineEvent[] = [];
+
+  if (record?.created_at) {
+    events.push({
+      label: "Submitted",
+      date: formatOptionalDate(record.created_at),
+      tone: "neutral",
+    });
+  }
+
+  if (record?.given_date) {
+    events.push({
+      label: "Issued",
+      date: formatOptionalDate(record.given_date),
+      tone: "neutral",
+    });
+  }
+
+  if (record?.expiration_date) {
+    const documentStatus = getDocumentStatus(record.expiration_date);
+    events.push({
+      label: "Expires",
+      date: formatOptionalDate(record.expiration_date),
+      tone: documentStatus === "expired" ? "bad" : "good",
+    });
+  }
+
+  const verificationStatus = String(record?.status || "").toLowerCase();
+  if (verificationStatus) {
+    const isRejected = verificationStatus === "rejected";
+    const isPending = verificationStatus === "pending";
+
+    events.push({
+      label: getVerificationStatusLabel(verificationStatus),
+      date: formatOptionalDate(record?.updated_at || record?.created_at),
+      tone: isRejected ? "bad" : isPending ? "warn" : "good",
+    });
+  }
+
+  return events;
+};
+
 export default function PetProfileScreen() {
   const router = useRouter();
   const params = useLocalSearchParams();
@@ -177,7 +267,7 @@ export default function PetProfileScreen() {
     [petData?.photos],
   );
 
-  const galleryItems = useMemo<Array<{ id: string; uri: string }>>(
+  const galleryItems = useMemo<{ id: string; uri: string }[]>(
     () =>
       photos
         .map((photo: any, index: number) => ({
@@ -216,15 +306,35 @@ export default function PetProfileScreen() {
     [publicProfile?.breeding_partners, petData?.breeding_partners],
   );
 
-  const vaccinations = useMemo(
-    () => (Array.isArray(petData?.vaccinations) ? petData.vaccinations : []),
-    [petData?.vaccinations],
-  );
-
   const healthRecords = useMemo(
     () =>
       Array.isArray(petData?.health_records) ? petData.health_records : [],
     [petData?.health_records],
+  );
+
+  const sortedHealthRecords = useMemo(
+    () =>
+      [...healthRecords].sort((left: any, right: any) => {
+        const leftDate = dayjs(left?.given_date).isValid()
+          ? dayjs(left.given_date).valueOf()
+          : 0;
+        const rightDate = dayjs(right?.given_date).isValid()
+          ? dayjs(right.given_date).valueOf()
+          : 0;
+
+        const leftCreated = dayjs(left?.created_at).isValid()
+          ? dayjs(left.created_at).valueOf()
+          : 0;
+        const rightCreated = dayjs(right?.created_at).isValid()
+          ? dayjs(right.created_at).valueOf()
+          : 0;
+
+        if (rightDate !== leftDate) return rightDate - leftDate;
+        if (rightCreated !== leftCreated) return rightCreated - leftCreated;
+
+        return (right?.health_record_id || 0) - (left?.health_record_id || 0);
+      }),
+    [healthRecords],
   );
 
   const matchingAvailable = useMemo(() => {
@@ -384,16 +494,32 @@ export default function PetProfileScreen() {
     }
   };
 
-  const handleResubmitVaccination = (vaccination: any) => {
-    router.push(
-      `/(verification)/resubmit-document?type=vaccination&petId=${petId}&petName=${petData?.name || "Pet"}&vaccinationId=${vaccination.vaccination_id}&vaccineName=${vaccination.vaccine_name}`,
-    );
-  };
-
   const handleResubmitHealthRecord = (record: any) => {
     router.push(
       `/(verification)/resubmit-document?type=health_record&petId=${petId}&petName=${petData?.name || "Pet"}&healthRecordId=${record.health_record_id}&recordType=${record.record_type}`,
     );
+  };
+
+  const handleOpenHealthCertificate = async (certificatePath?: string | null) => {
+    const url = getStorageUrl(certificatePath || null);
+    if (!url) {
+      showAlert({
+        title: "No Attachment",
+        message: "No health certificate attachment was found for this record.",
+        type: "warning",
+      });
+      return;
+    }
+
+    try {
+      await Linking.openURL(url);
+    } catch {
+      showAlert({
+        title: "Unable to Open File",
+        message: "We could not open this certificate. Please try again.",
+        type: "error",
+      });
+    }
   };
 
   if (loading) {
@@ -545,16 +671,27 @@ export default function PetProfileScreen() {
         </SectionCard>
 
         <SectionCard icon="receipt-outline" title="Health Records">
-          {healthRecords.length > 0 ? (
+          {sortedHealthRecords.length > 0 ? (
             <>
-              {healthRecords.map((record: any, index: number) => {
+              {sortedHealthRecords.map((record: any, index: number) => {
                 const status = getDocumentStatus(record?.expiration_date);
                 return (
                   <DocumentRow
                     key={`record-${index}`}
                     title={record?.record_type || "Health Record"}
                     expiry={record?.expiration_date}
+                    issuedDate={record?.given_date}
+                    expiryMetaText={getExpiryMetaText(record?.expiration_date)}
                     status={status}
+                    clinicName={record?.clinic_name}
+                    veterinarianName={record?.veterinarian_name}
+                    verificationStatus={record?.status}
+                    hasAttachment={!!record?.health_certificate}
+                    onViewAttachment={
+                      record?.health_certificate
+                        ? () => handleOpenHealthCertificate(record.health_certificate)
+                        : undefined
+                    }
                     onResubmit={
                       status === "expired"
                         ? () => handleResubmitHealthRecord(record)
@@ -1031,33 +1168,155 @@ export default function PetProfileScreen() {
 
       <Modal
         visible={showRecordsModal}
+        transparent
         animationType="slide"
         onRequestClose={() => setShowRecordsModal(false)}
       >
-        <SafeAreaView style={styles.modalScreen} edges={["top"]}>
-          <View style={styles.modalHeader}>
-            <Text style={styles.modalTitle}>Health Records</Text>
-            <TouchableOpacity onPress={() => setShowRecordsModal(false)}>
-              <Ionicons name="close" size={22} color="#4F4C57" />
-            </TouchableOpacity>
-          </View>
+        <Pressable
+          style={styles.timelineOverlay}
+          onPress={() => setShowRecordsModal(false)}
+        >
+          <Pressable style={styles.timelineSheet} onPress={() => {}}>
+            <SafeAreaView edges={["bottom"]}>
+              <View style={styles.modalHeader}>
+                <Text style={styles.modalTitle}>Health Records</Text>
+                <TouchableOpacity onPress={() => setShowRecordsModal(false)}>
+                  <Ionicons name="close" size={22} color="#4F4C57" />
+                </TouchableOpacity>
+              </View>
 
-          <ScrollView style={styles.modalBody}>
-            {healthRecords.map((record: any, index: number) => (
-              <Pressable
-                key={`record-modal-${index}`}
-                style={styles.recordItem}
+              <ScrollView
+                style={styles.modalBody}
+                contentContainerStyle={styles.modalBodyContent}
               >
-                <Text style={styles.recordTitle}>{record.record_type}</Text>
-                <Text style={styles.recordSub}>
-                  {record.given_date
-                    ? dayjs(record.given_date).format("MMMM D, YYYY")
-                    : "Date unavailable"}
-                </Text>
-              </Pressable>
-            ))}
-          </ScrollView>
-        </SafeAreaView>
+                {sortedHealthRecords.length === 0 ? (
+                  <View style={styles.recordItem}>
+                    <Text style={styles.recordTitle}>No records yet</Text>
+                    <Text style={styles.recordSub}>
+                      Health record history will appear here once available.
+                    </Text>
+                  </View>
+                ) : (
+                  sortedHealthRecords.map((record: any, index: number) => {
+                    const status = getDocumentStatus(record?.expiration_date);
+                    const statusMeta = getStatusMeta(status);
+                    const timelineEvents = getHealthTimelineEvents(record);
+
+                    return (
+                      <View key={`record-modal-${index}`} style={styles.recordItem}>
+                        <View style={styles.recordHeaderRow}>
+                          <View style={styles.recordHeaderBody}>
+                            <Text style={styles.recordTitle}>
+                              {record.record_type || "Health Record"}
+                            </Text>
+                            <Text style={styles.recordSub}>
+                              {getExpiryMetaText(record?.expiration_date)}
+                            </Text>
+                          </View>
+
+                          <View style={[styles.statusBadge, statusMeta.container]}>
+                            <Text style={[styles.statusBadgeText, statusMeta.text]}>
+                              {statusMeta.label}
+                            </Text>
+                          </View>
+                        </View>
+
+                        <View style={styles.recordMetaGrid}>
+                          <View style={styles.recordMetaItem}>
+                            <Text style={styles.recordMetaLabel}>Issued</Text>
+                            <Text style={styles.recordMetaValue}>
+                              {formatOptionalDate(record?.given_date)}
+                            </Text>
+                          </View>
+                          <View style={styles.recordMetaItem}>
+                            <Text style={styles.recordMetaLabel}>Expires</Text>
+                            <Text style={styles.recordMetaValue}>
+                              {formatOptionalDate(record?.expiration_date)}
+                            </Text>
+                          </View>
+                        </View>
+
+                        <Text style={styles.recordMetaInline}>
+                          Clinic: {record?.clinic_name || "Not provided"}
+                        </Text>
+                        <Text style={styles.recordMetaInline}>
+                          Veterinarian: {record?.veterinarian_name || "Not provided"}
+                        </Text>
+                        <Text style={styles.recordMetaInline}>
+                          Verification: {getVerificationStatusLabel(record?.status)}
+                        </Text>
+
+                        {record?.rejection_reason ? (
+                          <View style={styles.rejectionBox}>
+                            <Feather name="alert-circle" size={14} color="#B91C1C" />
+                            <Text style={styles.rejectionText}>
+                              Reason: {record.rejection_reason}
+                            </Text>
+                          </View>
+                        ) : null}
+
+                        <View style={styles.timelineBlock}>
+                          {timelineEvents.map((event, eventIndex) => (
+                            <View
+                              key={`${record.health_record_id || index}-event-${eventIndex}`}
+                              style={styles.timelineEventRow}
+                            >
+                              <View
+                                style={[
+                                  styles.timelineDot,
+                                  event.tone === "good"
+                                    ? styles.timelineDotGood
+                                    : event.tone === "warn"
+                                      ? styles.timelineDotWarn
+                                      : event.tone === "bad"
+                                        ? styles.timelineDotBad
+                                        : styles.timelineDotNeutral,
+                                ]}
+                              />
+                              <View style={styles.timelineEventBody}>
+                                <Text style={styles.timelineEventLabel}>{event.label}</Text>
+                                <Text style={styles.timelineEventDate}>{event.date}</Text>
+                              </View>
+                            </View>
+                          ))}
+                        </View>
+
+                        <View style={styles.recordActionsRow}>
+                          <TouchableOpacity
+                            style={styles.recordActionButton}
+                            onPress={() =>
+                              handleOpenHealthCertificate(record.health_certificate)
+                            }
+                          >
+                            <Feather name="file-text" size={14} color="#FF8A66" />
+                            <Text style={styles.recordActionButtonText}>
+                              View Attachment
+                            </Text>
+                          </TouchableOpacity>
+
+                          {status === "expired" ? (
+                            <TouchableOpacity
+                              style={styles.recordActionPrimaryButton}
+                              onPress={() => {
+                                setShowRecordsModal(false);
+                                handleResubmitHealthRecord(record);
+                              }}
+                            >
+                              <Feather name="upload" size={14} color="#FFFFFF" />
+                              <Text style={styles.recordActionPrimaryText}>
+                                Resubmit
+                              </Text>
+                            </TouchableOpacity>
+                          ) : null}
+                        </View>
+                      </View>
+                    );
+                  })
+                )}
+              </ScrollView>
+            </SafeAreaView>
+          </Pressable>
+        </Pressable>
       </Modal>
 
       <AddShotModal
@@ -1206,12 +1465,26 @@ function DetailRow({ label, value }: { label: string; value: string }) {
 function DocumentRow({
   title,
   expiry,
+  issuedDate,
+  expiryMetaText,
   status,
+  clinicName,
+  veterinarianName,
+  verificationStatus,
+  hasAttachment,
+  onViewAttachment,
   onResubmit,
 }: {
   title: string;
   expiry?: string;
+  issuedDate?: string;
+  expiryMetaText?: string;
   status: DocumentStatus;
+  clinicName?: string;
+  veterinarianName?: string;
+  verificationStatus?: string;
+  hasAttachment?: boolean;
+  onViewAttachment?: () => void;
   onResubmit?: () => void;
 }) {
   const statusMeta = getStatusMeta(status);
@@ -1230,8 +1503,14 @@ function DocumentRow({
             <Text style={styles.documentTitle}>{title}</Text>
             {expiry ? (
               <Text style={styles.documentSubtitle}>
-                Expires: {dayjs(expiry).format("MMMM D, YYYY")}
+                Expires: {formatOptionalDate(expiry)}
               </Text>
+            ) : null}
+            <Text style={styles.documentSubtitleMuted}>
+              Issued: {formatOptionalDate(issuedDate)}
+            </Text>
+            {expiryMetaText ? (
+              <Text style={styles.documentSubtitleAccent}>{expiryMetaText}</Text>
             ) : null}
           </View>
         </View>
@@ -1241,6 +1520,37 @@ function DocumentRow({
             {statusMeta.label}
           </Text>
         </View>
+      </View>
+
+      <View style={styles.documentMetaRow}>
+        <View style={styles.documentMetaPill}>
+          <Text style={styles.documentMetaPillText}>
+            Clinic: {clinicName || "N/A"}
+          </Text>
+        </View>
+        <View style={styles.documentMetaPill}>
+          <Text style={styles.documentMetaPillText}>
+            Vet: {veterinarianName || "N/A"}
+          </Text>
+        </View>
+      </View>
+
+      <View style={styles.documentMetaRow}>
+        <View style={styles.documentMetaPill}>
+          <Text style={styles.documentMetaPillText}>
+            Verification: {getVerificationStatusLabel(verificationStatus)}
+          </Text>
+        </View>
+
+        {hasAttachment && onViewAttachment ? (
+          <TouchableOpacity
+            style={styles.documentAttachmentButton}
+            onPress={onViewAttachment}
+          >
+            <Feather name="file-text" size={12} color="#FF8A66" />
+            <Text style={styles.documentAttachmentButtonText}>View File</Text>
+          </TouchableOpacity>
+        ) : null}
       </View>
 
       {status === "expired" && onResubmit ? (
@@ -1712,6 +2022,53 @@ const styles = StyleSheet.create({
     fontSize: 11,
     color: "#8E8A97",
   },
+  documentSubtitleMuted: {
+    marginTop: 2,
+    fontSize: 11,
+    color: "#9D99A8",
+  },
+  documentSubtitleAccent: {
+    marginTop: 4,
+    fontSize: 11,
+    color: "#FF8A66",
+    fontWeight: "700",
+  },
+  documentMetaRow: {
+    marginTop: 8,
+    flexDirection: "row",
+    flexWrap: "wrap",
+    alignItems: "center",
+    gap: 6,
+  },
+  documentMetaPill: {
+    borderRadius: 999,
+    backgroundColor: "#FFF6F2",
+    borderWidth: 1,
+    borderColor: "#FFE2D8",
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+  },
+  documentMetaPillText: {
+    fontSize: 10,
+    color: "#7D788A",
+    fontWeight: "600",
+  },
+  documentAttachmentButton: {
+    borderRadius: 999,
+    borderWidth: 1,
+    borderColor: "#FFD8CC",
+    backgroundColor: "#FFFFFF",
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    flexDirection: "row",
+    alignItems: "center",
+  },
+  documentAttachmentButtonText: {
+    marginLeft: 4,
+    fontSize: 10,
+    color: "#FF8A66",
+    fontWeight: "700",
+  },
 
   statusBadge: {
     borderRadius: 999,
@@ -2051,11 +2408,35 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingTop: 10,
   },
+  modalBodyContent: {
+    paddingBottom: 30,
+  },
+  timelineOverlay: {
+    flex: 1,
+    backgroundColor: "rgba(29, 24, 38, 0.4)",
+    justifyContent: "flex-end",
+  },
+  timelineSheet: {
+    maxHeight: "84%",
+    backgroundColor: "#F8F1EF",
+    borderTopLeftRadius: 24,
+    borderTopRightRadius: 24,
+    overflow: "hidden",
+  },
   recordItem: {
     borderRadius: 12,
     backgroundColor: "#FFFFFF",
     padding: 12,
     marginBottom: 10,
+  },
+  recordHeaderRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+  },
+  recordHeaderBody: {
+    flex: 1,
+    marginRight: 10,
   },
   recordTitle: {
     fontSize: 14,
@@ -2066,5 +2447,138 @@ const styles = StyleSheet.create({
     marginTop: 3,
     fontSize: 12,
     color: "#9693A0",
+  },
+  recordMetaGrid: {
+    marginTop: 10,
+    flexDirection: "row",
+    gap: 8,
+  },
+  recordMetaItem: {
+    flex: 1,
+    borderRadius: 10,
+    backgroundColor: "#FBF8F7",
+    borderWidth: 1,
+    borderColor: "#F1EBE8",
+    paddingHorizontal: 10,
+    paddingVertical: 8,
+  },
+  recordMetaLabel: {
+    fontSize: 10,
+    color: "#A39EAD",
+    fontWeight: "700",
+  },
+  recordMetaValue: {
+    marginTop: 2,
+    fontSize: 12,
+    color: "#4A4554",
+    fontWeight: "700",
+  },
+  recordMetaInline: {
+    marginTop: 6,
+    fontSize: 12,
+    color: "#6E6B77",
+    fontWeight: "600",
+  },
+  rejectionBox: {
+    marginTop: 9,
+    borderRadius: 10,
+    backgroundColor: "#FEF2F2",
+    borderWidth: 1,
+    borderColor: "#FECACA",
+    paddingHorizontal: 10,
+    paddingVertical: 8,
+    flexDirection: "row",
+    alignItems: "flex-start",
+  },
+  rejectionText: {
+    marginLeft: 6,
+    flex: 1,
+    fontSize: 12,
+    color: "#991B1B",
+    fontWeight: "600",
+  },
+  timelineBlock: {
+    marginTop: 10,
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: "#EEE8E5",
+    backgroundColor: "#FFFCFB",
+    paddingHorizontal: 10,
+    paddingVertical: 8,
+  },
+  timelineEventRow: {
+    flexDirection: "row",
+    alignItems: "flex-start",
+    paddingVertical: 5,
+  },
+  timelineDot: {
+    width: 9,
+    height: 9,
+    borderRadius: 5,
+    marginTop: 4,
+    marginRight: 8,
+  },
+  timelineDotNeutral: {
+    backgroundColor: "#94A3B8",
+  },
+  timelineDotGood: {
+    backgroundColor: "#22C55E",
+  },
+  timelineDotWarn: {
+    backgroundColor: "#F59E0B",
+  },
+  timelineDotBad: {
+    backgroundColor: "#EF4444",
+  },
+  timelineEventBody: {
+    flex: 1,
+  },
+  timelineEventLabel: {
+    fontSize: 12,
+    color: "#4A4554",
+    fontWeight: "700",
+  },
+  timelineEventDate: {
+    marginTop: 1,
+    fontSize: 11,
+    color: "#8C8895",
+    fontWeight: "600",
+  },
+  recordActionsRow: {
+    marginTop: 10,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+    flexWrap: "wrap",
+  },
+  recordActionButton: {
+    borderRadius: 999,
+    borderWidth: 1,
+    borderColor: "#FFD8CC",
+    backgroundColor: "#FFFFFF",
+    paddingHorizontal: 10,
+    paddingVertical: 7,
+    flexDirection: "row",
+    alignItems: "center",
+  },
+  recordActionButtonText: {
+    marginLeft: 5,
+    fontSize: 12,
+    color: "#FF8A66",
+    fontWeight: "700",
+  },
+  recordActionPrimaryButton: {
+    borderRadius: 999,
+    backgroundColor: "#EF4444",
+    paddingHorizontal: 10,
+    paddingVertical: 7,
+    flexDirection: "row",
+    alignItems: "center",
+  },
+  recordActionPrimaryText: {
+    marginLeft: 5,
+    color: "#FFFFFF",
+    fontSize: 12,
+    fontWeight: "700",
   },
 });

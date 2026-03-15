@@ -101,22 +101,33 @@ export default function AddPetScreen() {
 
   // Confidence threshold (50%)
   const CONFIDENCE_THRESHOLD = 0.5;
-  const MIN_PET_AGE_DAYS = 30;
+  const MIN_DOG_AGE_MONTHS = 6;
+  const MIN_CAT_AGE_MONTHS = 4;
 
-  const getLatestAllowedBirthdate = () => {
+  const getMinimumAgeMonths = (species?: string) => {
+    return species === "Cat" ? MIN_CAT_AGE_MONTHS : MIN_DOG_AGE_MONTHS;
+  };
+
+  const getMinimumAgeMessage = (species?: string) => {
+    return species === "Cat"
+      ? `Cat must be at least ${MIN_CAT_AGE_MONTHS} months old to be registered`
+      : `Dog must be at least ${MIN_DOG_AGE_MONTHS} months old to be registered`;
+  };
+
+  const getLatestAllowedBirthdate = (species?: string) => {
     const today = new Date();
     today.setHours(0, 0, 0, 0);
-    today.setDate(today.getDate() - MIN_PET_AGE_DAYS);
+    today.setMonth(today.getMonth() - getMinimumAgeMonths(species));
     return today;
   };
 
-  const isBirthdateTooYoung = (birthdate: string) => {
+  const isBirthdateTooYoung = (birthdate: string, species?: string) => {
     if (!birthdate) return false;
 
     const selectedDate = new Date(`${birthdate}T00:00:00`);
     if (Number.isNaN(selectedDate.getTime())) return false;
 
-    return selectedDate > getLatestAllowedBirthdate();
+    return selectedDate > getLatestAllowedBirthdate(species);
   };
 
   // Form data
@@ -200,9 +211,11 @@ export default function AddPetScreen() {
         if (!formData.breed.trim()) errors.breed = "Breed is required";
         if (!formData.sex) errors.sex = "Sex is required";
         if (!formData.birthdate) errors.birthdate = "Birthdate is required";
-        if (formData.birthdate && isBirthdateTooYoung(formData.birthdate)) {
-          errors.birthdate =
-            "Pet must be at least 30 days old to be registered";
+        if (
+          formData.birthdate &&
+          isBirthdateTooYoung(formData.birthdate, formData.species)
+        ) {
+          errors.birthdate = getMinimumAgeMessage(formData.species);
         }
         if (!formData.height.trim()) errors.height = "Height is required";
         if (!formData.weight.trim()) errors.weight = "Weight is required";
@@ -479,15 +492,16 @@ export default function AddPetScreen() {
     if (datePickerField) {
       if (
         datePickerField === "birthdate" &&
-        date > getLatestAllowedBirthdate()
+        date > getLatestAllowedBirthdate(formData.species)
       ) {
         setValidationErrors((prev) => ({
           ...prev,
-          birthdate: "Pet must be at least 30 days old to be registered",
+          birthdate: getMinimumAgeMessage(formData.species),
         }));
+        const minimumAgeMonths = getMinimumAgeMonths(formData.species);
         showAlert({
           title: "Invalid Birthdate",
-          message: "Only pets that are at least 30 days old can be registered.",
+          message: `Only pets that are at least ${minimumAgeMonths} months old can be registered.`,
           type: "warning",
         });
         setShowDatePicker(false);
@@ -2459,7 +2473,7 @@ export default function AddPetScreen() {
         onCancel={() => setShowDatePicker(false)}
         maximumDate={
           datePickerField === "birthdate"
-            ? getLatestAllowedBirthdate()
+            ? getLatestAllowedBirthdate(formData.species)
             : datePickerField === "healthGivenDate"
               ? new Date()
             : undefined

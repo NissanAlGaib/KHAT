@@ -27,7 +27,14 @@ class PoolController extends Controller
     {
         $user = $request->user();
 
-        $query = PoolTransaction::where('user_id', $user->id)
+        $query = PoolTransaction::where(function ($visibleQuery) use ($user) {
+            $visibleQuery->where('user_id', $user->id)
+                ->orWhere(function ($recipientQuery) use ($user) {
+                    $recipientQuery->where('type', PoolTransaction::TYPE_RELEASE)
+                        ->where('status', PoolTransaction::STATUS_COMPLETED)
+                        ->whereJsonContains('metadata->released_to_user_id', $user->id);
+                });
+        })
             ->with(['payment:id,payment_type,amount,status', 'contract:id,status,breeding_status']);
 
         // Filter by type
@@ -122,6 +129,11 @@ class PoolController extends Controller
             ->whereIn('status', [Payment::STATUS_PENDING, Payment::STATUS_AWAITING_PAYMENT])
             ->sum('amount');
 
+        $incomingReleases = PoolTransaction::where('type', PoolTransaction::TYPE_RELEASE)
+            ->where('status', PoolTransaction::STATUS_COMPLETED)
+            ->whereJsonContains('metadata->released_to_user_id', $user->id)
+            ->sum('amount');
+
         return response()->json([
             'success' => true,
             'data' => [
@@ -130,6 +142,7 @@ class PoolController extends Controller
                 'pending_deposits' => (float) $pendingDeposits,
                 'total_deposited' => (float) $heldBalance,
                 'total_released' => (float) $releasedBalance,
+                'incoming_releases' => (float) $incomingReleases,
             ],
         ]);
     }
