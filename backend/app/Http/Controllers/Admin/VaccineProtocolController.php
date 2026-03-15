@@ -345,6 +345,18 @@ class VaccineProtocolController extends Controller
             $query->where('verification_status', $request->status);
         }
 
+        // Filter by expiry status (only meaningful for approved shots)
+        if ($request->filled('expiry')) {
+            $query->where('verification_status', 'approved');
+            if ($request->expiry === 'expiring_soon') {
+                $query->whereBetween('expiration_date', [now(), now()->addDays(30)]);
+            } elseif ($request->expiry === 'expired') {
+                $query->where('expiration_date', '<', now());
+            } elseif ($request->expiry === 'valid') {
+                $query->where('expiration_date', '>=', now()->addDays(30));
+            }
+        }
+
         // Filter by protocol
         if ($request->filled('protocol')) {
             $query->whereHas('card', function ($q) use ($request) {
@@ -361,11 +373,28 @@ class VaccineProtocolController extends Controller
             ->with(['protocol', 'shots'])
             ->get();
 
-        // Stats
-        $totalShots = VaccinationShot::whereHas('card', fn($q) => $q->where('pet_id', $petId))->count();
+        // Stats — shot-level counts
+        $petShotBase = fn($q) => $q->whereHas('card', fn($c) => $c->where('pet_id', $petId));
+
+        $totalShots    = VaccinationShot::whereHas('card', fn($q) => $q->where('pet_id', $petId))->count();
         $approvedShots = VaccinationShot::whereHas('card', fn($q) => $q->where('pet_id', $petId))->where('verification_status', 'approved')->count();
-        $pendingShots = VaccinationShot::whereHas('card', fn($q) => $q->where('pet_id', $petId))->where('verification_status', 'pending')->count();
+        $pendingShots  = VaccinationShot::whereHas('card', fn($q) => $q->where('pet_id', $petId))->where('verification_status', 'pending')->count();
         $rejectedShots = VaccinationShot::whereHas('card', fn($q) => $q->where('pet_id', $petId))->where('verification_status', 'rejected')->count();
+
+        $expiringSoonShots = VaccinationShot::whereHas('card', fn($q) => $q->where('pet_id', $petId))
+            ->where('verification_status', 'approved')
+            ->whereBetween('expiration_date', [now(), now()->addDays(30)])
+            ->count();
+
+        $overdueShots = VaccinationShot::whereHas('card', fn($q) => $q->where('pet_id', $petId))
+            ->where('verification_status', 'approved')
+            ->where('expiration_date', '<', now())
+            ->count();
+
+        // Card-level: cards with no shots uploaded at all
+        $cardsWithNoRecord = \App\Models\VaccinationCard::where('pet_id', $petId)
+            ->whereDoesntHave('shots')
+            ->count();
 
         return view('admin.vaccine-protocols.pet-shots', compact(
             'pet',
@@ -374,7 +403,10 @@ class VaccineProtocolController extends Controller
             'totalShots',
             'approvedShots',
             'pendingShots',
-            'rejectedShots'
+            'rejectedShots',
+            'expiringSoonShots',
+            'overdueShots',
+            'cardsWithNoRecord'
         ));
     }
 

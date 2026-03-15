@@ -619,6 +619,9 @@ class PetController extends Controller
         PetPhoto::where('pet_id', $pet->pet_id)->update(['is_primary' => false]);
         $photo->update(['is_primary' => true]);
 
+        // Sync the pet's profile_image column so the profile header stays current
+        $pet->update(['profile_image' => $photo->photo_url]);
+
         $pet->refresh()->load('photos');
 
         return response()->json([

@@ -590,12 +590,16 @@ class AdminController extends Controller
             $query->where('status', $request->activity_status);
         }
 
-        // Search by name or ID
+        // Search by pet name, owner name, or microchip ID
         if ($request->filled('search')) {
             $search = $request->search;
             $query->where(function ($q) use ($search) {
                 $q->where('name', 'like', "%{$search}%")
-                    ->orWhere('pet_id', 'like', "%{$search}%");
+                    ->orWhere('pet_id', 'like', "%{$search}%")
+                    ->orWhere('microchip_id', 'like', "%{$search}%")
+                    ->orWhereHas('owner', function ($q2) use ($search) {
+                        $q2->where('name', 'like', "%{$search}%");
+                    });
             });
         }
 

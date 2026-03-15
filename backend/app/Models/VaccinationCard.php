@@ -25,6 +25,7 @@ class VaccinationCard extends Model
     const STATUS_IN_PROGRESS = 'in_progress';
     const STATUS_COMPLETED = 'completed';
     const STATUS_OVERDUE = 'overdue';
+    const STATUS_EXPIRING_SOON = 'expiring_soon';
 
     protected $fillable = [
         'pet_id',
@@ -319,16 +320,26 @@ class VaccinationCard extends Model
         $latestApproved = $this->latestApprovedShot();
 
         if ($approvedCount === 0) {
-            // Check if there are pending shots
-            if ($this->pendingShots()->count() > 0) {
-                $this->status = self::STATUS_IN_PROGRESS;
+            $this->status = $this->pendingShots()->count() > 0
+                ? self::STATUS_IN_PROGRESS
+                : self::STATUS_NOT_STARTED;
+        } elseif ($latestApproved && $latestApproved->expiration_date) {
+            // Determine status from the most recent approved shot's expiry date
+            $expiryDate = Carbon::parse($latestApproved->expiration_date);
+            $daysUntilExpiry = now()->diffInDays($expiryDate, false);
+
+            if ($daysUntilExpiry < 0) {
+                $this->status = self::STATUS_OVERDUE;
+            } elseif ($daysUntilExpiry <= 30) {
+                $this->status = self::STATUS_EXPIRING_SOON;
+            } elseif ($this->isSeriesComplete()) {
+                $this->status = self::STATUS_COMPLETED;
             } else {
-                $this->status = self::STATUS_NOT_STARTED;
+                $this->status = self::STATUS_IN_PROGRESS;
             }
         } elseif ($this->isSeriesComplete()) {
+            // No expiry date (permanent protection) and series is done
             $this->status = self::STATUS_COMPLETED;
-        } elseif ($latestApproved && $latestApproved->expiration_date && Carbon::parse($latestApproved->expiration_date)->isPast()) {
-            $this->status = self::STATUS_OVERDUE;
         } else {
             $this->status = self::STATUS_IN_PROGRESS;
         }

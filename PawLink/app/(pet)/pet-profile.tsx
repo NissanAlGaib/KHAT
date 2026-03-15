@@ -12,7 +12,7 @@ import {
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Feather, Ionicons } from "@expo/vector-icons";
-import { useRouter, useLocalSearchParams } from "expo-router";
+import { useRouter, useLocalSearchParams, useFocusEffect } from "expo-router";
 import dayjs from "dayjs";
 
 import { useAlert } from "@/hooks/useAlert";
@@ -164,6 +164,13 @@ export default function PetProfileScreen() {
     fetchPetData();
     fetchVaccinationCards();
   }, [petId, fetchPetData, fetchVaccinationCards]);
+
+  useFocusEffect(
+    useCallback(() => {
+      if (!petId) return;
+      fetchPetData();
+    }, [petId, fetchPetData]),
+  );
 
   const photos = useMemo(
     () => (Array.isArray(petData?.photos) ? petData.photos : []),

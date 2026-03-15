@@ -45,7 +45,7 @@
 </div>
 
 <!-- Stats Cards -->
-<div class="grid grid-cols-2 sm:grid-cols-4 gap-4 mb-6">
+<div class="grid grid-cols-2 sm:grid-cols-4 xl:grid-cols-7 gap-4 mb-6">
     <div class="bg-white rounded-xl border border-gray-100 shadow-sm p-4">
         <div class="flex items-center gap-3">
             <div class="w-10 h-10 rounded-lg bg-blue-100 flex items-center justify-center">
@@ -81,6 +81,39 @@
     </div>
     <div class="bg-white rounded-xl border border-gray-100 shadow-sm p-4">
         <div class="flex items-center gap-3">
+            <div class="w-10 h-10 rounded-lg bg-yellow-100 flex items-center justify-center">
+                <i data-lucide="alarm-clock" class="w-5 h-5 text-yellow-600"></i>
+            </div>
+            <div>
+                <p class="text-2xl font-bold text-yellow-600">{{ $expiringSoonShots }}</p>
+                <p class="text-xs text-gray-500">Expiring Soon</p>
+            </div>
+        </div>
+    </div>
+    <div class="bg-white rounded-xl border border-gray-100 shadow-sm p-4">
+        <div class="flex items-center gap-3">
+            <div class="w-10 h-10 rounded-lg bg-orange-100 flex items-center justify-center">
+                <i data-lucide="alert-triangle" class="w-5 h-5 text-orange-600"></i>
+            </div>
+            <div>
+                <p class="text-2xl font-bold text-orange-600">{{ $overdueShots }}</p>
+                <p class="text-xs text-gray-500">Overdue</p>
+            </div>
+        </div>
+    </div>
+    <div class="bg-white rounded-xl border border-gray-100 shadow-sm p-4">
+        <div class="flex items-center gap-3">
+            <div class="w-10 h-10 rounded-lg bg-gray-100 flex items-center justify-center">
+                <i data-lucide="file-x" class="w-5 h-5 text-gray-500"></i>
+            </div>
+            <div>
+                <p class="text-2xl font-bold text-gray-500">{{ $cardsWithNoRecord }}</p>
+                <p class="text-xs text-gray-500">No Record</p>
+            </div>
+        </div>
+    </div>
+    <div class="bg-white rounded-xl border border-gray-100 shadow-sm p-4">
+        <div class="flex items-center gap-3">
             <div class="w-10 h-10 rounded-lg bg-red-100 flex items-center justify-center">
                 <i data-lucide="x-circle" class="w-5 h-5 text-red-600"></i>
             </div>
@@ -106,7 +139,13 @@
             $pendingCount = $card->shots->where('verification_status', 'pending')->count();
             $totalRequired = $card->protocol->series_doses ?? 0;
             $progress = $totalRequired > 0 ? min(100, round(($completedCount / $totalRequired) * 100)) : ($completedCount > 0 ? 100 : 0);
-            $statusColor = $card->status === 'completed' ? 'green' : ($card->status === 'in_progress' ? 'blue' : ($card->status === 'overdue' ? 'red' : 'gray'));
+            $statusColor = match($card->status) {
+                'completed'     => 'green',
+                'in_progress'   => 'blue',
+                'overdue'       => 'red',
+                'expiring_soon' => 'yellow',
+                default         => 'gray',
+            };
             @endphp
             <div class="border border-gray-200 rounded-lg p-4 hover:border-[#E75234]/30 hover:shadow-sm transition-all">
                 <div class="flex items-start justify-between mb-2">
@@ -116,14 +155,15 @@
                     </div>
                     @php
                     $badgeColors = [
-                    'green' => 'bg-green-100 text-green-700',
-                    'blue' => 'bg-blue-100 text-blue-700',
-                    'red' => 'bg-red-100 text-red-700',
-                    'gray' => 'bg-gray-100 text-gray-700',
+                        'green'  => 'bg-green-100 text-green-700',
+                        'blue'   => 'bg-blue-100 text-blue-700',
+                        'red'    => 'bg-red-100 text-red-700',
+                        'yellow' => 'bg-yellow-100 text-yellow-700',
+                        'gray'   => 'bg-gray-100 text-gray-700',
                     ];
                     @endphp
                     <span class="inline-flex px-2 py-0.5 rounded-full text-[10px] font-semibold {{ $badgeColors[$statusColor] ?? 'bg-gray-100 text-gray-700' }}">
-                        {{ str_replace('_', ' ', ucfirst($card->status)) }}
+                        {{ str_replace('_', ' ', ucwords(str_replace('_', ' ', $card->status))) }}
                     </span>
                 </div>
                 <div class="mt-3">
@@ -133,8 +173,17 @@
                         <span class="text-amber-600 font-medium">{{ $pendingCount }} pending</span>
                         @endif
                     </div>
+            @php
+            $progressBarColor = match($statusColor) {
+                'green'  => 'bg-green-500',
+                'blue'   => 'bg-blue-500',
+                'red'    => 'bg-red-500',
+                'yellow' => 'bg-yellow-500',
+                default  => 'bg-gray-400',
+            };
+            @endphp
                     <div class="w-full bg-gray-200 rounded-full h-1.5">
-                        <div class="h-1.5 rounded-full {{ $statusColor === 'green' ? 'bg-green-500' : ($statusColor === 'blue' ? 'bg-blue-500' : ($statusColor === 'red' ? 'bg-red-500' : 'bg-gray-400')) }}" style="width: {{ $progress }}%"></div>
+                        <div class="h-1.5 rounded-full {{ $progressBarColor }}" style="width: {{ $progress }}%"></div>
                     </div>
                 </div>
                 <p class="text-[10px] text-gray-400 mt-2">{{ $card->shots->count() }} total shot{{ $card->shots->count() !== 1 ? 's' : '' }} uploaded</p>
@@ -151,16 +200,25 @@
 'searchPlaceholder' => 'Search...',
 'showSearch' => false,
 'filters' => [
-[
-'name' => 'status',
-'label' => 'Verification Status',
-'options' => [
-['value' => 'pending', 'label' => 'Pending'],
-['value' => 'approved', 'label' => 'Approved'],
-['value' => 'rejected', 'label' => 'Rejected'],
-['value' => 'historical', 'label' => 'Historical'],
-],
-],
+    [
+        'name'    => 'status',
+        'label'   => 'Verification Status',
+        'options' => [
+            ['value' => 'pending',    'label' => 'Pending'],
+            ['value' => 'approved',   'label' => 'Approved'],
+            ['value' => 'rejected',   'label' => 'Rejected'],
+            ['value' => 'historical', 'label' => 'Historical'],
+        ],
+    ],
+    [
+        'name'    => 'expiry',
+        'label'   => 'Expiry Status',
+        'options' => [
+            ['value' => 'expiring_soon', 'label' => 'Expiring Soon (≤30 days)'],
+            ['value' => 'expired',       'label' => 'Expired'],
+            ['value' => 'valid',         'label' => 'Valid (>30 days)'],
+        ],
+    ],
 ],
 'dateFilter' => false,
 'exports' => false,
@@ -243,6 +301,20 @@
                         <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold ring-1 ring-inset {{ $verClass }}">
                             {{ ucfirst($shot->verification_status) }}
                         </span>
+                        @if($shot->verification_status === 'approved' && $shot->expiration_date)
+                        @php
+                            $expDaysLeft = now()->diffInDays(\Carbon\Carbon::parse($shot->expiration_date), false);
+                        @endphp
+                        @if($expDaysLeft < 0)
+                        <span class="inline-flex items-center gap-0.5 mt-1 px-2 py-0.5 rounded-full text-[10px] font-semibold bg-red-100 text-red-700">
+                            <i data-lucide="alert-circle" class="w-2.5 h-2.5"></i> Expired
+                        </span>
+                        @elseif($expDaysLeft <= 30)
+                        <span class="inline-flex items-center gap-0.5 mt-1 px-2 py-0.5 rounded-full text-[10px] font-semibold bg-yellow-100 text-yellow-700">
+                            <i data-lucide="clock" class="w-2.5 h-2.5"></i> Expiring Soon
+                        </span>
+                        @endif
+                        @endif
                         @if($shot->verification_status === 'rejected' && $shot->rejection_reason)
                         <p class="text-xs text-red-500 mt-1 max-w-[180px] truncate" title="{{ $shot->rejection_reason }}">{{ $shot->rejection_reason }}</p>
                         @endif
