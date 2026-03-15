@@ -233,6 +233,180 @@
     </div>
 
     {{-- ============================================================= --}}
+    {{-- PET SUSPENSION FAST-FORWARD --}}
+    {{-- ============================================================= --}}
+    <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
+        <div class="flex items-center gap-3 mb-4">
+            <div class="p-2 bg-rose-50 rounded-lg">
+                <i data-lucide="shield-alert" class="w-5 h-5 text-rose-600"></i>
+            </div>
+            <div>
+                <h2 class="text-lg font-bold text-gray-900">Pet Suspensions</h2>
+                <p class="text-xs text-gray-500">Fast-forward temporary pet suspensions</p>
+            </div>
+        </div>
+
+        @if($suspendedPets->isEmpty())
+        <div class="text-center py-8 text-gray-400">
+            <i data-lucide="check-circle" class="w-10 h-10 mx-auto mb-2 text-green-300"></i>
+            <p class="text-sm">No suspended pets with pending end dates</p>
+        </div>
+        @else
+        <div class="space-y-3 max-h-96 overflow-y-auto">
+            @foreach($suspendedPets as $pet)
+            <div class="flex items-center justify-between p-3 bg-gray-50 rounded-lg border border-gray-100">
+                <div>
+                    <p class="font-semibold text-gray-900 text-sm">{{ $pet->name }}</p>
+                    <p class="text-xs text-gray-500">
+                        Owner: {{ $pet->owner->name ?? 'N/A' }} &middot;
+                        Status: <span class="font-medium uppercase">{{ $pet->status }}</span> &middot;
+                        Ends: <span class="text-rose-600 font-medium">{{ Carbon\Carbon::parse($pet->suspension_end_date)->format('M d, Y') }}</span>
+                    </p>
+                </div>
+                <form action="{{ route('admin.testing-tools.fast-forward-pet-suspension', $pet->pet_id) }}" method="POST" class="flex gap-1">
+                    @csrf
+                    <input type="number" name="days" value="7" min="1" class="w-14 text-xs border border-gray-300 rounded px-2 py-1 text-center">
+                    <button type="submit" class="px-2 py-1 bg-rose-100 text-rose-700 text-xs font-medium rounded hover:bg-rose-200 transition">
+                        <i data-lucide="fast-forward" class="w-3 h-3 inline"></i> FF
+                    </button>
+                </form>
+            </div>
+            @endforeach
+        </div>
+        @endif
+    </div>
+
+    {{-- ============================================================= --}}
+    {{-- USER DOCUMENT EXPIRY --}}
+    {{-- ============================================================= --}}
+    <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
+        <div class="flex items-center gap-3 mb-4">
+            <div class="p-2 bg-indigo-50 rounded-lg">
+                <i data-lucide="id-card" class="w-5 h-5 text-indigo-600"></i>
+            </div>
+            <div>
+                <h2 class="text-lg font-bold text-gray-900">User Document Expiry</h2>
+                <p class="text-xs text-gray-500">Fast-forward verification document expiry dates</p>
+            </div>
+        </div>
+
+        @if($expiringUserAuthDocs->isEmpty())
+        <div class="text-center py-8 text-gray-400">
+            <i data-lucide="check-circle" class="w-10 h-10 mx-auto mb-2 text-green-300"></i>
+            <p class="text-sm">No user auth records with future expiry dates</p>
+        </div>
+        @else
+        <div class="space-y-3 max-h-96 overflow-y-auto">
+            @foreach($expiringUserAuthDocs as $doc)
+            <div class="flex items-center justify-between p-3 bg-gray-50 rounded-lg border border-gray-100">
+                <div>
+                    <p class="font-semibold text-gray-900 text-sm">{{ $doc->user->name ?? 'Unknown User' }}</p>
+                    <p class="text-xs text-gray-500">
+                        {{ strtoupper(str_replace('_', ' ', $doc->auth_type)) }}
+                        &middot; Expires: <span class="text-indigo-600 font-medium">{{ Carbon\Carbon::parse($doc->expiry_date)->format('M d, Y') }}</span>
+                    </p>
+                </div>
+                <form action="{{ route('admin.testing-tools.fast-forward-user-auth', $doc->auth_id) }}" method="POST" class="flex gap-1">
+                    @csrf
+                    <input type="number" name="days" value="30" min="1" class="w-16 text-xs border border-gray-300 rounded px-2 py-1 text-center">
+                    <button type="submit" class="px-2 py-1 bg-indigo-100 text-indigo-700 text-xs font-medium rounded hover:bg-indigo-200 transition">
+                        <i data-lucide="fast-forward" class="w-3 h-3 inline"></i> FF
+                    </button>
+                </form>
+            </div>
+            @endforeach
+        </div>
+        @endif
+    </div>
+
+    {{-- ============================================================= --}}
+    {{-- MEDICAL RECORD EXPIRY --}}
+    {{-- ============================================================= --}}
+    <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-6 xl:col-span-2">
+        <div class="flex items-center gap-3 mb-4">
+            <div class="p-2 bg-teal-50 rounded-lg">
+                <i data-lucide="stethoscope" class="w-5 h-5 text-teal-600"></i>
+            </div>
+            <div>
+                <h2 class="text-lg font-bold text-gray-900">Medical Expiry Records</h2>
+                <p class="text-xs text-gray-500">Fast-forward vaccination, health record, and shot expirations</p>
+            </div>
+        </div>
+
+        <div class="grid grid-cols-1 lg:grid-cols-3 gap-4">
+            <div class="border border-gray-100 rounded-lg p-3 bg-gray-50">
+                <h3 class="text-sm font-semibold text-gray-800 mb-2">Vaccinations</h3>
+                @if($expiringVaccinations->isEmpty())
+                <p class="text-xs text-gray-400">No future vaccination expirations</p>
+                @else
+                <div class="space-y-2 max-h-56 overflow-y-auto">
+                    @foreach($expiringVaccinations as $vaccination)
+                    <div class="bg-white rounded-md border border-gray-100 p-2">
+                        <p class="text-xs font-semibold text-gray-900">{{ $vaccination->pet->name ?? 'Unknown Pet' }}</p>
+                        <p class="text-[11px] text-gray-500 mb-1">
+                            {{ $vaccination->vaccine_name }} &middot; {{ Carbon\Carbon::parse($vaccination->expiration_date)->format('M d, Y') }}
+                        </p>
+                        <form action="{{ route('admin.testing-tools.fast-forward-vaccination', $vaccination->vaccination_id) }}" method="POST" class="flex gap-1">
+                            @csrf
+                            <input type="number" name="days" value="30" min="1" class="w-14 text-[11px] border border-gray-300 rounded px-2 py-1 text-center">
+                            <button type="submit" class="px-2 py-1 bg-teal-100 text-teal-700 text-[11px] font-medium rounded hover:bg-teal-200 transition">FF</button>
+                        </form>
+                    </div>
+                    @endforeach
+                </div>
+                @endif
+            </div>
+
+            <div class="border border-gray-100 rounded-lg p-3 bg-gray-50">
+                <h3 class="text-sm font-semibold text-gray-800 mb-2">Health Records</h3>
+                @if($expiringHealthRecords->isEmpty())
+                <p class="text-xs text-gray-400">No future health record expirations</p>
+                @else
+                <div class="space-y-2 max-h-56 overflow-y-auto">
+                    @foreach($expiringHealthRecords as $record)
+                    <div class="bg-white rounded-md border border-gray-100 p-2">
+                        <p class="text-xs font-semibold text-gray-900">{{ $record->pet->name ?? 'Unknown Pet' }}</p>
+                        <p class="text-[11px] text-gray-500 mb-1">
+                            {{ strtoupper(str_replace('_', ' ', $record->record_type)) }} &middot; {{ Carbon\Carbon::parse($record->expiration_date)->format('M d, Y') }}
+                        </p>
+                        <form action="{{ route('admin.testing-tools.fast-forward-health-record', $record->health_record_id) }}" method="POST" class="flex gap-1">
+                            @csrf
+                            <input type="number" name="days" value="30" min="1" class="w-14 text-[11px] border border-gray-300 rounded px-2 py-1 text-center">
+                            <button type="submit" class="px-2 py-1 bg-teal-100 text-teal-700 text-[11px] font-medium rounded hover:bg-teal-200 transition">FF</button>
+                        </form>
+                    </div>
+                    @endforeach
+                </div>
+                @endif
+            </div>
+
+            <div class="border border-gray-100 rounded-lg p-3 bg-gray-50">
+                <h3 class="text-sm font-semibold text-gray-800 mb-2">Vaccination Shots</h3>
+                @if($expiringVaccinationShots->isEmpty())
+                <p class="text-xs text-gray-400">No future shot expirations</p>
+                @else
+                <div class="space-y-2 max-h-56 overflow-y-auto">
+                    @foreach($expiringVaccinationShots as $shot)
+                    <div class="bg-white rounded-md border border-gray-100 p-2">
+                        <p class="text-xs font-semibold text-gray-900">{{ optional(optional($shot->card)->pet)->name ?? 'Unknown Pet' }}</p>
+                        <p class="text-[11px] text-gray-500 mb-1">
+                            {{ optional($shot->card)->vaccine_name ?? optional($shot->card)->vaccine_type ?? 'Unknown Vaccine' }}
+                            &middot; {{ Carbon\Carbon::parse($shot->expiration_date)->format('M d, Y') }}
+                        </p>
+                        <form action="{{ route('admin.testing-tools.fast-forward-vaccination-shot', $shot->shot_id) }}" method="POST" class="flex gap-1">
+                            @csrf
+                            <input type="number" name="days" value="30" min="1" class="w-14 text-[11px] border border-gray-300 rounded px-2 py-1 text-center">
+                            <button type="submit" class="px-2 py-1 bg-teal-100 text-teal-700 text-[11px] font-medium rounded hover:bg-teal-200 transition">FF</button>
+                        </form>
+                    </div>
+                    @endforeach
+                </div>
+                @endif
+            </div>
+        </div>
+    </div>
+
+    {{-- ============================================================= --}}
     {{-- PAYMENT EXPIRY --}}
     {{-- ============================================================= --}}
     <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-6 xl:col-span-2">
@@ -335,8 +509,32 @@
             <p class="text-gray-500 mt-1 font-sans">Body: <code>{"days": 7}</code></p>
         </div>
         <div class="bg-gray-800 rounded-lg p-3">
+            <span class="text-green-400">POST</span> <span class="text-gray-300">/pets/{id}/fast-forward-suspension</span>
+            <p class="text-gray-500 mt-1 font-sans">Body: <code>{"days": 7}</code></p>
+        </div>
+        <div class="bg-gray-800 rounded-lg p-3">
+            <span class="text-green-400">POST</span> <span class="text-gray-300">/payments/{id}/fast-forward-expiry</span>
+            <p class="text-gray-500 mt-1 font-sans">Body: <code>{"days": 7}</code></p>
+        </div>
+        <div class="bg-gray-800 rounded-lg p-3">
             <span class="text-green-400">POST</span> <span class="text-gray-300">/payments/{id}/expire</span>
             <p class="text-gray-500 mt-1 font-sans">Expire a payment immediately</p>
+        </div>
+        <div class="bg-gray-800 rounded-lg p-3">
+            <span class="text-green-400">POST</span> <span class="text-gray-300">/user-auth/{id}/fast-forward-expiry</span>
+            <p class="text-gray-500 mt-1 font-sans">Body: <code>{"days": 30}</code></p>
+        </div>
+        <div class="bg-gray-800 rounded-lg p-3">
+            <span class="text-green-400">POST</span> <span class="text-gray-300">/vaccinations/{id}/fast-forward-expiry</span>
+            <p class="text-gray-500 mt-1 font-sans">Body: <code>{"days": 30}</code></p>
+        </div>
+        <div class="bg-gray-800 rounded-lg p-3">
+            <span class="text-green-400">POST</span> <span class="text-gray-300">/health-records/{id}/fast-forward-expiry</span>
+            <p class="text-gray-500 mt-1 font-sans">Body: <code>{"days": 30}</code></p>
+        </div>
+        <div class="bg-gray-800 rounded-lg p-3">
+            <span class="text-green-400">POST</span> <span class="text-gray-300">/vaccination-shots/{id}/fast-forward-expiry</span>
+            <p class="text-gray-500 mt-1 font-sans">Body: <code>{"days": 30}</code></p>
         </div>
     </div>
 </div>

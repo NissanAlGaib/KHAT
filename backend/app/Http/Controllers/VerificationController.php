@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use Illuminate\Http\Request;
 use App\Models\UserAuth;
 use App\Models\User;
+use App\Models\Role;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\Facades\Log;
 use Carbon\Carbon;
@@ -28,10 +29,10 @@ class VerificationController extends Controller
 
             $validator = Validator::make($request->all(), [
                 'user_id' => 'required|exists:users,id',
-                'id_document' => 'required|file|mimes:jpg,jpeg,png,pdf|max:10240',
+                'id_document' => 'nullable|file|mimes:jpg,jpeg,png,pdf|max:10240',
                 'id_number' => 'nullable|string|max:255',
                 'id_name' => 'nullable|string|max:255',
-                'id_birthdate' => 'required|date',
+                'id_birthdate' => 'required_with:id_document|date',
                 'id_issue_date' => 'nullable|date',
                 'id_expiration_date' => 'nullable|date',
                 'breeder_document' => 'nullable|file|mimes:jpg,jpeg,png,pdf|max:10240',
@@ -56,24 +57,50 @@ class VerificationController extends Controller
                 ], 422);
             }
 
-            $userId = $request->input('user_id');
-            $user = User::find($userId);
+            $userId = (int) $request->input('user_id');
+            $hasIdDocument = $request->hasFile('id_document');
+            $hasBreederDocument = $request->hasFile('breeder_document');
+            $hasShooterDocument = $request->hasFile('shooter_document');
 
-            if (!$user || empty($user->birthdate)) {
+            if (!$hasIdDocument && !$hasBreederDocument && !$hasShooterDocument) {
                 return response()->json([
                     'success' => false,
-                    'message' => 'Your account birthdate is missing. Please update your profile before submitting ID verification.',
+                    'message' => 'Please upload at least one verification document.',
                 ], 422);
             }
 
-            $submittedIdBirthdate = Carbon::parse($request->input('id_birthdate'))->toDateString();
-            $registeredBirthdate = Carbon::parse($user->birthdate)->toDateString();
+            if (!$hasIdDocument && ($hasBreederDocument || $hasShooterDocument)) {
+                $hasExistingIdVerification = UserAuth::where('user_id', $userId)
+                    ->where('auth_type', 'id')
+                    ->exists();
 
-            if ($submittedIdBirthdate !== $registeredBirthdate) {
-                return response()->json([
-                    'success' => false,
-                    'message' => 'The birthdate on your ID must match the birthdate used during registration.',
-                ], 422);
+                if (!$hasExistingIdVerification) {
+                    return response()->json([
+                        'success' => false,
+                        'message' => 'Submit your ID verification first before adding breeder or shooter certificates.',
+                    ], 422);
+                }
+            }
+
+            if ($hasIdDocument) {
+                $user = User::find($userId);
+
+                if (!$user || empty($user->birthdate)) {
+                    return response()->json([
+                        'success' => false,
+                        'message' => 'Your account birthdate is missing. Please update your profile before submitting ID verification.',
+                    ], 422);
+                }
+
+                $submittedIdBirthdate = Carbon::parse($request->input('id_birthdate'))->toDateString();
+                $registeredBirthdate = Carbon::parse($user->birthdate)->toDateString();
+
+                if ($submittedIdBirthdate !== $registeredBirthdate) {
+                    return response()->json([
+                        'success' => false,
+                        'message' => 'The birthdate on your ID must match the birthdate used during registration.',
+                    ], 422);
+                }
             }
 
             $createdRecords = [];
@@ -230,6 +257,10 @@ class VerificationController extends Controller
             
             $userAuth->save();
 
+            if ($userAuth->status === 'approved') {
+                $this->assignRoleForApprovedVerification($userAuth);
+            }
+
             return response()->json([
                 'success' => true,
                 'message' => 'Verification status updated successfully',
@@ -327,6 +358,37 @@ class VerificationController extends Controller
                 'message' => 'Failed to resubmit verification',
                 'error' => $e->getMessage()
             ], 500);
+        }
+    }
+
+    /**
+     * Attach breeder/shooter role when the corresponding certificate is approved.
+     */
+    private function assignRoleForApprovedVerification(UserAuth $userAuth): void
+    {
+        $roleType = match ($userAuth->auth_type) {
+            'breeder_certificate' => 'Breeder',
+            'shooter_certificate' => 'Shooter',
+            default => null,
+        };
+
+        if (!$roleType) {
+            return;
+        }
+
+        $role = Role::where('role_type', $roleType)->first();
+        $user = $userAuth->user;
+
+        if (!$role || !$user) {
+            return;
+        }
+
+        $alreadyHasRole = $user->roles()
+            ->where('roles.role_id', $role->role_id)
+            ->exists();
+
+        if (!$alreadyHasRole) {
+            $user->roles()->attach($role->role_id);
         }
     }
 }

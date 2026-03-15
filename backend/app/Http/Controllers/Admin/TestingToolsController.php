@@ -3,12 +3,17 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
+use App\Models\HealthRecord;
 use App\Models\MatchRequest;
 use App\Models\Payment;
 use App\Models\Pet;
 use App\Models\User;
+use App\Models\UserAuth;
+use App\Models\Vaccination;
+use App\Models\VaccinationShot;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Log;
 
 class TestingToolsController extends Controller
@@ -30,10 +35,53 @@ class TestingToolsController extends Controller
             ->orderBy('suspension_end_date', 'asc')
             ->get();
 
+        $suspendedPets = Pet::whereIn('status', ['disabled', 'banned'])
+            ->whereNotNull('suspension_end_date')
+            ->where('suspension_end_date', '>', Carbon::now())
+            ->with('owner:id,name')
+            ->orderBy('suspension_end_date', 'asc')
+            ->get();
+
         $expiringPayments = Payment::whereNotNull('expires_at')
             ->where('expires_at', '>', Carbon::now())
             ->where('status', 'paid')
             ->orderBy('expires_at', 'asc')
+            ->limit(50)
+            ->get();
+
+        $expiringUserAuthDocs = UserAuth::whereNotNull('expiry_date')
+            ->whereDate('expiry_date', '>', Carbon::today())
+            ->with('user:id,name')
+            ->orderBy('expiry_date', 'asc')
+            ->limit(50)
+            ->get();
+
+        $expiringVaccinations = Vaccination::whereNotNull('expiration_date')
+            ->whereDate('expiration_date', '>', Carbon::today())
+            ->with(['pet:pet_id,user_id,name', 'pet.owner:id,name'])
+            ->orderBy('expiration_date', 'asc')
+            ->limit(50)
+            ->get();
+
+        $expiringHealthRecords = HealthRecord::whereNotNull('expiration_date')
+            ->whereDate('expiration_date', '>', Carbon::today())
+            ->with(['pet:pet_id,user_id,name', 'pet.owner:id,name'])
+            ->orderBy('expiration_date', 'asc')
+            ->limit(50)
+            ->get();
+
+        $expiringVaccinationShots = VaccinationShot::whereNotNull('expiration_date')
+            ->whereDate('expiration_date', '>', Carbon::today())
+            ->whereIn('verification_status', [
+                VaccinationShot::VERIFICATION_APPROVED,
+                VaccinationShot::VERIFICATION_HISTORICAL,
+            ])
+            ->with([
+                'card:card_id,pet_id,vaccine_name,vaccine_type',
+                'card.pet:pet_id,user_id,name',
+                'card.pet.owner:id,name',
+            ])
+            ->orderBy('expiration_date', 'asc')
             ->limit(50)
             ->get();
 
@@ -45,7 +93,12 @@ class TestingToolsController extends Controller
         return view('admin.testing-tools', compact(
             'petsOnCooldown',
             'suspendedUsers',
+            'suspendedPets',
             'expiringPayments',
+            'expiringUserAuthDocs',
+            'expiringVaccinations',
+            'expiringHealthRecords',
+            'expiringVaccinationShots',
             'recentMatchRequests'
         ));
     }
@@ -65,7 +118,7 @@ class TestingToolsController extends Controller
         $pet->clearCooldown();
 
         Log::info('Admin cleared pet cooldown', [
-            'admin_id' => auth()->id(),
+            'admin_id' => Auth::id(),
             'pet_id' => $petId,
             'pet_name' => $pet->name,
             'previous_cooldown' => $previousCooldown,
@@ -111,7 +164,7 @@ class TestingToolsController extends Controller
         }
 
         Log::info('Admin fast-forwarded pet cooldown', [
-            'admin_id' => auth()->id(),
+            'admin_id' => Auth::id(),
             'pet_id' => $petId,
             'days_forwarded' => $request->days,
         ]);
@@ -138,7 +191,7 @@ class TestingToolsController extends Controller
         ]);
 
         Log::info('Admin reset pet breeding history', [
-            'admin_id' => auth()->id(),
+            'admin_id' => Auth::id(),
             'pet_id' => $petId,
             'pet_name' => $pet->name,
         ]);
@@ -164,7 +217,7 @@ class TestingToolsController extends Controller
         ]);
 
         Log::info('Admin performed full pet reset', [
-            'admin_id' => auth()->id(),
+            'admin_id' => Auth::id(),
             'pet_id' => $petId,
             'pet_name' => $pet->name,
         ]);
@@ -200,7 +253,7 @@ class TestingToolsController extends Controller
         })->delete();
 
         Log::info('Admin reset match requests between pets', [
-            'admin_id' => auth()->id(),
+            'admin_id' => Auth::id(),
             'pet_id_1' => $petId1,
             'pet_id_2' => $petId2,
             'deleted_count' => $deleted,
@@ -227,7 +280,7 @@ class TestingToolsController extends Controller
             ->delete();
 
         Log::info('Admin reset all match requests for pet', [
-            'admin_id' => auth()->id(),
+            'admin_id' => Auth::id(),
             'pet_id' => $petId,
             'pet_name' => $pet->name,
             'deleted_count' => $deleted,
@@ -279,8 +332,52 @@ class TestingToolsController extends Controller
         }
 
         Log::info('Admin fast-forwarded user suspension', [
-            'admin_id' => auth()->id(),
+            'admin_id' => Auth::id(),
             'user_id' => $userId,
+            'days_forwarded' => $request->days,
+        ]);
+
+        return $request->expectsJson()
+            ? response()->json(['success' => true, 'message' => $message])
+            : back()->with('success', $message);
+    }
+
+    /**
+     * Fast-forward a pet's suspension end date.
+     */
+    public function fastForwardPetSuspension(Request $request, $petId)
+    {
+        $request->validate([
+            'days' => 'required|integer|min:1',
+        ]);
+
+        $pet = Pet::findOrFail($petId);
+
+        if (!$pet->suspension_end_date) {
+            $message = "Pet {$pet->name} has no suspension end date.";
+            return $request->expectsJson()
+                ? response()->json(['success' => false, 'message' => $message], 400)
+                : back()->with('error', $message);
+        }
+
+        $newEndDate = Carbon::parse($pet->suspension_end_date)->subDays($request->days);
+
+        if ($newEndDate->isPast()) {
+            $pet->update([
+                'status' => 'active',
+                'suspension_end_date' => null,
+                'suspension_reason' => null,
+                'suspended_at' => null,
+            ]);
+            $message = "Suspension for {$pet->name} has been fast-forwarded and lifted.";
+        } else {
+            $pet->update(['suspension_end_date' => $newEndDate]);
+            $message = "Suspension for {$pet->name} moved forward by {$request->days} days. Ends: {$newEndDate->format('M d, Y')}";
+        }
+
+        Log::info('Admin fast-forwarded pet suspension', [
+            'admin_id' => Auth::id(),
+            'pet_id' => $petId,
             'days_forwarded' => $request->days,
         ]);
 
@@ -313,8 +410,144 @@ class TestingToolsController extends Controller
         $message = "Payment #{$paymentId} expiry moved forward by {$request->days} days. New expiry: {$newExpiry->format('M d, Y H:i')}";
 
         Log::info('Admin fast-forwarded payment expiry', [
-            'admin_id' => auth()->id(),
+            'admin_id' => Auth::id(),
             'payment_id' => $paymentId,
+            'days_forwarded' => $request->days,
+        ]);
+
+        return $request->expectsJson()
+            ? response()->json(['success' => true, 'message' => $message])
+            : back()->with('success', $message);
+    }
+
+    /**
+     * Fast-forward a user auth document expiry date.
+     */
+    public function fastForwardUserAuthExpiry(Request $request, $authId)
+    {
+        $request->validate([
+            'days' => 'required|integer|min:1',
+        ]);
+
+        $authRecord = UserAuth::findOrFail($authId);
+
+        if (!$authRecord->expiry_date) {
+            $message = "User auth record #{$authId} has no expiry date.";
+            return $request->expectsJson()
+                ? response()->json(['success' => false, 'message' => $message], 400)
+                : back()->with('error', $message);
+        }
+
+        $newExpiry = Carbon::parse($authRecord->expiry_date)->subDays($request->days);
+        $authRecord->update(['expiry_date' => $newExpiry->toDateString()]);
+
+        $message = "User auth #{$authId} expiry moved forward by {$request->days} days. New expiry: {$newExpiry->format('M d, Y')}";
+
+        Log::info('Admin fast-forwarded user auth expiry', [
+            'admin_id' => Auth::id(),
+            'auth_id' => $authId,
+            'days_forwarded' => $request->days,
+        ]);
+
+        return $request->expectsJson()
+            ? response()->json(['success' => true, 'message' => $message])
+            : back()->with('success', $message);
+    }
+
+    /**
+     * Fast-forward a vaccination record expiry date.
+     */
+    public function fastForwardVaccinationExpiry(Request $request, $vaccinationId)
+    {
+        $request->validate([
+            'days' => 'required|integer|min:1',
+        ]);
+
+        $vaccination = Vaccination::findOrFail($vaccinationId);
+
+        if (!$vaccination->expiration_date) {
+            $message = "Vaccination #{$vaccinationId} has no expiration date.";
+            return $request->expectsJson()
+                ? response()->json(['success' => false, 'message' => $message], 400)
+                : back()->with('error', $message);
+        }
+
+        $newExpiry = Carbon::parse($vaccination->expiration_date)->subDays($request->days);
+        $vaccination->update(['expiration_date' => $newExpiry->toDateString()]);
+
+        $message = "Vaccination #{$vaccinationId} expiry moved forward by {$request->days} days. New expiry: {$newExpiry->format('M d, Y')}";
+
+        Log::info('Admin fast-forwarded vaccination expiry', [
+            'admin_id' => Auth::id(),
+            'vaccination_id' => $vaccinationId,
+            'days_forwarded' => $request->days,
+        ]);
+
+        return $request->expectsJson()
+            ? response()->json(['success' => true, 'message' => $message])
+            : back()->with('success', $message);
+    }
+
+    /**
+     * Fast-forward a health record expiry date.
+     */
+    public function fastForwardHealthRecordExpiry(Request $request, $healthRecordId)
+    {
+        $request->validate([
+            'days' => 'required|integer|min:1',
+        ]);
+
+        $healthRecord = HealthRecord::findOrFail($healthRecordId);
+
+        if (!$healthRecord->expiration_date) {
+            $message = "Health record #{$healthRecordId} has no expiration date.";
+            return $request->expectsJson()
+                ? response()->json(['success' => false, 'message' => $message], 400)
+                : back()->with('error', $message);
+        }
+
+        $newExpiry = Carbon::parse($healthRecord->expiration_date)->subDays($request->days);
+        $healthRecord->update(['expiration_date' => $newExpiry->toDateString()]);
+
+        $message = "Health record #{$healthRecordId} expiry moved forward by {$request->days} days. New expiry: {$newExpiry->format('M d, Y')}";
+
+        Log::info('Admin fast-forwarded health record expiry', [
+            'admin_id' => Auth::id(),
+            'health_record_id' => $healthRecordId,
+            'days_forwarded' => $request->days,
+        ]);
+
+        return $request->expectsJson()
+            ? response()->json(['success' => true, 'message' => $message])
+            : back()->with('success', $message);
+    }
+
+    /**
+     * Fast-forward a vaccination shot expiry date.
+     */
+    public function fastForwardVaccinationShotExpiry(Request $request, $shotId)
+    {
+        $request->validate([
+            'days' => 'required|integer|min:1',
+        ]);
+
+        $shot = VaccinationShot::findOrFail($shotId);
+
+        if (!$shot->expiration_date) {
+            $message = "Vaccination shot #{$shotId} has no expiration date.";
+            return $request->expectsJson()
+                ? response()->json(['success' => false, 'message' => $message], 400)
+                : back()->with('error', $message);
+        }
+
+        $newExpiry = Carbon::parse($shot->expiration_date)->subDays($request->days);
+        $shot->update(['expiration_date' => $newExpiry->toDateString()]);
+
+        $message = "Vaccination shot #{$shotId} expiry moved forward by {$request->days} days. New expiry: {$newExpiry->format('M d, Y')}";
+
+        Log::info('Admin fast-forwarded vaccination shot expiry', [
+            'admin_id' => Auth::id(),
+            'shot_id' => $shotId,
             'days_forwarded' => $request->days,
         ]);
 
@@ -333,7 +566,7 @@ class TestingToolsController extends Controller
         $payment->update(['expires_at' => Carbon::now()->subMinute()]);
 
         Log::info('Admin expired payment immediately', [
-            'admin_id' => auth()->id(),
+            'admin_id' => Auth::id(),
             'payment_id' => $paymentId,
         ]);
 
@@ -344,3 +577,4 @@ class TestingToolsController extends Controller
             : back()->with('success', $message);
     }
 }
+

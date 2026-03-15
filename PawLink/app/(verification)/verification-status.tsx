@@ -365,13 +365,28 @@ export default function VerificationStatusScreen() {
                 )}
 
                 {notSubmitted && config.type !== "id" && (
-                  <TouchableOpacity
-                    className="bg-gray-100 rounded-xl py-3 flex-row items-center justify-center border border-dashed border-gray-300"
-                    onPress={() => handleAddCertificate(config.type === "breeder_certificate" ? "breeder" : "shooter")}
-                  >
-                    <Feather name="plus" size={18} color="#6B7280" />
-                    <Text className="text-gray-600 font-semibold ml-2">Add Certificate (Optional)</Text>
-                  </TouchableOpacity>
+                  <View>
+                    <TouchableOpacity
+                      className="bg-gray-100 rounded-xl py-3 flex-row items-center justify-center border border-dashed border-gray-300"
+                      onPress={() =>
+                        handleAddCertificate(
+                          config.type === "breeder_certificate" ? "breeder" : "shooter",
+                        )
+                      }
+                    >
+                      <Feather name="plus" size={18} color="#6B7280" />
+                      <Text className="text-gray-600 font-semibold ml-2">
+                        {config.type === "shooter_certificate"
+                          ? "Apply as Shooter"
+                          : "Add Certificate (Optional)"}
+                      </Text>
+                    </TouchableOpacity>
+                    {config.type === "shooter_certificate" && (
+                      <Text className="text-xs text-gray-500 mt-2 text-center">
+                        Once approved, your Shooter role will be added to your account.
+                      </Text>
+                    )}
+                  </View>
                 )}
 
                 {isPending && (
@@ -400,7 +415,8 @@ export default function VerificationStatusScreen() {
               <Text className="text-sm font-semibold text-gray-900">Need Help?</Text>
               <Text className="text-xs text-gray-500 mt-1">
                 ID verification is required to add pets. Breeder and shooter certificates are optional
-                but unlock additional features.
+                but unlock additional features. Submitting and getting a shooter certificate approved
+                enables Shooter role access.
               </Text>
             </View>
           </View>

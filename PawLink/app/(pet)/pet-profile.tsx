@@ -11,7 +11,7 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
-import { SafeAreaView } from "react-native-safe-area-context";
+import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
 import { Feather, Ionicons } from "@expo/vector-icons";
 import { useRouter, useLocalSearchParams, useFocusEffect } from "expo-router";
 import dayjs from "dayjs";
@@ -192,6 +192,7 @@ export default function PetProfileScreen() {
   const router = useRouter();
   const params = useLocalSearchParams();
   const petId = params.id as string;
+  const insets = useSafeAreaInsets();
   const { visible, alertOptions, showAlert, hideAlert } = useAlert();
 
   const [petData, setPetData] = useState<any>(null);
@@ -1172,12 +1173,14 @@ export default function PetProfileScreen() {
         animationType="slide"
         onRequestClose={() => setShowRecordsModal(false)}
       >
-        <Pressable
-          style={styles.timelineOverlay}
-          onPress={() => setShowRecordsModal(false)}
-        >
-          <Pressable style={styles.timelineSheet} onPress={() => {}}>
-            <SafeAreaView edges={["bottom"]}>
+        <View style={styles.timelineOverlay}>
+          <Pressable
+            style={styles.timelineBackdrop}
+            onPress={() => setShowRecordsModal(false)}
+          />
+
+          <View style={styles.timelineSheet}>
+            <SafeAreaView edges={["bottom"]} style={styles.timelineSafeArea}>
               <View style={styles.modalHeader}>
                 <Text style={styles.modalTitle}>Health Records</Text>
                 <TouchableOpacity onPress={() => setShowRecordsModal(false)}>
@@ -1187,7 +1190,12 @@ export default function PetProfileScreen() {
 
               <ScrollView
                 style={styles.modalBody}
-                contentContainerStyle={styles.modalBodyContent}
+                contentContainerStyle={[
+                  styles.modalBodyContent,
+                  { paddingBottom: Math.max(insets.bottom, 16) + 20 },
+                ]}
+                keyboardShouldPersistTaps="handled"
+                showsVerticalScrollIndicator
               >
                 {sortedHealthRecords.length === 0 ? (
                   <View style={styles.recordItem}>
@@ -1315,8 +1323,8 @@ export default function PetProfileScreen() {
                 )}
               </ScrollView>
             </SafeAreaView>
-          </Pressable>
-        </Pressable>
+          </View>
+        </View>
       </Modal>
 
       <AddShotModal
@@ -2405,10 +2413,11 @@ const styles = StyleSheet.create({
     fontWeight: "700",
   },
   modalBody: {
-    paddingHorizontal: 16,
-    paddingTop: 10,
+    flex: 1,
   },
   modalBodyContent: {
+    paddingHorizontal: 16,
+    paddingTop: 10,
     paddingBottom: 30,
   },
   timelineOverlay: {
@@ -2416,12 +2425,18 @@ const styles = StyleSheet.create({
     backgroundColor: "rgba(29, 24, 38, 0.4)",
     justifyContent: "flex-end",
   },
+  timelineBackdrop: {
+    ...StyleSheet.absoluteFillObject,
+  },
   timelineSheet: {
-    maxHeight: "84%",
+    maxHeight: "88%",
     backgroundColor: "#F8F1EF",
     borderTopLeftRadius: 24,
     borderTopRightRadius: 24,
     overflow: "hidden",
+  },
+  timelineSafeArea: {
+    flex: 1,
   },
   recordItem: {
     borderRadius: 12,

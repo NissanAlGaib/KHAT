@@ -55,6 +55,9 @@ class BreedingContract extends Model
         // Timestamps
         'accepted_at',
         'rejected_at',
+        'cancellation_reason',
+        'cancelled_by',
+        'cancelled_at',
     ];
 
     protected $casts = [
@@ -73,6 +76,7 @@ class BreedingContract extends Model
         'cancellation_fee_percentage' => 'decimal:2',
         'accepted_at' => 'datetime',
         'rejected_at' => 'datetime',
+        'cancelled_at' => 'datetime',
         'shooter_accepted_at' => 'datetime',
         'owner1_accepted_shooter' => 'boolean',
         'owner2_accepted_shooter' => 'boolean',

@@ -255,7 +255,12 @@ Route::middleware(['auth:sanctum'])
             Route::post('/pets/{petId}/reset-match-requests', [\App\Http\Controllers\Admin\TestingToolsController::class, 'resetAllMatchRequestsForPet']);
             Route::post('/match-requests/reset', [\App\Http\Controllers\Admin\TestingToolsController::class, 'resetMatchRequests']);
             Route::post('/users/{userId}/fast-forward-suspension', [\App\Http\Controllers\Admin\TestingToolsController::class, 'fastForwardSuspension']);
+            Route::post('/pets/{petId}/fast-forward-suspension', [\App\Http\Controllers\Admin\TestingToolsController::class, 'fastForwardPetSuspension']);
             Route::post('/payments/{paymentId}/fast-forward-expiry', [\App\Http\Controllers\Admin\TestingToolsController::class, 'fastForwardPaymentExpiry']);
             Route::post('/payments/{paymentId}/expire', [\App\Http\Controllers\Admin\TestingToolsController::class, 'expirePayment']);
+            Route::post('/user-auth/{authId}/fast-forward-expiry', [\App\Http\Controllers\Admin\TestingToolsController::class, 'fastForwardUserAuthExpiry']);
+            Route::post('/vaccinations/{vaccinationId}/fast-forward-expiry', [\App\Http\Controllers\Admin\TestingToolsController::class, 'fastForwardVaccinationExpiry']);
+            Route::post('/health-records/{healthRecordId}/fast-forward-expiry', [\App\Http\Controllers\Admin\TestingToolsController::class, 'fastForwardHealthRecordExpiry']);
+            Route::post('/vaccination-shots/{shotId}/fast-forward-expiry', [\App\Http\Controllers\Admin\TestingToolsController::class, 'fastForwardVaccinationShotExpiry']);
         });
     });

@@ -2202,6 +2202,10 @@ class AdminController extends Controller
         $userAuth->status = $request->status;
         $userAuth->save();
 
+        if ($request->status === 'approved') {
+            $this->assignRoleForApprovedVerification($userAuth);
+        }
+
         // Log verification action
         $actionType = $request->status === 'approved' ? AuditLog::TYPE_VERIFY : AuditLog::TYPE_REJECT;
         AuditLog::log(
@@ -2218,6 +2222,37 @@ class AdminController extends Controller
             'success' => true,
             'message' => 'Verification status updated successfully'
         ]);
+    }
+
+    /**
+     * Attach breeder/shooter role when the corresponding certificate is approved.
+     */
+    private function assignRoleForApprovedVerification(UserAuth $userAuth): void
+    {
+        $roleType = match ($userAuth->auth_type) {
+            'breeder_certificate' => 'Breeder',
+            'shooter_certificate' => 'Shooter',
+            default => null,
+        };
+
+        if (!$roleType) {
+            return;
+        }
+
+        $role = Role::where('role_type', $roleType)->first();
+        $user = $userAuth->user;
+
+        if (!$role || !$user) {
+            return;
+        }
+
+        $alreadyHasRole = $user->roles()
+            ->where('roles.role_id', $role->role_id)
+            ->exists();
+
+        if (!$alreadyHasRole) {
+            $user->roles()->attach($role->role_id);
+        }
     }
 
     /**

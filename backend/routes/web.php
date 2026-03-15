@@ -149,8 +149,13 @@ Route::prefix('admin')->group(function () {
         Route::post('/testing-tools/pets/{petId}/reset-match-requests', [TestingToolsController::class, 'resetAllMatchRequestsForPet'])->name('admin.testing-tools.reset-pet-matches');
         Route::post('/testing-tools/match-requests/reset', [TestingToolsController::class, 'resetMatchRequests'])->name('admin.testing-tools.reset-match-requests');
         Route::post('/testing-tools/users/{userId}/fast-forward-suspension', [TestingToolsController::class, 'fastForwardSuspension'])->name('admin.testing-tools.fast-forward-suspension');
+        Route::post('/testing-tools/pets/{petId}/fast-forward-suspension', [TestingToolsController::class, 'fastForwardPetSuspension'])->name('admin.testing-tools.fast-forward-pet-suspension');
         Route::post('/testing-tools/payments/{paymentId}/fast-forward-expiry', [TestingToolsController::class, 'fastForwardPaymentExpiry'])->name('admin.testing-tools.fast-forward-payment');
         Route::post('/testing-tools/payments/{paymentId}/expire', [TestingToolsController::class, 'expirePayment'])->name('admin.testing-tools.expire-payment');
+        Route::post('/testing-tools/user-auth/{authId}/fast-forward-expiry', [TestingToolsController::class, 'fastForwardUserAuthExpiry'])->name('admin.testing-tools.fast-forward-user-auth');
+        Route::post('/testing-tools/vaccinations/{vaccinationId}/fast-forward-expiry', [TestingToolsController::class, 'fastForwardVaccinationExpiry'])->name('admin.testing-tools.fast-forward-vaccination');
+        Route::post('/testing-tools/health-records/{healthRecordId}/fast-forward-expiry', [TestingToolsController::class, 'fastForwardHealthRecordExpiry'])->name('admin.testing-tools.fast-forward-health-record');
+        Route::post('/testing-tools/vaccination-shots/{shotId}/fast-forward-expiry', [TestingToolsController::class, 'fastForwardVaccinationShotExpiry'])->name('admin.testing-tools.fast-forward-vaccination-shot');
     });
 });
 

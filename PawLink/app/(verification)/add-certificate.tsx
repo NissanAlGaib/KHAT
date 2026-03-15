@@ -179,9 +179,28 @@ export default function AddCertificateScreen() {
       });
     } catch (error: any) {
       console.error("Error submitting certificate:", error);
+
+      const validationErrors = error?.response?.data?.errors;
+      let firstValidationError: string | null = null;
+
+      if (validationErrors && typeof validationErrors === "object") {
+        for (const value of Object.values(validationErrors as Record<string, unknown>)) {
+          if (Array.isArray(value) && typeof value[0] === "string") {
+            firstValidationError = value[0];
+            break;
+          }
+
+          if (typeof value === "string") {
+            firstValidationError = value;
+            break;
+          }
+        }
+      }
+
       showAlert({
         title: "Submission Failed",
         message:
+          firstValidationError ||
           error.response?.data?.message ||
           "Failed to submit certificate. Please try again.",
         type: "error",
