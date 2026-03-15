@@ -104,6 +104,8 @@ const TAG_ICON_MAP: Partial<Record<string, keyof typeof Ionicons.glyphMap>> = {
 
 type ValidationErrors = Partial<Record<string, string>>;
 
+const MIN_PET_AGE_DAYS = 30;
+
 function normalizeTags(values?: string[] | null): string[] {
   if (!Array.isArray(values)) return [];
 
@@ -495,9 +497,18 @@ export default function EditPetProfileScreen() {
 
   const validate = () => {
     const nextErrors: ValidationErrors = {};
+    const latestAllowedBirthdate = dayjs()
+      .subtract(MIN_PET_AGE_DAYS, "day")
+      .startOf("day");
 
     if (!name.trim()) nextErrors.name = "Pet name is required";
     if (!birthdate) nextErrors.birthdate = "Birthdate is required";
+    if (
+      birthdate &&
+      dayjs(birthdate).startOf("day").isAfter(latestAllowedBirthdate)
+    ) {
+      nextErrors.birthdate = "Pet must be at least 30 days old";
+    }
     if (!height.trim()) nextErrors.height = "Height is required";
     if (!weight.trim()) nextErrors.weight = "Weight is required";
     if (behaviors.length === 0)
@@ -881,7 +892,7 @@ export default function EditPetProfileScreen() {
           value={birthdate || new Date(2020, 0, 1)}
           mode="date"
           display={Platform.OS === "ios" ? "spinner" : "default"}
-          maximumDate={new Date()}
+          maximumDate={dayjs().subtract(MIN_PET_AGE_DAYS, "day").toDate()}
           onChange={(_, selectedDate) => {
             if (Platform.OS !== "ios") {
               setShowDatePicker(false);

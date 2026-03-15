@@ -46,7 +46,8 @@ return [
     ],
 
     'breed_api' => [
-        'url' => env('BREED_API_URL', 'http://localhost:5000'),
+        // Normalize URL so "https://.../" does not become "//predict".
+        'url' => rtrim(env('BREED_API_URL', 'http://localhost:5000'), '/'),
     ],
 
     'gemini' => [

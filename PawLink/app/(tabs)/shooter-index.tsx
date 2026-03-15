@@ -10,8 +10,7 @@ import {
   StyleSheet,
 } from "react-native";
 import { useRouter } from "expo-router";
-import { AnimatedSearchBar } from "@/components/app/AnimatedSearchBar";
-import SettingsDropdown from "@/components/app/SettingsDropdown";
+import PlayfulHeader from "@/components/home/PlayfulHeader";
 import { getStorageUrl } from "@/utils/imageUrl";
 import {
   getShooterOffers,
@@ -554,26 +553,10 @@ export default function ShooterHomepage() {
 
   return (
     <View style={styles.container}>
-      {/* Header */}
-      <View style={styles.header}>
-        <View style={styles.headerTopRow}>
-          <Text style={styles.headerTitle}>PAWLINK</Text>
-          <View style={styles.headerIcons}>
-            <TouchableOpacity style={styles.headerIconButton}>
-              <Image source={require("../../assets/images/Subscription_Icon.png")} style={styles.headerIcon} />
-            </TouchableOpacity>
-            <TouchableOpacity style={styles.headerIconButton}>
-              <Image source={require("../../assets/images/Notif_Icon.png")} style={styles.headerIcon} />
-            </TouchableOpacity>
-          </View>
-        </View>
-        <View style={styles.headerBottomRow}>
-          <AnimatedSearchBar />
-          <View style={styles.settingsContainer}>
-            <SettingsDropdown />
-          </View>
-        </View>
-      </View>
+      <PlayfulHeader
+        onSearchPress={() => router.navigate("/search")}
+        onSubscriptionPress={() => router.push("/subscription")}
+      />
 
       <ScrollView
         style={styles.scrollView}
@@ -596,50 +579,6 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: "#FFF5F3",
-  },
-  header: {
-    backgroundColor: "white",
-    borderBottomLeftRadius: 32,
-    borderBottomRightRadius: 32,
-    paddingHorizontal: 20,
-    paddingTop: 50,
-    paddingBottom: 20,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.1,
-    shadowRadius: 12,
-    elevation: 8,
-  },
-  headerTopRow: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-    marginBottom: 16,
-  },
-  headerTitle: {
-    color: "#ea5b3a",
-    fontSize: 28,
-    fontWeight: "bold",
-    opacity: 0.8,
-  },
-  headerIcons: {
-    flexDirection: "row",
-    gap: 16,
-  },
-  headerIconButton: {
-    padding: 4,
-  },
-  headerIcon: {
-    width: 24,
-    height: 24,
-  },
-  headerBottomRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-  },
-  settingsContainer: {
-    zIndex: 50,
   },
   scrollView: {
     flex: 1,

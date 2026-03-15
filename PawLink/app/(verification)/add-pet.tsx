@@ -101,6 +101,23 @@ export default function AddPetScreen() {
 
   // Confidence threshold (50%)
   const CONFIDENCE_THRESHOLD = 0.5;
+  const MIN_PET_AGE_DAYS = 30;
+
+  const getLatestAllowedBirthdate = () => {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    today.setDate(today.getDate() - MIN_PET_AGE_DAYS);
+    return today;
+  };
+
+  const isBirthdateTooYoung = (birthdate: string) => {
+    if (!birthdate) return false;
+
+    const selectedDate = new Date(`${birthdate}T00:00:00`);
+    if (Number.isNaN(selectedDate.getTime())) return false;
+
+    return selectedDate > getLatestAllowedBirthdate();
+  };
 
   // Form data
   const [formData, setFormData] = useState<Record<string, any>>({
@@ -183,6 +200,10 @@ export default function AddPetScreen() {
         if (!formData.breed.trim()) errors.breed = "Breed is required";
         if (!formData.sex) errors.sex = "Sex is required";
         if (!formData.birthdate) errors.birthdate = "Birthdate is required";
+        if (formData.birthdate && isBirthdateTooYoung(formData.birthdate)) {
+          errors.birthdate =
+            "Pet must be at least 30 days old to be registered";
+        }
         if (!formData.height.trim()) errors.height = "Height is required";
         if (!formData.weight.trim()) errors.weight = "Weight is required";
         break;
@@ -456,6 +477,23 @@ export default function AddPetScreen() {
 
   const handleDateConfirm = (date: Date) => {
     if (datePickerField) {
+      if (
+        datePickerField === "birthdate" &&
+        date > getLatestAllowedBirthdate()
+      ) {
+        setValidationErrors((prev) => ({
+          ...prev,
+          birthdate: "Pet must be at least 30 days old to be registered",
+        }));
+        showAlert({
+          title: "Invalid Birthdate",
+          message: "Only pets that are at least 30 days old can be registered.",
+          type: "warning",
+        });
+        setShowDatePicker(false);
+        return;
+      }
+
       setFormData({
         ...formData,
         [datePickerField]: date.toISOString().split("T")[0],
@@ -2420,9 +2458,10 @@ export default function AddPetScreen() {
         onConfirm={handleDateConfirm}
         onCancel={() => setShowDatePicker(false)}
         maximumDate={
-          datePickerField === "birthdate" ||
-          datePickerField === "healthGivenDate"
-            ? new Date()
+          datePickerField === "birthdate"
+            ? getLatestAllowedBirthdate()
+            : datePickerField === "healthGivenDate"
+              ? new Date()
             : undefined
         }
       />

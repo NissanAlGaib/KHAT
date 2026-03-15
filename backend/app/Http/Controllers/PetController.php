@@ -16,6 +16,8 @@ use Illuminate\Validation\Rule;
 
 class PetController extends Controller
 {
+    private const MIN_PET_AGE_DAYS = 30;
+
     /**
      * Check if a user has verified their identity (approved ID verification)
      */
@@ -55,6 +57,9 @@ class PetController extends Controller
                 'requires_verification' => true,
             ], 403);
         }
+
+        $minimumBirthdate = now()->subDays(self::MIN_PET_AGE_DAYS)->toDateString();
+
         // Validate all pet data
         $validated = $request->validate([
             // Step 1 - Basic Information
@@ -62,7 +67,7 @@ class PetController extends Controller
             'species' => 'required|string|max:255',
             'breed' => 'required|string|max:255',
             'sex' => ['required', Rule::in(['male', 'female'])],
-            'birthdate' => 'required|date|before:today',
+            'birthdate' => "required|date|before_or_equal:{$minimumBirthdate}",
             'microchip' => 'nullable|string|max:255|unique:pets,microchip_id',
             'height' => 'required|numeric|min:0|max:999.99',
             'weight' => 'required|numeric|min:0|max:999.99',
@@ -129,7 +134,7 @@ class PetController extends Controller
             'sex.required' => 'Please select a sex.',
             'sex.in' => 'Sex must be either male or female.',
             'birthdate.required' => 'Birthdate is required.',
-            'birthdate.before' => 'Birthdate must be in the past.',
+            'birthdate.before_or_equal' => 'Pet must be at least 30 days old to be registered.',
             'height.required' => 'Height is required.',
             'height.numeric' => 'Height must be a number.',
             'weight.required' => 'Weight is required.',
@@ -358,10 +363,12 @@ class PetController extends Controller
             ->where('user_id', Auth::id())
             ->findOrFail($id);
 
+        $minimumBirthdate = now()->subDays(self::MIN_PET_AGE_DAYS)->toDateString();
+
         $validated = $request->validate([
             'name' => 'required|string|max:255',
             'sex' => 'prohibited',
-            'birthdate' => 'required|date|before:today',
+            'birthdate' => "required|date|before_or_equal:{$minimumBirthdate}",
             'microchip' => [
                 'nullable',
                 'string',
@@ -392,7 +399,7 @@ class PetController extends Controller
             'name.required' => 'Pet name is required.',
             'sex.prohibited' => 'Pet sex cannot be changed after registration.',
             'birthdate.required' => 'Birthdate is required.',
-            'birthdate.before' => 'Birthdate must be in the past.',
+            'birthdate.before_or_equal' => 'Pet must be at least 30 days old.',
             'height.required' => 'Height is required.',
             'height.numeric' => 'Height must be a number.',
             'weight.required' => 'Weight is required.',
