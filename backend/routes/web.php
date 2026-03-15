@@ -55,6 +55,9 @@ Route::prefix('admin')->group(function () {
         Route::get('/stats/detail/{type}', [StatsDetailController::class, 'show'])->name('admin.stats.detail');
         Route::post('/logout', [AdminController::class, 'logout'])->name('admin.logout');
 
+        // Global Search (navbar)
+        Route::get('/search', [AdminController::class, 'globalSearch'])->name('admin.global-search');
+
         // User Management
         Route::get('/users', [AdminController::class, 'usersIndex'])->name('admin.users.index');
         Route::get('/users/{user}', [AdminController::class, 'userDetails'])->name('admin.users.show');

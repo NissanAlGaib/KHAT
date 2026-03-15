@@ -369,9 +369,19 @@
             </button>
 
             <div class="flex items-center gap-4">
-                <div class="relative hidden sm:block">
-                    <i data-lucide="search" class="w-5 h-5 text-gray-400 absolute left-3 top-1/2 -translate-y-1/2"></i>
-                    <input type="search" placeholder="Search..." class="pl-10 pr-4 py-2.5 w-full max-w-xs md:max-w-sm lg:w-72 bg-gray-50 border-0 rounded-full text-sm focus:outline-none focus:bg-white focus:ring-2 focus:ring-[#E75234]/20 transition-all">
+                <div class="relative hidden sm:block" id="globalSearchWrapper">
+                    <i data-lucide="search" class="w-5 h-5 text-gray-400 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none"></i>
+                    <input type="search"
+                        id="globalSearchInput"
+                        placeholder="Search users, pets, matches..."
+                        autocomplete="off"
+                        class="pl-10 pr-4 py-2.5 w-full max-w-xs md:max-w-sm lg:w-72 bg-gray-50 border-0 rounded-full text-sm focus:outline-none focus:bg-white focus:ring-2 focus:ring-[#E75234]/20 transition-all">
+
+                    <!-- Results Dropdown -->
+                    <div id="globalSearchDropdown"
+                        class="hidden absolute top-full left-0 mt-2 w-80 bg-white rounded-xl shadow-2xl border border-gray-100 z-50 overflow-hidden">
+                        <div id="globalSearchResults"></div>
+                    </div>
                 </div>
 
                 <!-- Notification Bell Dropdown -->
@@ -1325,6 +1335,102 @@
                 closeStatsDetail();
             }
         });
+    </script>
+
+    <!-- Global Navbar Search -->
+    <script>
+    (function () {
+        const input    = document.getElementById('globalSearchInput');
+        const dropdown = document.getElementById('globalSearchDropdown');
+        const results  = document.getElementById('globalSearchResults');
+
+        if (!input) return;
+
+        const typeIcon = {
+            user:  '<i data-lucide="user" class="w-4 h-4 text-blue-500 flex-shrink-0"></i>',
+            pet:   '<i data-lucide="paw-print" class="w-4 h-4 text-amber-500 flex-shrink-0"></i>',
+            match: '<i data-lucide="heart-handshake" class="w-4 h-4 text-rose-500 flex-shrink-0"></i>',
+        };
+
+        let debounceTimer;
+
+        function showDropdown(html) {
+            results.innerHTML = html;
+            dropdown.classList.remove('hidden');
+            lucide.createIcons({ scope: dropdown });
+        }
+
+        function hideDropdown() {
+            dropdown.classList.add('hidden');
+        }
+
+        input.addEventListener('input', function () {
+            clearTimeout(debounceTimer);
+            const q = this.value.trim();
+
+            if (q.length < 2) {
+                hideDropdown();
+                return;
+            }
+
+            debounceTimer = setTimeout(function () {
+                fetch('{{ route("admin.global-search") }}?q=' + encodeURIComponent(q), {
+                    headers: { 'X-Requested-With': 'XMLHttpRequest' }
+                })
+                .then(function (r) { return r.json(); })
+                .then(function (data) {
+                    if (!data.results || data.results.length === 0) {
+                        showDropdown('<div class="px-4 py-6 text-center text-sm text-gray-400">No results for <strong>' + escHtml(q) + '</strong></div>');
+                        return;
+                    }
+
+                    let html = '<ul class="divide-y divide-gray-50 max-h-80 overflow-y-auto">';
+                    data.results.forEach(function (item) {
+                        const avatar = item.avatar
+                            ? '<img src="' + escHtml(item.avatar) + '" class="w-8 h-8 rounded-full object-cover flex-shrink-0">'
+                            : '<div class="w-8 h-8 rounded-full bg-gray-100 flex items-center justify-center flex-shrink-0">' + (typeIcon[item.type] || '') + '</div>';
+
+                        html += '<li>'
+                            + '<a href="' + escHtml(item.url) + '" class="flex items-center gap-3 px-4 py-3 hover:bg-gray-50 transition-colors group">'
+                            + avatar
+                            + '<div class="min-w-0 flex-1">'
+                            + '<p class="text-sm font-medium text-gray-900 truncate group-hover:text-[#E75234] transition-colors">' + escHtml(item.label) + '</p>'
+                            + '<p class="text-xs text-gray-400 truncate">' + escHtml(item.sublabel) + '</p>'
+                            + '</div>'
+                            + '</a>'
+                            + '</li>';
+                    });
+                    html += '</ul>';
+
+                    showDropdown(html);
+                })
+                .catch(function () { hideDropdown(); });
+            }, 250);
+        });
+
+        // Close on click outside
+        document.addEventListener('click', function (e) {
+            if (!document.getElementById('globalSearchWrapper').contains(e.target)) {
+                hideDropdown();
+            }
+        });
+
+        // Close on Escape
+        input.addEventListener('keydown', function (e) {
+            if (e.key === 'Escape') {
+                hideDropdown();
+                input.blur();
+            }
+        });
+
+        function escHtml(str) {
+            return String(str)
+                .replace(/&/g, '&amp;')
+                .replace(/</g, '&lt;')
+                .replace(/>/g, '&gt;')
+                .replace(/"/g, '&quot;');
+        }
+    })();
     </script>
 
     @stack('scripts')

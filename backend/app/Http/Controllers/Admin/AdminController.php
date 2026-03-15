@@ -289,6 +289,79 @@ class AdminController extends Controller
     }
 
     /**
+     * Global search across users, pets, and match requests.
+     * Returns JSON for the navbar live-search dropdown.
+     */
+    public function globalSearch(Request $request)
+    {
+        $q = trim($request->get('q', ''));
+
+        if (strlen($q) < 2) {
+            return response()->json(['results' => []]);
+        }
+
+        $results = [];
+
+        // Users (name, email)
+        $users = User::where(function ($query) use ($q) {
+            $query->where('name', 'like', "%{$q}%")
+                ->orWhere('email', 'like', "%{$q}%");
+        })->limit(5)->get(['id', 'name', 'email', 'profile_image']);
+
+        foreach ($users as $user) {
+            $results[] = [
+                'type'     => 'user',
+                'label'    => $user->name,
+                'sublabel' => $user->email,
+                'url'      => route('admin.users.show', $user->id),
+                'avatar'   => $user->profile_image
+                    ? Storage::disk('do_spaces')->url($user->profile_image)
+                    : null,
+            ];
+        }
+
+        // Pets (name, breed, owner name)
+        $pets = Pet::with('owner:id,name')
+            ->where(function ($query) use ($q) {
+                $query->where('name', 'like', "%{$q}%")
+                    ->orWhere('breed', 'like', "%{$q}%")
+                    ->orWhere('microchip_id', 'like', "%{$q}%")
+                    ->orWhereHas('owner', fn($oq) => $oq->where('name', 'like', "%{$q}%"));
+            })->limit(5)->get(['pet_id', 'name', 'species', 'breed', 'user_id']);
+
+        foreach ($pets as $pet) {
+            $results[] = [
+                'type'     => 'pet',
+                'label'    => $pet->name,
+                'sublabel' => ucfirst($pet->species ?? '') . ($pet->breed ? ' · ' . $pet->breed : '') . ($pet->owner ? ' · ' . $pet->owner->name : ''),
+                'url'      => route('admin.pets.details', $pet->pet_id),
+                'avatar'   => null,
+            ];
+        }
+
+        // Match requests (pet names)
+        $matches = MatchRequest::with(['requesterPet:pet_id,name', 'targetPet:pet_id,name'])
+            ->where(function ($query) use ($q) {
+                $query->whereHas('requesterPet', fn($pq) => $pq->where('name', 'like', "%{$q}%"))
+                    ->orWhereHas('targetPet',     fn($pq) => $pq->where('name', 'like', "%{$q}%"))
+                    ->orWhereHas('requesterPet.owner', fn($uq) => $uq->where('name', 'like', "%{$q}%"))
+                    ->orWhereHas('targetPet.owner',    fn($uq) => $uq->where('name', 'like', "%{$q}%"));
+            })->limit(3)->get(['id', 'requester_pet_id', 'target_pet_id', 'status']);
+
+        foreach ($matches as $match) {
+            $results[] = [
+                'type'     => 'match',
+                'label'    => ($match->requesterPet->name ?? '?') . ' × ' . ($match->targetPet->name ?? '?'),
+                'sublabel' => 'Match · ' . ucfirst($match->status),
+                'url'      => route('admin.matches') . '?search=' . urlencode($q),
+                'avatar'   => null,
+            ];
+        }
+
+        return response()->json(['results' => $results]);
+    }
+
+    /**
      * Display user management page.
      */
     public function usersIndex(Request $request)
@@ -296,7 +369,15 @@ class AdminController extends Controller
         $status = $request->get('status', 'verified');
 
         $query = User::with(['roles', 'userAuth'])
-            ->withCount('reportsAgainst');
+            ->withCount('reportsAgainst')
+            ->where(function ($q) {
+                // Exclude pure admins — show only users with at least one non-admin role
+                $q->whereDoesntHave('roles', function ($q2) {
+                    $q2->where('role_type', 'admin');
+                })->orWhereHas('roles', function ($q2) {
+                    $q2->whereIn('role_type', ['breeder', 'shooter']);
+                });
+            });
 
         // Filter by verification status
         if ($status === 'pending') {
@@ -1868,6 +1949,7 @@ class AdminController extends Controller
                 'message' => "{$user->name} just created an account",
                 'created_at' => $user->created_at,
                 'is_unread' => $user->created_at >= Carbon::now()->subHours(24),
+                'url' => route('admin.users.show', $user->id),
             ]);
         }
 
@@ -1881,6 +1963,7 @@ class AdminController extends Controller
                 'message' => "{$verification->user->name}'s {$verification->auth_type} awaiting review",
                 'created_at' => $verification->created_at,
                 'is_unread' => true,
+                'url' => route('admin.users.show', $verification->user->id),
             ]);
         }
 
@@ -1894,6 +1977,7 @@ class AdminController extends Controller
                 'message' => "{$match->requesterPet->name} requested to match with {$match->targetPet->name}",
                 'created_at' => $match->created_at,
                 'is_unread' => $match->created_at >= Carbon::now()->subHours(24),
+                'url' => route('admin.matches'),
             ]);
         }
 
@@ -1907,6 +1991,7 @@ class AdminController extends Controller
                 'message' => "₱{$payment->amount} received from {$payment->user->name}",
                 'created_at' => $payment->paid_at,
                 'is_unread' => $payment->paid_at >= Carbon::now()->subHours(24),
+                'url' => route('admin.billing'),
             ]);
         }
 
@@ -1920,6 +2005,7 @@ class AdminController extends Controller
                 'message' => "{$report->reporter->name} reported {$report->reported->name} for {$report->reason}",
                 'created_at' => $report->created_at,
                 'is_unread' => true,
+                'url' => route('admin.reports'),
             ]);
         }
 
@@ -1936,6 +2022,7 @@ class AdminController extends Controller
                 'message' => "{$ownerName} submitted {$protocolName} proof for {$petName}",
                 'created_at' => $shot->created_at,
                 'is_unread' => true,
+                'url' => route('admin.vaccination-shots.pending'),
             ]);
         }
 

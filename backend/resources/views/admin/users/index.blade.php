@@ -164,8 +164,9 @@ collect($subscriptionTiers)->map(fn($tier) => ['value' => $tier->slug, 'label' =
                         </div>
                     </td>
                     <td class="px-6 py-4">
-                        @if($user->roles->isNotEmpty())
-                        @foreach($user->roles as $role)
+                        @php $nonAdminRoles = $user->roles->where('role_type', '!=', 'admin'); @endphp
+                        @if($nonAdminRoles->isNotEmpty())
+                        @foreach($nonAdminRoles as $role)
                         <span class="inline-block px-2.5 py-1 rounded-md text-xs font-semibold bg-orange-100 text-orange-700 capitalize mr-1 mb-1">{{ $role->role_type }}</span>
                         @endforeach
                         @else

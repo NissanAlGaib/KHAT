@@ -90,7 +90,7 @@
     @if($notifications->count() > 0)
     <div class="divide-y divide-gray-100">
         @foreach($notifications as $notification)
-        <div class="p-6 hover:bg-gray-50 cursor-pointer">
+        <a href="{{ $notification['url'] ?? '#' }}" class="block p-6 hover:bg-gray-50 transition-colors group">
             <div class="flex items-start gap-4">
                 @php
                 $colorClasses = [
@@ -106,15 +106,16 @@
                     <i data-lucide="{{ $notification['icon'] }}" class="w-5 h-5"></i>
                 </div>
                 <div class="flex-1">
-                    <h4 class="font-medium text-gray-900">{{ $notification['title'] }}</h4>
+                    <h4 class="font-medium text-gray-900 group-hover:text-[#E75234] transition-colors">{{ $notification['title'] }}</h4>
                     <p class="text-sm text-gray-500 mt-1">{{ $notification['message'] }}</p>
                     <p class="text-xs text-gray-400 mt-2">{{ $notification['created_at']->diffForHumans() }}</p>
                 </div>
                 @if($notification['is_unread'])
                 <div class="w-2 h-2 rounded-full bg-blue-500 flex-shrink-0 mt-2"></div>
                 @endif
+                <i data-lucide="chevron-right" class="w-4 h-4 text-gray-300 group-hover:text-[#E75234] flex-shrink-0 transition-colors mt-1"></i>
             </div>
-        </div>
+        </a>
         @endforeach
     </div>
     @else
