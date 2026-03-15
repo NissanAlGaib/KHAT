@@ -5,6 +5,7 @@ use App\Models\Pet;
 use App\Models\MatchRequest;
 use App\Models\Conversation;
 use App\Models\Message;
+use App\Models\UserAuth;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 
 uses(RefreshDatabase::class);
@@ -36,6 +37,18 @@ beforeEach(function () {
         'height' => 55,
         'weight' => 25,
         'status' => 'active',
+    ]);
+
+    UserAuth::create([
+        'user_id' => $this->user1->id,
+        'auth_type' => 'id',
+        'status' => 'approved',
+    ]);
+
+    UserAuth::create([
+        'user_id' => $this->user2->id,
+        'auth_type' => 'id',
+        'status' => 'approved',
     ]);
 });
 
@@ -100,6 +113,76 @@ test('user cannot send duplicate match request', function () {
         ->assertJson([
             'success' => false,
             'message' => 'A match request already exists between these pets',
+        ]);
+});
+
+test('user cannot send match request when requester pet has ongoing match', function () {
+    $user3 = User::factory()->create();
+    $pet3 = Pet::create([
+        'user_id' => $user3->id,
+        'name' => 'Mochi',
+        'species' => 'Dog',
+        'breed' => 'Beagle',
+        'sex' => 'female',
+        'birthdate' => now()->subYears(1),
+        'height' => 40,
+        'weight' => 12,
+        'status' => 'active',
+    ]);
+
+    MatchRequest::create([
+        'requester_pet_id' => $this->pet1->pet_id,
+        'target_pet_id' => $this->pet2->pet_id,
+        'status' => 'accepted',
+    ]);
+
+    $response = $this->actingAs($this->user1)->postJson('/api/match-requests', [
+        'requester_pet_id' => $this->pet1->pet_id,
+        'target_pet_id' => $pet3->pet_id,
+    ]);
+
+    $response->assertStatus(409)
+        ->assertJson([
+            'success' => false,
+            'message' => 'Your pet already has an ongoing match',
+        ]);
+});
+
+test('user cannot send match request when target pet has ongoing match', function () {
+    $user3 = User::factory()->create();
+    $pet3 = Pet::create([
+        'user_id' => $user3->id,
+        'name' => 'Rex',
+        'species' => 'Dog',
+        'breed' => 'German Shepherd',
+        'sex' => 'male',
+        'birthdate' => now()->subYears(3),
+        'height' => 62,
+        'weight' => 34,
+        'status' => 'active',
+    ]);
+
+    UserAuth::create([
+        'user_id' => $user3->id,
+        'auth_type' => 'id',
+        'status' => 'approved',
+    ]);
+
+    MatchRequest::create([
+        'requester_pet_id' => $this->pet1->pet_id,
+        'target_pet_id' => $this->pet2->pet_id,
+        'status' => 'accepted',
+    ]);
+
+    $response = $this->actingAs($user3)->postJson('/api/match-requests', [
+        'requester_pet_id' => $pet3->pet_id,
+        'target_pet_id' => $this->pet2->pet_id,
+    ]);
+
+    $response->assertStatus(409)
+        ->assertJson([
+            'success' => false,
+            'message' => 'The target pet already has an ongoing match',
         ]);
 });
 

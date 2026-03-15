@@ -23,6 +23,24 @@ class MatchRequestController extends Controller
     }
 
     /**
+     * Check if a pet is currently in an ongoing match.
+     */
+    private function petHasOngoingMatch(int $petId, ?int $excludeMatchRequestId = null): bool
+    {
+        $query = MatchRequest::where('status', 'accepted')
+            ->where(function ($q) use ($petId) {
+                $q->where('requester_pet_id', $petId)
+                    ->orWhere('target_pet_id', $petId);
+            });
+
+        if ($excludeMatchRequestId !== null) {
+            $query->where('id', '!=', $excludeMatchRequestId);
+        }
+
+        return $query->exists();
+    }
+
+    /**
      * Check if user is on free tier and needs to pay for match requests
      */
     private function requiresPayment($user): bool
@@ -125,6 +143,20 @@ class MatchRequestController extends Controller
                 'success' => false,
                 'message' => 'You cannot send a match request to your own pet',
             ], 400);
+        }
+
+        if ($this->petHasOngoingMatch($requesterPet->pet_id)) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Your pet already has an ongoing match',
+            ], 409);
+        }
+
+        if ($this->petHasOngoingMatch($targetPet->pet_id)) {
+            return response()->json([
+                'success' => false,
+                'message' => 'The target pet already has an ongoing match',
+            ], 409);
         }
 
         // Prevent same-sex match requests (breeding requires male + female)
@@ -602,6 +634,16 @@ class MatchRequestController extends Controller
                 'success' => false,
                 'message' => 'This match request has already been processed',
             ], 400);
+        }
+
+        if (
+            $this->petHasOngoingMatch($matchRequest->requester_pet_id, $matchRequest->id)
+            || $this->petHasOngoingMatch($matchRequest->target_pet_id, $matchRequest->id)
+        ) {
+            return response()->json([
+                'success' => false,
+                'message' => 'One of the pets already has an ongoing match',
+            ], 409);
         }
 
         try {
