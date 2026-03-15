@@ -84,7 +84,8 @@ class BreedingContractController extends Controller
         }
 
         try {
-            $resolvedShooter = $this->resolveShooterPreference($validated);
+            $excludedShooterIds = $this->getConversationParticipantUserIds($conversation);
+            $resolvedShooter = $this->resolveShooterPreference($validated, $excludedShooterIds);
 
             // Calculate collateral per owner
             $collateralTotal = $validated['collateral_total'] ?? 0;
@@ -237,7 +238,8 @@ class BreedingContractController extends Controller
                 || array_key_exists('shooter_user_id', $validated);
 
             if ($hasShooterFields) {
-                $resolvedShooter = $this->resolveShooterPreference($validated);
+                $excludedShooterIds = $this->getConversationParticipantUserIds($contract->conversation);
+                $resolvedShooter = $this->resolveShooterPreference($validated, $excludedShooterIds);
                 $validated['shooter_name'] = $resolvedShooter['shooter_name'];
                 $validated['shooter_user_id'] = $resolvedShooter['shooter_user_id'];
 
@@ -891,8 +893,15 @@ class BreedingContractController extends Controller
      * - shooter_user_id (preferred) must point to a verified shooter.
      * - shooter_name fallback must be a case-insensitive exact match to one verified shooter.
      */
-    private function resolveShooterPreference(array $validated): array
+    private function resolveShooterPreference(array $validated, array $excludedUserIds = []): array
     {
+        $excludedUserIds = collect($excludedUserIds)
+            ->map(fn($id) => (int) $id)
+            ->filter(fn($id) => $id > 0)
+            ->unique()
+            ->values()
+            ->all();
+
         $requestedShooterId = isset($validated['shooter_user_id'])
             ? (int) $validated['shooter_user_id']
             : null;
@@ -914,6 +923,12 @@ class BreedingContractController extends Controller
                 ]);
             }
 
+            if (in_array($shooter->id, $excludedUserIds, true)) {
+                throw ValidationException::withMessages([
+                    'shooter_user_id' => 'A match participant cannot be selected as the shooter for this contract.',
+                ]);
+            }
+
             return [
                 'shooter_user_id' => $shooter->id,
                 'shooter_name' => $shooter->name,
@@ -930,6 +945,9 @@ class BreedingContractController extends Controller
         $normalizedName = $this->toLower($requestedShooterName);
 
         $matches = $this->verifiedShootersQuery()
+            ->when(!empty($excludedUserIds), function ($query) use ($excludedUserIds) {
+                $query->whereNotIn('id', $excludedUserIds);
+            })
             ->whereRaw('LOWER(TRIM(name)) = ?', [$normalizedName])
             ->get(['id', 'name']);
 
@@ -951,6 +969,32 @@ class BreedingContractController extends Controller
             'shooter_user_id' => $match->id,
             'shooter_name' => $match->name,
         ];
+    }
+
+    /**
+     * Collect breeder user IDs participating in a conversation's match request.
+     */
+    private function getConversationParticipantUserIds(?Conversation $conversation): array
+    {
+        if (!$conversation) {
+            return [];
+        }
+
+        $conversation->loadMissing([
+            'matchRequest.requesterPet:pet_id,user_id',
+            'matchRequest.targetPet:pet_id,user_id',
+        ]);
+
+        return collect([
+            $conversation->matchRequest?->requesterPet?->user_id,
+            $conversation->matchRequest?->targetPet?->user_id,
+        ])
+            ->filter(fn($id) => is_int($id) || ctype_digit((string) $id))
+            ->map(fn($id) => (int) $id)
+            ->filter(fn($id) => $id > 0)
+            ->unique()
+            ->values()
+            ->all();
     }
 
     /**
@@ -1988,93 +2032,10 @@ class BreedingContractController extends Controller
      */
     public function cancelContract(Request $request, $contractId)
     {
-        $validated = $request->validate([
-            'reason' => 'required|string|max:1000',
-        ]);
-
-        $user = $request->user();
-        $userPetIds = Pet::where('user_id', $user->id)->pluck('pet_id');
-
-        $contract = BreedingContract::where('id', $contractId)
-            ->where('status', 'accepted')
-            ->where(function ($query) use ($userPetIds, $user) {
-                $query->whereHas('conversation.matchRequest', function ($q) use ($userPetIds) {
-                    $q->whereIn('requester_pet_id', $userPetIds)
-                        ->orWhereIn('target_pet_id', $userPetIds);
-                })
-                    ->orWhere('shooter_user_id', $user->id);
-            })
-            ->with(['conversation'])
-            ->first();
-
-        if (!$contract) {
-            return response()->json([
-                'success' => false,
-                'message' => 'Contract not found or you do not have access',
-            ], 404);
-        }
-
-        // Cannot cancel if there's an active dispute
-        if ($contract->hasActiveDispute()) {
-            return response()->json([
-                'success' => false,
-                'message' => 'Cannot cancel contract while there is an active dispute. Please resolve the dispute first.',
-            ], 400);
-        }
-
-        try {
-            DB::beginTransaction();
-
-            // Update contract status
-            $contract->update([
-                'status' => 'cancelled',
-                'cancellation_reason' => $validated['reason'],
-                'cancelled_by' => $user->id,
-                'cancelled_at' => now(),
-            ]);
-
-            // Handle pool cancellation (partial refunds with fee deduction)
-            try {
-                $this->poolService->handleCancellation($contract, $user->id);
-                Log::info('Pool cancellation processed', [
-                    'contract_id' => $contract->id,
-                    'cancelled_by' => $user->id,
-                ]);
-            } catch (\Exception $e) {
-                Log::error('Failed to process pool cancellation', [
-                    'contract_id' => $contract->id,
-                    'error' => $e->getMessage(),
-                ]);
-                // Don't fail the cancellation - pool can be handled by admin
-            }
-
-            // Archive the conversation
-            if ($contract->conversation) {
-                $contract->conversation->archive();
-
-                // Update match request status so pets are not left in accepted-lock state
-                if ($contract->conversation->matchRequest) {
-                    $contract->conversation->matchRequest->update([
-                        'status' => 'cancelled',
-                    ]);
-                }
-            }
-
-            DB::commit();
-
-            return response()->json([
-                'success' => true,
-                'message' => 'Contract cancelled. Refunds will be processed according to the cancellation policy.',
-                'data' => $this->formatContract($contract->fresh(), $user),
-            ]);
-        } catch (\Exception $e) {
-            DB::rollBack();
-            Log::error('Failed to cancel contract: ' . $e->getMessage());
-            return response()->json([
-                'success' => false,
-                'message' => 'Failed to cancel contract',
-            ], 500);
-        }
+        return response()->json([
+            'success' => false,
+            'message' => 'Contract cancellation is no longer available after creation.',
+        ], 403);
     }
 
     /**

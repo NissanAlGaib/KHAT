@@ -152,9 +152,17 @@ export const getTopMatches = async (): Promise<TopMatch[]> => {
 /**
  * Get all available shooters
  */
-export const getShooters = async (): Promise<ShooterProfile[]> => {
+export const getShooters = async (
+  conversationId?: number,
+): Promise<ShooterProfile[]> => {
   try {
-    const response = await axiosInstance.get("/api/shooters");
+    const params: Record<string, number> = {};
+
+    if (conversationId && Number.isFinite(conversationId)) {
+      params.conversation_id = conversationId;
+    }
+
+    const response = await axiosInstance.get("/api/shooters", { params });
     return response.data.data || [];
   } catch (error: any) {
     console.error(

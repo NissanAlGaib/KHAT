@@ -7,7 +7,7 @@ use Illuminate\Support\Facades\Log;
 use App\Models\User;
 use App\Models\Role;
 use App\Models\BreedingContract;
-use App\Models\Pet;
+use App\Models\Conversation;
 use App\Services\ActivityNotificationService;
 use App\Helpers\DistanceHelper;
 use Carbon\Carbon;
@@ -20,6 +20,43 @@ class ShooterController extends Controller
     public function index(Request $request)
     {
         try {
+            $excludeUserIds = collect([$request->user()?->id])
+                ->filter()
+                ->map(fn($id) => (int) $id);
+
+            $excludeInput = $request->input('exclude_user_ids', []);
+            if (is_string($excludeInput)) {
+                $excludeInput = array_filter(explode(',', $excludeInput));
+            }
+
+            if (is_array($excludeInput)) {
+                $excludeUserIds = $excludeUserIds->merge(
+                    collect($excludeInput)
+                        ->map(fn($id) => (int) $id)
+                        ->filter(fn($id) => $id > 0)
+                );
+            }
+
+            $conversationId = (int) $request->input('conversation_id', 0);
+            if ($conversationId > 0) {
+                $conversation = Conversation::with([
+                    'matchRequest.requesterPet:pet_id,user_id',
+                    'matchRequest.targetPet:pet_id,user_id',
+                ])->find($conversationId);
+
+                if ($conversation?->matchRequest) {
+                    $excludeUserIds = $excludeUserIds->merge([
+                        $conversation->matchRequest->requesterPet?->user_id,
+                        $conversation->matchRequest->targetPet?->user_id,
+                    ]);
+                }
+            }
+
+            $excludeUserIds = $excludeUserIds
+                ->filter(fn($id) => is_int($id) && $id > 0)
+                ->unique()
+                ->values();
+
             // Get the shooter role ID
             $shooterRole = Role::where('role_type', 'Shooter')->first();
 
@@ -38,6 +75,9 @@ class ShooterController extends Controller
                 ->whereHas('userAuth', function ($query) {
                     $query->where('auth_type', 'shooter_certificate')
                         ->where('status', 'approved');
+                })
+                ->when($excludeUserIds->isNotEmpty(), function ($query) use ($excludeUserIds) {
+                    $query->whereNotIn('id', $excludeUserIds->all());
                 })
                 ->with(['roles', 'pets'])
                 ->get();

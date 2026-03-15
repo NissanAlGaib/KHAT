@@ -185,7 +185,12 @@ export default function CreateContractScreen() {
     const fetchShooters = async () => {
       setLoadingShooters(true);
       try {
-        const shooters = await getShooters();
+        const parsedConversationId = Number.parseInt(conversationId, 10);
+        const shooters = await getShooters(
+          Number.isFinite(parsedConversationId)
+            ? parsedConversationId
+            : undefined,
+        );
         if (mounted) {
           setAvailableShooters(shooters);
         }
@@ -201,7 +206,7 @@ export default function CreateContractScreen() {
     return () => {
       mounted = false;
     };
-  }, []);
+  }, [conversationId]);
 
   // Animate progress bar
   useEffect(() => {
