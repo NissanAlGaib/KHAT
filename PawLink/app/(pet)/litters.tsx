@@ -7,20 +7,17 @@ import {
   Image,
   ActivityIndicator,
   StyleSheet,
-  Dimensions,
   RefreshControl,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { Feather } from "@expo/vector-icons";
-import { LinearGradient } from "expo-linear-gradient";
+import { Feather, Ionicons } from "@expo/vector-icons";
 import { useAlert } from "@/hooks/useAlert";
 import AlertModal from "@/components/core/AlertModal";
+import BubbleBackgroundRe from "@/components/app/BubbleBackground";
 import { useRouter, useLocalSearchParams } from "expo-router";
 import { getPetLitters, type Litter } from "@/services/petService";
 import { getStorageUrl } from "@/utils/imageUrl";
-import { Colors } from "@/constants";
-
-const { width: SCREEN_WIDTH } = Dimensions.get("window");
+import dayjs from "dayjs";
 
 export default function PetLittersScreen() {
   const router = useRouter();
@@ -35,8 +32,8 @@ export default function PetLittersScreen() {
 
   const fetchLitters = useCallback(async () => {
     try {
-      const data = await getPetLitters(parseInt(petId));
-      setLitters(data);
+      const data = await getPetLitters(parseInt(petId, 10));
+      setLitters(Array.isArray(data) ? data : []);
     } catch (error) {
       console.error("Error fetching litters:", error);
       showAlert({
@@ -62,21 +59,30 @@ export default function PetLittersScreen() {
     fetchLitters();
   }, [fetchLitters]);
 
-  const getImageUrl = (path: string | null | undefined) => {
-    return getStorageUrl(path);
+  const getImageUrl = (path: string | null | undefined) =>
+    getStorageUrl(path) ?? undefined;
+
+  const formatLitterDate = (birthDate?: string, birthDateFull?: string) => {
+    if (birthDateFull && birthDateFull.trim().length > 0) return birthDateFull;
+    if (!birthDate) return "Date unavailable";
+
+    const parsed = dayjs(birthDate);
+    return parsed.isValid() ? parsed.format("MMM YYYY") : "Date unavailable";
   };
 
   const getStatusColor = (status: string) => {
-    switch (status.toLowerCase()) {
-      case "active":
-        return { bg: Colors.successLight, text: Colors.success };
-      case "completed":
-        return { bg: Colors.infoLight, text: Colors.info };
-      case "archived":
-        return { bg: Colors.bgTertiary, text: Colors.textMuted };
-      default:
-        return { bg: Colors.bgTertiary, text: Colors.textSecondary };
+    const normalized = String(status || "").toLowerCase();
+    if (normalized === "completed") {
+      return { bg: "#EAF1FF", text: "#4D7FD3" };
     }
+    if (normalized === "active") {
+      return { bg: "#DCF7EE", text: "#3FA58C" };
+    }
+    if (normalized === "archived") {
+      return { bg: "#EFE9E6", text: "#8A8594" };
+    }
+
+    return { bg: "#F7EFEC", text: "#8A8594" };
   };
 
   // Summary stats
@@ -86,57 +92,15 @@ export default function PetLittersScreen() {
 
   if (loading) {
     return (
-      <View style={styles.loadingContainer}>
-        <ActivityIndicator size="large" color={Colors.primary} />
+      <SafeAreaView style={styles.loadingContainer} edges={["top"]}>
+        <ActivityIndicator size="large" color="#FF8C67" />
         <Text style={styles.loadingText}>Loading litters...</Text>
-      </View>
+      </SafeAreaView>
     );
   }
 
   return (
-    <View style={styles.container}>
-      {/* Header */}
-      <LinearGradient
-        colors={["#FF6B4A", "#FF9A8B"]}
-        style={styles.headerGradient}
-      >
-        <SafeAreaView edges={["top"]} style={styles.headerSafeArea}>
-          <View style={styles.headerContent}>
-            <TouchableOpacity
-              onPress={() => router.back()}
-              style={styles.headerButton}
-            >
-              <Feather name="arrow-left" size={24} color="#fff" />
-            </TouchableOpacity>
-            <View style={styles.headerTitleContainer}>
-              <Text style={styles.headerTitle}>Breeding History</Text>
-              <Text style={styles.headerSubtitle}>{petName}'s Litters</Text>
-            </View>
-            <View style={{ width: 40 }} />
-          </View>
-        </SafeAreaView>
-      </LinearGradient>
-
-      {/* Summary Stats Bar */}
-      {totalLitters > 0 && (
-        <View style={styles.summaryBar}>
-          <View style={styles.summaryItem}>
-            <Text style={styles.summaryValue}>{totalLitters}</Text>
-            <Text style={styles.summaryLabel}>Litters</Text>
-          </View>
-          <View style={styles.summaryDivider} />
-          <View style={styles.summaryItem}>
-            <Text style={styles.summaryValue}>{totalOffspring}</Text>
-            <Text style={styles.summaryLabel}>Total Pups</Text>
-          </View>
-          <View style={styles.summaryDivider} />
-          <View style={styles.summaryItem}>
-            <Text style={styles.summaryValue}>{totalAlive}</Text>
-            <Text style={styles.summaryLabel}>Alive</Text>
-          </View>
-        </View>
-      )}
-
+    <SafeAreaView style={styles.container} edges={["top"]}>
       <ScrollView
         style={styles.scrollView}
         contentContainerStyle={styles.scrollContent}
@@ -145,171 +109,207 @@ export default function PetLittersScreen() {
           <RefreshControl
             refreshing={refreshing}
             onRefresh={onRefresh}
-            tintColor={Colors.primary}
+            tintColor="#FF8C67"
+            colors={["#FF8C67"]}
           />
         }
       >
-        {litters.length === 0 ? (
-          <View style={styles.emptyContainer}>
-            <View style={styles.emptyIconCircle}>
-              <Feather name="heart" size={40} color={Colors.textDisabled} />
-            </View>
-            <Text style={styles.emptyTitle}>No Litters Yet</Text>
-            <Text style={styles.emptySubtitle}>
-              Breeding history will appear here once your pet has litters
-              recorded.
-            </Text>
+        <View style={styles.heroHeader}>
+          <View style={StyleSheet.absoluteFillObject}>
+            <BubbleBackgroundRe
+              backgroundColor="#F98D67"
+              bubbleColor="rgba(255, 192, 170, 0.32)"
+              bigCount={3}
+              smallCount={5}
+            />
           </View>
-        ) : (
-          litters.map((litter) => {
-            const statusColor = getStatusColor(litter.status);
-            return (
-              <TouchableOpacity
-                key={litter.litter_id}
-                style={styles.litterCard}
-                onPress={() =>
-                  router.push(`/(pet)/litter-detail?id=${litter.litter_id}`)
-                }
-                activeOpacity={0.7}
-              >
-                {/* Card Header: Parents + Status */}
-                <View style={styles.cardHeader}>
-                  <View style={styles.parentPhotos}>
-                    <Image
-                      source={{
-                        uri:
-                          getImageUrl(litter.parents.sire.photo) || undefined,
-                      }}
-                      style={[styles.parentPhoto, styles.sirePhoto]}
-                    />
-                    <View style={styles.heartBadge}>
-                      <Feather name="heart" size={10} color="#fff" />
+
+          <View style={styles.heroTopRow}>
+            <TouchableOpacity style={styles.iconCircle} onPress={() => router.back()}>
+              <Feather name="chevron-left" size={18} color="#FFFFFF" />
+            </TouchableOpacity>
+
+            <View style={styles.heroTitleWrap}>
+              <Text style={styles.heroTitle}>Breeding History</Text>
+              <Text style={styles.heroSubtitle}>{petName}'s litters</Text>
+            </View>
+
+            <View style={styles.iconSpacer} />
+          </View>
+
+          <View style={styles.heroCenterContent}>
+            <Text style={styles.heroBigValue}>{totalLitters}</Text>
+            <Text style={styles.heroBigLabel}>TOTAL LITTERS</Text>
+          </View>
+        </View>
+
+        <View style={styles.contentSheet}>
+          <View style={styles.summaryCard}>
+            <View style={styles.summaryItem}>
+              <Text style={styles.summaryValue}>{totalLitters}</Text>
+              <Text style={styles.summaryLabel}>LITTERS</Text>
+            </View>
+            <View style={styles.summaryDivider} />
+            <View style={styles.summaryItem}>
+              <Text style={styles.summaryValue}>{totalOffspring}</Text>
+              <Text style={styles.summaryLabel}>TOTAL PUPS</Text>
+            </View>
+            <View style={styles.summaryDivider} />
+            <View style={styles.summaryItem}>
+              <Text style={styles.summaryValue}>{totalAlive}</Text>
+              <Text style={styles.summaryLabel}>ALIVE</Text>
+            </View>
+          </View>
+
+          {litters.length === 0 ? (
+            <View style={styles.emptyContainer}>
+              <View style={styles.emptyIconCircle}>
+                <Ionicons name="heart-outline" size={36} color="#C6BFCB" />
+              </View>
+              <Text style={styles.emptyTitle}>No Litters Yet</Text>
+              <Text style={styles.emptySubtitle}>
+                Breeding history will appear here once your pet has recorded litters.
+              </Text>
+            </View>
+          ) : (
+            litters.map((litter, index) => {
+              const statusColor = getStatusColor(litter.status);
+
+              return (
+                <TouchableOpacity
+                  key={litter.litter_id}
+                  style={styles.litterCard}
+                  onPress={() =>
+                    router.push(`/(pet)/litter-detail?id=${litter.litter_id}`)
+                  }
+                  activeOpacity={0.92}
+                >
+                  <View style={styles.litterHeaderBox}>
+                    <View style={styles.litterHeaderLeft}>
+                      <View style={styles.parentPhotos}>
+                        <Image
+                          source={{ uri: getImageUrl(litter.parents.sire.photo) }}
+                          style={[styles.parentPhoto, styles.sirePhoto]}
+                        />
+                        <View style={styles.heartBadge}>
+                          <Feather name="heart" size={10} color="#FFFFFF" />
+                        </View>
+                        <Image
+                          source={{ uri: getImageUrl(litter.parents.dam.photo) }}
+                          style={[styles.parentPhoto, styles.damPhoto]}
+                        />
+                      </View>
+
+                      <View style={styles.litterTopLeft}>
+                        <Text style={styles.litterTitle} numberOfLines={1}>
+                          {litter.title}
+                        </Text>
+                        <Text style={styles.litterDate}>
+                          {formatLitterDate(litter.birth_date, litter.birth_date_full)}
+                        </Text>
+                      </View>
                     </View>
-                    <Image
-                      source={{
-                        uri: getImageUrl(litter.parents.dam.photo) || undefined,
-                      }}
-                      style={[styles.parentPhoto, styles.damPhoto]}
-                    />
-                  </View>
 
-                  <View style={styles.cardHeaderInfo}>
-                    <Text style={styles.litterTitle} numberOfLines={1}>
-                      {litter.title}
-                    </Text>
-                    <Text style={styles.litterDate}>{litter.birth_date}</Text>
-                  </View>
-
-                  <View
-                    style={[
-                      styles.statusBadge,
-                      { backgroundColor: statusColor.bg },
-                    ]}
-                  >
-                    <Text
-                      style={[styles.statusText, { color: statusColor.text }]}
-                    >
-                      {litter.status}
-                    </Text>
-                  </View>
-                </View>
-
-                {/* Stat Chips */}
-                <View style={styles.statChipsRow}>
-                  <View style={styles.statChip}>
-                    <Text style={styles.statChipValue}>
-                      {litter.offspring.total}
-                    </Text>
-                    <Text style={styles.statChipLabel}>Total</Text>
-                  </View>
-                  <View
-                    style={[styles.statChip, { backgroundColor: "#EFF6FF" }]}
-                  >
-                    <Text style={[styles.statChipValue, { color: "#2563EB" }]}>
-                      {litter.offspring.male}
-                    </Text>
-                    <Text style={styles.statChipLabel}>Male</Text>
-                  </View>
-                  <View
-                    style={[styles.statChip, { backgroundColor: "#FDF2F8" }]}
-                  >
-                    <Text style={[styles.statChipValue, { color: "#DB2777" }]}>
-                      {litter.offspring.female}
-                    </Text>
-                    <Text style={styles.statChipLabel}>Female</Text>
-                  </View>
-                  {litter.offspring.died > 0 && (
                     <View
                       style={[
-                        styles.statChip,
-                        { backgroundColor: Colors.errorLight },
+                        styles.statusBadge,
+                        { backgroundColor: statusColor.bg },
                       ]}
                     >
-                      <Text
-                        style={[styles.statChipValue, { color: Colors.error }]}
-                      >
-                        {litter.offspring.died}
+                      <Text style={[styles.statusText, { color: statusColor.text }]}>
+                        {String(litter.status || "Unknown")}
                       </Text>
-                      <Text style={styles.statChipLabel}>Died</Text>
-                    </View>
-                  )}
-                </View>
-
-                {/* Offspring Preview */}
-                {litter.offspring_details.length > 0 && (
-                  <View style={styles.offspringPreview}>
-                    <View style={styles.offspringAvatars}>
-                      {litter.offspring_details.slice(0, 5).map((offspring) => (
-                        <View
-                          key={offspring.offspring_id}
-                          style={styles.offspringAvatar}
-                        >
-                          {offspring.photo_url ? (
-                            <Image
-                              source={{
-                                uri:
-                                  getImageUrl(offspring.photo_url) || undefined,
-                              }}
-                              style={styles.offspringAvatarImage}
-                            />
-                          ) : (
-                            <View style={styles.offspringAvatarPlaceholder}>
-                              <Text style={styles.offspringAvatarIcon}>
-                                {offspring.sex === "male" ? "♂" : "♀"}
-                              </Text>
-                            </View>
-                          )}
-                        </View>
-                      ))}
-                      {litter.offspring_details.length > 5 && (
-                        <View
-                          style={[
-                            styles.offspringAvatar,
-                            styles.offspringAvatarMore,
-                          ]}
-                        >
-                          <Text style={styles.offspringMoreText}>
-                            +{litter.offspring_details.length - 5}
-                          </Text>
-                        </View>
-                      )}
-                    </View>
-                    <View style={styles.viewDetailsButton}>
-                      <Text style={styles.viewDetailsText}>Details</Text>
-                      <Feather
-                        name="chevron-right"
-                        size={14}
-                        color={Colors.primary}
-                      />
                     </View>
                   </View>
-                )}
-              </TouchableOpacity>
-            );
-          })
-        )}
 
-        <View style={{ height: 24 }} />
+                  <View style={styles.statChipsRow}>
+                    <View style={styles.statChip}>
+                      <Text style={styles.statChipValue}>{litter.offspring.total}</Text>
+                      <Text style={styles.statChipLabel}>Total</Text>
+                    </View>
+                    <View style={[styles.statChip, styles.statChipMale]}>
+                      <Text style={[styles.statChipValue, styles.statChipValueMale]}>
+                        {litter.offspring.male}
+                      </Text>
+                      <Text style={styles.statChipLabel}>Male</Text>
+                    </View>
+                    <View style={[styles.statChip, styles.statChipFemale]}>
+                      <Text style={[styles.statChipValue, styles.statChipValueFemale]}>
+                        {litter.offspring.female}
+                      </Text>
+                      <Text style={styles.statChipLabel}>Female</Text>
+                    </View>
+                  </View>
+
+                  <View style={styles.offspringPreviewRow}>
+                    <View style={styles.offspringAvatars}>
+                      {(Array.isArray(litter.offspring_details)
+                        ? litter.offspring_details
+                        : []
+                      )
+                        .slice(0, 5)
+                        .map((offspring) => (
+                          <View
+                            key={offspring.offspring_id}
+                            style={styles.offspringPreviewItem}
+                          >
+                            <View style={styles.offspringCircleWrap}>
+                              {offspring.photo_url ? (
+                                <Image
+                                  source={{ uri: getImageUrl(offspring.photo_url) }}
+                                  style={styles.offspringCircleImage}
+                                />
+                              ) : (
+                                <View style={styles.offspringCircleFallback}>
+                                  <Ionicons name="paw" size={16} color="#D18C53" />
+                                </View>
+                              )}
+                            </View>
+
+                            <View
+                              style={[
+                                styles.offspringSexBadge,
+                                String(offspring.sex).toLowerCase() === "male"
+                                  ? styles.offspringSexBadgeMale
+                                  : styles.offspringSexBadgeFemale,
+                              ]}
+                            >
+                              <Text
+                                style={[
+                                  styles.offspringSexText,
+                                  String(offspring.sex).toLowerCase() === "male"
+                                    ? styles.offspringSexTextMale
+                                    : styles.offspringSexTextFemale,
+                                ]}
+                              >
+                                {String(offspring.sex).toLowerCase() === "male" ? "M" : "F"}
+                              </Text>
+                            </View>
+                          </View>
+                        ))}
+                    </View>
+
+                    <View style={styles.detailsRow}>
+                      <Text style={styles.detailsText}>Details</Text>
+                      <Feather name="chevron-right" size={16} color="#F38C69" />
+                    </View>
+                  </View>
+
+                  {litter.offspring.died > 0 ? (
+                    <View style={styles.deceasedStrip}>
+                      <Ionicons name="warning-outline" size={13} color="#C44A4A" />
+                      <Text style={styles.deceasedText}>
+                        {litter.offspring.died} marked deceased in this litter.
+                      </Text>
+                    </View>
+                  ) : null}
+                </TouchableOpacity>
+              );
+            })
+          )}
+
+          <View style={styles.bottomPad} />
+        </View>
       </ScrollView>
 
       <AlertModal
@@ -320,280 +320,389 @@ export default function PetLittersScreen() {
         buttons={alertOptions.buttons}
         onClose={hideAlert}
       />
-    </View>
+    </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: "#FDF4F4",
+    backgroundColor: "#F8F1EF",
   },
   loadingContainer: {
     flex: 1,
     justifyContent: "center",
     alignItems: "center",
-    backgroundColor: "#FDF4F4",
+    backgroundColor: "#F8F1EF",
   },
   loadingText: {
-    marginTop: 12,
-    color: Colors.textMuted,
-    fontSize: 14,
-  },
-  headerGradient: {
-    paddingBottom: 20,
-  },
-  headerSafeArea: {},
-  headerContent: {
-    flexDirection: "row",
-    alignItems: "center",
-    paddingHorizontal: 16,
-    paddingTop: 8,
-  },
-  headerButton: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: "rgba(255,255,255,0.2)",
-    justifyContent: "center",
-    alignItems: "center",
-  },
-  headerTitleContainer: {
-    flex: 1,
-    alignItems: "center",
-  },
-  headerTitle: {
-    fontSize: 20,
-    fontWeight: "bold",
-    color: "#fff",
-  },
-  headerSubtitle: {
+    marginTop: 10,
+    color: "#8D8897",
     fontSize: 13,
-    color: "rgba(255,255,255,0.85)",
-    marginTop: 2,
   },
-  summaryBar: {
+
+  heroHeader: {
+    height: 210,
+    overflow: "hidden",
+  },
+  heroTopRow: {
     flexDirection: "row",
-    backgroundColor: "#fff",
-    marginHorizontal: 16,
-    marginTop: -12,
-    borderRadius: 16,
-    paddingVertical: 16,
-    paddingHorizontal: 20,
-    elevation: 4,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 8,
+    alignItems: "center",
+    justifyContent: "space-between",
+    paddingHorizontal: 14,
+    paddingTop: 12,
   },
-  summaryItem: {
-    flex: 1,
+  iconCircle: {
+    width: 34,
+    height: 34,
+    borderRadius: 17,
+    backgroundColor: "rgba(255,255,255,0.26)",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  iconSpacer: {
+    width: 34,
+    height: 34,
+  },
+  heroTitleWrap: {
     alignItems: "center",
   },
-  summaryValue: {
-    fontSize: 22,
-    fontWeight: "bold",
-    color: Colors.textPrimary,
+  heroTitle: {
+    color: "#FFFFFF",
+    fontSize: 28,
+    fontWeight: "700",
+    lineHeight: 32,
   },
-  summaryLabel: {
-    fontSize: 11,
-    color: Colors.textMuted,
+  heroSubtitle: {
     marginTop: 2,
-    textTransform: "uppercase",
-    letterSpacing: 0.5,
+    color: "rgba(255,255,255,0.92)",
+    fontSize: 13,
   },
-  summaryDivider: {
-    width: 1,
-    backgroundColor: Colors.borderLight,
-    marginVertical: 2,
+  heroCenterContent: {
+    marginTop: 18,
+    alignItems: "center",
   },
+  heroBigValue: {
+    color: "#FFFFFF",
+    fontSize: 42,
+    fontWeight: "700",
+    lineHeight: 46,
+  },
+  heroBigLabel: {
+    marginTop: 2,
+    color: "rgba(255,255,255,0.88)",
+    fontSize: 11,
+    fontWeight: "700",
+    letterSpacing: 0.7,
+  },
+
   scrollView: {
     flex: 1,
   },
   scrollContent: {
-    paddingHorizontal: 16,
-    paddingTop: 16,
+    paddingBottom: 28,
   },
-  emptyContainer: {
+  contentSheet: {
+    marginTop: -18,
+    borderTopLeftRadius: 28,
+    borderTopRightRadius: 28,
+    backgroundColor: "#F8F1EF",
+    paddingTop: 12,
+    paddingHorizontal: 12,
+  },
+
+  summaryCard: {
+    borderRadius: 16,
+    backgroundColor: "#FFFFFF",
+    borderWidth: 1,
+    borderColor: "#EEE8E6",
+    flexDirection: "row",
+    alignItems: "center",
+    marginBottom: 12,
+    overflow: "hidden",
+  },
+  summaryItem: {
+    flex: 1,
     alignItems: "center",
     justifyContent: "center",
-    paddingVertical: 60,
+    paddingVertical: 12,
+  },
+  summaryValue: {
+    fontSize: 31,
+    lineHeight: 34,
+    color: "#342F3F",
+    fontWeight: "700",
+  },
+  summaryLabel: {
+    marginTop: 2,
+    fontSize: 10,
+    color: "#A4A0AF",
+    fontWeight: "700",
+    letterSpacing: 0.5,
+  },
+  summaryDivider: {
+    width: 1,
+    alignSelf: "stretch",
+    backgroundColor: "#EFE9E6",
+  },
+
+  emptyContainer: {
+    borderRadius: 16,
+    backgroundColor: "#FFFFFF",
+    borderWidth: 1,
+    borderColor: "#EEE8E6",
+    alignItems: "center",
+    justifyContent: "center",
+    paddingVertical: 34,
+    paddingHorizontal: 20,
   },
   emptyIconCircle: {
-    width: 80,
-    height: 80,
-    borderRadius: 40,
-    backgroundColor: Colors.bgTertiary,
+    width: 72,
+    height: 72,
+    borderRadius: 36,
+    backgroundColor: "#F4EEEC",
     justifyContent: "center",
     alignItems: "center",
-    marginBottom: 16,
+    marginBottom: 12,
   },
   emptyTitle: {
-    fontSize: 20,
-    fontWeight: "bold",
-    color: Colors.textPrimary,
-    marginBottom: 8,
+    fontSize: 19,
+    fontWeight: "700",
+    color: "#312C3B",
   },
   emptySubtitle: {
-    fontSize: 14,
-    color: Colors.textMuted,
+    marginTop: 6,
+    fontSize: 13,
+    color: "#8A8594",
     textAlign: "center",
-    paddingHorizontal: 40,
     lineHeight: 20,
   },
+
   litterCard: {
-    backgroundColor: "#fff",
-    borderRadius: 20,
-    padding: 16,
-    marginBottom: 14,
-    elevation: 3,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.08,
-    shadowRadius: 8,
+    borderWidth: 1,
+    borderColor: "#F1DDD3",
+    borderRadius: 16,
+    marginBottom: 10,
+    overflow: "hidden",
+    backgroundColor: "#FFFFFF",
   },
-  cardHeader: {
+  litterHeaderBox: {
+    backgroundColor: "#FFF3EE",
+    borderBottomWidth: 1,
+    borderBottomColor: "#F1DDD3",
+    paddingHorizontal: 10,
+    paddingVertical: 10,
     flexDirection: "row",
     alignItems: "center",
-    marginBottom: 14,
+    justifyContent: "space-between",
+  },
+  litterHeaderLeft: {
+    flexDirection: "row",
+    alignItems: "center",
+    flex: 1,
+    marginRight: 10,
   },
   parentPhotos: {
-    flexDirection: "row",
-    alignItems: "center",
-    width: 68,
-    height: 44,
-    marginRight: 12,
+    width: 56,
+    height: 40,
+    marginRight: 9,
   },
   parentPhoto: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
+    width: 34,
+    height: 34,
+    borderRadius: 17,
     borderWidth: 2,
-    borderColor: "#fff",
+    borderColor: "#FFFFFF",
+    backgroundColor: "#EFE9E6",
   },
   sirePhoto: {
     position: "absolute",
     left: 0,
+    top: 3,
     zIndex: 2,
   },
   damPhoto: {
     position: "absolute",
-    left: 24,
+    left: 20,
+    top: 3,
     zIndex: 1,
   },
   heartBadge: {
     position: "absolute",
-    left: 16,
-    top: -2,
-    zIndex: 3,
-    width: 18,
-    height: 18,
-    borderRadius: 9,
-    backgroundColor: Colors.primary,
+    left: 14,
+    top: -1,
+    width: 16,
+    height: 16,
+    borderRadius: 8,
+    backgroundColor: "#FF8F67",
     justifyContent: "center",
     alignItems: "center",
+    zIndex: 3,
+    borderWidth: 1,
+    borderColor: "#FFFFFF",
   },
-  cardHeaderInfo: {
+  litterTopLeft: {
     flex: 1,
   },
   litterTitle: {
-    fontSize: 16,
-    fontWeight: "bold",
-    color: Colors.textPrimary,
+    fontSize: 18,
+    color: "#2F2B3A",
+    fontWeight: "700",
   },
   litterDate: {
-    fontSize: 12,
-    color: Colors.textMuted,
     marginTop: 2,
+    fontSize: 13,
+    color: "#8E8998",
   },
   statusBadge: {
-    paddingVertical: 4,
+    borderRadius: 999,
     paddingHorizontal: 10,
-    borderRadius: 12,
+    paddingVertical: 5,
   },
   statusText: {
     fontSize: 11,
-    fontWeight: "600",
+    fontWeight: "700",
     textTransform: "capitalize",
   },
+
   statChipsRow: {
     flexDirection: "row",
+    paddingHorizontal: 10,
+    paddingTop: 10,
     gap: 8,
-    marginBottom: 14,
   },
   statChip: {
     flex: 1,
-    backgroundColor: Colors.bgTertiary,
+    backgroundColor: "#F0F1F4",
     borderRadius: 10,
     paddingVertical: 8,
-    paddingHorizontal: 6,
     alignItems: "center",
+    justifyContent: "center",
+  },
+  statChipMale: {
+    backgroundColor: "#E7EEFC",
+  },
+  statChipFemale: {
+    backgroundColor: "#F9E9F0",
   },
   statChipValue: {
-    fontSize: 16,
-    fontWeight: "bold",
-    color: Colors.textPrimary,
+    fontSize: 27,
+    lineHeight: 29,
+    color: "#2F2B3A",
+    fontWeight: "700",
+  },
+  statChipValueMale: {
+    color: "#386CC4",
+  },
+  statChipValueFemale: {
+    color: "#B4387C",
   },
   statChipLabel: {
-    fontSize: 10,
-    color: Colors.textMuted,
     marginTop: 1,
+    fontSize: 11,
+    color: "#8E8998",
+    fontWeight: "500",
   },
-  offspringPreview: {
+
+  offspringPreviewRow: {
+    marginTop: 10,
+    borderTopWidth: 1,
+    borderTopColor: "#F2EBE8",
+    paddingHorizontal: 10,
+    paddingTop: 10,
+    paddingBottom: 10,
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
-    paddingTop: 12,
-    borderTopWidth: 1,
-    borderTopColor: Colors.borderLight,
   },
   offspringAvatars: {
     flexDirection: "row",
     alignItems: "center",
+    flex: 1,
   },
-  offspringAvatar: {
+  offspringPreviewItem: {
+    marginRight: 8,
+    alignItems: "center",
+  },
+  offspringCircleWrap: {
     width: 34,
     height: 34,
     borderRadius: 17,
-    marginRight: -8,
+    overflow: "hidden",
     borderWidth: 2,
-    borderColor: "#fff",
+    borderColor: "#FFD6C2",
+    backgroundColor: "#FFF4EE",
   },
-  offspringAvatarImage: {
-    width: 30,
-    height: 30,
-    borderRadius: 15,
+  offspringCircleImage: {
+    width: "100%",
+    height: "100%",
   },
-  offspringAvatarPlaceholder: {
-    width: 30,
-    height: 30,
-    borderRadius: 15,
-    backgroundColor: Colors.bgTertiary,
+  offspringCircleFallback: {
+    width: "100%",
+    height: "100%",
+    alignItems: "center",
     justifyContent: "center",
+    backgroundColor: "#FFDDBB",
+  },
+  offspringSexBadge: {
+    marginTop: 5,
+    borderRadius: 999,
+    paddingHorizontal: 10,
+    paddingVertical: 3,
+    minWidth: 34,
     alignItems: "center",
   },
-  offspringAvatarIcon: {
-    fontSize: 14,
-    color: Colors.textMuted,
+  offspringSexBadgeMale: {
+    backgroundColor: "#DDEAFE",
   },
-  offspringAvatarMore: {
-    backgroundColor: Colors.primaryLight,
-    justifyContent: "center",
-    alignItems: "center",
+  offspringSexBadgeFemale: {
+    backgroundColor: "#FCE2EE",
+    borderWidth: 1,
+    borderColor: "#EC6BA5",
   },
-  offspringMoreText: {
+  offspringSexText: {
     fontSize: 10,
-    fontWeight: "bold",
-    color: Colors.primary,
+    fontWeight: "700",
   },
-  viewDetailsButton: {
+  offspringSexTextMale: {
+    color: "#6EA0D1",
+  },
+  offspringSexTextFemale: {
+    color: "#E55C97",
+  },
+
+  detailsRow: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 4,
+    marginLeft: 8,
   },
-  viewDetailsText: {
+  detailsText: {
+    color: "#F38C69",
+    fontWeight: "700",
     fontSize: 13,
+    marginRight: 2,
+  },
+
+  deceasedStrip: {
+    marginHorizontal: 10,
+    marginBottom: 10,
+    borderRadius: 8,
+    backgroundColor: "#FDECEC",
+    borderWidth: 1,
+    borderColor: "#F6D1D1",
+    paddingHorizontal: 9,
+    paddingVertical: 7,
+    flexDirection: "row",
+    alignItems: "center",
+  },
+  deceasedText: {
+    marginLeft: 6,
+    color: "#C44A4A",
+    fontSize: 11,
     fontWeight: "600",
-    color: Colors.primary,
+  },
+
+  bottomPad: {
+    height: 22,
   },
 });

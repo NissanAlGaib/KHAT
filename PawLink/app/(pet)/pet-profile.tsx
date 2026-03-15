@@ -23,9 +23,11 @@ import AddShotModal from "@/components/pet/AddShotModal";
 import {
   addVaccinationShot,
   getPet,
+  getPetPublicProfile,
   getPetLitters,
   getVaccinationCards,
   type Litter,
+  type PetPublicProfile,
   type VaccinationCard as VaccinationCardType,
   type VaccinationCardsResponse,
 } from "@/services/petService";
@@ -103,6 +105,8 @@ export default function PetProfileScreen() {
   const { visible, alertOptions, showAlert, hideAlert } = useAlert();
 
   const [petData, setPetData] = useState<any>(null);
+  const [publicProfile, setPublicProfile] =
+    useState<PetPublicProfile | null>(null);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState<TabKey>("overview");
   const [litters, setLitters] = useState<Litter[]>([]);
@@ -115,6 +119,8 @@ export default function PetProfileScreen() {
   );
   const [addingShotLoading, setAddingShotLoading] = useState(false);
   const [showRecordsModal, setShowRecordsModal] = useState(false);
+  const [showGalleryModal, setShowGalleryModal] = useState(false);
+  const [galleryIndex, setGalleryIndex] = useState(0);
 
   const fetchVaccinationCards = useCallback(async () => {
     try {
@@ -128,13 +134,16 @@ export default function PetProfileScreen() {
   const fetchPetData = useCallback(async () => {
     try {
       setLoading(true);
+      const petIdNum = parseInt(petId, 10);
 
-      const [pet, litterData] = await Promise.all([
-        getPet(parseInt(petId, 10)),
-        getPetLitters(parseInt(petId, 10)),
+      const [pet, publicPet, litterData] = await Promise.all([
+        getPet(petIdNum),
+        getPetPublicProfile(petIdNum).catch(() => null),
+        getPetLitters(petIdNum),
       ]);
 
       setPetData(pet);
+      setPublicProfile(publicPet);
       setLitters(Array.isArray(litterData) ? litterData : []);
     } catch (error) {
       console.error("Error fetching pet data:", error);
@@ -160,6 +169,22 @@ export default function PetProfileScreen() {
     [petData?.photos],
   );
 
+  const galleryItems = useMemo<Array<{ id: string; uri: string }>>(
+    () =>
+      photos
+        .map((photo: any, index: number) => ({
+          id: `${photo?.photo_id ?? index}`,
+          uri: getStorageUrl(photo?.photo_url),
+        }))
+        .filter(
+          (photo: { id: string; uri: string | null }): photo is {
+            id: string;
+            uri: string;
+          } => !!photo.uri,
+        ),
+    [photos],
+  );
+
   const behaviors = useMemo(
     () => (Array.isArray(petData?.behaviors) ? petData.behaviors : []),
     [petData?.behaviors],
@@ -172,8 +197,12 @@ export default function PetProfileScreen() {
 
   const breedingPartners = useMemo(
     () =>
-      Array.isArray(petData?.breeding_partners) ? petData.breeding_partners : [],
-    [petData?.breeding_partners],
+      Array.isArray(publicProfile?.breeding_partners)
+        ? publicProfile.breeding_partners
+        : Array.isArray(petData?.breeding_partners)
+          ? petData.breeding_partners
+          : [],
+    [publicProfile?.breeding_partners, petData?.breeding_partners],
   );
 
   const vaccinations = useMemo(
@@ -186,16 +215,6 @@ export default function PetProfileScreen() {
     [petData?.health_records],
   );
 
-  const ownerRating = useMemo(() => {
-    const parsed = Number(petData?.owner?.average_rating ?? 0);
-    return Number.isFinite(parsed) ? parsed : 0;
-  }, [petData?.owner?.average_rating]);
-
-  const ownerReviewCount = useMemo(() => {
-    const parsed = Number(petData?.owner?.review_count ?? 0);
-    return Number.isFinite(parsed) ? parsed : 0;
-  }, [petData?.owner?.review_count]);
-
   const matchingAvailable = useMemo(() => {
     if (typeof petData?.is_available_for_matching === "boolean") {
       return petData.is_available_for_matching;
@@ -204,13 +223,28 @@ export default function PetProfileScreen() {
   }, [petData?.is_available_for_matching, petData?.status, petData?.is_on_cooldown]);
 
   const documentStats = useMemo(() => {
-    const vaccinationStats = countDocumentsByStatus(vaccinations);
+    const latestShots = [...vaccinationCards.required, ...vaccinationCards.optional]
+      .map((card) =>
+        [...card.shots].sort((left, right) => {
+          const leftDate = left.date_administered ? new Date(left.date_administered).getTime() : 0;
+          const rightDate = right.date_administered ? new Date(right.date_administered).getTime() : 0;
+
+          if (leftDate !== rightDate) return rightDate - leftDate;
+          if (left.shot_number !== right.shot_number) return right.shot_number - left.shot_number;
+          return right.shot_id - left.shot_id;
+        })[0],
+      )
+      .filter((shot): shot is NonNullable<typeof shot> => !!shot);
+
+    const shotExpired = latestShots.filter((s) => s.is_expired).length;
+    const shotExpiringSoon = latestShots.filter((s) => s.is_expiring_soon && !s.is_expired).length;
+
     const healthStats = countDocumentsByStatus(healthRecords);
     return {
-      expiredCount: vaccinationStats.expired + healthStats.expired,
-      expiringSoonCount: vaccinationStats.expiringSoon + healthStats.expiringSoon,
+      expiredCount: shotExpired + healthStats.expired,
+      expiringSoonCount: shotExpiringSoon + healthStats.expiringSoon,
     };
-  }, [vaccinations, healthRecords]);
+  }, [vaccinationCards, healthRecords]);
 
   const calculateAge = (birthdate: string) => {
     if (!birthdate) return "-";
@@ -225,12 +259,23 @@ export default function PetProfileScreen() {
     return `${months} Month${months > 1 ? "s" : ""}`;
   };
 
+  const formatLitterDate = (birthDate?: string, birthDateFull?: string) => {
+    if (birthDateFull && birthDateFull.trim().length > 0) return birthDateFull;
+    if (!birthDate) return "Date unavailable";
+
+    const parsed = dayjs(birthDate);
+    return parsed.isValid() ? parsed.format("MMM YYYY") : "Date unavailable";
+  };
+
+  const offspringLabels = useMemo(() => {
+    const species = String(petData?.species || "").toLowerCase();
+    if (species === "dog") return { singular: "puppy", plural: "puppies" };
+    if (species === "cat") return { singular: "kitten", plural: "kittens" };
+    return { singular: "offspring", plural: "offspring" };
+  }, [petData?.species]);
+
   const handleEditInfo = () => {
-    showAlert({
-      title: "Edit Profile",
-      message: "Pet profile editing screen can be linked here.",
-      type: "info",
-    });
+    router.push(`/(pet)/edit-profile?petId=${petId}` as never);
   };
 
   const handleManageVaccinations = () => {
@@ -247,6 +292,25 @@ export default function PetProfileScreen() {
       message: "Photo upload entry can be linked here.",
       type: "info",
     });
+  };
+
+  const openGalleryViewer = (index: number) => {
+    setGalleryIndex(index);
+    setShowGalleryModal(true);
+  };
+
+  const showPreviousGalleryPhoto = () => {
+    if (galleryItems.length <= 1) return;
+    setGalleryIndex((prev) =>
+      prev === 0 ? galleryItems.length - 1 : Math.max(0, prev - 1),
+    );
+  };
+
+  const showNextGalleryPhoto = () => {
+    if (galleryItems.length <= 1) return;
+    setGalleryIndex((prev) =>
+      prev === galleryItems.length - 1 ? 0 : Math.min(galleryItems.length - 1, prev + 1),
+    );
   };
 
   const handleOpenAddShotModal = (cardId: number) => {
@@ -364,31 +428,21 @@ export default function PetProfileScreen() {
           )}
         </SectionCard>
 
-        <SectionCard icon="star-outline" title="Reviews Summary">
-          <View style={styles.reviewSummaryRow}>
-            <View style={styles.reviewPill}>
-              <Ionicons name="star" size={13} color="#F59E0B" />
-              <Text style={styles.reviewPillText}>{ownerRating.toFixed(1)}</Text>
-            </View>
-            <Text style={styles.reviewCountText}>
-              {ownerReviewCount} review{ownerReviewCount === 1 ? "" : "s"}
-            </Text>
-          </View>
-        </SectionCard>
-
         <SectionCard icon="images-outline" title="Gallery Strip">
-          {photos.length > 0 ? (
+          {galleryItems.length > 0 ? (
             <ScrollView
               horizontal
               showsHorizontalScrollIndicator={false}
               contentContainerStyle={styles.galleryStripRow}
             >
-              {photos.slice(0, 8).map((photo: any) => (
-                <Image
-                  key={`${photo.photo_id}`}
-                  source={{ uri: getStorageUrl(photo.photo_url) || undefined }}
-                  style={styles.galleryStripImage}
-                />
+              {galleryItems.slice(0, 8).map((photo, index) => (
+                <TouchableOpacity
+                  key={photo.id}
+                  activeOpacity={0.9}
+                  onPress={() => openGalleryViewer(index)}
+                >
+                  <Image source={{ uri: photo.uri }} style={styles.galleryStripImage} />
+                </TouchableOpacity>
               ))}
             </ScrollView>
           ) : (
@@ -447,29 +501,6 @@ export default function PetProfileScreen() {
             </>
           ) : (
             <Text style={styles.cardBodyText}>No vaccination cards on file.</Text>
-          )}
-        </SectionCard>
-
-        <SectionCard icon="document-text-outline" title="Vaccination Records">
-          {vaccinations.length > 0 ? (
-            vaccinations.map((vaccination: any, index: number) => {
-              const status = getDocumentStatus(vaccination?.expiration_date);
-              return (
-                <DocumentRow
-                  key={`vacc-${index}`}
-                  title={vaccination?.vaccine_name || "Vaccination"}
-                  expiry={vaccination?.expiration_date}
-                  status={status}
-                  onResubmit={
-                    status === "expired"
-                      ? () => handleResubmitVaccination(vaccination)
-                      : undefined
-                  }
-                />
-              );
-            })
-          ) : (
-            <Text style={styles.cardBodyText}>No vaccination records.</Text>
           )}
         </SectionCard>
 
@@ -560,34 +591,96 @@ export default function PetProfileScreen() {
 
         <SectionCard icon="list-outline" title="Litter History">
           {litters.length > 0 ? (
-            litters.map((litter) => (
-              <TouchableOpacity
-                key={`${litter.litter_id}`}
-                style={styles.litterCard}
-                onPress={() =>
-                  router.push(`/(pet)/litter-detail?id=${litter.litter_id}`)
-                }
-              >
-                <View style={styles.litterHeader}>
-                  <View style={styles.litterHeaderLeft}>
-                    <Text style={styles.litterTitle}>{litter.title}</Text>
-                    <Text style={styles.litterMeta}>
-                      {dayjs(litter.birth_date).format("MMM D, YYYY")}
-                    </Text>
+            litters.map((litter, index) => {
+              const offspringCount = litter.offspring.total;
+              const offspringLabel = `${offspringCount} ${
+                offspringCount === 1
+                  ? offspringLabels.singular
+                  : offspringLabels.plural
+              }`;
+
+              return (
+                <TouchableOpacity
+                  key={`${litter.litter_id}`}
+                  style={styles.litterCard}
+                  onPress={() =>
+                    router.push(`/(pet)/litter-detail?id=${litter.litter_id}`)
+                  }
+                >
+                  <View style={styles.litterHeaderBox}>
+                    <View style={styles.litterHeaderLeftWrap}>
+                      <View style={styles.litterOrderBadge}>
+                        <Text style={styles.litterOrderBadgeText}>{index + 1}</Text>
+                      </View>
+
+                      <View style={styles.litterTopLeft}>
+                        <Text style={styles.litterTitle}>{litter.title}</Text>
+                        <Text style={styles.litterMeta}>
+                          {`${formatLitterDate(litter.birth_date, litter.birth_date_full)} · ${offspringLabel}`}
+                        </Text>
+                      </View>
+                    </View>
+
+                    <View style={styles.litterBadge}>
+                      <Text style={styles.litterBadgeText}>{offspringLabel}</Text>
+                    </View>
+
+                    <Feather name="chevron-right" size={18} color="#A8A2B3" />
                   </View>
 
-                  <View style={styles.litterBadge}>
-                    <Text style={styles.litterBadgeText}>
-                      {litter.offspring.total} offspring
-                    </Text>
-                  </View>
-                </View>
+                  <View style={styles.litterOffspringRow}>
+                    {(Array.isArray(litter.offspring_details)
+                      ? litter.offspring_details
+                      : []
+                    )
+                      .slice(0, 5)
+                      .map((off) => (
+                        <View
+                          key={`${litter.litter_id}-${off.offspring_id}`}
+                          style={styles.offspringPreviewItem}
+                        >
+                          <View style={styles.offspringCircleWrap}>
+                            {off.photo_url ? (
+                              <Image
+                                source={{ uri: getStorageUrl(off.photo_url) || undefined }}
+                                style={styles.offspringCircleImage}
+                              />
+                            ) : (
+                              <View style={styles.offspringCircleFallback}>
+                                <Ionicons name="paw" size={18} color="#D18C53" />
+                              </View>
+                            )}
+                          </View>
 
-                <Text style={styles.litterSubMeta}>
-                  {litter.offspring.male} male / {litter.offspring.female} female
-                </Text>
-              </TouchableOpacity>
-            ))
+                          <Text style={styles.offspringPreviewName} numberOfLines={1}>
+                            {off.name || "Unnamed"}
+                          </Text>
+
+                          <View
+                            style={[
+                              styles.offspringSexBadge,
+                              String(off.sex).toLowerCase() === "male"
+                                ? styles.offspringSexBadgeMale
+                                : styles.offspringSexBadgeFemale,
+                            ]}
+                          >
+                            <Text
+                              style={[
+                                styles.offspringSexText,
+                                String(off.sex).toLowerCase() === "male"
+                                  ? styles.offspringSexTextMale
+                                  : styles.offspringSexTextFemale,
+                              ]}
+                            >
+                              {String(off.sex).toLowerCase() === "male" ? "M" : "F"}
+                            </Text>
+                          </View>
+                        </View>
+                      ))}
+                  </View>
+                </TouchableOpacity>
+              );
+            })
           ) : (
             <Text style={styles.cardBodyText}>No litters recorded yet.</Text>
           )}
@@ -599,15 +692,17 @@ export default function PetProfileScreen() {
   const renderGalleryTab = () => {
     return (
       <View style={styles.tabContent}>
-        {photos.length > 0 ? (
+        {galleryItems.length > 0 ? (
           <View style={styles.galleryGrid}>
-            {photos.map((photo: any, index: number) => (
-              <View key={`photo-${index}`} style={styles.galleryTile}>
-                <Image
-                  source={{ uri: getStorageUrl(photo.photo_url) || undefined }}
-                  style={styles.galleryImage}
-                />
-              </View>
+            {galleryItems.map((photo, index) => (
+              <TouchableOpacity
+                key={`photo-${photo.id}`}
+                style={styles.galleryTile}
+                activeOpacity={0.9}
+                onPress={() => openGalleryViewer(index)}
+              >
+                <Image source={{ uri: photo.uri }} style={styles.galleryImage} />
+              </TouchableOpacity>
             ))}
 
             <TouchableOpacity style={styles.galleryAddTile} onPress={handleAddPhoto}>
@@ -667,6 +762,7 @@ export default function PetProfileScreen() {
                   uri:
                     getStorageUrl(petData.profile_image) ||
                     getStorageUrl(photos.find((p: any) => p?.is_primary)?.photo_url) ||
+                    galleryItems[0]?.uri ||
                     undefined,
                 }}
                 style={styles.avatar}
@@ -777,6 +873,55 @@ export default function PetProfileScreen() {
           {renderTabContent()}
         </View>
       </ScrollView>
+
+      <Modal
+        visible={showGalleryModal}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setShowGalleryModal(false)}
+      >
+        <SafeAreaView style={styles.galleryModalOverlay} edges={["top", "bottom"]}>
+          <View style={styles.galleryModalHeader}>
+            <Text style={styles.galleryModalCounter}>
+              {galleryItems.length > 0 ? `${galleryIndex + 1}/${galleryItems.length}` : "0/0"}
+            </Text>
+            <TouchableOpacity
+              style={styles.galleryModalCloseButton}
+              onPress={() => setShowGalleryModal(false)}
+            >
+              <Ionicons name="close" size={24} color="#FFFFFF" />
+            </TouchableOpacity>
+          </View>
+
+          <View style={styles.galleryModalImageWrap}>
+            {galleryItems[galleryIndex]?.uri ? (
+              <Image
+                source={{ uri: galleryItems[galleryIndex].uri }}
+                style={styles.galleryModalImage}
+                resizeMode="contain"
+              />
+            ) : null}
+          </View>
+
+          {galleryItems.length > 1 ? (
+            <View style={styles.galleryModalNavRow}>
+              <TouchableOpacity
+                style={styles.galleryModalNavButton}
+                onPress={showPreviousGalleryPhoto}
+              >
+                <Feather name="chevron-left" size={20} color="#FFFFFF" />
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={styles.galleryModalNavButton}
+                onPress={showNextGalleryPhoto}
+              >
+                <Feather name="chevron-right" size={20} color="#FFFFFF" />
+              </TouchableOpacity>
+            </View>
+          ) : null}
+        </SafeAreaView>
+      </Modal>
 
       <Modal
         visible={showRecordsModal}
@@ -1011,7 +1156,7 @@ const styles = StyleSheet.create({
   },
 
   heroHeader: {
-    height: 360,
+    height: 388,
     overflow: "hidden",
   },
   heroTopRow: {
@@ -1063,11 +1208,11 @@ const styles = StyleSheet.create({
   },
   petName: {
     textAlign: "center",
-    fontSize: 48,
+    fontSize: 42,
     fontWeight: "700",
     color: "#FFFFFF",
     marginTop: 12,
-    lineHeight: 52,
+    lineHeight: 46,
   },
   petSubTitle: {
     textAlign: "center",
@@ -1083,6 +1228,7 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     marginTop: 14,
     flexWrap: "wrap",
+    paddingHorizontal: 8,
   },
   headerChip: {
     flexDirection: "row",
@@ -1104,11 +1250,11 @@ const styles = StyleSheet.create({
   },
 
   contentTopWrap: {
-    marginTop: -18,
+    marginTop: -10,
     borderTopLeftRadius: 34,
     borderTopRightRadius: 34,
     backgroundColor: "#F8F1EF",
-    paddingTop: 14,
+    paddingTop: 18,
     paddingHorizontal: 16,
     paddingBottom: 20,
   },
@@ -1195,16 +1341,19 @@ const styles = StyleSheet.create({
   },
   featureBody: {
     marginLeft: 9,
+    flex: 1,
   },
   featureTitle: {
     fontSize: 14,
     fontWeight: "700",
     color: "#2F2B3A",
+    flexShrink: 1,
   },
   featureSubTitle: {
     fontSize: 11,
     marginTop: 1,
     color: "#7EA89A",
+    flexShrink: 1,
   },
 
   tabsWrap: {
@@ -1324,30 +1473,6 @@ const styles = StyleSheet.create({
   },
   tagTextSun: {
     color: "#A58B34",
-  },
-
-  reviewSummaryRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-  },
-  reviewPill: {
-    borderRadius: 999,
-    backgroundColor: "#FFF4D6",
-    paddingHorizontal: 12,
-    paddingVertical: 7,
-    flexDirection: "row",
-    alignItems: "center",
-  },
-  reviewPillText: {
-    marginLeft: 5,
-    color: "#A16207",
-    fontWeight: "700",
-  },
-  reviewCountText: {
-    color: "#6E6B77",
-    fontSize: 13,
-    fontWeight: "600",
   },
 
   galleryStripRow: {
@@ -1553,47 +1678,133 @@ const styles = StyleSheet.create({
   },
 
   litterCard: {
-    borderRadius: 12,
+    borderRadius: 16,
     borderWidth: 1,
     borderColor: "#F1DDD3",
     backgroundColor: "#FFFFFF",
-    padding: 10,
     marginBottom: 8,
+    overflow: "hidden",
   },
-  litterHeader: {
+  litterHeaderBox: {
+    backgroundColor: "#FFF3EE",
+    borderBottomWidth: 1,
+    borderBottomColor: "#F1DDD3",
+    paddingHorizontal: 10,
+    paddingVertical: 10,
     flexDirection: "row",
-    justifyContent: "space-between",
     alignItems: "center",
   },
-  litterHeaderLeft: {
+  litterHeaderLeftWrap: {
     flex: 1,
-    marginRight: 8,
+    flexDirection: "row",
+    alignItems: "center",
+  },
+  litterOrderBadge: {
+    width: 40,
+    height: 40,
+    borderRadius: 12,
+    backgroundColor: "#FF9A67",
+    alignItems: "center",
+    justifyContent: "center",
+    marginRight: 10,
+  },
+  litterOrderBadgeText: {
+    color: "#FFFFFF",
+    fontSize: 24,
+    fontWeight: "700",
+  },
+  litterTopLeft: {
+    flex: 1,
+    marginRight: 6,
   },
   litterTitle: {
-    fontSize: 14,
+    fontSize: 16,
     color: "#3B3645",
     fontWeight: "700",
   },
   litterMeta: {
     marginTop: 2,
-    fontSize: 11,
+    fontSize: 12,
     color: "#9A97A3",
   },
   litterBadge: {
     borderRadius: 999,
-    backgroundColor: "#FFF3EE",
-    paddingHorizontal: 10,
-    paddingVertical: 5,
+    backgroundColor: "#DCF7EE",
+    paddingHorizontal: 12,
+    paddingVertical: 7,
+    marginRight: 8,
   },
   litterBadgeText: {
-    color: "#DD6B3F",
+    color: "#3FA58C",
+    fontSize: 12,
+    fontWeight: "700",
+  },
+  litterOffspringRow: {
+    minHeight: 106,
+    flexDirection: "row",
+    alignItems: "flex-start",
+    paddingHorizontal: 10,
+    paddingVertical: 10,
+  },
+  offspringPreviewItem: {
+    width: 86,
+    marginRight: 8,
+    alignItems: "center",
+  },
+  offspringCircleWrap: {
+    width: 56,
+    height: 56,
+    borderRadius: 28,
+    borderWidth: 2,
+    borderColor: "#FFD6C2",
+    overflow: "hidden",
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: "#FFF4EE",
+  },
+  offspringCircleImage: {
+    width: "100%",
+    height: "100%",
+  },
+  offspringCircleFallback: {
+    width: "100%",
+    height: "100%",
+    backgroundColor: "#FFDDBB",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  offspringPreviewName: {
+    marginTop: 6,
+    fontSize: 12,
+    fontWeight: "700",
+    color: "#5B5764",
+    textAlign: "center",
+  },
+  offspringSexBadge: {
+    marginTop: 5,
+    borderRadius: 999,
+    paddingHorizontal: 14,
+    paddingVertical: 4,
+    minWidth: 50,
+    alignItems: "center",
+  },
+  offspringSexBadgeMale: {
+    backgroundColor: "#DDEAFE",
+  },
+  offspringSexBadgeFemale: {
+    backgroundColor: "#FCE2EE",
+    borderWidth: 1,
+    borderColor: "#EC6BA5",
+  },
+  offspringSexText: {
     fontSize: 11,
     fontWeight: "700",
   },
-  litterSubMeta: {
-    marginTop: 7,
-    fontSize: 11,
-    color: "#6E6B77",
+  offspringSexTextMale: {
+    color: "#6EA0D1",
+  },
+  offspringSexTextFemale: {
+    color: "#E55C97",
   },
 
   galleryGrid: {
@@ -1655,6 +1866,54 @@ const styles = StyleSheet.create({
   modalScreen: {
     flex: 1,
     backgroundColor: "#F8F1EF",
+  },
+  galleryModalOverlay: {
+    flex: 1,
+    backgroundColor: "rgba(12, 9, 18, 0.96)",
+  },
+  galleryModalHeader: {
+    paddingHorizontal: 16,
+    paddingTop: 8,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+  },
+  galleryModalCounter: {
+    color: "#FFFFFF",
+    fontSize: 13,
+    fontWeight: "700",
+  },
+  galleryModalCloseButton: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: "rgba(255,255,255,0.2)",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  galleryModalImageWrap: {
+    flex: 1,
+    alignItems: "center",
+    justifyContent: "center",
+    paddingHorizontal: 12,
+  },
+  galleryModalImage: {
+    width: "100%",
+    height: "100%",
+  },
+  galleryModalNavRow: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    paddingHorizontal: 16,
+    paddingBottom: 14,
+  },
+  galleryModalNavButton: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: "rgba(255,255,255,0.22)",
+    alignItems: "center",
+    justifyContent: "center",
   },
   modalHeader: {
     backgroundColor: "#FFFFFF",

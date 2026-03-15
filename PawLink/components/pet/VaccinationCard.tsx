@@ -21,6 +21,8 @@ interface VaccinationCardProps {
 
 const getStatusColor = (status: string) => {
   switch (status) {
+    case "expiring_soon":
+      return Colors.warning;
     case "completed":
     case "verified":
       return Colors.success;
@@ -40,6 +42,8 @@ const getStatusColor = (status: string) => {
 
 const getStatusIcon = (status: string): keyof typeof Ionicons.glyphMap => {
   switch (status) {
+    case "expiring_soon":
+      return "time";
     case "completed":
     case "verified":
       return "checkmark-circle";
@@ -57,6 +61,28 @@ const getStatusIcon = (status: string): keyof typeof Ionicons.glyphMap => {
     default:
       return "ellipse-outline";
   }
+};
+
+const getLatestShot = (shots: VaccinationShot[]) => {
+  if (!Array.isArray(shots) || shots.length === 0) return null;
+
+  return [...shots].sort((left, right) => {
+    const leftDate = left.date_administered ? new Date(left.date_administered).getTime() : 0;
+    const rightDate = right.date_administered ? new Date(right.date_administered).getTime() : 0;
+
+    if (leftDate !== rightDate) return rightDate - leftDate;
+    if (left.shot_number !== right.shot_number) return right.shot_number - left.shot_number;
+    return right.shot_id - left.shot_id;
+  })[0];
+};
+
+const getCardStatusColor = (card: VaccinationCardType) => {
+  const latestShot = getLatestShot(card.shots);
+
+  if (latestShot?.is_expired) return Colors.error;
+  if (latestShot?.is_expiring_soon) return Colors.warning;
+
+  return getStatusColor(card.status);
 };
 
 const ShotItem = ({ shot, isLast }: { shot: VaccinationShot; isLast: boolean }) => {
@@ -81,9 +107,11 @@ const ShotItem = ({ shot, isLast }: { shot: VaccinationShot; isLast: boolean }) 
           </Text>
           <View style={[styles.statusBadge, { backgroundColor: `${statusColor}20` }]}>
             <Text style={[styles.statusBadgeText, { color: statusColor }]}>
-              {shot.display_status === 'pending_approval' 
-                ? 'Pending Approval' 
-                : shot.display_status.charAt(0).toUpperCase() + shot.display_status.slice(1)}
+              {shot.display_status === 'pending_approval'
+                ? 'Pending Approval'
+                : shot.display_status === 'expiring_soon'
+                  ? 'Expiring Soon'
+                  : shot.display_status.charAt(0).toUpperCase() + shot.display_status.slice(1)}
             </Text>
           </View>
         </View>
@@ -111,7 +139,7 @@ export default function VaccinationCardComponent({
   isExpanded = false,
 }: VaccinationCardProps) {
   const [expanded, setExpanded] = React.useState(isExpanded);
-  const statusColor = getStatusColor(card.status);
+  const statusColor = getCardStatusColor(card);
 
   // Always allow adding shots - users may need boosters or have incomplete historical records
   const canAddShot = true;
@@ -165,7 +193,7 @@ export default function VaccinationCardComponent({
         </View>
         
         <View style={styles.headerRight}>
-          {onEdit && (
+          {onEdit && !card.is_required && (
             <TouchableOpacity
               style={styles.editButton}
               onPress={(e) => {

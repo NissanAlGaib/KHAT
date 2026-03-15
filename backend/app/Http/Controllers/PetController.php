@@ -11,7 +11,6 @@ use App\Models\PetPhoto;
 use App\Models\PartnerPreference;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Validation\Rule;
 
@@ -348,6 +347,156 @@ class PetController extends Controller
         $petArray = $this->addCooldownInfo($pet, $pet->toArray());
 
         return response()->json(['pet' => $petArray]);
+    }
+
+    /**
+     * Update the specified pet.
+     */
+    public function update(Request $request, $id)
+    {
+        $pet = Pet::with('partnerPreferences')
+            ->where('user_id', Auth::id())
+            ->findOrFail($id);
+
+        $validated = $request->validate([
+            'name' => 'required|string|max:255',
+            'sex' => ['required', Rule::in(['male', 'female'])],
+            'birthdate' => 'required|date|before:today',
+            'microchip' => [
+                'nullable',
+                'string',
+                'max:255',
+                Rule::unique('pets', 'microchip_id')->ignore($pet->pet_id, 'pet_id'),
+            ],
+            'height' => 'required|numeric|min:0|max:999.99',
+            'weight' => 'required|numeric|min:0|max:999.99',
+            'has_been_bred' => 'boolean',
+            'breeding_count' => 'required_if:has_been_bred,true|nullable|integer|min:0',
+            'behaviors' => 'required|array|min:1',
+            'behaviors.*' => 'string',
+            'behavior_tags' => 'nullable|string',
+            'attributes' => 'required|array|min:1',
+            'attributes.*' => 'string',
+            'attribute_tags' => 'nullable|string',
+            'description' => 'required|string|max:200',
+            'preferred_breed' => 'nullable|string|max:255',
+            'partner_behaviors' => 'nullable|array',
+            'partner_behaviors.*' => 'string',
+            'partner_behavior_tags' => 'nullable|string',
+            'partner_attributes' => 'nullable|array',
+            'partner_attributes.*' => 'string',
+            'partner_attribute_tags' => 'nullable|string',
+            'min_age' => 'nullable|integer|min:0',
+            'max_age' => 'nullable|integer|min:0|gte:min_age',
+        ], [
+            'name.required' => 'Pet name is required.',
+            'sex.required' => 'Please select a sex.',
+            'sex.in' => 'Sex must be either male or female.',
+            'birthdate.required' => 'Birthdate is required.',
+            'birthdate.before' => 'Birthdate must be in the past.',
+            'height.required' => 'Height is required.',
+            'height.numeric' => 'Height must be a number.',
+            'weight.required' => 'Weight is required.',
+            'weight.numeric' => 'Weight must be a number.',
+            'breeding_count.required_if' => 'Breeding count is required when pet has been bred.',
+            'behaviors.required' => 'Please select at least one behavior.',
+            'behaviors.min' => 'Please select at least one behavior.',
+            'attributes.required' => 'Please select at least one attribute.',
+            'attributes.min' => 'Please select at least one attribute.',
+            'description.required' => 'Description is required.',
+            'description.max' => 'Description cannot exceed 200 characters.',
+            'max_age.gte' => 'Maximum age must be greater than or equal to minimum age.',
+        ]);
+
+        try {
+            DB::beginTransaction();
+
+            $allBehaviors = $validated['behaviors'];
+            if (!empty($validated['behavior_tags'])) {
+                $customBehaviors = array_map('trim', explode(',', $validated['behavior_tags']));
+                $customBehaviors = array_filter($customBehaviors);
+                $allBehaviors = array_values(array_unique(array_merge($allBehaviors, $customBehaviors)));
+            }
+
+            $allAttributes = $validated['attributes'];
+            if (!empty($validated['attribute_tags'])) {
+                $customAttributes = array_map('trim', explode(',', $validated['attribute_tags']));
+                $customAttributes = array_filter($customAttributes);
+                $allAttributes = array_values(array_unique(array_merge($allAttributes, $customAttributes)));
+            }
+
+            $pet->update([
+                'name' => $validated['name'],
+                'sex' => $validated['sex'],
+                'birthdate' => $validated['birthdate'],
+                'microchip_id' => $validated['microchip'] ?? null,
+                'height' => $validated['height'],
+                'weight' => $validated['weight'],
+                'description' => $validated['description'],
+                'has_been_bred' => $validated['has_been_bred'] ?? false,
+                'breeding_count' => $validated['breeding_count'] ?? 0,
+                'behaviors' => $allBehaviors,
+                'attributes' => $allAttributes,
+            ]);
+
+            $partnerBehaviors = $validated['partner_behaviors'] ?? [];
+            if (!empty($validated['partner_behavior_tags'])) {
+                $customBehaviors = array_map('trim', explode(',', $validated['partner_behavior_tags']));
+                $customBehaviors = array_filter($customBehaviors);
+                $partnerBehaviors = array_values(array_unique(array_merge($partnerBehaviors, $customBehaviors)));
+            }
+
+            $partnerAttributes = $validated['partner_attributes'] ?? [];
+            if (!empty($validated['partner_attribute_tags'])) {
+                $customAttributes = array_map('trim', explode(',', $validated['partner_attribute_tags']));
+                $customAttributes = array_filter($customAttributes);
+                $partnerAttributes = array_values(array_unique(array_merge($partnerAttributes, $customAttributes)));
+            }
+
+            $hasPreferences =
+                !empty($validated['preferred_breed']) ||
+                !empty($partnerBehaviors) ||
+                !empty($partnerAttributes) ||
+                array_key_exists('min_age', $validated) && $validated['min_age'] !== null ||
+                array_key_exists('max_age', $validated) && $validated['max_age'] !== null;
+
+            $preference = $pet->partnerPreferences->first();
+
+            if ($hasPreferences) {
+                $payload = [
+                    'preferred_breed' => $validated['preferred_breed'] ?? null,
+                    'preferred_behaviors' => !empty($partnerBehaviors) ? $partnerBehaviors : null,
+                    'preferred_attributes' => !empty($partnerAttributes) ? $partnerAttributes : null,
+                    'min_age' => $validated['min_age'] ?? null,
+                    'max_age' => $validated['max_age'] ?? null,
+                ];
+
+                if ($preference) {
+                    $preference->update($payload);
+                } else {
+                    PartnerPreference::create(array_merge(['pet_id' => $pet->pet_id], $payload));
+                }
+            } elseif ($preference) {
+                $preference->delete();
+            }
+
+            DB::commit();
+
+            $pet->load(['photos', 'vaccinations', 'healthRecords', 'partnerPreferences', 'owner']);
+            $petArray = $this->addCooldownInfo($pet, $pet->toArray());
+
+            return response()->json([
+                'message' => 'Pet profile updated successfully',
+                'pet' => $petArray,
+            ]);
+        } catch (\Exception $e) {
+            DB::rollBack();
+
+            return response()->json([
+                'message' => 'Failed to update pet profile',
+                'error' => $e->getMessage(),
+            ], 500);
+        }
     }
 
     /**

@@ -7,11 +7,12 @@ import {
   ActivityIndicator,
   StyleSheet,
   RefreshControl,
+  Platform,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Feather, Ionicons } from "@expo/vector-icons";
 import { useRouter, useLocalSearchParams } from "expo-router";
-import { LinearGradient } from "expo-linear-gradient";
+import BubbleBackgroundRe from "@/components/app/BubbleBackground";
 import { useAlert } from "@/hooks/useAlert";
 import AlertModal from "@/components/core/AlertModal";
 import StyledModal from "@/components/core/StyledModal";
@@ -60,6 +61,8 @@ export default function VaccinationsScreen() {
   const [showEditProtocolModal, setShowEditProtocolModal] = useState(false);
   const [editingCard, setEditingCard] = useState<VaccinationCard | null>(null);
   const [changingProtocol, setChangingProtocol] = useState(false);
+
+  const [activeTab, setActiveTab] = useState<"required" | "optional">("required");
 
   const fetchData = useCallback(async () => {
     try {
@@ -156,6 +159,15 @@ export default function VaccinationsScreen() {
     const allCards = [...vaccinationCards.required, ...vaccinationCards.optional];
     const card = allCards.find((c) => c.card_id === cardId);
     if (card) {
+      if (card.is_required) {
+        showAlert({
+          title: "Unavailable",
+          message: "Required vaccine protocols can't be changed.",
+          type: "info",
+        });
+        return;
+      }
+
       setEditingCard(card);
       setShowEditProtocolModal(true);
     }
@@ -209,27 +221,6 @@ export default function VaccinationsScreen() {
 
   return (
     <SafeAreaView style={styles.container} edges={["top"]}>
-      {/* Header */}
-      <LinearGradient colors={["#FF6B4A", "#FF9A8B"]} style={styles.header}>
-        <View style={styles.headerContent}>
-          <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
-            <Feather name="arrow-left" size={24} color="white" />
-          </TouchableOpacity>
-          <View style={styles.headerTextContainer}>
-            <Text style={styles.headerTitle}>Vaccinations</Text>
-            <Text style={styles.headerSubtitle}>{petName}</Text>
-          </View>
-          {availableProtocols.available.length > 0 && (
-            <TouchableOpacity
-              onPress={() => setShowOptInModal(true)}
-              style={styles.addButton}
-            >
-              <Feather name="plus" size={24} color="white" />
-            </TouchableOpacity>
-          )}
-        </View>
-      </LinearGradient>
-
       <ScrollView
         style={styles.scrollView}
         contentContainerStyle={styles.scrollContent}
@@ -238,104 +229,172 @@ export default function VaccinationsScreen() {
           <RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={["#FF6B4A"]} />
         }
       >
-        {/* Import History Banner */}
-        {showImportBanner && (
-          <TouchableOpacity
-            style={styles.importBanner}
-            onPress={() => router.push({
-              pathname: "/(pet)/import-history",
-              params: { petId }
-            })}
-          >
-            <Ionicons name="time-outline" size={24} color="#3B82F6" />
-            <View style={styles.importBannerText}>
-              <Text style={styles.importBannerTitle}>Import Past Records</Text>
-              <Text style={styles.importBannerSubtitle}>
-                Add vaccination records from before you started using the app
-              </Text>
-            </View>
-            <Ionicons name="chevron-forward" size={20} color="#3B82F6" />
-          </TouchableOpacity>
-        )}
+        {/* Hero Header */}
+        <View style={styles.heroHeader}>
+          <View style={StyleSheet.absoluteFillObject}>
+            <BubbleBackgroundRe
+              backgroundColor="#F98D67"
+              bubbleColor="rgba(255, 192, 170, 0.32)"
+              bigCount={3}
+              smallCount={5}
+            />
+          </View>
 
-        {/* Stats Summary */}
-        <View style={styles.statsContainer}>
-          <View style={styles.statCard}>
-            <Ionicons name="medical" size={24} color="#FF6B4A" />
-            <Text style={styles.statNumber}>{totalCards}</Text>
-            <Text style={styles.statLabel}>Total Cards</Text>
+          <View style={styles.heroTopRow}>
+            <TouchableOpacity style={styles.iconCircle} onPress={() => router.back()}>
+              <Feather name="chevron-left" size={18} color="#FFFFFF" />
+            </TouchableOpacity>
+
+            <View style={styles.heroTitleWrap}>
+              <Text style={styles.heroTitle}>Vaccinations</Text>
+              <Text style={styles.heroSubtitle}>{petName}</Text>
+            </View>
+
+            {availableProtocols.available.length > 0 ? (
+              <TouchableOpacity style={styles.iconCircle} onPress={() => setShowOptInModal(true)}>
+                <Feather name="plus" size={18} color="#FFFFFF" />
+              </TouchableOpacity>
+            ) : (
+              <View style={styles.iconSpacer} />
+            )}
           </View>
-          <View style={styles.statCard}>
-            <Ionicons name="checkmark-circle" size={24} color="#22C55E" />
-            <Text style={[styles.statNumber, { color: "#22C55E" }]}>{verifiedCards}</Text>
-            <Text style={styles.statLabel}>Verified</Text>
-          </View>
-          <View style={styles.statCard}>
-            <Ionicons name="hourglass" size={24} color="#F59E0B" />
-            <Text style={[styles.statNumber, { color: "#F59E0B" }]}>{pendingCards}</Text>
-            <Text style={styles.statLabel}>Pending</Text>
-          </View>
-          <View style={styles.statCard}>
-            <Ionicons name="alert-circle" size={24} color="#EF4444" />
-            <Text style={[styles.statNumber, { color: "#EF4444" }]}>{overdueCards}</Text>
-            <Text style={styles.statLabel}>Overdue</Text>
+
+          <View style={styles.heroCenterContent}>
+            <Text style={styles.heroBigValue}>{totalCards}</Text>
+            <Text style={styles.heroBigLabel}>TOTAL CARDS</Text>
           </View>
         </View>
 
-        {/* Required Vaccinations */}
-        <View style={styles.section}>
-          <View style={styles.sectionHeader}>
-            <Ionicons name="shield-checkmark" size={20} color="#FF6B4A" />
-            <Text style={styles.sectionTitle}>Required Vaccinations</Text>
-          </View>
-          {vaccinationCards.required.length > 0 ? (
-            vaccinationCards.required.map((card) => (
-              <VaccinationCardComponent
-                key={card.card_id}
-                card={card}
-                onAddShot={handleOpenAddShotModal}
-                onEdit={handleOpenEditProtocolModal}
-              />
-            ))
-          ) : (
-            <View style={styles.emptySection}>
-              <Text style={styles.emptyText}>No required vaccination cards</Text>
-            </View>
-          )}
-        </View>
-
-        {/* Additional Vaccinations */}
-        <View style={styles.section}>
-          <View style={styles.sectionHeader}>
-            <Ionicons name="add-circle" size={20} color="#6B7280" />
-            <Text style={styles.sectionTitle}>Additional Vaccines</Text>
-          </View>
-          {vaccinationCards.optional.length > 0 ? (
-            vaccinationCards.optional.map((card) => (
-              <VaccinationCardComponent
-                key={card.card_id}
-                card={card}
-                onAddShot={handleOpenAddShotModal}
-                onEdit={handleOpenEditProtocolModal}
-              />
-            ))
-          ) : (
-            <View style={styles.emptySection}>
-              <Text style={styles.emptyText}>No additional vaccines added</Text>
-            </View>
-          )}
-
-          {availableProtocols.available.length > 0 && (
+        {/* Content Sheet */}
+        <View style={styles.contentSheet}>
+          {/* Import History Banner */}
+          {showImportBanner && (
             <TouchableOpacity
-              style={styles.addCustomButton}
-              onPress={() => setShowOptInModal(true)}
+              style={styles.importBanner}
+              onPress={() => router.push({
+                pathname: "/(pet)/import-history",
+                params: { petId }
+              })}
             >
-              <Ionicons name="add-circle-outline" size={32} color="#FF6B4A" />
-              <Text style={styles.addCustomText}>Add Vaccine</Text>
-              <Text style={styles.addCustomSubtext}>
-                Select from available vaccine protocols
+              <Ionicons name="time-outline" size={22} color="#3B82F6" />
+              <View style={styles.importBannerText}>
+                <Text style={styles.importBannerTitle}>Import Past Records</Text>
+                <Text style={styles.importBannerSubtitle}>
+                  Add records from before using the app
+                </Text>
+              </View>
+              <Ionicons name="chevron-forward" size={18} color="#3B82F6" />
+            </TouchableOpacity>
+          )}
+
+          {/* Stats Summary Row */}
+          <View style={styles.summaryCard}>
+            <View style={styles.summaryItem}>
+              <Ionicons name="medical" size={18} color="#FF6B4A" />
+              <Text style={[styles.summaryValue, { color: "#FF6B4A" }]}>{totalCards}</Text>
+              <Text style={styles.summaryLabel}>Cards</Text>
+            </View>
+            <View style={styles.summaryDivider} />
+            <View style={styles.summaryItem}>
+              <Ionicons name="checkmark-circle" size={18} color="#22C55E" />
+              <Text style={[styles.summaryValue, { color: "#22C55E" }]}>{verifiedCards}</Text>
+              <Text style={styles.summaryLabel}>Done</Text>
+            </View>
+            <View style={styles.summaryDivider} />
+            <View style={styles.summaryItem}>
+              <Ionicons name="hourglass" size={18} color="#F59E0B" />
+              <Text style={[styles.summaryValue, { color: "#F59E0B" }]}>{pendingCards}</Text>
+              <Text style={styles.summaryLabel}>Pending</Text>
+            </View>
+            <View style={styles.summaryDivider} />
+            <View style={styles.summaryItem}>
+              <Ionicons name="alert-circle" size={18} color="#EF4444" />
+              <Text style={[styles.summaryValue, { color: "#EF4444" }]}>{overdueCards}</Text>
+              <Text style={styles.summaryLabel}>Overdue</Text>
+            </View>
+          </View>
+
+          {/* Tab Switcher */}
+          <View style={styles.tabRow}>
+            <TouchableOpacity
+              style={[styles.tabBtn, activeTab === "required" && styles.tabBtnActive]}
+              onPress={() => setActiveTab("required")}
+              activeOpacity={0.8}
+            >
+              <Ionicons
+                name="shield-checkmark"
+                size={14}
+                color={activeTab === "required" ? "#FFFFFF" : "#A0927F"}
+              />
+              <Text style={[styles.tabBtnText, activeTab === "required" && styles.tabBtnTextActive]}>
+                Required{vaccinationCards.required.length > 0 ? ` (${vaccinationCards.required.length})` : ""}
               </Text>
             </TouchableOpacity>
+            <TouchableOpacity
+              style={[styles.tabBtn, activeTab === "optional" && styles.tabBtnActive]}
+              onPress={() => setActiveTab("optional")}
+              activeOpacity={0.8}
+            >
+              <Ionicons
+                name="add-circle"
+                size={14}
+                color={activeTab === "optional" ? "#FFFFFF" : "#A0927F"}
+              />
+              <Text style={[styles.tabBtnText, activeTab === "optional" && styles.tabBtnTextActive]}>
+                Optional{vaccinationCards.optional.length > 0 ? ` (${vaccinationCards.optional.length})` : ""}
+              </Text>
+            </TouchableOpacity>
+          </View>
+
+          {/* Cards for active tab */}
+          {activeTab === "required" ? (
+            vaccinationCards.required.length > 0 ? (
+              vaccinationCards.required.map((card) => (
+                <VaccinationCardComponent
+                  key={card.card_id}
+                  card={card}
+                  onAddShot={handleOpenAddShotModal}
+                />
+              ))
+            ) : (
+              <View style={styles.emptySection}>
+                <Ionicons name="shield-outline" size={32} color="#D4CBCA" />
+                <Text style={styles.emptyTitle}>No Required Vaccines</Text>
+                <Text style={styles.emptySubtext}>All required cards will appear here.</Text>
+              </View>
+            )
+          ) : (
+            <>
+              {vaccinationCards.optional.length > 0 ? (
+                vaccinationCards.optional.map((card) => (
+                  <VaccinationCardComponent
+                    key={card.card_id}
+                    card={card}
+                    onAddShot={handleOpenAddShotModal}
+                    onEdit={handleOpenEditProtocolModal}
+                  />
+                ))
+              ) : (
+                <View style={styles.emptySection}>
+                  <Ionicons name="medical-outline" size={32} color="#D4CBCA" />
+                  <Text style={styles.emptyTitle}>No Optional Vaccines</Text>
+                  <Text style={styles.emptySubtext}>Add extra vaccines from available protocols.</Text>
+                </View>
+              )}
+
+              {availableProtocols.available.length > 0 && (
+                <TouchableOpacity
+                  style={styles.addCustomButton}
+                  onPress={() => setShowOptInModal(true)}
+                >
+                  <Ionicons name="add-circle-outline" size={28} color="#FF6B4A" />
+                  <Text style={styles.addCustomText}>Add Vaccine</Text>
+                  <Text style={styles.addCustomSubtext}>
+                    Select from available protocols
+                  </Text>
+                </TouchableOpacity>
+              )}
+            </>
           )}
         </View>
       </ScrollView>
@@ -406,7 +465,7 @@ export default function VaccinationsScreen() {
               ))
             ) : (
                <View style={styles.emptyState}>
-                  <Text style={styles.emptyText}>
+                  <Text style={styles.emptySubtext}>
                     No other protocols available.
                   </Text>
                 </View>
@@ -442,51 +501,80 @@ const styles = StyleSheet.create({
     fontSize: 16,
     color: "#6B7280",
   },
-  header: {
-    paddingBottom: 20,
-    borderBottomLeftRadius: 24,
-    borderBottomRightRadius: 24,
+  heroHeader: {
+    height: 200,
+    overflow: "hidden",
   },
-  headerContent: {
+  heroTopRow: {
     flexDirection: "row",
     alignItems: "center",
-    paddingHorizontal: 16,
+    justifyContent: "space-between",
+    paddingHorizontal: 14,
     paddingTop: 12,
   },
-  backButton: {
-    padding: 8,
+  iconCircle: {
+    width: 34,
+    height: 34,
+    borderRadius: 17,
+    backgroundColor: "rgba(255,255,255,0.26)",
+    alignItems: "center",
+    justifyContent: "center",
   },
-  headerTextContainer: {
-    flex: 1,
-    marginLeft: 12,
+  iconSpacer: {
+    width: 34,
+    height: 34,
   },
-  headerTitle: {
-    fontSize: 24,
-    fontWeight: "bold",
-    color: "white",
+  heroTitleWrap: {
+    alignItems: "center",
   },
-  headerSubtitle: {
-    fontSize: 14,
-    color: "rgba(255,255,255,0.9)",
+  heroTitle: {
+    color: "#FFFFFF",
+    fontSize: 26,
+    fontWeight: "700",
+    lineHeight: 30,
+  },
+  heroSubtitle: {
     marginTop: 2,
+    color: "rgba(255,255,255,0.9)",
+    fontSize: 13,
   },
-  addButton: {
-    padding: 8,
-    backgroundColor: "rgba(255,255,255,0.2)",
-    borderRadius: 12,
+  heroCenterContent: {
+    marginTop: 14,
+    alignItems: "center",
+  },
+  heroBigValue: {
+    color: "#FFFFFF",
+    fontSize: 40,
+    fontWeight: "700",
+    lineHeight: 44,
+  },
+  heroBigLabel: {
+    marginTop: 2,
+    color: "rgba(255,255,255,0.88)",
+    fontSize: 11,
+    fontWeight: "700",
+    letterSpacing: 0.7,
   },
   scrollView: {
     flex: 1,
   },
   scrollContent: {
-    padding: 16,
     paddingBottom: 32,
+  },
+  contentSheet: {
+    marginTop: -18,
+    borderTopLeftRadius: 28,
+    borderTopRightRadius: 28,
+    backgroundColor: "#F8F1EF",
+    paddingTop: 12,
+    paddingHorizontal: 12,
+    paddingBottom: 8,
   },
   importBanner: {
     flexDirection: "row",
     alignItems: "center",
     backgroundColor: "#EFF6FF",
-    padding: 16,
+    padding: 12,
     borderRadius: 16,
     marginBottom: 16,
     gap: 12,
@@ -506,73 +594,114 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: "#3B82F6",
   },
-  statsContainer: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    marginBottom: 24,
-  },
-  statCard: {
-    flex: 1,
-    backgroundColor: "white",
+  summaryCard: {
     borderRadius: 16,
-    padding: 16,
+    backgroundColor: "#FFFFFF",
+    borderWidth: 1,
+    borderColor: "#EEE8E6",
+    flexDirection: "row",
     alignItems: "center",
-    marginHorizontal: 4,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.05,
-    shadowRadius: 4,
-    elevation: 2,
+    marginBottom: 24,
+    overflow: "hidden",
   },
-  statNumber: {
-    fontSize: 28,
+  summaryItem: {
+    flex: 1,
+    alignItems: "center",
+    justifyContent: "center",
+    paddingVertical: 12,
+    gap: 2,
+  },
+  summaryDivider: {
+    width: 1,
+    height: 40,
+    backgroundColor: "#EEE8E6",
+  },
+  summaryValue: {
+    fontSize: 20,
     fontWeight: "bold",
     color: "#FF6B4A",
-    marginTop: 8,
+    marginTop: 3,
   },
-  statLabel: {
+  summaryLabel: {
     fontSize: 12,
     color: "#6B7280",
-    marginTop: 4,
+    fontWeight: "600",
+    marginTop: 1,
   },
-  section: {
-    marginBottom: 24,
+  tabRow: {
+    flexDirection: "row",
+    backgroundColor: "#EDE5E2",
+    borderRadius: 14,
+    padding: 3,
+    marginBottom: 14,
+    gap: 3,
   },
-  sectionHeader: {
+  tabBtn: {
+    flex: 1,
     flexDirection: "row",
     alignItems: "center",
-    marginBottom: 12,
+    justifyContent: "center",
+    gap: 5,
+    borderRadius: 11,
+    paddingVertical: 9,
+    paddingHorizontal: 6,
   },
-  sectionTitle: {
-    fontSize: 18,
-    fontWeight: "bold",
-    color: "#1F2937",
-    marginLeft: 8,
+  tabBtnActive: {
+    backgroundColor: "#FF6B4A",
+    ...Platform.select({
+      ios: {
+        shadowColor: "#FF6B4A",
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.3,
+        shadowRadius: 4,
+      },
+      android: { elevation: 3 },
+    }),
+  },
+  tabBtnText: {
+    fontSize: 13,
+    fontWeight: "600",
+    color: "#A0927F",
+  },
+  tabBtnTextActive: {
+    color: "#FFFFFF",
   },
   emptySection: {
-    backgroundColor: "white",
+    backgroundColor: "#FFFFFF",
     borderRadius: 16,
     padding: 24,
     alignItems: "center",
+    borderWidth: 1,
+    borderColor: "#EEE8E6",
+    marginBottom: 12,
   },
-  emptyText: {
-    fontSize: 14,
-    color: "#9CA3AF",
+  emptyTitle: {
+    marginTop: 10,
+    fontSize: 15,
+    fontWeight: "700",
+    color: "#5E5A68",
+  },
+  emptySubtext: {
+    marginTop: 4,
+    fontSize: 12,
+    color: "#A09AA8",
+    textAlign: "center",
   },
   addCustomButton: {
-    backgroundColor: "white",
+    backgroundColor: "#FFFFFF",
     borderRadius: 16,
     padding: 24,
     alignItems: "center",
     borderWidth: 2,
     borderColor: "#FFE4DE",
     borderStyle: "dashed",
+    marginBottom: 12,
   },
   addCustomText: {
     fontSize: 16,
     fontWeight: "600",
     color: "#FF6B4A",
-    marginTop: 12,
+    marginTop: 10,
   },
   addCustomSubtext: {
     fontSize: 13,

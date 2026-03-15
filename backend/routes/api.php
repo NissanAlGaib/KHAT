@@ -71,6 +71,7 @@ Route::middleware(['auth:sanctum'])
         Route::get('/pets/available', [PetController::class, 'getAvailablePets']);
         Route::post('/pets', [PetController::class, 'store']);
         Route::get('/pets/{id}', [PetController::class, 'show']);
+        Route::put('/pets/{id}', [PetController::class, 'update']);
         Route::get('/pets/{id}/profile', [PetController::class, 'getPublicProfile']);
         Route::post('/pets/{petId}/vaccinations/{vaccinationId}/resubmit', [PetController::class, 'resubmitVaccination']);
         Route::post('/pets/{petId}/health-records/{healthRecordId}/resubmit', [PetController::class, 'resubmitHealthRecord']);

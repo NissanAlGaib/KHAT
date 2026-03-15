@@ -234,6 +234,68 @@ export const getPet = async (id: number) => {
   return response.data.pet;
 };
 
+export interface PartnerPreferenceData {
+  preferred_breed?: string | null;
+  preferred_behaviors?: string[] | null;
+  preferred_attributes?: string[] | null;
+  min_age?: number | null;
+  max_age?: number | null;
+  preferred_sex?: "male" | "female" | "any" | null;
+}
+
+export interface PetDetails {
+  pet_id: number;
+  name: string;
+  species: string;
+  breed: string;
+  sex: "male" | "female";
+  birthdate: string;
+  microchip_id?: string | null;
+  height: number;
+  weight: number;
+  description: string;
+  has_been_bred: boolean;
+  breeding_count: number;
+  behaviors: string[];
+  attributes: string[];
+  is_available_for_matching?: boolean;
+  is_on_cooldown?: boolean;
+  partner_preferences?: PartnerPreferenceData | null;
+  partnerPreferences?: PartnerPreferenceData[];
+  photos: PetPhoto[];
+}
+
+export interface UpdatePetPayload {
+  name: string;
+  sex: "male" | "female";
+  birthdate: string;
+  microchip?: string;
+  height: string;
+  weight: string;
+  has_been_bred: boolean;
+  breeding_count?: string;
+  behaviors: string[];
+  behavior_tags?: string;
+  attributes: string[];
+  attribute_tags?: string;
+  description: string;
+  preferred_breed?: string;
+  partner_behaviors?: string[];
+  partner_behavior_tags?: string;
+  partner_attributes?: string[];
+  partner_attribute_tags?: string;
+  min_age?: string;
+  max_age?: string;
+}
+
+export const updatePet = async (
+  id: number,
+  petData: UpdatePetPayload,
+): Promise<PetDetails> => {
+  const response = await axiosInstance.put(`/api/pets/${id}`, petData);
+  return response.data.pet;
+};
+
 // New interfaces for pet profile and litters
 export interface BreedingPartner {
   pet_id: number;
