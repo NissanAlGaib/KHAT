@@ -83,6 +83,22 @@ export default function AddPetScreen() {
   const [mixedBreed2, setMixedBreed2] = useState("");
   const [activeMixedBreedField, setActiveMixedBreedField] = useState<1 | 2>(1);
 
+  // Custom tag inputs and available pools
+  const [customBehaviorInput, setCustomBehaviorInput] = useState("");
+  const [customAttributeInput, setCustomAttributeInput] = useState("");
+  const [customPartnerBehaviorInput, setCustomPartnerBehaviorInput] =
+    useState("");
+  const [customPartnerAttributeInput, setCustomPartnerAttributeInput] =
+    useState("");
+  const [extraBehaviors, setExtraBehaviors] = useState<string[]>([]);
+  const [extraAttributes, setExtraAttributes] = useState<string[]>([]);
+  const [extraPartnerBehaviors, setExtraPartnerBehaviors] = useState<string[]>(
+    [],
+  );
+  const [extraPartnerAttributes, setExtraPartnerAttributes] = useState<
+    string[]
+  >([]);
+
   // Confidence threshold (50%)
   const CONFIDENCE_THRESHOLD = 0.5;
 
@@ -406,6 +422,31 @@ export default function AddPetScreen() {
         ? prev[field].filter((v: string) => v !== value)
         : [...prev[field], value],
     }));
+  };
+
+  const addCustomTagEntry = (
+    input: string,
+    setInput: React.Dispatch<React.SetStateAction<string>>,
+    extras: string[],
+    setExtras: React.Dispatch<React.SetStateAction<string[]>>,
+    field:
+      | "behaviors"
+      | "attributes"
+      | "partnerBehaviors"
+      | "partnerAttributes",
+  ) => {
+    const normalized = input.trim().toUpperCase();
+    if (!normalized) return;
+    if (!extras.includes(normalized)) {
+      setExtras([...extras, normalized]);
+    }
+    setFormData((prev) => ({
+      ...prev,
+      [field]: prev[field].includes(normalized)
+        ? prev[field]
+        : [...prev[field], normalized],
+    }));
+    setInput("");
   };
 
   const openDatePicker = (field: string) => {
@@ -1058,6 +1099,59 @@ export default function AddPetScreen() {
               </Text>
             </TouchableOpacity>
           ))}
+          {extraBehaviors.map((tag) => (
+            <TouchableOpacity
+              key={tag}
+              style={[
+                styles.tagButton,
+                formData.behaviors.includes(tag) && styles.tagButtonActive,
+              ]}
+              onPress={() => toggleSelection("behaviors", tag)}
+            >
+              <Text
+                style={[
+                  styles.tagButtonText,
+                  formData.behaviors.includes(tag) &&
+                    styles.tagButtonTextActive,
+                ]}
+              >
+                {tag}
+              </Text>
+            </TouchableOpacity>
+          ))}
+        </View>
+        <View style={styles.customTagRow}>
+          <TextInput
+            style={styles.customTagInputField}
+            value={customBehaviorInput}
+            onChangeText={setCustomBehaviorInput}
+            placeholder="Add custom behavior..."
+            placeholderTextColor={Colors.textMuted}
+            onSubmitEditing={() =>
+              addCustomTagEntry(
+                customBehaviorInput,
+                setCustomBehaviorInput,
+                extraBehaviors,
+                setExtraBehaviors,
+                "behaviors",
+              )
+            }
+            returnKeyType="done"
+          />
+          <TouchableOpacity
+            style={styles.addTagBtn}
+            onPress={() =>
+              addCustomTagEntry(
+                customBehaviorInput,
+                setCustomBehaviorInput,
+                extraBehaviors,
+                setExtraBehaviors,
+                "behaviors",
+              )
+            }
+          >
+            <Ionicons name="add" size={18} color={Colors.white} />
+          </TouchableOpacity>
         </View>
         {validationErrors.behaviors && (
           <Text style={styles.errorText}>{validationErrors.behaviors}</Text>
@@ -1098,6 +1192,59 @@ export default function AddPetScreen() {
               </Text>
             </TouchableOpacity>
           ))}
+          {extraAttributes.map((tag) => (
+            <TouchableOpacity
+              key={tag}
+              style={[
+                styles.tagButton,
+                formData.attributes.includes(tag) && styles.tagButtonActive,
+              ]}
+              onPress={() => toggleSelection("attributes", tag)}
+            >
+              <Text
+                style={[
+                  styles.tagButtonText,
+                  formData.attributes.includes(tag) &&
+                    styles.tagButtonTextActive,
+                ]}
+              >
+                {tag}
+              </Text>
+            </TouchableOpacity>
+          ))}
+        </View>
+        <View style={styles.customTagRow}>
+          <TextInput
+            style={styles.customTagInputField}
+            value={customAttributeInput}
+            onChangeText={setCustomAttributeInput}
+            placeholder="Add custom attribute..."
+            placeholderTextColor={Colors.textMuted}
+            onSubmitEditing={() =>
+              addCustomTagEntry(
+                customAttributeInput,
+                setCustomAttributeInput,
+                extraAttributes,
+                setExtraAttributes,
+                "attributes",
+              )
+            }
+            returnKeyType="done"
+          />
+          <TouchableOpacity
+            style={styles.addTagBtn}
+            onPress={() =>
+              addCustomTagEntry(
+                customAttributeInput,
+                setCustomAttributeInput,
+                extraAttributes,
+                setExtraAttributes,
+                "attributes",
+              )
+            }
+          >
+            <Ionicons name="add" size={18} color={Colors.white} />
+          </TouchableOpacity>
         </View>
         {validationErrors.attributes && (
           <Text style={styles.errorText}>{validationErrors.attributes}</Text>
@@ -1490,6 +1637,62 @@ export default function AddPetScreen() {
               </Text>
             </TouchableOpacity>
           ))}
+          {extraPartnerBehaviors.map((tag) => (
+            <TouchableOpacity
+              key={tag}
+              style={[
+                styles.tagButton,
+                styles.tagButtonSmall,
+                formData.partnerBehaviors.includes(tag) &&
+                  styles.tagButtonActive,
+              ]}
+              onPress={() => toggleSelection("partnerBehaviors", tag)}
+            >
+              <Text
+                style={[
+                  styles.tagButtonText,
+                  styles.tagButtonTextSmall,
+                  formData.partnerBehaviors.includes(tag) &&
+                    styles.tagButtonTextActive,
+                ]}
+              >
+                {tag}
+              </Text>
+            </TouchableOpacity>
+          ))}
+        </View>
+        <View style={styles.customTagRow}>
+          <TextInput
+            style={styles.customTagInputField}
+            value={customPartnerBehaviorInput}
+            onChangeText={setCustomPartnerBehaviorInput}
+            placeholder="Add custom behavior..."
+            placeholderTextColor={Colors.textMuted}
+            onSubmitEditing={() =>
+              addCustomTagEntry(
+                customPartnerBehaviorInput,
+                setCustomPartnerBehaviorInput,
+                extraPartnerBehaviors,
+                setExtraPartnerBehaviors,
+                "partnerBehaviors",
+              )
+            }
+            returnKeyType="done"
+          />
+          <TouchableOpacity
+            style={styles.addTagBtn}
+            onPress={() =>
+              addCustomTagEntry(
+                customPartnerBehaviorInput,
+                setCustomPartnerBehaviorInput,
+                extraPartnerBehaviors,
+                setExtraPartnerBehaviors,
+                "partnerBehaviors",
+              )
+            }
+          >
+            <Ionicons name="add" size={18} color={Colors.white} />
+          </TouchableOpacity>
         </View>
       </View>
 
@@ -1520,6 +1723,62 @@ export default function AddPetScreen() {
               </Text>
             </TouchableOpacity>
           ))}
+          {extraPartnerAttributes.map((tag) => (
+            <TouchableOpacity
+              key={tag}
+              style={[
+                styles.tagButton,
+                styles.tagButtonSmall,
+                formData.partnerAttributes.includes(tag) &&
+                  styles.tagButtonActive,
+              ]}
+              onPress={() => toggleSelection("partnerAttributes", tag)}
+            >
+              <Text
+                style={[
+                  styles.tagButtonText,
+                  styles.tagButtonTextSmall,
+                  formData.partnerAttributes.includes(tag) &&
+                    styles.tagButtonTextActive,
+                ]}
+              >
+                {tag}
+              </Text>
+            </TouchableOpacity>
+          ))}
+        </View>
+        <View style={styles.customTagRow}>
+          <TextInput
+            style={styles.customTagInputField}
+            value={customPartnerAttributeInput}
+            onChangeText={setCustomPartnerAttributeInput}
+            placeholder="Add custom attribute..."
+            placeholderTextColor={Colors.textMuted}
+            onSubmitEditing={() =>
+              addCustomTagEntry(
+                customPartnerAttributeInput,
+                setCustomPartnerAttributeInput,
+                extraPartnerAttributes,
+                setExtraPartnerAttributes,
+                "partnerAttributes",
+              )
+            }
+            returnKeyType="done"
+          />
+          <TouchableOpacity
+            style={styles.addTagBtn}
+            onPress={() =>
+              addCustomTagEntry(
+                customPartnerAttributeInput,
+                setCustomPartnerAttributeInput,
+                extraPartnerAttributes,
+                setExtraPartnerAttributes,
+                "partnerAttributes",
+              )
+            }
+          >
+            <Ionicons name="add" size={18} color={Colors.white} />
+          </TouchableOpacity>
         </View>
       </View>
     </View>
@@ -2632,5 +2891,30 @@ const styles = StyleSheet.create({
   breedOptionText: {
     fontSize: 16,
     color: Colors.textPrimary,
+  },
+  customTagRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginTop: Spacing.sm,
+    gap: Spacing.sm,
+  },
+  customTagInputField: {
+    flex: 1,
+    backgroundColor: Colors.bgPrimary,
+    borderRadius: BorderRadius.lg,
+    paddingHorizontal: Spacing.md,
+    paddingVertical: Spacing.sm,
+    fontSize: 14,
+    color: Colors.textPrimary,
+    borderWidth: 1,
+    borderColor: Colors.borderLight,
+  },
+  addTagBtn: {
+    width: 40,
+    height: 40,
+    borderRadius: BorderRadius.lg,
+    backgroundColor: Colors.primary,
+    alignItems: "center",
+    justifyContent: "center",
   },
 });

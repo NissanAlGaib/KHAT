@@ -125,7 +125,10 @@ export default function PetLittersScreen() {
           </View>
 
           <View style={styles.heroTopRow}>
-            <TouchableOpacity style={styles.iconCircle} onPress={() => router.back()}>
+            <TouchableOpacity
+              style={styles.iconCircle}
+              onPress={() => router.back()}
+            >
               <Feather name="chevron-left" size={18} color="#FFFFFF" />
             </TouchableOpacity>
 
@@ -168,7 +171,8 @@ export default function PetLittersScreen() {
               </View>
               <Text style={styles.emptyTitle}>No Litters Yet</Text>
               <Text style={styles.emptySubtitle}>
-                Breeding history will appear here once your pet has recorded litters.
+                Breeding history will appear here once your pet has recorded
+                litters.
               </Text>
             </View>
           ) : (
@@ -188,14 +192,18 @@ export default function PetLittersScreen() {
                     <View style={styles.litterHeaderLeft}>
                       <View style={styles.parentPhotos}>
                         <Image
-                          source={{ uri: getImageUrl(litter.parents.sire.photo) }}
+                          source={{
+                            uri: getImageUrl(litter.parents.sire.photo),
+                          }}
                           style={[styles.parentPhoto, styles.sirePhoto]}
                         />
                         <View style={styles.heartBadge}>
                           <Feather name="heart" size={10} color="#FFFFFF" />
                         </View>
                         <Image
-                          source={{ uri: getImageUrl(litter.parents.dam.photo) }}
+                          source={{
+                            uri: getImageUrl(litter.parents.dam.photo),
+                          }}
                           style={[styles.parentPhoto, styles.damPhoto]}
                         />
                       </View>
@@ -205,7 +213,10 @@ export default function PetLittersScreen() {
                           {litter.title}
                         </Text>
                         <Text style={styles.litterDate}>
-                          {formatLitterDate(litter.birth_date, litter.birth_date_full)}
+                          {formatLitterDate(
+                            litter.birth_date,
+                            litter.birth_date_full,
+                          )}
                         </Text>
                       </View>
                     </View>
@@ -216,7 +227,9 @@ export default function PetLittersScreen() {
                         { backgroundColor: statusColor.bg },
                       ]}
                     >
-                      <Text style={[styles.statusText, { color: statusColor.text }]}>
+                      <Text
+                        style={[styles.statusText, { color: statusColor.text }]}
+                      >
                         {String(litter.status || "Unknown")}
                       </Text>
                     </View>
@@ -224,17 +237,26 @@ export default function PetLittersScreen() {
 
                   <View style={styles.statChipsRow}>
                     <View style={styles.statChip}>
-                      <Text style={styles.statChipValue}>{litter.offspring.total}</Text>
+                      <Text style={styles.statChipValue}>
+                        {litter.offspring.total}
+                      </Text>
                       <Text style={styles.statChipLabel}>Total</Text>
                     </View>
                     <View style={[styles.statChip, styles.statChipMale]}>
-                      <Text style={[styles.statChipValue, styles.statChipValueMale]}>
+                      <Text
+                        style={[styles.statChipValue, styles.statChipValueMale]}
+                      >
                         {litter.offspring.male}
                       </Text>
                       <Text style={styles.statChipLabel}>Male</Text>
                     </View>
                     <View style={[styles.statChip, styles.statChipFemale]}>
-                      <Text style={[styles.statChipValue, styles.statChipValueFemale]}>
+                      <Text
+                        style={[
+                          styles.statChipValue,
+                          styles.statChipValueFemale,
+                        ]}
+                      >
                         {litter.offspring.female}
                       </Text>
                       <Text style={styles.statChipLabel}>Female</Text>
@@ -256,12 +278,18 @@ export default function PetLittersScreen() {
                             <View style={styles.offspringCircleWrap}>
                               {offspring.photo_url ? (
                                 <Image
-                                  source={{ uri: getImageUrl(offspring.photo_url) }}
+                                  source={{
+                                    uri: getImageUrl(offspring.photo_url),
+                                  }}
                                   style={styles.offspringCircleImage}
                                 />
                               ) : (
                                 <View style={styles.offspringCircleFallback}>
-                                  <Ionicons name="paw" size={16} color="#D18C53" />
+                                  <Ionicons
+                                    name="paw"
+                                    size={16}
+                                    color="#D18C53"
+                                  />
                                 </View>
                               )}
                             </View>
@@ -282,7 +310,9 @@ export default function PetLittersScreen() {
                                     : styles.offspringSexTextFemale,
                                 ]}
                               >
-                                {String(offspring.sex).toLowerCase() === "male" ? "M" : "F"}
+                                {String(offspring.sex).toLowerCase() === "male"
+                                  ? "M"
+                                  : "F"}
                               </Text>
                             </View>
                           </View>
@@ -297,7 +327,11 @@ export default function PetLittersScreen() {
 
                   {litter.offspring.died > 0 ? (
                     <View style={styles.deceasedStrip}>
-                      <Ionicons name="warning-outline" size={13} color="#C44A4A" />
+                      <Ionicons
+                        name="warning-outline"
+                        size={13}
+                        color="#C44A4A"
+                      />
                       <Text style={styles.deceasedText}>
                         {litter.offspring.died} marked deceased in this litter.
                       </Text>

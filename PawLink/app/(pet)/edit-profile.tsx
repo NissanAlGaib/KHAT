@@ -75,13 +75,44 @@ const BREED_OPTIONS = [
   "Bengal",
 ];
 
+const TAG_ICON_MAP: Partial<Record<string, keyof typeof Ionicons.glyphMap>> = {
+  LOYAL: "heart-outline",
+  SOCIAL: "people-outline",
+  SNIFF: "search-outline",
+  SLEEPY: "moon-outline",
+  CALM: "leaf-outline",
+  BARK: "volume-high-outline",
+  SLIM: "body-outline",
+  PLAYFUL: "football-outline",
+  PROTECTIVE: "shield-outline",
+  ENERGETIC: "flash-outline",
+  GENTLE: "flower-outline",
+  INDEPENDENT: "walk-outline",
+  "SHORT COAT": "cut-outline",
+  "LONG COAT": "brush-outline",
+  CURLY: "sync-outline",
+  SPOTTED: "ellipse-outline",
+  "SOLID COLOR": "square-outline",
+  LARGE: "resize-outline",
+  SMALL: "contract-outline",
+  SHORT: "contract-outline",
+  ATHLETIC: "barbell-outline",
+  BLACK: "ellipse",
+  WHITE: "ellipse-outline",
+  FLOPPY: "hand-left-outline",
+};
+
 type ValidationErrors = Partial<Record<string, string>>;
 
 function normalizeTags(values?: string[] | null): string[] {
   if (!Array.isArray(values)) return [];
 
   const cleaned = values
-    .map((value) => String(value || "").trim().toUpperCase())
+    .map((value) =>
+      String(value || "")
+        .trim()
+        .toUpperCase(),
+    )
     .filter(Boolean);
 
   return Array.from(new Set(cleaned));
@@ -93,7 +124,10 @@ function mergeUnique(base: string[], additional: string[]): string[] {
 
 function getPartnerPreference(pet: PetDetails): PartnerPreferenceData | null {
   if (pet.partner_preferences) return pet.partner_preferences;
-  if (Array.isArray(pet.partnerPreferences) && pet.partnerPreferences.length > 0) {
+  if (
+    Array.isArray(pet.partnerPreferences) &&
+    pet.partnerPreferences.length > 0
+  ) {
     return pet.partnerPreferences[0] ?? null;
   }
   return null;
@@ -153,7 +187,11 @@ function FieldInput({
       <Text style={styles.fieldLabel}>{label}</Text>
       {isPressable ? (
         <TouchableOpacity
-          style={[styles.inputWrap, !editable && styles.inputWrapLocked, !!error && styles.inputWrapError]}
+          style={[
+            styles.inputWrap,
+            !editable && styles.inputWrapLocked,
+            !!error && styles.inputWrapError,
+          ]}
           onPress={onPress}
           activeOpacity={0.85}
         >
@@ -163,7 +201,13 @@ function FieldInput({
           {rightIcon}
         </TouchableOpacity>
       ) : (
-        <View style={[styles.inputWrap, !editable && styles.inputWrapLocked, !!error && styles.inputWrapError]}>
+        <View
+          style={[
+            styles.inputWrap,
+            !editable && styles.inputWrapLocked,
+            !!error && styles.inputWrapError,
+          ]}
+        >
           <TextInput
             style={[
               styles.inputText,
@@ -193,7 +237,9 @@ function LockedField({ label, value }: { label: string; value: string }) {
     <View style={styles.fieldBlock}>
       <Text style={styles.fieldLabel}>{label}</Text>
       <View style={[styles.inputWrap, styles.inputWrapLocked]}>
-        <Text style={[styles.inputText, styles.inputTextLocked]}>{value || "-"}</Text>
+        <Text style={[styles.inputText, styles.inputTextLocked]}>
+          {value || "-"}
+        </Text>
         <View style={styles.lockPill}>
           <Ionicons name="lock-closed-outline" size={12} color="#958D9B" />
           <Text style={styles.lockPillText}>Locked</Text>
@@ -229,6 +275,7 @@ function TagSelection({
       <View style={styles.tagsWrap}>
         {options.map((option) => {
           const isSelected = selected.includes(option);
+          const iconName = TAG_ICON_MAP[option.toUpperCase()];
 
           return (
             <TouchableOpacity
@@ -237,7 +284,16 @@ function TagSelection({
               activeOpacity={0.85}
               style={[styles.tagChip, isSelected && styles.tagChipSelected]}
             >
-              <Text style={[styles.tagText, isSelected && styles.tagTextSelected]}>
+              {iconName ? (
+                <Ionicons
+                  name={iconName}
+                  size={14}
+                  color={isSelected ? "#FFFFFF" : "#FF8C67"}
+                />
+              ) : null}
+              <Text
+                style={[styles.tagText, isSelected && styles.tagTextSelected]}
+              >
                 {option}
               </Text>
             </TouchableOpacity>
@@ -255,7 +311,11 @@ function TagSelection({
           onSubmitEditing={onAddCustom}
           returnKeyType="done"
         />
-        <TouchableOpacity style={styles.addTagButton} onPress={onAddCustom} activeOpacity={0.85}>
+        <TouchableOpacity
+          style={styles.addTagButton}
+          onPress={onAddCustom}
+          activeOpacity={0.85}
+        >
           <Ionicons name="add" size={18} color="#FFFFFF" />
         </TouchableOpacity>
       </View>
@@ -287,10 +347,14 @@ export default function EditPetProfileScreen() {
   const [weight, setWeight] = useState("");
   const [description, setDescription] = useState("");
 
-  const [availableBehaviors, setAvailableBehaviors] = useState(DEFAULT_BEHAVIORS);
-  const [availableAttributes, setAvailableAttributes] = useState(DEFAULT_ATTRIBUTES);
-  const [availablePartnerBehaviors, setAvailablePartnerBehaviors] = useState(DEFAULT_BEHAVIORS);
-  const [availablePartnerAttributes, setAvailablePartnerAttributes] = useState(DEFAULT_ATTRIBUTES);
+  const [availableBehaviors, setAvailableBehaviors] =
+    useState(DEFAULT_BEHAVIORS);
+  const [availableAttributes, setAvailableAttributes] =
+    useState(DEFAULT_ATTRIBUTES);
+  const [availablePartnerBehaviors, setAvailablePartnerBehaviors] =
+    useState(DEFAULT_BEHAVIORS);
+  const [availablePartnerAttributes, setAvailablePartnerAttributes] =
+    useState(DEFAULT_ATTRIBUTES);
 
   const [behaviors, setBehaviors] = useState<string[]>([]);
   const [attributes, setAttributes] = useState<string[]>([]);
@@ -324,8 +388,12 @@ export default function EditPetProfileScreen() {
 
         const selectedBehaviors = normalizeTags(petData.behaviors);
         const selectedAttributes = normalizeTags(petData.attributes);
-        const selectedPartnerBehaviors = normalizeTags(preference?.preferred_behaviors);
-        const selectedPartnerAttributes = normalizeTags(preference?.preferred_attributes);
+        const selectedPartnerBehaviors = normalizeTags(
+          preference?.preferred_behaviors,
+        );
+        const selectedPartnerAttributes = normalizeTags(
+          preference?.preferred_attributes,
+        );
 
         setPet(petData);
         setName(petData.name || "");
@@ -340,18 +408,31 @@ export default function EditPetProfileScreen() {
         setPartnerBehaviors(selectedPartnerBehaviors);
         setPartnerAttributes(selectedPartnerAttributes);
 
-        setAvailableBehaviors(mergeUnique(DEFAULT_BEHAVIORS, selectedBehaviors));
-        setAvailableAttributes(mergeUnique(DEFAULT_ATTRIBUTES, selectedAttributes));
-        setAvailablePartnerBehaviors(mergeUnique(DEFAULT_BEHAVIORS, selectedPartnerBehaviors));
-        setAvailablePartnerAttributes(mergeUnique(DEFAULT_ATTRIBUTES, selectedPartnerAttributes));
+        setAvailableBehaviors(
+          mergeUnique(DEFAULT_BEHAVIORS, selectedBehaviors),
+        );
+        setAvailableAttributes(
+          mergeUnique(DEFAULT_ATTRIBUTES, selectedAttributes),
+        );
+        setAvailablePartnerBehaviors(
+          mergeUnique(DEFAULT_BEHAVIORS, selectedPartnerBehaviors),
+        );
+        setAvailablePartnerAttributes(
+          mergeUnique(DEFAULT_ATTRIBUTES, selectedPartnerAttributes),
+        );
 
         setPreferredBreed(preference?.preferred_breed || "Any Breed");
-        setMinAge(preference?.min_age != null ? String(preference.min_age) : "");
-        setMaxAge(preference?.max_age != null ? String(preference.max_age) : "");
+        setMinAge(
+          preference?.min_age != null ? String(preference.min_age) : "",
+        );
+        setMaxAge(
+          preference?.max_age != null ? String(preference.max_age) : "",
+        );
       } catch (error: any) {
         showAlert({
           title: "Error",
-          message: error.response?.data?.message || "Failed to load pet profile.",
+          message:
+            error.response?.data?.message || "Failed to load pet profile.",
           type: "error",
           buttons: [{ text: "OK", onPress: () => router.back() }],
         });
@@ -419,8 +500,10 @@ export default function EditPetProfileScreen() {
     if (!birthdate) nextErrors.birthdate = "Birthdate is required";
     if (!height.trim()) nextErrors.height = "Height is required";
     if (!weight.trim()) nextErrors.weight = "Weight is required";
-    if (behaviors.length === 0) nextErrors.behaviors = "Please select at least one behavior";
-    if (attributes.length === 0) nextErrors.attributes = "Please select at least one attribute";
+    if (behaviors.length === 0)
+      nextErrors.behaviors = "Please select at least one behavior";
+    if (attributes.length === 0)
+      nextErrors.attributes = "Please select at least one attribute";
     if (!description.trim()) nextErrors.description = "Description is required";
 
     const minAgeNum = minAge.trim().length > 0 ? Number(minAge) : null;
@@ -441,7 +524,8 @@ export default function EditPetProfileScreen() {
       Number.isFinite(maxAgeNum) &&
       maxAgeNum < minAgeNum
     ) {
-      nextErrors.maxAge = "Maximum age must be greater than or equal to minimum age";
+      nextErrors.maxAge =
+        "Maximum age must be greater than or equal to minimum age";
     }
 
     setErrors(nextErrors);
@@ -463,9 +547,11 @@ export default function EditPetProfileScreen() {
       preferredBreed && preferredBreed !== "Any Breed"
         ? preferredBreed
         : undefined,
-    partner_behaviors: partnerBehaviors.length > 0 ? partnerBehaviors : undefined,
+    partner_behaviors:
+      partnerBehaviors.length > 0 ? partnerBehaviors : undefined,
     partner_behavior_tags: partnerBehaviorTags.trim() || undefined,
-    partner_attributes: partnerAttributes.length > 0 ? partnerAttributes : undefined,
+    partner_attributes:
+      partnerAttributes.length > 0 ? partnerAttributes : undefined,
     partner_attribute_tags: partnerAttributeTags.trim() || undefined,
     min_age: minAge.trim() || undefined,
     max_age: maxAge.trim() || undefined,
@@ -484,14 +570,16 @@ export default function EditPetProfileScreen() {
         buttons: [
           {
             text: "OK",
-            onPress: () => router.replace(`/(pet)/pet-profile?id=${petId}` as never),
+            onPress: () =>
+              router.replace(`/(pet)/pet-profile?id=${petId}` as never),
           },
         ],
       });
     } catch (error: any) {
       showAlert({
         title: "Error",
-        message: error.response?.data?.message || "Failed to update pet profile.",
+        message:
+          error.response?.data?.message || "Failed to update pet profile.",
         type: "error",
       });
     } finally {
@@ -551,13 +639,18 @@ export default function EditPetProfileScreen() {
           </View>
 
           <View style={styles.heroTopRow}>
-            <TouchableOpacity style={styles.iconCircle} onPress={() => router.back()}>
+            <TouchableOpacity
+              style={styles.iconCircle}
+              onPress={() => router.back()}
+            >
               <Feather name="chevron-left" size={18} color="#FFFFFF" />
             </TouchableOpacity>
 
             <View style={styles.heroTitleWrap}>
               <Text style={styles.heroTitle}>Edit Pet Profile</Text>
-              <Text style={styles.heroSubtitle}>{pet?.name || "Pet details"}</Text>
+              <Text style={styles.heroSubtitle}>
+                {pet?.name || "Pet details"}
+              </Text>
             </View>
 
             <View style={styles.iconSpacer} />
@@ -583,7 +676,9 @@ export default function EditPetProfileScreen() {
               value={birthdate ? dayjs(birthdate).format("MMM D, YYYY") : ""}
               placeholder="Select birthdate"
               onPress={() => setShowDatePicker(true)}
-              rightIcon={<Ionicons name="calendar-outline" size={18} color="#9A93A0" />}
+              rightIcon={
+                <Ionicons name="calendar-outline" size={18} color="#9A93A0" />
+              }
               error={errors.birthdate}
             />
 
@@ -684,7 +779,9 @@ export default function EditPetProfileScreen() {
               value={preferredBreed || "Any Breed"}
               placeholder="Any Breed"
               onPress={() => setShowPreferredBreedModal(true)}
-              rightIcon={<Ionicons name="chevron-down" size={18} color="#9A93A0" />}
+              rightIcon={
+                <Ionicons name="chevron-down" size={18} color="#9A93A0" />
+              }
             />
 
             <View style={styles.rowTwoCols}>
@@ -716,7 +813,9 @@ export default function EditPetProfileScreen() {
               selected={partnerBehaviors}
               customValue={partnerBehaviorTags}
               onCustomChange={setPartnerBehaviorTags}
-              onToggle={(value) => toggleTag(partnerBehaviors, setPartnerBehaviors, value)}
+              onToggle={(value) =>
+                toggleTag(partnerBehaviors, setPartnerBehaviors, value)
+              }
               onAddCustom={() =>
                 addCustomTag({
                   customValue: partnerBehaviorTags,
@@ -735,7 +834,9 @@ export default function EditPetProfileScreen() {
               selected={partnerAttributes}
               customValue={partnerAttributeTags}
               onCustomChange={setPartnerAttributeTags}
-              onToggle={(value) => toggleTag(partnerAttributes, setPartnerAttributes, value)}
+              onToggle={(value) =>
+                toggleTag(partnerAttributes, setPartnerAttributes, value)
+              }
               onAddCustom={() =>
                 addCustomTag({
                   customValue: partnerAttributeTags,
@@ -849,7 +950,7 @@ const styles = StyleSheet.create({
     paddingBottom: 28,
   },
   heroHeader: {
-    height: 184,
+    height: 120,
     overflow: "hidden",
   },
   heroTopRow: {
@@ -1018,10 +1119,13 @@ const styles = StyleSheet.create({
     flexWrap: "wrap",
   },
   tagChip: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 4,
     borderRadius: 999,
-    backgroundColor: "#F8F3F1",
+    backgroundColor: "#FFFFFF",
     borderWidth: 1,
-    borderColor: "#E9DFDA",
+    borderColor: "#FF8C67",
     paddingHorizontal: 10,
     paddingVertical: 6,
     marginRight: 6,
@@ -1032,9 +1136,9 @@ const styles = StyleSheet.create({
     borderColor: "#FF8C67",
   },
   tagText: {
-    fontSize: 11,
-    color: "#7A7381",
-    fontWeight: "700",
+    fontSize: 12,
+    color: "#FF8C67",
+    fontWeight: "600",
   },
   tagTextSelected: {
     color: "#FFFFFF",

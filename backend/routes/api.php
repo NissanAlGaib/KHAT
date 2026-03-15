@@ -73,6 +73,10 @@ Route::middleware(['auth:sanctum'])
         Route::get('/pets/{id}', [PetController::class, 'show']);
         Route::put('/pets/{id}', [PetController::class, 'update']);
         Route::get('/pets/{id}/profile', [PetController::class, 'getPublicProfile']);
+        Route::get('/pets/{petId}/photos', [PetController::class, 'listPhotos']);
+        Route::post('/pets/{petId}/photos', [PetController::class, 'addPhoto']);
+        Route::delete('/pets/{petId}/photos/{photoId}', [PetController::class, 'deletePhoto']);
+        Route::patch('/pets/{petId}/photos/{photoId}/primary', [PetController::class, 'setPrimaryPhoto']);
         Route::post('/pets/{petId}/vaccinations/{vaccinationId}/resubmit', [PetController::class, 'resubmitVaccination']);
         Route::post('/pets/{petId}/health-records/{healthRecordId}/resubmit', [PetController::class, 'resubmitHealthRecord']);
 

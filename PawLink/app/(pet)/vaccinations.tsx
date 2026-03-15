@@ -41,28 +41,34 @@ export default function VaccinationsScreen() {
   const [petName, setPetName] = useState("");
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
-  const [vaccinationCards, setVaccinationCards] = useState<VaccinationCardsResponse>({
-    required: [],
-    optional: [],
-  });
+  const [vaccinationCards, setVaccinationCards] =
+    useState<VaccinationCardsResponse>({
+      required: [],
+      optional: [],
+    });
 
   // Modal states
   const [showAddShotModal, setShowAddShotModal] = useState(false);
   const [showOptInModal, setShowOptInModal] = useState(false);
-  const [selectedCard, setSelectedCard] = useState<VaccinationCard | null>(null);
+  const [selectedCard, setSelectedCard] = useState<VaccinationCard | null>(
+    null,
+  );
   const [addingShotLoading, setAddingShotLoading] = useState(false);
 
-  const [availableProtocols, setAvailableProtocols] = useState<AvailableProtocolsResponse>({
-    enrolled: [],
-    available: [],
-  });
+  const [availableProtocols, setAvailableProtocols] =
+    useState<AvailableProtocolsResponse>({
+      enrolled: [],
+      available: [],
+    });
 
   // Edit Protocol state
   const [showEditProtocolModal, setShowEditProtocolModal] = useState(false);
   const [editingCard, setEditingCard] = useState<VaccinationCard | null>(null);
   const [changingProtocol, setChangingProtocol] = useState(false);
 
-  const [activeTab, setActiveTab] = useState<"required" | "optional">("required");
+  const [activeTab, setActiveTab] = useState<"required" | "optional">(
+    "required",
+  );
 
   const fetchData = useCallback(async () => {
     try {
@@ -99,7 +105,10 @@ export default function VaccinationsScreen() {
   };
 
   const handleOpenAddShotModal = (cardId: number) => {
-    const allCards = [...vaccinationCards.required, ...vaccinationCards.optional];
+    const allCards = [
+      ...vaccinationCards.required,
+      ...vaccinationCards.optional,
+    ];
     const card = allCards.find((c) => c.card_id === cardId);
     if (card) {
       setSelectedCard(card);
@@ -156,7 +165,10 @@ export default function VaccinationsScreen() {
   };
 
   const handleOpenEditProtocolModal = (cardId: number) => {
-    const allCards = [...vaccinationCards.required, ...vaccinationCards.optional];
+    const allCards = [
+      ...vaccinationCards.required,
+      ...vaccinationCards.optional,
+    ];
     const card = allCards.find((c) => c.card_id === cardId);
     if (card) {
       if (card.is_required) {
@@ -197,16 +209,20 @@ export default function VaccinationsScreen() {
   };
 
   // Calculate overall stats
-  const totalCards = vaccinationCards.required.length + vaccinationCards.optional.length;
-  const verifiedCards = [...vaccinationCards.required, ...vaccinationCards.optional].filter(
-    (c) => c.status === "completed"
-  ).length;
-  const pendingCards = [...vaccinationCards.required, ...vaccinationCards.optional].filter(
-    (c) => c.pending_shots_count > 0
-  ).length;
-  const overdueCards = [...vaccinationCards.required, ...vaccinationCards.optional].filter(
-    (c) => c.status === "overdue"
-  ).length;
+  const totalCards =
+    vaccinationCards.required.length + vaccinationCards.optional.length;
+  const verifiedCards = [
+    ...vaccinationCards.required,
+    ...vaccinationCards.optional,
+  ].filter((c) => c.status === "completed").length;
+  const pendingCards = [
+    ...vaccinationCards.required,
+    ...vaccinationCards.optional,
+  ].filter((c) => c.pending_shots_count > 0).length;
+  const overdueCards = [
+    ...vaccinationCards.required,
+    ...vaccinationCards.optional,
+  ].filter((c) => c.status === "overdue").length;
 
   if (loading) {
     return (
@@ -226,7 +242,11 @@ export default function VaccinationsScreen() {
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
         refreshControl={
-          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={["#FF6B4A"]} />
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={onRefresh}
+            colors={["#FF6B4A"]}
+          />
         }
       >
         {/* Hero Header */}
@@ -241,7 +261,10 @@ export default function VaccinationsScreen() {
           </View>
 
           <View style={styles.heroTopRow}>
-            <TouchableOpacity style={styles.iconCircle} onPress={() => router.back()}>
+            <TouchableOpacity
+              style={styles.iconCircle}
+              onPress={() => router.back()}
+            >
               <Feather name="chevron-left" size={18} color="#FFFFFF" />
             </TouchableOpacity>
 
@@ -251,7 +274,10 @@ export default function VaccinationsScreen() {
             </View>
 
             {availableProtocols.available.length > 0 ? (
-              <TouchableOpacity style={styles.iconCircle} onPress={() => setShowOptInModal(true)}>
+              <TouchableOpacity
+                style={styles.iconCircle}
+                onPress={() => setShowOptInModal(true)}
+              >
                 <Feather name="plus" size={18} color="#FFFFFF" />
               </TouchableOpacity>
             ) : (
@@ -271,14 +297,18 @@ export default function VaccinationsScreen() {
           {showImportBanner && (
             <TouchableOpacity
               style={styles.importBanner}
-              onPress={() => router.push({
-                pathname: "/(pet)/import-history",
-                params: { petId }
-              })}
+              onPress={() =>
+                router.push({
+                  pathname: "/(pet)/import-history",
+                  params: { petId },
+                })
+              }
             >
               <Ionicons name="time-outline" size={22} color="#3B82F6" />
               <View style={styles.importBannerText}>
-                <Text style={styles.importBannerTitle}>Import Past Records</Text>
+                <Text style={styles.importBannerTitle}>
+                  Import Past Records
+                </Text>
                 <Text style={styles.importBannerSubtitle}>
                   Add records from before using the app
                 </Text>
@@ -291,25 +321,33 @@ export default function VaccinationsScreen() {
           <View style={styles.summaryCard}>
             <View style={styles.summaryItem}>
               <Ionicons name="medical" size={18} color="#FF6B4A" />
-              <Text style={[styles.summaryValue, { color: "#FF6B4A" }]}>{totalCards}</Text>
+              <Text style={[styles.summaryValue, { color: "#FF6B4A" }]}>
+                {totalCards}
+              </Text>
               <Text style={styles.summaryLabel}>Cards</Text>
             </View>
             <View style={styles.summaryDivider} />
             <View style={styles.summaryItem}>
               <Ionicons name="checkmark-circle" size={18} color="#22C55E" />
-              <Text style={[styles.summaryValue, { color: "#22C55E" }]}>{verifiedCards}</Text>
+              <Text style={[styles.summaryValue, { color: "#22C55E" }]}>
+                {verifiedCards}
+              </Text>
               <Text style={styles.summaryLabel}>Done</Text>
             </View>
             <View style={styles.summaryDivider} />
             <View style={styles.summaryItem}>
               <Ionicons name="hourglass" size={18} color="#F59E0B" />
-              <Text style={[styles.summaryValue, { color: "#F59E0B" }]}>{pendingCards}</Text>
+              <Text style={[styles.summaryValue, { color: "#F59E0B" }]}>
+                {pendingCards}
+              </Text>
               <Text style={styles.summaryLabel}>Pending</Text>
             </View>
             <View style={styles.summaryDivider} />
             <View style={styles.summaryItem}>
               <Ionicons name="alert-circle" size={18} color="#EF4444" />
-              <Text style={[styles.summaryValue, { color: "#EF4444" }]}>{overdueCards}</Text>
+              <Text style={[styles.summaryValue, { color: "#EF4444" }]}>
+                {overdueCards}
+              </Text>
               <Text style={styles.summaryLabel}>Overdue</Text>
             </View>
           </View>
@@ -317,7 +355,10 @@ export default function VaccinationsScreen() {
           {/* Tab Switcher */}
           <View style={styles.tabRow}>
             <TouchableOpacity
-              style={[styles.tabBtn, activeTab === "required" && styles.tabBtnActive]}
+              style={[
+                styles.tabBtn,
+                activeTab === "required" && styles.tabBtnActive,
+              ]}
               onPress={() => setActiveTab("required")}
               activeOpacity={0.8}
             >
@@ -326,12 +367,23 @@ export default function VaccinationsScreen() {
                 size={14}
                 color={activeTab === "required" ? "#FFFFFF" : "#A0927F"}
               />
-              <Text style={[styles.tabBtnText, activeTab === "required" && styles.tabBtnTextActive]}>
-                Required{vaccinationCards.required.length > 0 ? ` (${vaccinationCards.required.length})` : ""}
+              <Text
+                style={[
+                  styles.tabBtnText,
+                  activeTab === "required" && styles.tabBtnTextActive,
+                ]}
+              >
+                Required
+                {vaccinationCards.required.length > 0
+                  ? ` (${vaccinationCards.required.length})`
+                  : ""}
               </Text>
             </TouchableOpacity>
             <TouchableOpacity
-              style={[styles.tabBtn, activeTab === "optional" && styles.tabBtnActive]}
+              style={[
+                styles.tabBtn,
+                activeTab === "optional" && styles.tabBtnActive,
+              ]}
               onPress={() => setActiveTab("optional")}
               activeOpacity={0.8}
             >
@@ -340,8 +392,16 @@ export default function VaccinationsScreen() {
                 size={14}
                 color={activeTab === "optional" ? "#FFFFFF" : "#A0927F"}
               />
-              <Text style={[styles.tabBtnText, activeTab === "optional" && styles.tabBtnTextActive]}>
-                Optional{vaccinationCards.optional.length > 0 ? ` (${vaccinationCards.optional.length})` : ""}
+              <Text
+                style={[
+                  styles.tabBtnText,
+                  activeTab === "optional" && styles.tabBtnTextActive,
+                ]}
+              >
+                Optional
+                {vaccinationCards.optional.length > 0
+                  ? ` (${vaccinationCards.optional.length})`
+                  : ""}
               </Text>
             </TouchableOpacity>
           </View>
@@ -360,7 +420,9 @@ export default function VaccinationsScreen() {
               <View style={styles.emptySection}>
                 <Ionicons name="shield-outline" size={32} color="#D4CBCA" />
                 <Text style={styles.emptyTitle}>No Required Vaccines</Text>
-                <Text style={styles.emptySubtext}>All required cards will appear here.</Text>
+                <Text style={styles.emptySubtext}>
+                  All required cards will appear here.
+                </Text>
               </View>
             )
           ) : (
@@ -378,7 +440,9 @@ export default function VaccinationsScreen() {
                 <View style={styles.emptySection}>
                   <Ionicons name="medical-outline" size={32} color="#D4CBCA" />
                   <Text style={styles.emptyTitle}>No Optional Vaccines</Text>
-                  <Text style={styles.emptySubtext}>Add extra vaccines from available protocols.</Text>
+                  <Text style={styles.emptySubtext}>
+                    Add extra vaccines from available protocols.
+                  </Text>
                 </View>
               )}
 
@@ -387,7 +451,11 @@ export default function VaccinationsScreen() {
                   style={styles.addCustomButton}
                   onPress={() => setShowOptInModal(true)}
                 >
-                  <Ionicons name="add-circle-outline" size={28} color="#FF6B4A" />
+                  <Ionicons
+                    name="add-circle-outline"
+                    size={28}
+                    color="#FF6B4A"
+                  />
                   <Text style={styles.addCustomText}>Add Vaccine</Text>
                   <Text style={styles.addCustomSubtext}>
                     Select from available protocols
@@ -428,9 +496,10 @@ export default function VaccinationsScreen() {
           <View>
             <Text style={styles.inputLabel}>Select New Protocol</Text>
             <Text style={styles.inputHelper}>
-              Changing the protocol will update the schedule and requirements for this vaccine.
+              Changing the protocol will update the schedule and requirements
+              for this vaccine.
             </Text>
-            
+
             {availableProtocols.available.length > 0 ? (
               availableProtocols.available.map((protocol) => (
                 <TouchableOpacity
@@ -451,9 +520,13 @@ export default function VaccinationsScreen() {
                       </View>
                     </View>
                     {changingProtocol ? (
-                       <ActivityIndicator size="small" color="#FF6B4A" />
+                      <ActivityIndicator size="small" color="#FF6B4A" />
                     ) : (
-                      <Ionicons name="chevron-forward" size={20} color="#9CA3AF" />
+                      <Ionicons
+                        name="chevron-forward"
+                        size={20}
+                        color="#9CA3AF"
+                      />
                     )}
                   </View>
                   {protocol.description && (
@@ -464,11 +537,11 @@ export default function VaccinationsScreen() {
                 </TouchableOpacity>
               ))
             ) : (
-               <View style={styles.emptyState}>
-                  <Text style={styles.emptySubtext}>
-                    No other protocols available.
-                  </Text>
-                </View>
+              <View style={styles.emptyState}>
+                <Text style={styles.emptySubtext}>
+                  No other protocols available.
+                </Text>
+              </View>
             )}
           </View>
         )}

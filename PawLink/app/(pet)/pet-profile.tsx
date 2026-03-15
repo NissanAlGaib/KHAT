@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useMemo, useState } from "react";
+﻿import React, { useCallback, useEffect, useMemo, useState } from "react";
 import {
   ActivityIndicator,
   Image,
@@ -105,8 +105,9 @@ export default function PetProfileScreen() {
   const { visible, alertOptions, showAlert, hideAlert } = useAlert();
 
   const [petData, setPetData] = useState<any>(null);
-  const [publicProfile, setPublicProfile] =
-    useState<PetPublicProfile | null>(null);
+  const [publicProfile, setPublicProfile] = useState<PetPublicProfile | null>(
+    null,
+  );
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState<TabKey>("overview");
   const [litters, setLitters] = useState<Litter[]>([]);
@@ -177,7 +178,10 @@ export default function PetProfileScreen() {
           uri: getStorageUrl(photo?.photo_url),
         }))
         .filter(
-          (photo: { id: string; uri: string | null }): photo is {
+          (photo: {
+            id: string;
+            uri: string | null;
+          }): photo is {
             id: string;
             uri: string;
           } => !!photo.uri,
@@ -211,7 +215,8 @@ export default function PetProfileScreen() {
   );
 
   const healthRecords = useMemo(
-    () => (Array.isArray(petData?.health_records) ? petData.health_records : []),
+    () =>
+      Array.isArray(petData?.health_records) ? petData.health_records : [],
     [petData?.health_records],
   );
 
@@ -220,24 +225,39 @@ export default function PetProfileScreen() {
       return petData.is_available_for_matching;
     }
     return petData?.status === "active" && !petData?.is_on_cooldown;
-  }, [petData?.is_available_for_matching, petData?.status, petData?.is_on_cooldown]);
+  }, [
+    petData?.is_available_for_matching,
+    petData?.status,
+    petData?.is_on_cooldown,
+  ]);
 
   const documentStats = useMemo(() => {
-    const latestShots = [...vaccinationCards.required, ...vaccinationCards.optional]
-      .map((card) =>
-        [...card.shots].sort((left, right) => {
-          const leftDate = left.date_administered ? new Date(left.date_administered).getTime() : 0;
-          const rightDate = right.date_administered ? new Date(right.date_administered).getTime() : 0;
+    const latestShots = [
+      ...vaccinationCards.required,
+      ...vaccinationCards.optional,
+    ]
+      .map(
+        (card) =>
+          [...card.shots].sort((left, right) => {
+            const leftDate = left.date_administered
+              ? new Date(left.date_administered).getTime()
+              : 0;
+            const rightDate = right.date_administered
+              ? new Date(right.date_administered).getTime()
+              : 0;
 
-          if (leftDate !== rightDate) return rightDate - leftDate;
-          if (left.shot_number !== right.shot_number) return right.shot_number - left.shot_number;
-          return right.shot_id - left.shot_id;
-        })[0],
+            if (leftDate !== rightDate) return rightDate - leftDate;
+            if (left.shot_number !== right.shot_number)
+              return right.shot_number - left.shot_number;
+            return right.shot_id - left.shot_id;
+          })[0],
       )
       .filter((shot): shot is NonNullable<typeof shot> => !!shot);
 
     const shotExpired = latestShots.filter((s) => s.is_expired).length;
-    const shotExpiringSoon = latestShots.filter((s) => s.is_expiring_soon && !s.is_expired).length;
+    const shotExpiringSoon = latestShots.filter(
+      (s) => s.is_expiring_soon && !s.is_expired,
+    ).length;
 
     const healthStats = countDocumentsByStatus(healthRecords);
     return {
@@ -287,11 +307,9 @@ export default function PetProfileScreen() {
   };
 
   const handleAddPhoto = () => {
-    showAlert({
-      title: "Add Photo",
-      message: "Photo upload entry can be linked here.",
-      type: "info",
-    });
+    router.push(
+      `/(pet)/manage-photos?petId=${petId}&petName=${encodeURIComponent(petData?.name ?? "")}` as never,
+    );
   };
 
   const openGalleryViewer = (index: number) => {
@@ -309,12 +327,17 @@ export default function PetProfileScreen() {
   const showNextGalleryPhoto = () => {
     if (galleryItems.length <= 1) return;
     setGalleryIndex((prev) =>
-      prev === galleryItems.length - 1 ? 0 : Math.min(galleryItems.length - 1, prev + 1),
+      prev === galleryItems.length - 1
+        ? 0
+        : Math.min(galleryItems.length - 1, prev + 1),
     );
   };
 
   const handleOpenAddShotModal = (cardId: number) => {
-    const allCards = [...vaccinationCards.required, ...vaccinationCards.optional];
+    const allCards = [
+      ...vaccinationCards.required,
+      ...vaccinationCards.optional,
+    ];
     const found = allCards.find((card) => card.card_id === cardId) ?? null;
     setSelectedCard(found);
     setShowAddShotModal(!!found);
@@ -331,7 +354,11 @@ export default function PetProfileScreen() {
 
     setAddingShotLoading(true);
     try {
-      await addVaccinationShot(parseInt(petId, 10), selectedCard.card_id, shotData);
+      await addVaccinationShot(
+        parseInt(petId, 10),
+        selectedCard.card_id,
+        shotData,
+      );
       await fetchVaccinationCards();
       showAlert({
         title: "Success",
@@ -441,7 +468,10 @@ export default function PetProfileScreen() {
                   activeOpacity={0.9}
                   onPress={() => openGalleryViewer(index)}
                 >
-                  <Image source={{ uri: photo.uri }} style={styles.galleryStripImage} />
+                  <Image
+                    source={{ uri: photo.uri }}
+                    style={styles.galleryStripImage}
+                  />
                 </TouchableOpacity>
               ))}
             </ScrollView>
@@ -454,7 +484,8 @@ export default function PetProfileScreen() {
   };
 
   const renderHealthTab = () => {
-    const totalCards = vaccinationCards.required.length + vaccinationCards.optional.length;
+    const totalCards =
+      vaccinationCards.required.length + vaccinationCards.optional.length;
 
     return (
       <View style={styles.tabContent}>
@@ -500,7 +531,9 @@ export default function PetProfileScreen() {
               </TouchableOpacity>
             </>
           ) : (
-            <Text style={styles.cardBodyText}>No vaccination cards on file.</Text>
+            <Text style={styles.cardBodyText}>
+              No vaccination cards on file.
+            </Text>
           )}
         </SectionCard>
 
@@ -565,7 +598,9 @@ export default function PetProfileScreen() {
               <TouchableOpacity
                 key={`partner-${partner.pet_id}`}
                 style={styles.partnerRow}
-                onPress={() => router.push(`/(pet)/view-profile?id=${partner.pet_id}`)}
+                onPress={() =>
+                  router.push(`/(pet)/view-profile?id=${partner.pet_id}`)
+                }
               >
                 <Image
                   source={{ uri: getStorageUrl(partner.photo) || undefined }}
@@ -579,7 +614,8 @@ export default function PetProfileScreen() {
 
                 <View style={styles.partnerLitterBadge}>
                   <Text style={styles.partnerLitterText}>
-                    {partner.litter_count} litter{partner.litter_count === 1 ? "" : "s"}
+                    {partner.litter_count} litter
+                    {partner.litter_count === 1 ? "" : "s"}
                   </Text>
                 </View>
               </TouchableOpacity>
@@ -610,19 +646,23 @@ export default function PetProfileScreen() {
                   <View style={styles.litterHeaderBox}>
                     <View style={styles.litterHeaderLeftWrap}>
                       <View style={styles.litterOrderBadge}>
-                        <Text style={styles.litterOrderBadgeText}>{index + 1}</Text>
+                        <Text style={styles.litterOrderBadgeText}>
+                          {index + 1}
+                        </Text>
                       </View>
 
                       <View style={styles.litterTopLeft}>
                         <Text style={styles.litterTitle}>{litter.title}</Text>
                         <Text style={styles.litterMeta}>
-                          {`${formatLitterDate(litter.birth_date, litter.birth_date_full)} · ${offspringLabel}`}
+                          {`${formatLitterDate(litter.birth_date, litter.birth_date_full)} Â· ${offspringLabel}`}
                         </Text>
                       </View>
                     </View>
 
                     <View style={styles.litterBadge}>
-                      <Text style={styles.litterBadgeText}>{offspringLabel}</Text>
+                      <Text style={styles.litterBadgeText}>
+                        {offspringLabel}
+                      </Text>
                     </View>
 
                     <Feather name="chevron-right" size={18} color="#A8A2B3" />
@@ -642,17 +682,27 @@ export default function PetProfileScreen() {
                           <View style={styles.offspringCircleWrap}>
                             {off.photo_url ? (
                               <Image
-                                source={{ uri: getStorageUrl(off.photo_url) || undefined }}
+                                source={{
+                                  uri:
+                                    getStorageUrl(off.photo_url) || undefined,
+                                }}
                                 style={styles.offspringCircleImage}
                               />
                             ) : (
                               <View style={styles.offspringCircleFallback}>
-                                <Ionicons name="paw" size={18} color="#D18C53" />
+                                <Ionicons
+                                  name="paw"
+                                  size={18}
+                                  color="#D18C53"
+                                />
                               </View>
                             )}
                           </View>
 
-                          <Text style={styles.offspringPreviewName} numberOfLines={1}>
+                          <Text
+                            style={styles.offspringPreviewName}
+                            numberOfLines={1}
+                          >
                             {off.name || "Unnamed"}
                           </Text>
 
@@ -672,7 +722,9 @@ export default function PetProfileScreen() {
                                   : styles.offspringSexTextFemale,
                               ]}
                             >
-                              {String(off.sex).toLowerCase() === "male" ? "M" : "F"}
+                              {String(off.sex).toLowerCase() === "male"
+                                ? "M"
+                                : "F"}
                             </Text>
                           </View>
                         </View>
@@ -701,11 +753,17 @@ export default function PetProfileScreen() {
                 activeOpacity={0.9}
                 onPress={() => openGalleryViewer(index)}
               >
-                <Image source={{ uri: photo.uri }} style={styles.galleryImage} />
+                <Image
+                  source={{ uri: photo.uri }}
+                  style={styles.galleryImage}
+                />
               </TouchableOpacity>
             ))}
 
-            <TouchableOpacity style={styles.galleryAddTile} onPress={handleAddPhoto}>
+            <TouchableOpacity
+              style={styles.galleryAddTile}
+              onPress={handleAddPhoto}
+            >
               <Feather name="plus" size={30} color="#F98961" />
               <Text style={styles.galleryAddText}>Add Photo</Text>
             </TouchableOpacity>
@@ -714,8 +772,13 @@ export default function PetProfileScreen() {
           <View style={styles.emptyStateBlock}>
             <Ionicons name="images-outline" size={38} color="#B8B8C3" />
             <Text style={styles.emptyStateTitle}>No Photos</Text>
-            <Text style={styles.emptyStateText}>Add photos to build your pet story.</Text>
-            <TouchableOpacity style={styles.inlineLinkButton} onPress={handleAddPhoto}>
+            <Text style={styles.emptyStateText}>
+              Add photos to build your pet story.
+            </Text>
+            <TouchableOpacity
+              style={styles.inlineLinkButton}
+              onPress={handleAddPhoto}
+            >
               <Text style={styles.inlineLinkText}>Add First Photo</Text>
               <Feather name="arrow-right" size={14} color="#FF8A66" />
             </TouchableOpacity>
@@ -746,11 +809,17 @@ export default function PetProfileScreen() {
           </View>
 
           <View style={styles.heroTopRow}>
-            <TouchableOpacity style={styles.iconCircle} onPress={() => router.back()}>
+            <TouchableOpacity
+              style={styles.iconCircle}
+              onPress={() => router.back()}
+            >
               <Feather name="chevron-left" size={18} color="#FFFFFF" />
             </TouchableOpacity>
 
-            <TouchableOpacity style={styles.iconCircle} onPress={handleEditInfo}>
+            <TouchableOpacity
+              style={styles.iconCircle}
+              onPress={handleEditInfo}
+            >
               <Feather name="edit-3" size={16} color="#FFFFFF" />
             </TouchableOpacity>
           </View>
@@ -761,7 +830,9 @@ export default function PetProfileScreen() {
                 source={{
                   uri:
                     getStorageUrl(petData.profile_image) ||
-                    getStorageUrl(photos.find((p: any) => p?.is_primary)?.photo_url) ||
+                    getStorageUrl(
+                      photos.find((p: any) => p?.is_primary)?.photo_url,
+                    ) ||
                     galleryItems[0]?.uri ||
                     undefined,
                 }}
@@ -770,24 +841,6 @@ export default function PetProfileScreen() {
               <View style={styles.verifyBadge}>
                 <Ionicons name="checkmark" size={14} color="#FFFFFF" />
               </View>
-            </View>
-
-            <Text style={styles.petName}>{petData.name}</Text>
-            <Text style={styles.petSubTitle}>
-              {petData.breed || "Unknown breed"} - {petData.species || "Pet"}
-            </Text>
-
-            <View style={styles.chipsRow}>
-              <HeaderChip icon="calendar-outline" text={calculateAge(petData.birthdate)} />
-              <HeaderChip
-                icon={petData.sex === "male" ? "male-outline" : "female-outline"}
-                text={petData.sex || "-"}
-              />
-              {petData.microchip_id ? <HeaderChip icon="checkmark-outline" text="Microchip" /> : null}
-              <HeaderChip
-                icon={matchingAvailable ? "flash-outline" : "pause-outline"}
-                text={matchingAvailable ? "Match Ready" : "Unavailable"}
-              />
             </View>
           </View>
         </View>
@@ -801,24 +854,45 @@ export default function PetProfileScreen() {
               <Text style={styles.ownerActionTitle}>Owner Actions</Text>
             </View>
 
-            <TouchableOpacity style={styles.primaryButton} onPress={handleEditInfo}>
+            <TouchableOpacity
+              style={styles.primaryButton}
+              onPress={handleEditInfo}
+            >
               <Feather name="edit-2" size={16} color="#FFFFFF" />
               <Text style={styles.primaryButtonText}>Edit Pet Profile</Text>
             </TouchableOpacity>
 
             <View style={styles.featureRow}>
-              <TouchableOpacity style={styles.featureCard} onPress={handleManageVaccinations}>
-                <View style={[styles.featureIconWrap, { backgroundColor: "#E6F8F2" }]}>
+              <TouchableOpacity
+                style={styles.featureCard}
+                onPress={handleManageVaccinations}
+              >
+                <View
+                  style={[
+                    styles.featureIconWrap,
+                    { backgroundColor: "#E6F8F2" },
+                  ]}
+                >
                   <Ionicons name="medkit-outline" size={15} color="#58BEA3" />
                 </View>
                 <View style={styles.featureBody}>
                   <Text style={styles.featureTitle}>Manage Docs</Text>
-                  <Text style={styles.featureSubTitle}>Vaccines and health</Text>
+                  <Text style={styles.featureSubTitle}>
+                    Vaccines and health
+                  </Text>
                 </View>
               </TouchableOpacity>
 
-              <TouchableOpacity style={styles.featureCard} onPress={handleManageLitters}>
-                <View style={[styles.featureIconWrap, { backgroundColor: "#EFE8FF" }]}>
+              <TouchableOpacity
+                style={styles.featureCard}
+                onPress={handleManageLitters}
+              >
+                <View
+                  style={[
+                    styles.featureIconWrap,
+                    { backgroundColor: "#EFE8FF" },
+                  ]}
+                >
                   <Ionicons name="albums-outline" size={15} color="#8677E3" />
                 </View>
                 <View style={styles.featureBody}>
@@ -833,7 +907,8 @@ export default function PetProfileScreen() {
             <View style={styles.unavailableBanner}>
               <Ionicons name="time-outline" size={16} color="#A15A1B" />
               <Text style={styles.unavailableText}>
-                On cooldown for {petData.cooldown_days_remaining || 0} more days.
+                On cooldown for {petData.cooldown_days_remaining || 0} more
+                days.
               </Text>
             </View>
           ) : null}
@@ -880,10 +955,15 @@ export default function PetProfileScreen() {
         animationType="fade"
         onRequestClose={() => setShowGalleryModal(false)}
       >
-        <SafeAreaView style={styles.galleryModalOverlay} edges={["top", "bottom"]}>
+        <SafeAreaView
+          style={styles.galleryModalOverlay}
+          edges={["top", "bottom"]}
+        >
           <View style={styles.galleryModalHeader}>
             <Text style={styles.galleryModalCounter}>
-              {galleryItems.length > 0 ? `${galleryIndex + 1}/${galleryItems.length}` : "0/0"}
+              {galleryItems.length > 0
+                ? `${galleryIndex + 1}/${galleryItems.length}`
+                : "0/0"}
             </Text>
             <TouchableOpacity
               style={styles.galleryModalCloseButton}
@@ -938,7 +1018,10 @@ export default function PetProfileScreen() {
 
           <ScrollView style={styles.modalBody}>
             {healthRecords.map((record: any, index: number) => (
-              <Pressable key={`record-modal-${index}`} style={styles.recordItem}>
+              <Pressable
+                key={`record-modal-${index}`}
+                style={styles.recordItem}
+              >
                 <Text style={styles.recordTitle}>{record.record_type}</Text>
                 <Text style={styles.recordSub}>
                   {record.given_date
@@ -1015,7 +1098,9 @@ function TabPill({
 }) {
   return (
     <TouchableOpacity style={styles.tabButton} onPress={onPress}>
-      <Text style={[styles.tabLabel, active && styles.tabLabelActive]}>{label}</Text>
+      <Text style={[styles.tabLabel, active && styles.tabLabelActive]}>
+        {label}
+      </Text>
       {active ? <View style={styles.tabUnderline} /> : null}
     </TouchableOpacity>
   );
@@ -1033,7 +1118,10 @@ function TagWrap({
       {tags.map((tag, idx) => (
         <View
           key={`${tag}-${idx}`}
-          style={[styles.tag, variant === "mint" ? styles.tagMint : styles.tagSun]}
+          style={[
+            styles.tag,
+            variant === "mint" ? styles.tagMint : styles.tagSun,
+          ]}
         >
           <Text
             style={[
@@ -1106,7 +1194,12 @@ function DocumentRow({
     <View style={styles.documentRow}>
       <View style={styles.documentRowTop}>
         <View style={styles.documentLeft}>
-          <View style={[styles.statusDot, { backgroundColor: getStatusColor(status) }]} />
+          <View
+            style={[
+              styles.statusDot,
+              { backgroundColor: getStatusColor(status) },
+            ]}
+          />
           <View style={styles.documentTextWrap}>
             <Text style={styles.documentTitle}>{title}</Text>
             {expiry ? (

@@ -294,6 +294,50 @@ export const updatePet = async (
 };
 
 // New interfaces for pet profile and litters
+export const listPetPhotos = async (petId: number): Promise<PetPhoto[]> => {
+  const response = await axiosInstance.get(`/api/pets/${petId}/photos`);
+  return response.data.photos;
+};
+
+export const uploadPetPhotos = async (
+  petId: number,
+  assets: Array<{ uri: string; fileName?: string; mimeType?: string }>,
+): Promise<PetPhoto[]> => {
+  const form = new FormData();
+  assets.forEach((asset, i) => {
+    form.append(`photos[${i}]`, {
+      uri: asset.uri,
+      name: asset.fileName || `photo_${i}.jpg`,
+      type: asset.mimeType || "image/jpeg",
+    } as any);
+  });
+  const response = await axiosInstance.post(`/api/pets/${petId}/photos`, form, {
+    headers: { "Content-Type": "multipart/form-data" },
+  });
+  return response.data.photos;
+};
+
+export const deletePetPhoto = async (
+  petId: number,
+  photoId: number,
+): Promise<PetPhoto[]> => {
+  const response = await axiosInstance.delete(
+    `/api/pets/${petId}/photos/${photoId}`,
+  );
+  return response.data.photos;
+};
+
+export const setPetPrimaryPhoto = async (
+  petId: number,
+  photoId: number,
+): Promise<PetPhoto[]> => {
+  const response = await axiosInstance.patch(
+    `/api/pets/${petId}/photos/${photoId}/primary`,
+  );
+  return response.data.photos;
+};
+
+// New interfaces for pet profile and litters
 export interface BreedingPartner {
   pet_id: number;
   name: string;

@@ -9,7 +9,10 @@ import {
 import { Ionicons } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
 import { Colors, BorderRadius, Spacing, Shadows } from "@/constants";
-import { VaccinationCard as VaccinationCardType, VaccinationShot } from "@/services/petService";
+import {
+  VaccinationCard as VaccinationCardType,
+  VaccinationShot,
+} from "@/services/petService";
 
 interface VaccinationCardProps {
   card: VaccinationCardType;
@@ -67,11 +70,16 @@ const getLatestShot = (shots: VaccinationShot[]) => {
   if (!Array.isArray(shots) || shots.length === 0) return null;
 
   return [...shots].sort((left, right) => {
-    const leftDate = left.date_administered ? new Date(left.date_administered).getTime() : 0;
-    const rightDate = right.date_administered ? new Date(right.date_administered).getTime() : 0;
+    const leftDate = left.date_administered
+      ? new Date(left.date_administered).getTime()
+      : 0;
+    const rightDate = right.date_administered
+      ? new Date(right.date_administered).getTime()
+      : 0;
 
     if (leftDate !== rightDate) return rightDate - leftDate;
-    if (left.shot_number !== right.shot_number) return right.shot_number - left.shot_number;
+    if (left.shot_number !== right.shot_number)
+      return right.shot_number - left.shot_number;
     return right.shot_id - left.shot_id;
   })[0];
 };
@@ -85,7 +93,13 @@ const getCardStatusColor = (card: VaccinationCardType) => {
   return getStatusColor(card.status);
 };
 
-const ShotItem = ({ shot, isLast }: { shot: VaccinationShot; isLast: boolean }) => {
+const ShotItem = ({
+  shot,
+  isLast,
+}: {
+  shot: VaccinationShot;
+  isLast: boolean;
+}) => {
   const statusColor = getStatusColor(shot.display_status);
   const statusIcon = getStatusIcon(shot.display_status);
 
@@ -96,7 +110,11 @@ const ShotItem = ({ shot, isLast }: { shot: VaccinationShot; isLast: boolean }) 
         <View style={[styles.timelineDot, { backgroundColor: statusColor }]}>
           <Ionicons name={statusIcon} size={12} color={Colors.white} />
         </View>
-        {!isLast && <View style={[styles.timelineLine, { backgroundColor: statusColor }]} />}
+        {!isLast && (
+          <View
+            style={[styles.timelineLine, { backgroundColor: statusColor }]}
+          />
+        )}
       </View>
 
       {/* Shot details */}
@@ -105,21 +123,26 @@ const ShotItem = ({ shot, isLast }: { shot: VaccinationShot; isLast: boolean }) 
           <Text style={styles.shotNumber}>
             {shot.is_booster ? "Booster" : `Shot ${shot.shot_number}`}
           </Text>
-          <View style={[styles.statusBadge, { backgroundColor: `${statusColor}20` }]}>
+          <View
+            style={[
+              styles.statusBadge,
+              { backgroundColor: `${statusColor}20` },
+            ]}
+          >
             <Text style={[styles.statusBadgeText, { color: statusColor }]}>
-              {shot.display_status === 'pending_approval'
-                ? 'Pending Approval'
-                : shot.display_status === 'expiring_soon'
-                  ? 'Expiring Soon'
-                  : shot.display_status.charAt(0).toUpperCase() + shot.display_status.slice(1)}
+              {shot.display_status === "pending_approval"
+                ? "Pending Approval"
+                : shot.display_status === "expiring_soon"
+                  ? "Expiring Soon"
+                  : shot.display_status.charAt(0).toUpperCase() +
+                    shot.display_status.slice(1)}
             </Text>
           </View>
         </View>
         <Text style={styles.shotDate}>
-          {shot.status === "pending" 
+          {shot.status === "pending"
             ? `Scheduled: ${shot.next_shot_date_display || "TBD"}`
-            : `Administered: ${shot.date_administered_display}`
-          }
+            : `Administered: ${shot.date_administered_display}`}
         </Text>
         {shot.status !== "pending" && (
           <Text style={styles.shotExpiry}>
@@ -143,8 +166,9 @@ export default function VaccinationCardComponent({
 
   // Always allow adding shots - users may need boosters or have incomplete historical records
   const canAddShot = true;
-  const isExtraShot = card.is_series_complete && card.recurrence_type === "none";
-  
+  const isExtraShot =
+    card.is_series_complete && card.recurrence_type === "none";
+
   // Determine progress text based on vaccine type
   const getProgressText = () => {
     if (card.total_shots_required) {
@@ -172,7 +196,12 @@ export default function VaccinationCardComponent({
         activeOpacity={0.7}
       >
         <View style={styles.headerLeft}>
-          <View style={[styles.vaccineIcon, { backgroundColor: `${statusColor}20` }]}>
+          <View
+            style={[
+              styles.vaccineIcon,
+              { backgroundColor: `${statusColor}20` },
+            ]}
+          >
             <Ionicons
               name={card.is_required ? "shield-checkmark" : "medical"}
               size={24}
@@ -191,7 +220,7 @@ export default function VaccinationCardComponent({
             <Text style={styles.progressLabel}>{progressText}</Text>
           </View>
         </View>
-        
+
         <View style={styles.headerRight}>
           {onEdit && !card.is_required && (
             <TouchableOpacity
@@ -204,7 +233,9 @@ export default function VaccinationCardComponent({
               <Ionicons name="pencil" size={16} color={Colors.textMuted} />
             </TouchableOpacity>
           )}
-          <View style={[styles.statusIndicator, { backgroundColor: statusColor }]} />
+          <View
+            style={[styles.statusIndicator, { backgroundColor: statusColor }]}
+          />
           <Ionicons
             name={expanded ? "chevron-up" : "chevron-down"}
             size={20}
@@ -226,14 +257,17 @@ export default function VaccinationCardComponent({
             ]}
           />
         </View>
-        <Text style={styles.progressPercentage}>{card.progress_percentage}%</Text>
+        <Text style={styles.progressPercentage}>
+          {card.progress_percentage}%
+        </Text>
       </View>
 
       {card.pending_shots_count > 0 && (
         <View style={styles.pendingBanner}>
           <Ionicons name="hourglass-outline" size={14} color={Colors.warning} />
           <Text style={styles.pendingBannerText}>
-            {card.pending_shots_count} shot{card.pending_shots_count > 1 ? 's' : ''} pending admin approval
+            {card.pending_shots_count} shot
+            {card.pending_shots_count > 1 ? "s" : ""} pending admin approval
           </Text>
         </View>
       )}
@@ -254,7 +288,11 @@ export default function VaccinationCardComponent({
             </View>
           ) : (
             <View style={styles.emptyState}>
-              <Ionicons name="medical-outline" size={32} color={Colors.textMuted} />
+              <Ionicons
+                name="medical-outline"
+                size={32}
+                color={Colors.textMuted}
+              />
               <Text style={styles.emptyText}>No shots recorded yet</Text>
             </View>
           )}
@@ -262,13 +300,21 @@ export default function VaccinationCardComponent({
           {/* Series Completion Message */}
           {(card.is_series_complete || card.is_in_booster_phase) && (
             <View style={styles.completionMessage}>
-              <Ionicons name="checkmark-circle" size={20} color={Colors.success} />
+              <Ionicons
+                name="checkmark-circle"
+                size={20}
+                color={Colors.success}
+              />
               <View style={{ flex: 1 }}>
                 <Text style={styles.completionText}>
-                  {card.is_in_booster_phase ? "Series complete! Now tracking boosters." : "Vaccination series completed!"}
+                  {card.is_in_booster_phase
+                    ? "Series complete! Now tracking boosters."
+                    : "Vaccination series completed!"}
                 </Text>
                 <Text style={styles.completionSubtext}>
-                  {card.is_in_booster_phase ? "Keep up with booster shots." : "You can still add booster shots if needed."}
+                  {card.is_in_booster_phase
+                    ? "Keep up with booster shots."
+                    : "You can still add booster shots if needed."}
                 </Text>
               </View>
             </View>
@@ -295,7 +341,11 @@ export default function VaccinationCardComponent({
                 colors={[Colors.primaryLight, Colors.primary]}
                 style={styles.addShotGradient}
               >
-                <Ionicons name="add-circle-outline" size={20} color={Colors.white} />
+                <Ionicons
+                  name="add-circle-outline"
+                  size={20}
+                  color={Colors.white}
+                />
                 <Text style={styles.addShotText}>Add Shot Record</Text>
               </LinearGradient>
             </TouchableOpacity>

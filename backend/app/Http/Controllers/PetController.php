@@ -504,6 +504,136 @@ class PetController extends Controller
     /**
      * Get public profile of a pet (for viewing other users' pets)
      */
+    /**
+     * List photos for an owned pet.
+     */
+    public function listPhotos($petId)
+    {
+        $pet = Pet::where('user_id', Auth::id())->with('photos')->findOrFail($petId);
+
+        return response()->json([
+            'photos' => $pet->photos->map(fn($p) => [
+                'photo_id' => $p->photo_id,
+                'photo_url' => $p->photo_url,
+                'is_primary' => $p->is_primary,
+            ]),
+        ]);
+    }
+
+    /**
+     * Add one or more photos to an owned pet.
+     */
+    public function addPhoto(Request $request, $petId)
+    {
+        $pet = Pet::where('user_id', Auth::id())->with('photos')->findOrFail($petId);
+
+        $request->validate([
+            'photos' => 'required|array|min:1',
+            'photos.*' => 'required|image|mimes:jpg,jpeg,png,heic,heif|max:20480',
+        ], [
+            'photos.required' => 'Please provide at least one photo.',
+            'photos.*.image' => 'Each file must be an image.',
+            'photos.*.mimes' => 'Accepted formats: jpg, jpeg, png, heic, heif.',
+            'photos.*.max' => 'Each photo must be under 20 MB.',
+        ]);
+
+        $isFirstPhoto = $pet->photos->isEmpty();
+        $added = [];
+
+        foreach ($request->file('photos') as $file) {
+            $path = $file->store('pet_photos', 'do_spaces');
+            $photo = PetPhoto::create([
+                'pet_id' => $pet->pet_id,
+                'photo_url' => $path,
+                'is_primary' => $isFirstPhoto,
+            ]);
+            $isFirstPhoto = false;
+            $added[] = [
+                'photo_id' => $photo->photo_id,
+                'photo_url' => $photo->photo_url,
+                'is_primary' => $photo->is_primary,
+            ];
+        }
+
+        $pet->refresh()->load('photos');
+
+        return response()->json([
+            'message' => 'Photo(s) uploaded successfully.',
+            'added' => $added,
+            'photos' => $pet->photos->map(fn($p) => [
+                'photo_id' => $p->photo_id,
+                'photo_url' => $p->photo_url,
+                'is_primary' => $p->is_primary,
+            ]),
+        ], 201);
+    }
+
+    /**
+     * Delete a photo from an owned pet.
+     */
+    public function deletePhoto($petId, $photoId)
+    {
+        $pet = Pet::where('user_id', Auth::id())->with('photos')->findOrFail($petId);
+        $photo = $pet->photos->firstWhere('photo_id', $photoId);
+
+        if (!$photo) {
+            return response()->json(['message' => 'Photo not found.'], 404);
+        }
+
+        $wasPrimary = $photo->is_primary;
+        $photo->delete();
+
+        // If we deleted the primary photo, promote the first remaining photo
+        if ($wasPrimary) {
+            $remaining = $pet->photos->where('photo_id', '!=', $photoId)->first();
+            if ($remaining) {
+                $remaining->update(['is_primary' => true]);
+            }
+        }
+
+        $pet->refresh()->load('photos');
+
+        return response()->json([
+            'message' => 'Photo deleted successfully.',
+            'photos' => $pet->photos->map(fn($p) => [
+                'photo_id' => $p->photo_id,
+                'photo_url' => $p->photo_url,
+                'is_primary' => $p->is_primary,
+            ]),
+        ]);
+    }
+
+    /**
+     * Set a photo as the primary photo for an owned pet.
+     */
+    public function setPrimaryPhoto($petId, $photoId)
+    {
+        $pet = Pet::where('user_id', Auth::id())->with('photos')->findOrFail($petId);
+        $photo = $pet->photos->firstWhere('photo_id', $photoId);
+
+        if (!$photo) {
+            return response()->json(['message' => 'Photo not found.'], 404);
+        }
+
+        // Clear existing primary flag and set the new one
+        PetPhoto::where('pet_id', $pet->pet_id)->update(['is_primary' => false]);
+        $photo->update(['is_primary' => true]);
+
+        $pet->refresh()->load('photos');
+
+        return response()->json([
+            'message' => 'Primary photo updated.',
+            'photos' => $pet->photos->map(fn($p) => [
+                'photo_id' => $p->photo_id,
+                'photo_url' => $p->photo_url,
+                'is_primary' => $p->is_primary,
+            ]),
+        ]);
+    }
+
+    /**
+     * Get public profile of a pet (for viewing other users' pets)
+     */
     public function getPublicProfile($id)
     {
         $pet = Pet::with([
