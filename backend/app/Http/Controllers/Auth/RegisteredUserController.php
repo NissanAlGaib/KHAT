@@ -8,9 +8,9 @@ use App\Models\User;
 use Illuminate\Auth\Events\Registered;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
-use Illuminate\Http\Response;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Validation\Rule;
 use Illuminate\Validation\Rules;
 
 class RegisteredUserController extends Controller
@@ -38,8 +38,14 @@ class RegisteredUserController extends Controller
             'address.province' => ['required', 'string', 'max:120'],
             'address.postal_code' => ['required', 'string', 'max:20'],
             'roles' => ['required', 'array'],
-            'roles.*' => ['string', 'in:breeder,shooter'],
+            'roles.*' => ['string', Rule::in(['Breeder', 'Shooter', 'breeder', 'shooter'])],
         ]);
+
+        $normalizedRoles = collect($validated['roles'])
+            ->map(fn(string $role) => ucfirst(strtolower(trim($role))))
+            ->unique()
+            ->values()
+            ->all();
 
         $user = User::create([
             'name' => $request->name,
@@ -55,11 +61,11 @@ class RegisteredUserController extends Controller
 
         $user->refresh();
 
-        if (!empty($validated['roles'])) {
-            $roleIds = Role::whereIn('role_type', $validated['roles'])->pluck('role_id');
+        if (!empty($normalizedRoles)) {
+            $roleIds = Role::whereIn('role_type', $normalizedRoles)->pluck('role_id');
             $user->roles()->sync($roleIds);
         } else {
-            $defaultRole = Role::where('role_type', 'breeder')->first();
+            $defaultRole = Role::where('role_type', 'Breeder')->first();
             if ($defaultRole) {
                 $user->roles()->attach($defaultRole->role_id);
             }

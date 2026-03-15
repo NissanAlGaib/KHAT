@@ -417,8 +417,8 @@
             'Are you sure you want to ' + action + ' the "' + tierName + '" tier?',
             isCurrentlyActive ? 'warning' : 'question',
             'Yes, ' + action + ' it'
-        ).then(confirmed => {
-            if (confirmed) {
+        ).then(result => {
+            if (result.isConfirmed) {
                 document.getElementById('toggle-tier-' + tierId).submit();
             }
         });
@@ -431,8 +431,8 @@
             'Permanently delete the "' + tierName + '" tier? This cannot be undone.',
             'warning',
             'Yes, delete it'
-        ).then(confirmed => {
-            if (confirmed) {
+        ).then(result => {
+            if (result.isConfirmed) {
                 document.getElementById('delete-tier-' + tierId).submit();
             }
         });

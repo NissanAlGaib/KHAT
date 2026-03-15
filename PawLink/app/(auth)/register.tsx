@@ -42,6 +42,22 @@ interface Errors {
   [key: string]: string;
 }
 
+const normalizeApiErrors = (apiErrors: Record<string, string | string[]>) => {
+  const normalized: Errors = {};
+
+  Object.entries(apiErrors).forEach(([key, value]) => {
+    normalized[key] = Array.isArray(value) ? value[0] : value;
+  });
+
+  const roleError =
+    normalized.roles || normalized["roles.0"] || normalized["roles.*"];
+  if (roleError) {
+    normalized.status = roleError;
+  }
+
+  return normalized;
+};
+
 const Register = () => {
   const { visible, alertOptions, showAlert, hideAlert } = useAlert();
   const [step, setStep] = useState(1);
@@ -281,8 +297,9 @@ const Register = () => {
     } catch (error) {
       if (isAxiosError(error)) {
         const responseData = error.response?.data;
-        if (responseData?.errors) setErrors(responseData.errors);
-        else
+        if (responseData?.errors) {
+          setErrors(normalizeApiErrors(responseData.errors));
+        } else
           showAlert({
             title: "Error",
             message: responseData?.message || "Registration failed",
@@ -450,7 +467,11 @@ const Register = () => {
                 onPress={() => setRegionOpen(true)}
               >
                 <Text
-                  className={selectedRegion ? "text-gray-900 font-mulish" : "text-gray-400 font-mulish"}
+                  className={
+                    selectedRegion
+                      ? "text-gray-900 font-mulish"
+                      : "text-gray-400 font-mulish"
+                  }
                 >
                   {selectedRegion || "Select Region"}
                 </Text>
@@ -484,9 +505,16 @@ const Register = () => {
                 disabled={!selectedRegion}
               >
                 <Text
-                  className={selectedProvince ? "text-gray-900 font-mulish" : "text-gray-400 font-mulish"}
+                  className={
+                    selectedProvince
+                      ? "text-gray-900 font-mulish"
+                      : "text-gray-400 font-mulish"
+                  }
                 >
-                  {selectedProvince || (selectedRegion ? "Select Province" : "Select a region first")}
+                  {selectedProvince ||
+                    (selectedRegion
+                      ? "Select Province"
+                      : "Select a region first")}
                 </Text>
                 <Feather name="chevron-down" size={18} color="#9CA3AF" />
               </TouchableOpacity>
@@ -518,9 +546,16 @@ const Register = () => {
                 disabled={!selectedProvince}
               >
                 <Text
-                  className={selectedCity ? "text-gray-900 font-mulish" : "text-gray-400 font-mulish"}
+                  className={
+                    selectedCity
+                      ? "text-gray-900 font-mulish"
+                      : "text-gray-400 font-mulish"
+                  }
                 >
-                  {selectedCity || (selectedProvince ? "Select City/Municipality" : "Select a province first")}
+                  {selectedCity ||
+                    (selectedProvince
+                      ? "Select City/Municipality"
+                      : "Select a province first")}
                 </Text>
                 <Feather name="chevron-down" size={18} color="#9CA3AF" />
               </TouchableOpacity>

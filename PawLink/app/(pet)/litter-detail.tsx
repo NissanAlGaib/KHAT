@@ -156,9 +156,9 @@ export default function LitterDetailScreen() {
         <View style={StyleSheet.absoluteFillObject}>
           <BubbleBackgroundRe
             backgroundColor="#F98D67"
-            bubbleColor="rgba(255, 192, 170, 0.35)"
-            bigCount={3}
-            smallCount={6}
+            bubbleColor="rgba(255, 192, 170, 0.28)"
+            bigCount={2}
+            smallCount={4}
           />
         </View>
 
@@ -237,7 +237,12 @@ export default function LitterDetailScreen() {
                 </Text>
 
                 <View style={styles.summaryOwnerRow}>
-                  <Text style={styles.summaryOwnerIcon}>👩</Text>
+                  <Ionicons
+                    name="person-circle-outline"
+                    size={16}
+                    color="#6D677A"
+                    style={{ marginRight: 6 }}
+                  />
                   <Text style={styles.summaryOwnerText} numberOfLines={1}>
                     {ownerLine}
                   </Text>
@@ -341,7 +346,11 @@ function OffspringCard({
               { backgroundColor: isMale ? "#DDEAFE" : "#FCE5F1" },
             ]}
           >
-            <Text style={styles.kittenPlaceholder}>🐱</Text>
+            <Ionicons
+              name="paw"
+              size={22}
+              color={isMale ? "#4B81E4" : "#D45A9F"}
+            />
           </View>
         )}
       </View>
@@ -421,14 +430,14 @@ const styles = StyleSheet.create({
   },
 
   headerWrap: {
-    height: 122,
+    height: 160,
     overflow: "hidden",
   },
   headerRow: {
     flexDirection: "row",
     alignItems: "center",
     paddingHorizontal: 14,
-    paddingTop: 6,
+    paddingTop: 14,
   },
   backCircle: {
     width: 40,
@@ -472,18 +481,19 @@ const styles = StyleSheet.create({
     paddingBottom: 24,
   },
   topSheet: {
-    marginTop: -12,
+    marginTop: -34,
     backgroundColor: "#F6EEEE",
-    borderTopLeftRadius: 30,
-    borderTopRightRadius: 30,
+    borderTopLeftRadius: 38,
+    borderTopRightRadius: 38,
     paddingHorizontal: 14,
-    paddingTop: 14,
+    paddingTop: 44,
   },
 
   summaryOuterCard: {
     backgroundColor: "#F2E4DE",
     borderRadius: 22,
     overflow: "hidden",
+    marginHorizontal: 8,
   },
   summaryHead: {
     flexDirection: "row",
