@@ -245,7 +245,13 @@
                         <div class="flex items-center gap-2">
                             <div class="flex text-amber-400">
                                 @for($i = 1; $i <= 5; $i++)
-                                    <i data-lucide="star" class="w-3.5 h-3.5 {{ $i <= round($user->average_rating) ? 'fill-current' : 'text-gray-200' }}"></i>
+                                    @if($user->average_rating >= $i)
+                                    <i data-lucide="star" class="w-3.5 h-3.5 fill-current"></i>
+                                    @elseif($user->average_rating >= $i - 0.5)
+                                    <i data-lucide="star-half" class="w-3.5 h-3.5 fill-current"></i>
+                                    @else
+                                    <i data-lucide="star" class="w-3.5 h-3.5 text-gray-200"></i>
+                                    @endif
                                     @endfor
                             </div>
                             <span class="text-xs font-bold text-gray-700">{{ number_format($user->average_rating, 1) }}</span>
@@ -274,9 +280,21 @@
     // Chart Data from Backend
     const monthlyUsersData = @json($monthlyUsers);
     const matchesTrendData = @json($matchesTrend);
-    const freeUsers = {{ $totalUsers - $standardSubscribers - $premiumSubscribers }};
-    const standardUsers = {{ $standardSubscribers }};
-    const premiumUsers = {{ $premiumSubscribers }};
+    const freeUsers = {
+        {
+            $totalUsers - $standardSubscribers - $premiumSubscribers
+        }
+    };
+    const standardUsers = {
+        {
+            $standardSubscribers
+        }
+    };
+    const premiumUsers = {
+        {
+            $premiumSubscribers
+        }
+    };
 
     // Monthly Users Chart
     const monthlyUsersCtx = document.getElementById('monthlyUsersChart');

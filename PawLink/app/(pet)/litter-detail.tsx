@@ -152,51 +152,53 @@ export default function LitterDetailScreen() {
 
   return (
     <SafeAreaView style={styles.screen} edges={["top"]}>
-      <View style={styles.headerWrap}>
-        <View style={StyleSheet.absoluteFillObject}>
-          <BubbleBackgroundRe
-            backgroundColor="#F98D67"
-            bubbleColor="rgba(255, 192, 170, 0.28)"
-            bigCount={2}
-            smallCount={4}
-          />
-        </View>
-
-        <View style={styles.headerRow}>
-          <TouchableOpacity
-            style={styles.backCircle}
-            onPress={() => router.back()}
-          >
-            <Feather name="chevron-left" size={20} color="#FFFFFF" />
-          </TouchableOpacity>
-
-          <View style={styles.headerBody}>
-            <Text style={styles.headerTitle} numberOfLines={1}>
-              {litter.title}
-            </Text>
-            <Text style={styles.headerSubTitle} numberOfLines={1}>
-              {sire.name} x {dam.name} · {birthDateLabel}
-            </Text>
-            {ageLabel ? (
-              <Text style={styles.headerSubTitle}>{ageLabel}</Text>
-            ) : null}
-          </View>
-
-          <View
-            style={[styles.statusBadge, { backgroundColor: statusMeta.bg }]}
-          >
-            <Text style={[styles.statusBadgeText, { color: statusMeta.text }]}>
-              {litter.status}
-            </Text>
-          </View>
-        </View>
-      </View>
-
       <ScrollView
         style={styles.body}
         contentContainerStyle={styles.bodyContent}
         showsVerticalScrollIndicator={false}
       >
+        <View style={styles.headerWrap}>
+          <View style={StyleSheet.absoluteFillObject}>
+            <BubbleBackgroundRe
+              backgroundColor="#F98D67"
+              bubbleColor="rgba(255, 192, 170, 0.28)"
+              bigCount={2}
+              smallCount={4}
+            />
+          </View>
+
+          <View style={styles.headerRow}>
+            <TouchableOpacity
+              style={styles.backCircle}
+              onPress={() => router.back()}
+            >
+              <Feather name="chevron-left" size={20} color="#FFFFFF" />
+            </TouchableOpacity>
+
+            <View style={styles.headerBody}>
+              <Text style={styles.headerTitle} numberOfLines={1}>
+                {litter.title}
+              </Text>
+              <Text style={styles.headerSubTitle} numberOfLines={1}>
+                {sire.name} x {dam.name} · {birthDateLabel}
+              </Text>
+              {ageLabel ? (
+                <Text style={styles.headerSubTitle}>{ageLabel}</Text>
+              ) : null}
+            </View>
+
+            <View
+              style={[styles.statusBadge, { backgroundColor: statusMeta.bg }]}
+            >
+              <Text
+                style={[styles.statusBadgeText, { color: statusMeta.text }]}
+              >
+                {litter.status}
+              </Text>
+            </View>
+          </View>
+        </View>
+
         <View style={styles.topSheet}>
           <View style={styles.summaryOuterCard}>
             <View style={styles.summaryHead}>

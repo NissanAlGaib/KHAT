@@ -1,59 +1,221 @@
-import React, { useState, useEffect, useCallback } from "react";
+import React, { useCallback, useEffect, useRef, useState } from "react";
 import {
-  View,
-  Text,
-  ScrollView,
-  TouchableOpacity,
-  Image,
   ActivityIndicator,
-  StyleSheet,
+  Image,
   RefreshControl,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { Feather } from "@expo/vector-icons";
-import { useAlert } from "@/hooks/useAlert";
+import { Feather, Ionicons } from "@expo/vector-icons";
+import { useLocalSearchParams, useRouter } from "expo-router";
+import dayjs from "dayjs";
+import BubbleBackgroundRe from "@/components/app/BubbleBackground";
 import AlertModal from "@/components/core/AlertModal";
-import { useRouter, useLocalSearchParams } from "expo-router";
+import { useAlert } from "@/hooks/useAlert";
+import { getUserReviews } from "@/services/reviewService";
+import type { CategoryAverage, UserReview } from "@/types/Review";
 import {
   getBreederProfile,
-  type BreederProfile,
   type BreederPet,
+  type BreederProfile,
 } from "@/services/userService";
 import { getStorageUrl } from "@/utils/imageUrl";
-import { LinearGradient } from "expo-linear-gradient";
+
+function getLocationLabel(profile: BreederProfile): string {
+  if (
+    typeof profile.address === "string" &&
+    profile.address.trim().length > 0
+  ) {
+    return profile.address;
+  }
+
+  if (profile.address && typeof profile.address === "object") {
+    const city =
+      profile.address.city ||
+      profile.address.municipality ||
+      profile.address.province;
+    if (typeof city === "string" && city.trim().length > 0) {
+      return city;
+    }
+  }
+
+  if (profile.distance_label) {
+    return profile.distance_label;
+  }
+
+  return "Location not set";
+}
+
+function RatingBar({ label, fill }: { label: string; fill: number }) {
+  return (
+    <View style={styles.ratingBarRow}>
+      <Text style={styles.ratingBarLabel}>{label}</Text>
+      <View style={styles.ratingTrack}>
+        <View style={[styles.ratingFill, { width: `${fill}%` }]} />
+      </View>
+    </View>
+  );
+}
+
+function parseNumeric(value: unknown): number | null {
+  if (typeof value === "number") {
+    return Number.isFinite(value) ? value : null;
+  }
+
+  if (typeof value === "string") {
+    const parsed = Number.parseFloat(value);
+    return Number.isFinite(parsed) ? parsed : null;
+  }
+
+  return null;
+}
+
+function formatYearLabel(value: unknown): string | null {
+  const num = parseNumeric(value);
+  if (num === null || num <= 0) return null;
+  if (num < 1) return "<1 yr";
+
+  const years = Math.floor(num);
+  return `${years} yr${years === 1 ? "" : "s"}`;
+}
+
+type RatingBucket = 1 | 2 | 3 | 4 | 5;
+
+function StarIcons({ rating, size }: { rating: unknown; size: number }) {
+  const normalized = Math.max(0, Math.min(5, parseNumeric(rating) ?? 0));
+
+  return (
+    <>
+      {[1, 2, 3, 4, 5].map((star) => {
+        let iconName: keyof typeof Ionicons.glyphMap = "star-outline";
+        let color = "#E2DCD9";
+
+        if (normalized >= star) {
+          iconName = "star";
+          color = "#F6B11A";
+        } else if (normalized >= star - 0.5) {
+          iconName = "star-half";
+          color = "#F6B11A";
+        }
+
+        return (
+          <Ionicons
+            key={`${String(rating)}-${star}-${size}`}
+            name={iconName}
+            size={size}
+            color={color}
+          />
+        );
+      })}
+    </>
+  );
+}
+
+function ReviewTag({ text }: { text: string }) {
+  const value = text.toLowerCase();
+  let bg = "#EAF7F2";
+  let color = "#4CBFA2";
+  let icon: keyof typeof Feather.glyphMap = "check";
+
+  if (value.includes("easy") || value.includes("work")) {
+    bg = "#FFF1EC";
+    color = "#F08D6A";
+    icon = "edit-3";
+  } else if (value.includes("knowledge") || value.includes("skill")) {
+    bg = "#EFE8FF";
+    color = "#8F79DE";
+    icon = "zap";
+  } else if (value.includes("recommend")) {
+    bg = "#FFF5D8";
+    color = "#C89A2E";
+    icon = "check";
+  }
+
+  return (
+    <View style={[styles.reviewTag, { backgroundColor: bg }]}>
+      <Feather name={icon} size={9} color={color} />
+      <Text style={[styles.reviewTagText, { color }]}>{text}</Text>
+    </View>
+  );
+}
 
 export default function BreederProfileScreen() {
   const router = useRouter();
   const params = useLocalSearchParams();
-  const breederId = params.id as string;
+  const breederIdParam = Array.isArray(params.id) ? params.id[0] : params.id;
+  const breederId = typeof breederIdParam === "string" ? breederIdParam : "";
   const { visible, alertOptions, showAlert, hideAlert } = useAlert();
 
   const [breederData, setBreederData] = useState<BreederProfile | null>(null);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+  const [petsSectionY, setPetsSectionY] = useState(0);
+  const [reviews, setReviews] = useState<UserReview[]>([]);
+  const [reviewCount, setReviewCount] = useState(0);
+  const [overallRating, setOverallRating] = useState(0);
+  const [categoryAverages, setCategoryAverages] = useState<
+    Record<string, CategoryAverage>
+  >({});
+  const [reviewCategories, setReviewCategories] = useState<
+    Record<string, string>
+  >({});
+  const [reviewPage, setReviewPage] = useState(1);
+  const [reviewLastPage, setReviewLastPage] = useState(1);
+  const [loadingMoreReviews, setLoadingMoreReviews] = useState(false);
+
+  const scrollRef = useRef<ScrollView>(null);
 
   const fetchBreederData = useCallback(async () => {
     try {
       setLoading(true);
-      const profile = await getBreederProfile(parseInt(breederId));
+      const breederIdNum = parseInt(breederId, 10);
+      if (!Number.isFinite(breederIdNum) || breederIdNum <= 0) {
+        throw new Error("Invalid breeder profile ID.");
+      }
+      const profile = await getBreederProfile(breederIdNum);
       setBreederData(profile);
+
+      try {
+        const reviewData = await getUserReviews(breederIdNum, "breeder");
+        setReviews(reviewData.reviews?.data || []);
+        setReviewCount(reviewData.review_count || 0);
+        setOverallRating(reviewData.overall_average || 0);
+        setCategoryAverages(reviewData.category_averages || {});
+        setReviewCategories(reviewData.categories || {});
+        setReviewPage(reviewData.reviews?.current_page || 1);
+        setReviewLastPage(reviewData.reviews?.last_page || 1);
+      } catch {
+        setReviews([]);
+        setReviewCount(0);
+        setOverallRating(0);
+        setCategoryAverages({});
+        setReviewCategories({});
+        setReviewPage(1);
+        setReviewLastPage(1);
+      }
     } catch (error: unknown) {
-      console.error("Error fetching breeder data:", error);
-      const err = error as { response?: { data?: { message?: string } }; message?: string };
-      const errorMessage =
-        err.response?.data?.message ||
-        err.message ||
-        "Failed to load breeder profile";
+      console.error("Error fetching breeder profile:", error);
+      const err = error as {
+        response?: { data?: { message?: string } };
+        message?: string;
+      };
       showAlert({
         title: "Error",
-        message: errorMessage,
+        message:
+          err.response?.data?.message ||
+          err.message ||
+          "Failed to load breeder profile.",
         type: "error",
         buttons: [{ text: "Go Back", onPress: () => router.back() }],
       });
     } finally {
       setLoading(false);
     }
-  }, [breederId, showAlert, router]);
+  }, [breederId, router, showAlert]);
 
   const onRefresh = useCallback(async () => {
     setRefreshing(true);
@@ -68,277 +230,568 @@ export default function BreederProfileScreen() {
   }, [breederId, fetchBreederData]);
 
   const getImageUrl = (path: string | null | undefined) => {
-    return getStorageUrl(path);
+    if (!path) return undefined;
+    return getStorageUrl(path) ?? undefined;
   };
 
   const handlePetPress = (petId: number) => {
     router.push(`/(pet)/view-profile?id=${petId}`);
   };
 
+  const handleSharePress = () => {
+    if (!breederData) return;
+
+    showAlert({
+      title: "Profile Link",
+      message: `pawlink://breeder/${breederData.id}`,
+      type: "info",
+    });
+  };
+
+  const handleViewPetsPress = () => {
+    scrollRef.current?.scrollTo({
+      y: Math.max(0, petsSectionY - 14),
+      animated: true,
+    });
+  };
+
+  const handleLoadMoreReviews = useCallback(async () => {
+    if (loadingMoreReviews || reviewPage >= reviewLastPage) return;
+
+    try {
+      setLoadingMoreReviews(true);
+      const nextPage = reviewPage + 1;
+      const reviewData = await getUserReviews(
+        parseInt(breederId, 10),
+        "breeder",
+        nextPage,
+      );
+
+      setReviews((prev) => [...prev, ...(reviewData.reviews?.data || [])]);
+      setReviewPage(reviewData.reviews?.current_page || nextPage);
+      setReviewLastPage(reviewData.reviews?.last_page || reviewLastPage);
+    } catch {
+      // Keep existing list when pagination request fails
+    } finally {
+      setLoadingMoreReviews(false);
+    }
+  }, [breederId, loadingMoreReviews, reviewLastPage, reviewPage]);
+
   if (loading) {
     return (
-      <SafeAreaView style={styles.loadingContainer}>
-        <ActivityIndicator size="large" color="#ea5b3a" />
-        <Text style={styles.loadingText}>Loading profile...</Text>
+      <SafeAreaView style={styles.loadingScreen} edges={["top"]}>
+        <ActivityIndicator size="large" color="#F98D67" />
+        <Text style={styles.loadingText}>Loading breeder profile...</Text>
       </SafeAreaView>
     );
   }
 
   if (!breederData) {
     return (
-      <SafeAreaView style={styles.loadingContainer}>
-        <Feather name="user-x" size={48} color="#CBD5E1" />
-        <Text style={styles.errorText}>Breeder profile not found</Text>
-        <TouchableOpacity style={styles.backButton} onPress={() => router.back()}>
-          <Text style={styles.backButtonText}>Go Back</Text>
-        </TouchableOpacity>
+      <SafeAreaView style={styles.loadingScreen} edges={["top"]}>
+        <Feather name="user-x" size={36} color="#B8B4C1" />
+        <Text style={styles.loadingText}>Breeder profile unavailable.</Text>
       </SafeAreaView>
     );
   }
 
-  const experienceYears = Math.ceil(breederData.experience_years || 0);
+  const ageText = formatYearLabel(breederData.age);
+  const sexText = breederData.sex ? breederData.sex : null;
+  const locationText = getLocationLabel(breederData);
+  const ratingDisplay =
+    overallRating > 0 ? overallRating : (breederData.rating ?? 0);
+  const hasLiveReviews = reviewCount > 0 && reviews.length > 0;
+  const hasReviewSummary = reviewCount > 0 || ratingDisplay > 0;
   const stats = breederData.statistics || {
-    total_pets: 0,
+    total_pets: breederData.pet_count || 0,
     dog_count: 0,
     cat_count: 0,
   };
-  const displayedBreeds = breederData.pet_breeds || [];
-  const ageText = breederData.age ? `${breederData.age} yrs` : null;
-  const genderText = breederData.sex || null;
-  const rating = breederData.rating || 0;
+  const breederPetBreeds = Array.isArray(breederData.pet_breeds)
+    ? breederData.pet_breeds
+    : [];
+  const breederPets = Array.isArray(breederData.pets) ? breederData.pets : [];
 
-  // Pet Card Component
-  const PetCard = ({ pet }: { pet: BreederPet }) => (
-    <TouchableOpacity style={styles.petCard} onPress={() => handlePetPress(pet.pet_id)}>
-      <View style={styles.petImageContainer}>
-        {pet.profile_image ? (
-          <Image
-            source={{ uri: getImageUrl(pet.profile_image) || undefined }}
-            style={styles.petImage}
-            resizeMode="cover"
-          />
-        ) : (
-          <View style={[styles.petImage, styles.petImagePlaceholder]}>
-            <Feather name="image" size={20} color="#CBD5E1" />
-          </View>
-        )}
-        {pet.is_on_cooldown && (
-          <View style={styles.cooldownBadge}>
-            <Feather name="clock" size={10} color="#fff" />
-          </View>
-        )}
-      </View>
-      <Text style={styles.petName} numberOfLines={1}>{pet.name}</Text>
-      <Text style={styles.petBreed} numberOfLines={1}>{pet.breed}</Text>
-      {pet.breeding_price && (
-        <Text style={styles.petPrice}>${pet.breeding_price}</Text>
-      )}
-    </TouchableOpacity>
-  );
+  const topCategoryTags = Object.values(categoryAverages)
+    .filter((entry) => entry.average !== null)
+    .sort((a, b) => (b.average || 0) - (a.average || 0))
+    .slice(0, 4)
+    .map((entry) => `${entry.label} ${(entry.average || 0).toFixed(1)}`);
 
-  // Stat Card Component
-  const StatCard = ({ 
-    value, 
-    label, 
-    icon, 
-    colors 
-  }: { 
-    value: number | string; 
-    label: string; 
-    icon: keyof typeof Feather.glyphMap;
-    colors: readonly [string, string];
-  }) => (
-    <LinearGradient colors={colors} style={styles.statCard} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }}>
-      <View style={styles.statIconContainer}>
-        <Feather name={icon} size={20} color="#fff" />
-      </View>
-      <Text style={styles.statValue}>{value}</Text>
-      <Text style={styles.statLabel}>{label}</Text>
-    </LinearGradient>
+  const bucketCounts = reviews.reduce(
+    (acc, review) => {
+      const ratingNum = parseNumeric(review.average_rating);
+      if (ratingNum === null) return acc;
+
+      const bucket = Math.max(
+        1,
+        Math.min(5, Math.round(ratingNum)),
+      ) as RatingBucket;
+      acc[bucket] += 1;
+      return acc;
+    },
+    { 1: 0, 2: 0, 3: 0, 4: 0, 5: 0 },
   );
+  const histogramTotal =
+    bucketCounts[1] +
+    bucketCounts[2] +
+    bucketCounts[3] +
+    bucketCounts[4] +
+    bucketCounts[5];
+
+  const reviewFill = {
+    five: histogramTotal > 0 ? (bucketCounts[5] / histogramTotal) * 100 : 0,
+    four: histogramTotal > 0 ? (bucketCounts[4] / histogramTotal) * 100 : 0,
+    three: histogramTotal > 0 ? (bucketCounts[3] / histogramTotal) * 100 : 0,
+    two: histogramTotal > 0 ? (bucketCounts[2] / histogramTotal) * 100 : 0,
+    one: histogramTotal > 0 ? (bucketCounts[1] / histogramTotal) * 100 : 0,
+  };
 
   return (
-    <SafeAreaView style={styles.container} edges={["top"]}>
-      {/* Header */}
-      <View style={styles.header}>
-        <TouchableOpacity onPress={() => router.back()} style={styles.headerButton}>
-          <Feather name="arrow-left" size={20} color="#1F2937" />
-        </TouchableOpacity>
-        <Text style={styles.headerTitle}>Breeder Profile</Text>
-        <TouchableOpacity style={styles.headerButton}>
-          <Feather name="share-2" size={20} color="#1F2937" />
-        </TouchableOpacity>
-      </View>
-
-      <ScrollView 
-        style={styles.scrollView}
-        contentContainerStyle={styles.scrollContent}
+    <SafeAreaView style={styles.screen} edges={["top"]}>
+      <ScrollView
+        ref={scrollRef}
+        style={styles.body}
+        contentContainerStyle={styles.bodyContent}
         showsVerticalScrollIndicator={false}
         refreshControl={
-          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={["#ea5b3a"]} />
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={onRefresh}
+            colors={["#F98D67"]}
+            tintColor="#F98D67"
+          />
         }
       >
-        {/* Profile Hero Section */}
-        <View style={styles.heroSection}>
-          <View style={styles.profileImageContainer}>
-            {breederData.profile_image ? (
-              <Image
-                source={{ uri: getImageUrl(breederData.profile_image) || undefined }}
-                style={styles.profileImage}
-                resizeMode="cover"
-              />
-            ) : (
-              <View style={[styles.profileImage, styles.profileImagePlaceholder]}>
-                <Feather name="user" size={48} color="#CBD5E1" />
-              </View>
-            )}
-            {breederData.id_verified && (
-              <View style={styles.verifiedBadge}>
-                <Feather name="check" size={14} color="#fff" />
-              </View>
-            )}
+        <View style={styles.heroWrap}>
+          <View style={StyleSheet.absoluteFillObject}>
+            <BubbleBackgroundRe
+              backgroundColor="#F98D67"
+              bubbleColor="rgba(255, 192, 170, 0.28)"
+              bigCount={2}
+              smallCount={4}
+            />
           </View>
 
-          <Text style={styles.breederName}>{breederData.name}</Text>
-          
-          {/* Tags Row */}
-          <View style={styles.tagsRow}>
-            {ageText && (
-              <View style={[styles.tag, styles.ageTag]}>
-                <Feather name="calendar" size={12} color="#D97706" />
-                <Text style={styles.ageTagText}>{ageText}</Text>
+          <View style={styles.heroTopRow}>
+            <TouchableOpacity
+              style={styles.heroIconButton}
+              onPress={() => router.back()}
+            >
+              <Feather name="chevron-left" size={18} color="#FFFFFF" />
+            </TouchableOpacity>
+
+            <Text style={styles.heroTopTitle}>Breeder Profile</Text>
+
+            <TouchableOpacity
+              style={styles.heroIconButton}
+              onPress={handleSharePress}
+            >
+              <Feather name="share-2" size={16} color="#FFFFFF" />
+            </TouchableOpacity>
+          </View>
+
+          <View style={styles.heroIdentityBlock}>
+            <View style={styles.avatarFrame}>
+              {breederData.profile_image ? (
+                <Image
+                  source={{ uri: getImageUrl(breederData.profile_image) }}
+                  style={styles.avatarImage}
+                />
+              ) : (
+                <View style={[styles.avatarImage, styles.avatarPlaceholder]}>
+                  <Feather name="user" size={32} color="#CED0D8" />
+                </View>
+              )}
+              {breederData.id_verified ? (
+                <View style={styles.avatarVerifyBadge}>
+                  <Ionicons name="checkmark" size={12} color="#FFFFFF" />
+                </View>
+              ) : null}
+            </View>
+
+            <Text style={styles.heroName}>{breederData.name}</Text>
+            <Text style={styles.heroMeta}>
+              Verified Breeder · {locationText}
+            </Text>
+
+            <View style={styles.heroChipRow}>
+              {ageText ? (
+                <View style={styles.heroChip}>
+                  <Feather name="calendar" size={11} color="#FFFFFF" />
+                  <Text style={styles.heroChipText}>{ageText}</Text>
+                </View>
+              ) : null}
+              {sexText ? (
+                <View style={styles.heroChip}>
+                  <Feather name="user" size={11} color="#FFFFFF" />
+                  <Text style={styles.heroChipText}>{sexText}</Text>
+                </View>
+              ) : null}
+            </View>
+          </View>
+        </View>
+
+        <View style={styles.overlaySheet}>
+          {hasReviewSummary ? (
+            <View style={styles.ratingStrip}>
+              <View style={styles.ratingStripStars}>
+                <StarIcons rating={ratingDisplay} size={12} />
               </View>
-            )}
-            {genderText && (
-              <View style={[styles.tag, styles.genderTag]}>
-                <Feather name="user" size={12} color="#0284C7" />
-                <Text style={styles.genderTagText}>{genderText}</Text>
-              </View>
-            )}
-            <View style={[styles.tag, styles.experienceTag]}>
-              <Feather name="award" size={12} color="#7C3AED" />
-              <Text style={styles.experienceTagText}>{experienceYears} yr{experienceYears !== 1 ? "s" : ""} exp</Text>
+              <Text style={styles.ratingStripValue}>
+                {ratingDisplay.toFixed(1)}
+              </Text>
+              <Text style={styles.ratingStripHint}>
+                ({reviewCount} reviews)
+              </Text>
+            </View>
+          ) : null}
+
+          <View style={styles.statsCard}>
+            <View style={styles.statCell}>
+              <Text style={styles.statValue}>{stats.total_pets}</Text>
+              <Text style={styles.statLabel}>TOTAL PETS</Text>
+            </View>
+            <View style={styles.statDivider} />
+            <View style={styles.statCell}>
+              <Text style={styles.statValue}>{stats.dog_count}</Text>
+              <Text style={styles.statLabel}>DOGS</Text>
+            </View>
+            <View style={styles.statDivider} />
+            <View style={styles.statCell}>
+              <Text style={[styles.statValue, { color: "#56C6A7" }]}>
+                {stats.cat_count}
+              </Text>
+              <Text style={styles.statLabel}>CATS</Text>
             </View>
           </View>
 
-          {/* Rating */}
-          {rating > 0 && (
-            <View style={styles.ratingContainer}>
-              <View style={styles.starsContainer}>
-                {[1, 2, 3, 4, 5].map((star) => (
-                  <Feather 
-                    key={star} 
-                    name="star" 
-                    size={16} 
-                    color={star <= Math.round(rating) ? "#F59E0B" : "#E5E7EB"} 
-                  />
+          {breederData.id_verified || breederData.breeder_verified ? (
+            <View style={styles.cardSection}>
+              <Text style={styles.sectionTitle}>Verification</Text>
+              <Text style={styles.sectionSubtitle}>Verified credentials</Text>
+
+              {breederData.id_verified ? (
+                <View style={styles.verificationRow}>
+                  <View
+                    style={[
+                      styles.verificationIconWrap,
+                      { backgroundColor: "#DDF5EE" },
+                    ]}
+                  >
+                    <Feather name="shield" size={14} color="#4CBFA2" />
+                  </View>
+                  <View style={styles.verificationBody}>
+                    <Text style={styles.verificationTitle}>User Verified</Text>
+                    <Text style={styles.verificationSub}>
+                      Verification confirmed
+                    </Text>
+                  </View>
+                  <View
+                    style={[
+                      styles.verificationState,
+                      { backgroundColor: "#DCF7EE" },
+                    ]}
+                  >
+                    <Text
+                      style={[
+                        styles.verificationStateText,
+                        { color: "#4CBFA2" },
+                      ]}
+                    >
+                      Verified
+                    </Text>
+                  </View>
+                </View>
+              ) : null}
+
+              {breederData.breeder_verified ? (
+                <View style={styles.verificationRow}>
+                  <View
+                    style={[
+                      styles.verificationIconWrap,
+                      { backgroundColor: "#EFE7FF" },
+                    ]}
+                  >
+                    <Feather name="award" size={14} color="#9A7CE0" />
+                  </View>
+                  <View style={styles.verificationBody}>
+                    <Text style={styles.verificationTitle}>
+                      Licensed Breeder
+                    </Text>
+                    <Text style={styles.verificationSub}>
+                      DA-accredited license on file
+                    </Text>
+                  </View>
+                  <View
+                    style={[
+                      styles.verificationState,
+                      { backgroundColor: "#EFE7FF" },
+                    ]}
+                  >
+                    <Text
+                      style={[
+                        styles.verificationStateText,
+                        { color: "#9A7CE0" },
+                      ]}
+                    >
+                      Licensed
+                    </Text>
+                  </View>
+                </View>
+              ) : null}
+            </View>
+          ) : null}
+
+          {breederPetBreeds.length > 0 ? (
+            <View style={styles.cardSection}>
+              <Text style={styles.sectionTitle}>Breeds</Text>
+              <Text style={styles.sectionSubtitle}>
+                Pet breeds owned by this breeder
+              </Text>
+              <View style={styles.breedWrap}>
+                {breederPetBreeds.map((breed, index) => (
+                  <View key={`${breed}-${index}`} style={styles.breedChip}>
+                    <Feather name="check" size={11} color="#F38C69" />
+                    <Text style={styles.breedChipText}>{breed}</Text>
+                  </View>
                 ))}
               </View>
-              <Text style={styles.ratingText}>{rating.toFixed(1)}</Text>
             </View>
-          )}
-        </View>
+          ) : null}
 
-        {/* Quick Stats Banner */}
-        <View style={styles.quickStatsBanner}>
-          <View style={styles.quickStatItem}>
-            <Text style={styles.quickStatValue}>{stats.total_pets}</Text>
-            <Text style={styles.quickStatLabel}>Total Pets</Text>
-          </View>
-          <View style={styles.quickStatDivider} />
-          <View style={styles.quickStatItem}>
-            <Text style={styles.quickStatValue}>{stats.dog_count}</Text>
-            <Text style={styles.quickStatLabel}>Dogs</Text>
-          </View>
-          <View style={styles.quickStatDivider} />
-          <View style={styles.quickStatItem}>
-            <Text style={styles.quickStatValue}>{stats.cat_count}</Text>
-            <Text style={styles.quickStatLabel}>Cats</Text>
-          </View>
-        </View>
-
-        {/* Verification Badges */}
-        {(breederData.id_verified || breederData.breeder_verified) && (
-          <View style={styles.verificationSection}>
-            <Text style={styles.sectionTitle}>Verification</Text>
-            <Text style={styles.sectionSubtitle}>Verified credentials</Text>
-            <View style={styles.badgesContainer}>
-              {breederData.id_verified && (
-                <View style={styles.verificationBadge}>
-                  <View style={[styles.badgeIcon, { backgroundColor: "#D1FAE5" }]}>
-                    <Feather name="user-check" size={16} color="#059669" />
-                  </View>
-                  <Text style={styles.badgeText}>ID Verified</Text>
-                </View>
-              )}
-              {breederData.breeder_verified && (
-                <View style={styles.verificationBadge}>
-                  <View style={[styles.badgeIcon, { backgroundColor: "#DBEAFE" }]}>
-                    <Feather name="award" size={16} color="#2563EB" />
-                  </View>
-                  <Text style={styles.badgeText}>Licensed Breeder</Text>
-                </View>
-              )}
-            </View>
-          </View>
-        )}
-
-        {/* Breeds Section */}
-        {displayedBreeds.length > 0 && (
-          <View style={styles.breedsSection}>
-            <Text style={styles.sectionTitle}>Breeds</Text>
-            <Text style={styles.sectionSubtitle}>Pet breeds owned by this breeder</Text>
-            <View style={styles.breedsContainer}>
-              {displayedBreeds.map((breed, index) => (
-                <View key={breed + index} style={styles.breedChip}>
-                  <Feather name="check" size={12} color="#ea5b3a" />
-                  <Text style={styles.breedChipText}>{breed}</Text>
-                </View>
-              ))}
-            </View>
-          </View>
-        )}
-
-        {/* Pets Section */}
-        {breederData.pets && breederData.pets.length > 0 && (
-          <View style={styles.petsSection}>
-            <View style={styles.sectionHeaderRow}>
-              <Text style={styles.sectionTitle}>{breederData.name}&apos;s Pets</Text>
-              <View style={styles.petCountBadge}>
-                <Text style={styles.petCountText}>{breederData.pets.length}</Text>
-              </View>
+          <View
+            style={styles.cardSection}
+            onLayout={(event) => setPetsSectionY(event.nativeEvent.layout.y)}
+          >
+            <View style={styles.sectionTitleRow}>
+              <Text style={styles.sectionTitle}>
+                {breederData.name}&apos;s Pets
+              </Text>
+              <TouchableOpacity
+                style={styles.viewPetsButton}
+                onPress={handleViewPetsPress}
+              >
+                <Feather name="eye" size={12} color="#F38C69" />
+                <Text style={styles.viewPetsText}>View breeder pets</Text>
+              </TouchableOpacity>
             </View>
             <Text style={styles.sectionSubtitle}>Available for breeding</Text>
-            <ScrollView 
-              horizontal 
-              showsHorizontalScrollIndicator={false}
-              contentContainerStyle={styles.petsScrollContent}
-            >
-              {breederData.pets.map((pet) => (
-                <PetCard key={pet.pet_id} pet={pet} />
-              ))}
-            </ScrollView>
-          </View>
-        )}
 
-        {/* About Section */}
-        <View style={styles.aboutSection}>
-          <Text style={styles.sectionTitle}>About</Text>
-          <View style={styles.aboutCard}>
-            <Text style={styles.aboutText}>
-              Experienced pet breeder with {experienceYears} year{experienceYears !== 1 ? "s" : ""} of experience. 
-              Specializing in {displayedBreeds.length > 0 ? displayedBreeds.slice(0, 3).join(", ") : "various breeds"}.
-              {breederData.breeder_verified && " Certified and licensed breeder."}
-            </Text>
-          </View>
-        </View>
+            {breederPets.length > 0 ? (
+              <ScrollView
+                horizontal
+                showsHorizontalScrollIndicator={false}
+                contentContainerStyle={styles.petListRow}
+              >
+                {breederPets.map((pet: BreederPet) => {
+                  const petAge = formatYearLabel(pet.age) || "Age n/a";
 
-        {/* Contact Button */}
-        <View style={styles.contactSection}>
-          <TouchableOpacity style={styles.contactButton}>
-            <Feather name="message-circle" size={20} color="#fff" />
-            <Text style={styles.contactButtonText}>Contact Breeder</Text>
-          </TouchableOpacity>
+                  return (
+                    <TouchableOpacity
+                      key={pet.pet_id}
+                      style={styles.petCard}
+                      onPress={() => handlePetPress(pet.pet_id)}
+                    >
+                      {pet.profile_image ? (
+                        <Image
+                          source={{ uri: getImageUrl(pet.profile_image) }}
+                          style={styles.petImage}
+                        />
+                      ) : (
+                        <View
+                          style={[styles.petImage, styles.petImagePlaceholder]}
+                        >
+                          <Ionicons name="paw" size={20} color="#A8A5B3" />
+                        </View>
+                      )}
+
+                      <Text style={styles.petName} numberOfLines={1}>
+                        {pet.name}
+                      </Text>
+                      <Text style={styles.petMeta} numberOfLines={2}>
+                        {pet.species} · {pet.sex} · {petAge}
+                      </Text>
+
+                      <View
+                        style={[
+                          styles.petStatusPill,
+                          pet.is_on_cooldown
+                            ? styles.petStatusCooldown
+                            : styles.petStatusAvailable,
+                        ]}
+                      >
+                        <Text
+                          style={[
+                            styles.petStatusText,
+                            pet.is_on_cooldown
+                              ? styles.petStatusCooldownText
+                              : styles.petStatusAvailableText,
+                          ]}
+                        >
+                          {pet.is_on_cooldown ? "On Cooldown" : "For Breeding"}
+                        </Text>
+                      </View>
+                    </TouchableOpacity>
+                  );
+                })}
+              </ScrollView>
+            ) : (
+              <View style={styles.emptyBlock}>
+                <Ionicons name="paw-outline" size={22} color="#B4AFBD" />
+                <Text style={styles.emptyText}>No pets available yet.</Text>
+              </View>
+            )}
+          </View>
+
+          <View style={styles.cardSection}>
+            <Text style={styles.sectionTitle}>Reviews</Text>
+            <Text style={styles.sectionSubtitle}>What other breeders say</Text>
+
+            <View style={styles.reviewsSummaryCard}>
+              <View style={styles.reviewsScoreCol}>
+                <Text style={styles.reviewsScore}>
+                  {ratingDisplay.toFixed(1)}
+                </Text>
+                <View style={styles.ratingStripStars}>
+                  <StarIcons rating={ratingDisplay} size={12} />
+                </View>
+                <Text style={styles.reviewsHint}>{reviewCount} reviews</Text>
+              </View>
+
+              <View style={styles.reviewsBarsCol}>
+                <RatingBar label="5" fill={reviewFill.five} />
+                <RatingBar label="4" fill={reviewFill.four} />
+                <RatingBar label="3" fill={reviewFill.three} />
+                <RatingBar label="2" fill={reviewFill.two} />
+                <RatingBar label="1" fill={reviewFill.one} />
+              </View>
+            </View>
+
+            {topCategoryTags.length > 0 ? (
+              <View style={styles.reviewCategoryRow}>
+                {topCategoryTags.map((tag) => (
+                  <View key={tag} style={styles.reviewCategoryChip}>
+                    <Text style={styles.reviewCategoryText}>{tag}</Text>
+                  </View>
+                ))}
+              </View>
+            ) : null}
+
+            {hasLiveReviews ? (
+              <>
+                {reviews.map((review) => {
+                  const reviewerName = review.reviewer?.name || "Anonymous";
+                  const initials = reviewerName
+                    .split(" ")
+                    .map((part) => part.charAt(0))
+                    .join("")
+                    .slice(0, 2)
+                    .toUpperCase();
+
+                  const ratingTags = (review.ratings || [])
+                    .slice(0, 4)
+                    .map((entry, index) => {
+                      const label =
+                        reviewCategories[entry.category] || entry.category;
+                      const ratingValue = parseNumeric(entry.rating);
+                      if (ratingValue === null) return null;
+
+                      return {
+                        key: `${review.id}-${entry.category}-${index}`,
+                        text: `${label} ${ratingValue.toFixed(1)}`,
+                      };
+                    })
+                    .filter(
+                      (tag): tag is { key: string; text: string } =>
+                        tag !== null,
+                    );
+
+                  return (
+                    <View key={review.id} style={styles.reviewCard}>
+                      <View style={styles.reviewTopRow}>
+                        <View style={styles.reviewerHeadWrap}>
+                          {review.reviewer?.profile_image ? (
+                            <Image
+                              source={{
+                                uri: getImageUrl(review.reviewer.profile_image),
+                              }}
+                              style={styles.reviewerAvatar}
+                            />
+                          ) : (
+                            <View
+                              style={[
+                                styles.reviewerAvatar,
+                                styles.reviewerAvatarPlaceholder,
+                              ]}
+                            >
+                              <Text style={styles.reviewerInitials}>
+                                {initials || "AN"}
+                              </Text>
+                            </View>
+                          )}
+
+                          <View>
+                            <Text style={styles.reviewerName}>
+                              {reviewerName}
+                            </Text>
+                            <Text style={styles.reviewerDate}>
+                              {dayjs(review.created_at).format("MMM YYYY")}
+                            </Text>
+                          </View>
+                        </View>
+
+                        <View style={styles.reviewStarsWrap}>
+                          <StarIcons rating={review.average_rating} size={10} />
+                        </View>
+                      </View>
+
+                      {review.comment ? (
+                        <Text style={styles.reviewComment} numberOfLines={2}>
+                          {review.comment}
+                        </Text>
+                      ) : null}
+
+                      {ratingTags.length > 0 ? (
+                        <View style={styles.reviewTagRow}>
+                          {ratingTags.map((tag) => (
+                            <ReviewTag key={tag.key} text={tag.text} />
+                          ))}
+                        </View>
+                      ) : null}
+                    </View>
+                  );
+                })}
+
+                {reviewPage < reviewLastPage ? (
+                  <TouchableOpacity
+                    style={styles.loadMoreButton}
+                    onPress={handleLoadMoreReviews}
+                    disabled={loadingMoreReviews}
+                  >
+                    {loadingMoreReviews ? (
+                      <ActivityIndicator size="small" color="#F38C69" />
+                    ) : (
+                      <Text style={styles.loadMoreButtonText}>
+                        Show More Reviews
+                      </Text>
+                    )}
+                  </TouchableOpacity>
+                ) : null}
+              </>
+            ) : (
+              <View style={styles.emptyReviewsCard}>
+                <Ionicons
+                  name="chatbubble-ellipses-outline"
+                  size={20}
+                  color="#B4AFBD"
+                />
+                <Text style={styles.emptyText}>
+                  No reviews yet for this breeder.
+                </Text>
+              </View>
+            )}
+          </View>
         </View>
       </ScrollView>
 
@@ -355,417 +808,540 @@ export default function BreederProfileScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: {
+  screen: {
     flex: 1,
-    backgroundColor: "#FFF7F5",
+    backgroundColor: "#F4EFED",
   },
-  loadingContainer: {
+  loadingScreen: {
     flex: 1,
-    backgroundColor: "#FFF7F5",
+    backgroundColor: "#F4EFED",
     alignItems: "center",
     justifyContent: "center",
   },
   loadingText: {
-    marginTop: 12,
-    color: "#6B7280",
-    fontSize: 14,
+    marginTop: 10,
+    fontSize: 13,
+    color: "#8D8897",
   },
-  errorText: {
-    marginTop: 16,
-    color: "#6B7280",
-    fontSize: 16,
+
+  heroWrap: {
+    height: 288,
+    overflow: "hidden",
   },
-  backButton: {
-    marginTop: 16,
-    backgroundColor: "#ea5b3a",
-    paddingHorizontal: 24,
-    paddingVertical: 12,
-    borderRadius: 24,
-  },
-  backButtonText: {
-    color: "#fff",
-    fontWeight: "600",
-  },
-  header: {
+  heroTopRow: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    backgroundColor: "#fff",
-    borderBottomWidth: 1,
-    borderBottomColor: "#F3F4F6",
+    paddingHorizontal: 12,
+    paddingTop: 8,
   },
-  headerButton: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: "#F9FAFB",
+  heroIconButton: {
+    width: 34,
+    height: 34,
+    borderRadius: 17,
     alignItems: "center",
     justifyContent: "center",
+    backgroundColor: "rgba(255,255,255,0.24)",
   },
-  headerTitle: {
-    fontSize: 16,
+  heroTopTitle: {
+    color: "#FFFFFF",
+    fontSize: 12,
     fontWeight: "700",
-    color: "#1F2937",
-  },
-  scrollView: {
-    flex: 1,
-  },
-  scrollContent: {
-    paddingBottom: 32,
   },
 
-  // Hero Section
-  heroSection: {
+  heroIdentityBlock: {
+    marginTop: 12,
     alignItems: "center",
-    paddingVertical: 24,
-    paddingHorizontal: 16,
-    backgroundColor: "#fff",
+    paddingHorizontal: 18,
   },
-  profileImageContainer: {
-    position: "relative",
-    marginBottom: 16,
-  },
-  profileImage: {
-    width: 120,
-    height: 120,
-    borderRadius: 60,
-    borderWidth: 4,
-    borderColor: "#fff",
-  },
-  profileImagePlaceholder: {
-    backgroundColor: "#F3F4F6",
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  verifiedBadge: {
-    position: "absolute",
-    bottom: 4,
-    right: 4,
-    width: 28,
-    height: 28,
-    borderRadius: 14,
-    backgroundColor: "#10B981",
-    alignItems: "center",
-    justifyContent: "center",
+  avatarFrame: {
+    width: 92,
+    height: 92,
+    borderRadius: 46,
     borderWidth: 3,
-    borderColor: "#fff",
-  },
-  breederName: {
-    fontSize: 24,
-    fontWeight: "800",
-    color: "#1F2937",
-    marginBottom: 12,
-  },
-  tagsRow: {
-    flexDirection: "row",
-    flexWrap: "wrap",
+    borderColor: "#FFFFFF",
+    overflow: "visible",
+    backgroundColor: "#FFFFFF",
+    alignItems: "center",
     justifyContent: "center",
-    gap: 8,
-    marginBottom: 12,
   },
-  tag: {
+  avatarImage: {
+    width: "100%",
+    height: "100%",
+    borderRadius: 46,
+  },
+  avatarPlaceholder: {
+    backgroundColor: "#EFF0F4",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  avatarVerifyBadge: {
+    position: "absolute",
+    right: -2,
+    bottom: -2,
+    width: 24,
+    height: 24,
+    borderRadius: 12,
+    borderWidth: 2,
+    borderColor: "#FFFFFF",
+    backgroundColor: "#59C9A8",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  heroName: {
+    marginTop: 10,
+    color: "#FFFFFF",
+    fontSize: 34,
+    fontWeight: "700",
+    lineHeight: 38,
+    textAlign: "center",
+  },
+  heroMeta: {
+    marginTop: 2,
+    color: "rgba(255,255,255,0.92)",
+    fontSize: 12,
+    textAlign: "center",
+  },
+  heroChipRow: {
+    marginTop: 10,
     flexDirection: "row",
     alignItems: "center",
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 20,
-    gap: 4,
   },
-  ageTag: {
-    backgroundColor: "#FEF3C7",
+  heroChip: {
+    marginHorizontal: 4,
+    borderRadius: 14,
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderWidth: 1,
+    borderColor: "rgba(255,255,255,0.56)",
+    flexDirection: "row",
+    alignItems: "center",
   },
-  ageTagText: {
-    fontSize: 12,
+  heroChipText: {
+    marginLeft: 4,
+    color: "#FFFFFF",
+    fontSize: 11,
     fontWeight: "600",
-    color: "#D97706",
-  },
-  genderTag: {
-    backgroundColor: "#DBEAFE",
-  },
-  genderTagText: {
-    fontSize: 12,
-    fontWeight: "600",
-    color: "#0284C7",
     textTransform: "capitalize",
   },
-  experienceTag: {
-    backgroundColor: "#EDE9FE",
+
+  body: {
+    flex: 1,
   },
-  experienceTagText: {
-    fontSize: 12,
-    fontWeight: "600",
-    color: "#7C3AED",
+  bodyContent: {
+    paddingBottom: 28,
   },
-  ratingContainer: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 8,
-  },
-  starsContainer: {
-    flexDirection: "row",
-    gap: 2,
-  },
-  ratingText: {
-    fontSize: 14,
-    fontWeight: "600",
-    color: "#1F2937",
+  overlaySheet: {
+    marginTop: -22,
+    borderTopLeftRadius: 28,
+    borderTopRightRadius: 28,
+    backgroundColor: "#F4EFED",
+    paddingTop: 10,
+    paddingHorizontal: 10,
   },
 
-  // Quick Stats Banner
-  quickStatsBanner: {
+  ratingStrip: {
     flexDirection: "row",
-    backgroundColor: "#ea5b3a",
-    marginHorizontal: 16,
-    marginTop: 16,
-    borderRadius: 20,
-    padding: 20,
+    alignItems: "center",
+    paddingHorizontal: 12,
+    paddingBottom: 8,
   },
-  quickStatItem: {
+  ratingStripStars: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 1,
+  },
+  ratingStripValue: {
+    marginLeft: 6,
+    fontSize: 14,
+    fontWeight: "700",
+    color: "#322E3D",
+  },
+  ratingStripHint: {
+    marginLeft: 6,
+    fontSize: 10,
+    color: "#9C98A8",
+  },
+
+  statsCard: {
+    flexDirection: "row",
+    alignItems: "center",
+    borderRadius: 16,
+    backgroundColor: "#FFFFFF",
+    borderWidth: 1,
+    borderColor: "#EEE8E6",
+    overflow: "hidden",
+    marginBottom: 10,
+  },
+  statCell: {
     flex: 1,
     alignItems: "center",
+    justifyContent: "center",
+    paddingVertical: 12,
   },
-  quickStatValue: {
-    fontSize: 24,
-    fontWeight: "800",
-    color: "#fff",
-  },
-  quickStatLabel: {
-    fontSize: 12,
-    color: "rgba(255,255,255,0.85)",
-    marginTop: 4,
-  },
-  quickStatDivider: {
+  statDivider: {
     width: 1,
-    backgroundColor: "rgba(255,255,255,0.2)",
-    marginVertical: 4,
+    alignSelf: "stretch",
+    backgroundColor: "#EFE9E6",
+  },
+  statValue: {
+    fontSize: 34,
+    fontWeight: "700",
+    color: "#342F3F",
+    lineHeight: 36,
+  },
+  statLabel: {
+    marginTop: 3,
+    fontSize: 9,
+    fontWeight: "700",
+    color: "#A4A0AF",
+    letterSpacing: 0.6,
   },
 
-  // Section Styles
+  cardSection: {
+    marginTop: 10,
+    borderRadius: 14,
+    backgroundColor: "#FFFFFF",
+    borderWidth: 1,
+    borderColor: "#EEE8E6",
+    paddingHorizontal: 12,
+    paddingVertical: 12,
+  },
   sectionTitle: {
-    fontSize: 18,
+    fontSize: 17,
     fontWeight: "700",
-    color: "#1F2937",
-    marginBottom: 4,
+    color: "#2F2A3A",
   },
   sectionSubtitle: {
-    fontSize: 12,
-    color: "#6B7280",
-    marginBottom: 12,
+    marginTop: 2,
+    marginBottom: 10,
+    fontSize: 11,
+    color: "#9E9AA8",
   },
-  sectionHeaderRow: {
+  sectionTitleRow: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
   },
 
-  // Verification Section
-  verificationSection: {
-    paddingHorizontal: 16,
-    marginTop: 24,
-  },
-  badgesContainer: {
-    flexDirection: "row",
-    flexWrap: "wrap",
-    gap: 12,
-  },
-  verificationBadge: {
+  verificationRow: {
     flexDirection: "row",
     alignItems: "center",
-    backgroundColor: "#fff",
-    paddingHorizontal: 12,
+    borderRadius: 10,
+    backgroundColor: "#F9F6F5",
+    paddingHorizontal: 10,
     paddingVertical: 10,
-    borderRadius: 12,
-    gap: 10,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.05,
-    shadowRadius: 2,
-    elevation: 1,
-  },
-  badgeIcon: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  badgeText: {
-    fontSize: 13,
-    fontWeight: "600",
-    color: "#374151",
-  },
-
-  // Stats Section
-  statCard: {
-    width: "47%",
-    padding: 16,
-    borderRadius: 16,
-    alignItems: "center",
-  },
-  statIconContainer: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: "rgba(255,255,255,0.25)",
-    alignItems: "center",
-    justifyContent: "center",
     marginBottom: 8,
   },
-  statValue: {
-    fontSize: 28,
-    fontWeight: "800",
-    color: "#fff",
+  verificationIconWrap: {
+    width: 30,
+    height: 30,
+    borderRadius: 8,
+    alignItems: "center",
+    justifyContent: "center",
   },
-  statLabel: {
+  verificationBody: {
+    flex: 1,
+    marginLeft: 8,
+  },
+  verificationTitle: {
     fontSize: 12,
-    color: "rgba(255,255,255,0.9)",
-    marginTop: 4,
+    fontWeight: "700",
+    color: "#312C3B",
+  },
+  verificationSub: {
+    marginTop: 1,
+    fontSize: 10,
+    color: "#9A96A4",
+  },
+  verificationState: {
+    borderRadius: 999,
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+  },
+  verificationStateText: {
+    fontSize: 10,
+    fontWeight: "700",
   },
 
-  // Breeds Section
-  breedsSection: {
-    paddingHorizontal: 16,
-    marginTop: 24,
-  },
-  breedsContainer: {
+  breedWrap: {
     flexDirection: "row",
     flexWrap: "wrap",
-    gap: 8,
   },
   breedChip: {
     flexDirection: "row",
     alignItems: "center",
-    backgroundColor: "#fff",
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-    borderRadius: 20,
-    gap: 6,
-    borderWidth: 1,
-    borderColor: "#FEE2E2",
-  },
-  breedChipText: {
-    fontSize: 13,
-    fontWeight: "500",
-    color: "#374151",
-  },
-
-  // Pets Section
-  petsSection: {
-    marginTop: 24,
-    paddingLeft: 16,
-  },
-  petCountBadge: {
-    backgroundColor: "#ea5b3a",
+    borderRadius: 999,
+    backgroundColor: "#FFF1EB",
     paddingHorizontal: 10,
-    paddingVertical: 4,
-    borderRadius: 12,
-    marginRight: 16,
-  },
-  petCountText: {
-    fontSize: 12,
-    fontWeight: "700",
-    color: "#fff",
-  },
-  petsScrollContent: {
-    paddingRight: 16,
-    gap: 12,
-  },
-  petCard: {
-    backgroundColor: "#fff",
-    borderRadius: 16,
-    padding: 12,
-    alignItems: "center",
-    width: 120,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.05,
-    shadowRadius: 4,
-    elevation: 2,
-  },
-  petImageContainer: {
-    position: "relative",
+    paddingVertical: 6,
+    marginRight: 8,
     marginBottom: 8,
   },
-  petImage: {
-    width: 64,
-    height: 64,
-    borderRadius: 32,
-  },
-  petImagePlaceholder: {
-    backgroundColor: "#F3F4F6",
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  cooldownBadge: {
-    position: "absolute",
-    top: -2,
-    right: -2,
-    width: 18,
-    height: 18,
-    borderRadius: 9,
-    backgroundColor: "#3B82F6",
-    alignItems: "center",
-    justifyContent: "center",
-    borderWidth: 2,
-    borderColor: "#fff",
-  },
-  petName: {
-    fontSize: 14,
-    fontWeight: "600",
-    color: "#1F2937",
-    marginBottom: 2,
-  },
-  petBreed: {
+  breedChipText: {
+    marginLeft: 4,
     fontSize: 11,
-    color: "#6B7280",
-    marginBottom: 6,
-  },
-  petPrice: {
-    fontSize: 12,
-    fontWeight: "700",
-    color: "#ea5b3a",
+    color: "#D66E4A",
+    fontWeight: "600",
   },
 
-  // About Section
-  aboutSection: {
-    paddingHorizontal: 16,
-    marginTop: 24,
-  },
-  aboutCard: {
-    backgroundColor: "#fff",
-    borderRadius: 16,
-    padding: 16,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.05,
-    shadowRadius: 2,
-    elevation: 1,
-  },
-  aboutText: {
-    fontSize: 14,
-    lineHeight: 22,
-    color: "#4B5563",
-  },
-
-  // Contact Section
-  contactSection: {
-    paddingHorizontal: 16,
-    marginTop: 24,
-  },
-  contactButton: {
+  viewPetsButton: {
     flexDirection: "row",
     alignItems: "center",
-    justifyContent: "center",
-    backgroundColor: "#ea5b3a",
-    paddingVertical: 16,
-    borderRadius: 16,
-    gap: 8,
+    borderRadius: 999,
+    borderWidth: 1,
+    borderColor: "#F7D8CB",
+    backgroundColor: "#FFF6F2",
+    paddingHorizontal: 9,
+    paddingVertical: 5,
   },
-  contactButtonText: {
-    fontSize: 16,
+  viewPetsText: {
+    marginLeft: 5,
+    fontSize: 10,
     fontWeight: "700",
-    color: "#fff",
+    color: "#F38C69",
+    textTransform: "uppercase",
+  },
+
+  petListRow: {
+    paddingRight: 2,
+  },
+  petCard: {
+    width: 132,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: "#F0EAE7",
+    backgroundColor: "#FFFAF8",
+    padding: 8,
+    marginRight: 9,
+  },
+  petImage: {
+    width: "100%",
+    height: 86,
+    borderRadius: 10,
+    backgroundColor: "#EDE9ED",
+  },
+  petImagePlaceholder: {
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  petName: {
+    marginTop: 8,
+    fontSize: 13,
+    fontWeight: "700",
+    color: "#2F2A3A",
+  },
+  petMeta: {
+    marginTop: 2,
+    fontSize: 10,
+    lineHeight: 14,
+    color: "#8E8A98",
+    textTransform: "capitalize",
+    minHeight: 28,
+  },
+  petStatusPill: {
+    marginTop: 6,
+    alignSelf: "flex-start",
+    borderRadius: 999,
+    paddingHorizontal: 7,
+    paddingVertical: 4,
+  },
+  petStatusAvailable: {
+    backgroundColor: "#FFF1EB",
+  },
+  petStatusCooldown: {
+    backgroundColor: "#EAF0FF",
+  },
+  petStatusText: {
+    fontSize: 9,
+    fontWeight: "700",
+  },
+  petStatusAvailableText: {
+    color: "#F38C69",
+  },
+  petStatusCooldownText: {
+    color: "#5F83D8",
+  },
+
+  emptyBlock: {
+    borderRadius: 12,
+    backgroundColor: "#F9F6F5",
+    alignItems: "center",
+    justifyContent: "center",
+    paddingVertical: 20,
+  },
+  emptyText: {
+    marginTop: 6,
+    fontSize: 12,
+    color: "#9E9AA8",
+  },
+
+  reviewsSummaryCard: {
+    flexDirection: "row",
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: "#F0EAE7",
+    backgroundColor: "#FFFBFA",
+    padding: 10,
+  },
+  reviewsScoreCol: {
+    width: 86,
+    alignItems: "flex-start",
+    justifyContent: "center",
+  },
+  reviewsScore: {
+    fontSize: 40,
+    lineHeight: 40,
+    color: "#2F2A3A",
+    fontWeight: "700",
+  },
+  reviewsHint: {
+    marginTop: 6,
+    fontSize: 10,
+    color: "#9C98A8",
+  },
+  reviewsBarsCol: {
+    flex: 1,
+    justifyContent: "center",
+    paddingLeft: 6,
+  },
+  reviewCategoryRow: {
+    marginTop: 10,
+    flexDirection: "row",
+    flexWrap: "wrap",
+  },
+  reviewCategoryChip: {
+    borderRadius: 999,
+    backgroundColor: "#F6F1FF",
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    marginRight: 6,
+    marginBottom: 6,
+  },
+  reviewCategoryText: {
+    fontSize: 10,
+    fontWeight: "700",
+    color: "#7F71C7",
+  },
+  reviewCard: {
+    marginTop: 10,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: "#F0EAE7",
+    backgroundColor: "#FFFFFF",
+    padding: 10,
+  },
+  reviewTopRow: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+  },
+  reviewerHeadWrap: {
+    flexDirection: "row",
+    alignItems: "center",
+  },
+  reviewerAvatar: {
+    width: 22,
+    height: 22,
+    borderRadius: 11,
+    marginRight: 8,
+    backgroundColor: "#EBE6EF",
+  },
+  reviewerAvatarPlaceholder: {
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  reviewerInitials: {
+    fontSize: 9,
+    color: "#8A8497",
+    fontWeight: "700",
+  },
+  reviewerName: {
+    fontSize: 12,
+    color: "#312C3B",
+    fontWeight: "700",
+  },
+  reviewerDate: {
+    fontSize: 9,
+    color: "#AAA6B4",
+    marginTop: 1,
+  },
+  reviewStarsWrap: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 1,
+  },
+  reviewComment: {
+    marginTop: 8,
+    fontSize: 11,
+    lineHeight: 15,
+    color: "#5D5969",
+  },
+  reviewTagRow: {
+    marginTop: 8,
+    flexDirection: "row",
+    flexWrap: "wrap",
+  },
+  reviewTag: {
+    borderRadius: 999,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    marginRight: 6,
+    marginBottom: 6,
+    flexDirection: "row",
+    alignItems: "center",
+  },
+  reviewTagText: {
+    marginLeft: 4,
+    fontSize: 9,
+    fontWeight: "700",
+  },
+  loadMoreButton: {
+    marginTop: 10,
+    borderRadius: 999,
+    borderWidth: 1,
+    borderColor: "#F7D8CB",
+    backgroundColor: "#FFF6F2",
+    alignItems: "center",
+    justifyContent: "center",
+    paddingVertical: 10,
+  },
+  loadMoreButtonText: {
+    fontSize: 11,
+    fontWeight: "700",
+    color: "#F38C69",
+    textTransform: "uppercase",
+  },
+  emptyReviewsCard: {
+    marginTop: 10,
+    borderRadius: 12,
+    backgroundColor: "#F9F6F5",
+    borderWidth: 1,
+    borderColor: "#EFE8E5",
+    alignItems: "center",
+    justifyContent: "center",
+    paddingVertical: 16,
+  },
+  ratingBarRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginBottom: 6,
+  },
+  ratingBarLabel: {
+    width: 10,
+    fontSize: 10,
+    fontWeight: "700",
+    color: "#8A8695",
+  },
+  ratingTrack: {
+    flex: 1,
+    height: 4,
+    borderRadius: 4,
+    backgroundColor: "#E8E2E0",
+  },
+  ratingFill: {
+    height: 4,
+    borderRadius: 4,
+    backgroundColor: "#F1A916",
   },
 });
