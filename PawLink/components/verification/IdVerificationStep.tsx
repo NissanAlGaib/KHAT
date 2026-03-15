@@ -20,11 +20,13 @@ import { extractIdInformation, OcrExtractedData } from "@/services/ocrService";
 interface IdVerificationStepProps {
   onNext: (data: Record<string, unknown>) => void;
   initialData: Record<string, unknown>;
+  registeredBirthdate?: string | null;
 }
 
 export default function IdVerificationStep({
   onNext,
   initialData,
+  registeredBirthdate,
 }: IdVerificationStepProps) {
   const { visible, alertOptions, showAlert, hideAlert } = useAlert();
 
@@ -148,6 +150,36 @@ export default function IdVerificationStep({
     return `${day}/${month}/${year}`;
   };
 
+  const toDateOnlyString = (value: Date | string | null | undefined) => {
+    if (!value) {
+      return null;
+    }
+
+    if (typeof value === "string") {
+      const trimmed = value.trim();
+      if (/^\d{4}-\d{2}-\d{2}$/.test(trimmed)) {
+        return trimmed;
+      }
+
+      const parsed = new Date(trimmed);
+      if (Number.isNaN(parsed.getTime())) {
+        return null;
+      }
+
+      const month = String(parsed.getMonth() + 1).padStart(2, "0");
+      const day = String(parsed.getDate()).padStart(2, "0");
+      return `${parsed.getFullYear()}-${month}-${day}`;
+    }
+
+    if (Number.isNaN(value.getTime())) {
+      return null;
+    }
+
+    const month = String(value.getMonth() + 1).padStart(2, "0");
+    const day = String(value.getDate()).padStart(2, "0");
+    return `${value.getFullYear()}-${month}-${day}`;
+  };
+
   const handleNext = () => {
     if (!idType) {
       showAlert({
@@ -185,12 +217,33 @@ export default function IdVerificationStep({
       return;
     }
 
+    const selectedBirthdate = toDateOnlyString(birthdate);
+    if (!selectedBirthdate) {
+      showAlert({
+        title: "Invalid Birthdate",
+        message: "Please provide a valid birthdate from your ID.",
+        type: "warning",
+      });
+      return;
+    }
+
+    const accountBirthdate = toDateOnlyString(registeredBirthdate);
+    if (accountBirthdate && selectedBirthdate !== accountBirthdate) {
+      showAlert({
+        title: "Birthdate Mismatch",
+        message:
+          "The birthdate on your ID must match the birthdate you entered during registration.",
+        type: "error",
+      });
+      return;
+    }
+
     onNext({
       idType,
       idPhoto,
       idName: name,
       idNumber,
-      idBirthdate: birthdate.toISOString(),
+      idBirthdate: selectedBirthdate,
       idGivenDate: givenDate.toISOString(),
       idExpirationDate: expirationDate.toISOString(),
     });

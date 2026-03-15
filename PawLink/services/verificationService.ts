@@ -5,6 +5,7 @@ export interface VerificationData {
   id_document: any; // File/URI
   id_number?: string;
   id_name?: string;
+  id_birthdate?: string;
   id_issue_date?: string;
   id_expiration_date?: string;
   breeder_document?: any; // File/URI (optional)
@@ -50,6 +51,8 @@ export const submitVerification = async (data: VerificationData) => {
       formData.append("id_document", idFile as any);
       if (data.id_number) formData.append("id_number", data.id_number);
       if (data.id_name) formData.append("id_name", data.id_name);
+      if (data.id_birthdate)
+        formData.append("id_birthdate", data.id_birthdate);
       if (data.id_issue_date)
         formData.append("id_issue_date", data.id_issue_date);
       if (data.id_expiration_date)

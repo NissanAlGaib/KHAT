@@ -14,6 +14,7 @@ interface User {
   id: string;
   name: string;
   email: string;
+  birthdate?: string | null;
   emailVerifiedAt: string | null;
   credits: number | null;
   subscription_tier?: string;

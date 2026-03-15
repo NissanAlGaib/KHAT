@@ -4,9 +4,10 @@ namespace App\Http\Controllers;
 
 use Illuminate\Http\Request;
 use App\Models\UserAuth;
+use App\Models\User;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\Facades\Log;
-use Illuminate\Support\Facades\Storage;
+use Carbon\Carbon;
 
 class VerificationController extends Controller
 {
@@ -30,6 +31,7 @@ class VerificationController extends Controller
                 'id_document' => 'required|file|mimes:jpg,jpeg,png,pdf|max:10240',
                 'id_number' => 'nullable|string|max:255',
                 'id_name' => 'nullable|string|max:255',
+                'id_birthdate' => 'required|date',
                 'id_issue_date' => 'nullable|date',
                 'id_expiration_date' => 'nullable|date',
                 'breeder_document' => 'nullable|file|mimes:jpg,jpeg,png,pdf|max:10240',
@@ -55,6 +57,25 @@ class VerificationController extends Controller
             }
 
             $userId = $request->input('user_id');
+            $user = User::find($userId);
+
+            if (!$user || empty($user->birthdate)) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Your account birthdate is missing. Please update your profile before submitting ID verification.',
+                ], 422);
+            }
+
+            $submittedIdBirthdate = Carbon::parse($request->input('id_birthdate'))->toDateString();
+            $registeredBirthdate = Carbon::parse($user->birthdate)->toDateString();
+
+            if ($submittedIdBirthdate !== $registeredBirthdate) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'The birthdate on your ID must match the birthdate used during registration.',
+                ], 422);
+            }
+
             $createdRecords = [];
 
             // Store and create record for ID document
@@ -238,6 +259,7 @@ class VerificationController extends Controller
                 'document' => 'required|file|mimes:jpg,jpeg,png,pdf|max:10240',
                 'document_number' => 'nullable|string|max:255',
                 'document_name' => 'nullable|string|max:255',
+                'id_birthdate' => 'nullable|date',
                 'issue_date' => 'nullable|date',
                 'expiration_date' => 'nullable|date',
                 'issuing_authority' => 'nullable|string|max:255',
@@ -249,6 +271,32 @@ class VerificationController extends Controller
                     'message' => 'Validation failed',
                     'errors' => $validator->errors()
                 ], 422);
+            }
+
+            if ($userAuth->auth_type === 'id') {
+                if (!$request->filled('id_birthdate')) {
+                    return response()->json([
+                        'success' => false,
+                        'message' => 'Birthdate is required when resubmitting an ID document.',
+                    ], 422);
+                }
+
+                if (empty($request->user()->birthdate)) {
+                    return response()->json([
+                        'success' => false,
+                        'message' => 'Your account birthdate is missing. Please update your profile before resubmitting ID verification.',
+                    ], 422);
+                }
+
+                $submittedIdBirthdate = Carbon::parse($request->input('id_birthdate'))->toDateString();
+                $registeredBirthdate = Carbon::parse($request->user()->birthdate)->toDateString();
+
+                if ($submittedIdBirthdate !== $registeredBirthdate) {
+                    return response()->json([
+                        'success' => false,
+                        'message' => 'The birthdate on your ID must match the birthdate used during registration.',
+                    ], 422);
+                }
             }
 
             // Store the new document

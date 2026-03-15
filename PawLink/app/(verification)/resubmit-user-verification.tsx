@@ -18,12 +18,14 @@ import DocumentUploader from "@/components/verification/DocumentUploader";
 import AutoFilledInput from "@/components/verification/AutoFilledInput";
 import axiosInstance from "@/config/axiosConfig";
 import { useNotifications } from "@/context/NotificationContext";
+import { useSession } from "@/context/AuthContext";
 
 export default function ResubmitUserVerificationScreen() {
   const router = useRouter();
   const params = useLocalSearchParams();
   const { visible, alertOptions, showAlert, hideAlert } = useAlert();
   const { refreshNotifications, refreshBadgeCount } = useNotifications();
+  const { user } = useSession();
 
   const authId = params.authId as string;
   const authType = params.authType as string;
@@ -33,9 +35,11 @@ export default function ResubmitUserVerificationScreen() {
   const [document, setDocument] = useState<string | null>(null);
   const [documentNumber, setDocumentNumber] = useState("");
   const [documentName, setDocumentName] = useState("");
+  const [idBirthdate, setIdBirthdate] = useState<Date | null>(null);
   const [issuingAuthority, setIssuingAuthority] = useState("");
   const [issueDate, setIssueDate] = useState<Date>(new Date());
   const [expirationDate, setExpirationDate] = useState<Date>(new Date());
+  const [showIdBirthdatePicker, setShowIdBirthdatePicker] = useState(false);
   const [showIssueDatePicker, setShowIssueDatePicker] = useState(false);
   const [showExpirationDatePicker, setShowExpirationDatePicker] =
     useState(false);
@@ -48,6 +52,36 @@ export default function ResubmitUserVerificationScreen() {
     const month = String(date.getMonth() + 1).padStart(2, "0");
     const year = date.getFullYear();
     return `${day}/${month}/${year}`;
+  };
+
+  const normalizeDate = (value: Date | string | null | undefined) => {
+    if (!value) {
+      return null;
+    }
+
+    if (typeof value === "string") {
+      const trimmed = value.trim();
+      if (/^\d{4}-\d{2}-\d{2}$/.test(trimmed)) {
+        return trimmed;
+      }
+
+      const parsed = new Date(trimmed);
+      if (Number.isNaN(parsed.getTime())) {
+        return null;
+      }
+
+      const month = String(parsed.getMonth() + 1).padStart(2, "0");
+      const day = String(parsed.getDate()).padStart(2, "0");
+      return `${parsed.getFullYear()}-${month}-${day}`;
+    }
+
+    if (Number.isNaN(value.getTime())) {
+      return null;
+    }
+
+    const month = String(value.getMonth() + 1).padStart(2, "0");
+    const day = String(value.getDate()).padStart(2, "0");
+    return `${value.getFullYear()}-${month}-${day}`;
   };
 
   const getDocumentIcon = () => {
@@ -86,6 +120,34 @@ export default function ResubmitUserVerificationScreen() {
       return;
     }
 
+    if (isIdDocument && !idBirthdate) {
+      showAlert({
+        title: "Birthdate Required",
+        message: "Please enter the birthdate shown on your ID.",
+        type: "warning",
+      });
+      return;
+    }
+
+    if (isIdDocument && idBirthdate) {
+      const accountBirthdate = normalizeDate(user?.birthdate ?? null);
+      const submittedBirthdate = normalizeDate(idBirthdate);
+
+      if (
+        accountBirthdate &&
+        submittedBirthdate &&
+        accountBirthdate !== submittedBirthdate
+      ) {
+        showAlert({
+          title: "Birthdate Mismatch",
+          message:
+            "The birthdate on your ID must match the birthdate used during registration.",
+          type: "error",
+        });
+        return;
+      }
+    }
+
     setIsSubmitting(true);
 
     try {
@@ -112,6 +174,9 @@ export default function ResubmitUserVerificationScreen() {
 
       if (documentNumber) formData.append("document_number", documentNumber);
       if (documentName) formData.append("document_name", documentName);
+      if (isIdDocument && idBirthdate) {
+        formData.append("id_birthdate", normalizeDate(idBirthdate) as string);
+      }
       if (issuingAuthority)
         formData.append("issuing_authority", issuingAuthority);
       formData.append("issue_date", issueDate.toISOString());
@@ -262,6 +327,45 @@ export default function ResubmitUserVerificationScreen() {
                 placeholder="Enter document number"
                 autoCapitalize="characters"
               />
+
+              {isIdDocument && (
+                <View className="mb-4">
+                  <Text className="text-sm font-semibold text-gray-700 mb-2 uppercase tracking-wide">
+                    Birthdate <Text className="text-red-500">*</Text>
+                  </Text>
+                  <TouchableOpacity
+                    className="bg-white rounded-2xl border-2 border-gray-200 px-3 py-4 flex-row justify-between items-center"
+                    onPress={() => setShowIdBirthdatePicker(true)}
+                  >
+                    <View className="flex-row items-center flex-1">
+                      <Feather name="calendar" size={16} color="#9CA3AF" />
+                      <Text
+                        className={`text-sm ml-2 ${
+                          idBirthdate ? "text-gray-900" : "text-gray-400"
+                        }`}
+                        numberOfLines={1}
+                      >
+                        {idBirthdate ? formatDate(idBirthdate) : "Select birthdate"}
+                      </Text>
+                    </View>
+                  </TouchableOpacity>
+
+                  {showIdBirthdatePicker && (
+                    <DateTimePicker
+                      value={idBirthdate || new Date(2000, 0, 1)}
+                      mode="date"
+                      display={Platform.OS === "ios" ? "spinner" : "default"}
+                      maximumDate={new Date()}
+                      onChange={(event, selectedDate) => {
+                        setShowIdBirthdatePicker(Platform.OS === "ios");
+                        if (selectedDate) {
+                          setIdBirthdate(selectedDate);
+                        }
+                      }}
+                    />
+                  )}
+                </View>
+              )}
 
               {/* Issuing Authority (for certificates) */}
               {!isIdDocument && (

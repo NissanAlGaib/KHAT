@@ -38,20 +38,46 @@ $activeFilterCount = 0;
 $activeTags = [];
 
 foreach ($filters as $f) {
-$val = request($f['name']);
+if (!is_array($f)) {
+continue;
+}
+
+$filterName = $f['name'] ?? null;
+$filterLabel = $f['label'] ?? $filterName ?? 'Filter';
+$rawOptions = $f['options'] ?? [];
+$filterOptions = is_array($rawOptions) ? $rawOptions : (is_scalar($rawOptions) ? [(string)$rawOptions] : []);
+
+if (!$filterName) {
+continue;
+}
+
+$val = request($filterName);
 if ($val !== null && $val !== '') {
 $activeFilterCount++;
 $displayValue = $val;
-foreach ($f['options'] ?? [] as $opt) {
-if ((string)$opt['value'] === (string)$val) {
-$displayValue = $opt['label'];
+
+foreach ($filterOptions as $opt) {
+$optValue = null;
+$optLabel = null;
+
+if (is_array($opt)) {
+$optValue = $opt['value'] ?? null;
+$optLabel = $opt['label'] ?? $optValue;
+} elseif (is_scalar($opt)) {
+$optValue = (string)$opt;
+$optLabel = (string)$opt;
+}
+
+if ($optValue !== null && (string)$optValue === (string)$val) {
+$displayValue = $optLabel;
 break;
 }
 }
+
 $activeTags[] = [
-'label' => $f['label'],
+'label' => $filterLabel,
 'displayValue' => $displayValue,
-'name' => $f['name'],
+'name' => $filterName,
 ];
 }
 }
@@ -188,30 +214,53 @@ $panelOpen = $activeFilterCount > ($hasSearch ? 1 : 0); // open if non-search fi
                     </div>
                     <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-{{ min(count($filters), 4) }} gap-3">
                         @foreach($filters as $filter)
+                        @php
+                        $filterData = is_array($filter) ? $filter : [];
+                        $filterName = $filterData['name'] ?? null;
+                        $filterLabel = $filterData['label'] ?? $filterName ?? 'Filter';
+                        $filterType = $filterData['type'] ?? 'select';
+                        $rawOptions = $filterData['options'] ?? [];
+                        $filterOptions = is_array($rawOptions) ? $rawOptions : (is_scalar($rawOptions) ? [(string)$rawOptions] : []);
+                        @endphp
+                        @continue(!$filterName)
                         <div>
                             <label class="block text-xs font-semibold text-gray-500 mb-1.5">
-                                {{ $filter['label'] }}
+                                {{ $filterLabel }}
                             </label>
-                            @if(($filter['type'] ?? 'select') === 'select')
+                            @if($filterType === 'select')
                             <div class="relative">
-                                <select name="{{ $filter['name'] }}"
-                                    @if(isset($filter['id'])) id="{{ $filter['id'] }}" @endif
-                                    @if(isset($filter['onchange'])) onchange="{{ $filter['onchange'] }}" @endif
+                                <select name="{{ $filterName }}"
+                                    @if(isset($filterData['id'])) id="{{ $filterData['id'] }}" @endif
+                                    @if(isset($filterData['onchange'])) onchange="{{ $filterData['onchange'] }}" @endif
                                     class="w-full appearance-none bg-white border border-gray-200 text-gray-700 py-2.5 pl-3 pr-9 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#E75234]/20 focus:border-[#E75234]/30 transition-all">
-                                    <option value="">{{ $filter['placeholder'] ?? 'All' }}</option>
-                                    @foreach($filter['options'] as $opt)
-                                    <option value="{{ $opt['value'] }}" {{ request($filter['name']) == $opt['value'] ? 'selected' : '' }}>
-                                        {{ $opt['label'] }}
+                                    <option value="">{{ $filterData['placeholder'] ?? 'All' }}</option>
+                                    @foreach($filterOptions as $opt)
+                                    @php
+                                    $optValue = null;
+                                    $optLabel = null;
+
+                                    if (is_array($opt)) {
+                                    $optValue = $opt['value'] ?? null;
+                                    $optLabel = $opt['label'] ?? $optValue;
+                                    } elseif (is_scalar($opt)) {
+                                    $optValue = (string)$opt;
+                                    $optLabel = (string)$opt;
+                                    }
+                                    @endphp
+                                    @if($optValue !== null && $optValue !== '')
+                                    <option value="{{ $optValue }}" {{ request($filterName) == $optValue ? 'selected' : '' }}>
+                                        {{ $optLabel }}
                                     </option>
+                                    @endif
                                     @endforeach
                                 </select>
                                 <i data-lucide="chevron-down" class="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 pointer-events-none"></i>
                             </div>
-                            @elseif(($filter['type'] ?? 'select') === 'text')
+                            @elseif($filterType === 'text')
                             <input type="text"
-                                name="{{ $filter['name'] }}"
-                                value="{{ request($filter['name']) }}"
-                                placeholder="{{ $filter['placeholder'] ?? '' }}"
+                                name="{{ $filterName }}"
+                                value="{{ request($filterName) }}"
+                                placeholder="{{ $filterData['placeholder'] ?? '' }}"
                                 class="w-full bg-white border border-gray-200 text-gray-700 py-2.5 px-3 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#E75234]/20 focus:border-[#E75234]/30 transition-all">
                             @endif
                         </div>

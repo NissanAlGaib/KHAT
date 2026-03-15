@@ -234,7 +234,7 @@ export default function AIOffspringScreen() {
         <View style={styles.controlsSection}>
           <View style={styles.controlsCard}>
             <View style={styles.controlsHeader}>
-              <View>
+              <View style={styles.controlsHeaderContent}>
                 <Text style={styles.controlsTitle}>Source Photos</Text>
                 <Text style={styles.controlsSubtitle}>
                   Choose how the AI should pull parent references.
@@ -555,6 +555,10 @@ const styles = StyleSheet.create({
     alignItems: "center",
     marginBottom: 14,
   },
+  controlsHeaderContent: {
+    flex: 1,
+    paddingRight: 12,
+  },
   controlsTitle: {
     fontSize: 18,
     fontWeight: "bold",
@@ -568,6 +572,7 @@ const styles = StyleSheet.create({
   historyNavButton: {
     flexDirection: "row",
     alignItems: "center",
+    flexShrink: 0,
     backgroundColor: "#FFF1ED",
     borderRadius: 18,
     paddingHorizontal: 12,

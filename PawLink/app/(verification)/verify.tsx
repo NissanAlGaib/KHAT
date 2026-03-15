@@ -50,6 +50,36 @@ export default function VerifyScreen() {
     shooterSkipped: false,
   });
 
+  const normalizeDate = (value: Date | string | null | undefined) => {
+    if (!value) {
+      return null;
+    }
+
+    if (typeof value === "string") {
+      const trimmed = value.trim();
+      if (/^\d{4}-\d{2}-\d{2}$/.test(trimmed)) {
+        return trimmed;
+      }
+
+      const parsed = new Date(trimmed);
+      if (Number.isNaN(parsed.getTime())) {
+        return null;
+      }
+
+      const month = String(parsed.getMonth() + 1).padStart(2, "0");
+      const day = String(parsed.getDate()).padStart(2, "0");
+      return `${parsed.getFullYear()}-${month}-${day}`;
+    }
+
+    if (Number.isNaN(value.getTime())) {
+      return null;
+    }
+
+    const month = String(value.getMonth() + 1).padStart(2, "0");
+    const day = String(value.getDate()).padStart(2, "0");
+    return `${value.getFullYear()}-${month}-${day}`;
+  };
+
   const handleNext = (stepData: any) => {
     setFormData({ ...formData, ...stepData });
     setCurrentStep(currentStep + 1);
@@ -84,14 +114,34 @@ export default function VerifyScreen() {
       return;
     }
 
+    // Merge shooter data if provided
+    const finalFormData = shooterData ? { ...formData, ...shooterData } : formData;
+
+    if (!finalFormData.idBirthdate) {
+      showAlert({
+        title: "Error",
+        message: "Birthdate on ID is required.",
+        type: "error",
+      });
+      return;
+    }
+
+    const accountBirthdate = normalizeDate(user.birthdate);
+    const idBirthdate = normalizeDate(finalFormData.idBirthdate);
+
+    if (accountBirthdate && idBirthdate && accountBirthdate !== idBirthdate) {
+      showAlert({
+        title: "Birthdate Mismatch",
+        message:
+          "The birthdate on your ID must match the birthdate used during registration.",
+        type: "error",
+      });
+      return;
+    }
+
     setIsSubmitting(true);
 
     try {
-      // Merge shooter data if provided
-      const finalFormData = shooterData
-        ? { ...formData, ...shooterData }
-        : formData;
-
       const hasBreeder =
         !finalFormData.breederSkipped && finalFormData.breederPhoto;
       const hasShooter =
@@ -103,6 +153,7 @@ export default function VerifyScreen() {
         id_document: finalFormData.idPhoto,
         id_number: finalFormData.idNumber,
         id_name: finalFormData.idName,
+        id_birthdate: finalFormData.idBirthdate,
         id_issue_date: finalFormData.idGivenDate,
         id_expiration_date: finalFormData.idExpirationDate,
         breeder_document: hasBreeder ? finalFormData.breederPhoto : undefined,
@@ -225,7 +276,11 @@ export default function VerifyScreen() {
       {/* Form Steps */}
       <View className="flex-1">
         {currentStep === 1 && (
-          <IdVerificationStep onNext={handleNext} initialData={formData} />
+          <IdVerificationStep
+            onNext={handleNext}
+            initialData={formData}
+            registeredBirthdate={user?.birthdate ?? null}
+          />
         )}
         {currentStep === 2 && (
           <LicensedBreederStep
