@@ -12,6 +12,7 @@ use App\Models\User;
 use App\Services\ActivityNotificationService;
 use App\Services\PoolService;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
@@ -234,6 +235,19 @@ class BreedingContractController extends Controller
         }
 
         try {
+            $hasShooterAgreementPayload = $request->hasAny([
+                'shooter_name',
+                'shooter_user_id',
+                'shooter_location',
+                'shooter_conditions',
+            ]);
+
+            // When the shooter agreement section is submitted without shooter_payment,
+            // treat it as an explicit clear so stale values are not retained.
+            if ($hasShooterAgreementPayload && !$request->has('shooter_payment')) {
+                $validated['shooter_payment'] = null;
+            }
+
             $hasShooterFields = array_key_exists('shooter_name', $validated)
                 || array_key_exists('shooter_user_id', $validated);
 
@@ -439,6 +453,13 @@ class BreedingContractController extends Controller
                 'success' => false,
                 'message' => 'No pending shooter request to accept',
             ], 400);
+        }
+
+        if (!$contract->shooter_user_id || !$this->findVerifiedShooterById((int) $contract->shooter_user_id)) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Selected shooter is no longer eligible. Please choose a shooter with a valid certificate.',
+            ], 422);
         }
 
         // Determine if user is owner1 or owner2
@@ -1009,13 +1030,17 @@ class BreedingContractController extends Controller
         }
 
         return User::query()
-            ->where('id', '!=', auth()->id())
+            ->where('id', '!=', Auth::id())
             ->whereHas('roles', function ($query) use ($shooterRole) {
                 $query->where('roles.role_id', $shooterRole->role_id);
             })
             ->whereHas('userAuth', function ($query) {
                 $query->where('auth_type', 'shooter_certificate')
-                    ->where('status', 'approved');
+                    ->where('status', 'approved')
+                    ->where(function ($certificateQuery) {
+                        $certificateQuery->whereNull('expiry_date')
+                            ->orWhereDate('expiry_date', '>=', today());
+                    });
             });
     }
 

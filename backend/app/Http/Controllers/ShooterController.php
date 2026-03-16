@@ -74,7 +74,11 @@ class ShooterController extends Controller
             })
                 ->whereHas('userAuth', function ($query) {
                     $query->where('auth_type', 'shooter_certificate')
-                        ->where('status', 'approved');
+                        ->where('status', 'approved')
+                        ->where(function ($certificateQuery) {
+                            $certificateQuery->whereNull('expiry_date')
+                                ->orWhereDate('expiry_date', '>=', today());
+                        });
                 })
                 ->when($excludeUserIds->isNotEmpty(), function ($query) use ($excludeUserIds) {
                     $query->whereNotIn('id', $excludeUserIds->all());
@@ -161,6 +165,13 @@ class ShooterController extends Controller
                 return response()->json([
                     'success' => false,
                     'message' => 'You are not a registered shooter'
+                ], 403);
+            }
+
+            if (!$this->hasValidShooterCertificate($user)) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Your shooter certificate is expired. Renew your certificate to view and accept contracts.'
                 ], 403);
             }
 
@@ -315,6 +326,13 @@ class ShooterController extends Controller
                 ], 403);
             }
 
+            if (!$this->hasValidShooterCertificate($user)) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Your shooter certificate is expired. Renew your certificate to view and accept contracts.'
+                ], 403);
+            }
+
             // Get the contract - allow viewing if:
             // 1. It's a pending offer (shooter_status = 'pending'), OR
             // 2. The current shooter has accepted it (shooter_user_id matches current user)
@@ -435,6 +453,13 @@ class ShooterController extends Controller
                 ], 403);
             }
 
+            if (!$this->hasValidShooterCertificate($user)) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Your shooter certificate is expired. Renew your certificate to accept new contracts.'
+                ], 403);
+            }
+
             // Get the contract. If an offer has a selected shooter_user_id,
             // only that shooter can accept it.
             $contractQuery = BreedingContract::where('status', 'accepted')
@@ -519,6 +544,13 @@ class ShooterController extends Controller
                 return response()->json([
                     'success' => false,
                     'message' => 'You are not a registered shooter'
+                ], 403);
+            }
+
+            if (!$this->hasValidShooterCertificate($user)) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Your shooter certificate is expired. Renew your certificate to view contract offers.'
                 ], 403);
             }
 
@@ -833,5 +865,20 @@ class ShooterController extends Controller
         return function_exists('mb_strtolower')
             ? mb_strtolower($trimmed)
             : strtolower($trimmed);
+    }
+
+    /**
+     * Check if a shooter has an approved, non-expired certificate.
+     */
+    private function hasValidShooterCertificate(User $user): bool
+    {
+        return $user->userAuth()
+            ->where('auth_type', 'shooter_certificate')
+            ->where('status', 'approved')
+            ->where(function ($query) {
+                $query->whereNull('expiry_date')
+                    ->orWhereDate('expiry_date', '>=', today());
+            })
+            ->exists();
     }
 }
