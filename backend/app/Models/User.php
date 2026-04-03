@@ -28,6 +28,13 @@ class User extends Authenticatable
         'email',
         'password',
         'subscription_tier',
+        'subscription_status',
+        'subscription_source',
+        'subscription_billing_cycle',
+        'subscription_started_at',
+        'subscription_expires_at',
+        'subscription_canceled_at',
+        'subscription_latest_payment_id',
         'firstName',
         'lastName',
         'contact_number',
@@ -78,6 +85,9 @@ class User extends Authenticatable
             'prefer_nearby_matches' => 'boolean',
             'suspended_at' => 'datetime',
             'suspension_end_date' => 'datetime',
+            'subscription_started_at' => 'datetime',
+            'subscription_expires_at' => 'datetime',
+            'subscription_canceled_at' => 'datetime',
         ];
     }
 

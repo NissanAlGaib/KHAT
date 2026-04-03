@@ -26,14 +26,19 @@
       "channel": "preview"
     },
     "production": {
+      "autoIncrement": true,
       "android": {
-        "buildType": "apk",
+        "buildType": "app-bundle",
         "image": "sdk-54"
       },
       "channel": "production"
     }
   },
   "submit": {
-    "production": {}
+    "production": {
+      "android": {
+        "track": "internal"
+      }
+    }
   }
 }

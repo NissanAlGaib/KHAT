@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\Payment;
+use App\Services\AnalyticsService;
 use App\Services\PayMongoService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
@@ -89,6 +90,7 @@ class SubscriptionController extends Controller
                     'user_id' => $user->id,
                     'plan_id' => $validated['plan_id'],
                     'billing_cycle' => $validated['billing_cycle'],
+                    'source' => 'paymongo',
                     'type' => 'subscription',
                 ],
             ]);
@@ -120,8 +122,16 @@ class SubscriptionController extends Controller
                 'metadata' => [
                     'plan_id' => $validated['plan_id'],
                     'billing_cycle' => $validated['billing_cycle'],
+                    'source' => 'paymongo',
                 ],
             ]);
+
+            AnalyticsService::track('subscription_checkout_initiated', [
+                'plan_id' => $validated['plan_id'],
+                'billing_cycle' => $validated['billing_cycle'],
+                'amount' => (float) $validated['amount'],
+                'currency' => 'PHP',
+            ], $user->id, $payment->id);
 
             return response()->json([
                 'success' => true,
@@ -201,7 +211,11 @@ class SubscriptionController extends Controller
             $currentSubscription = [
                 'tier' => $user->subscription_tier ?? 'free',
                 'expires_at' => $user->subscription_expires_at ?? null,
-                'is_active' => in_array($user->subscription_tier, ['basic', 'standard', 'premium']),
+                'status' => $user->subscription_status ?? 'inactive',
+                'billing_cycle' => $user->subscription_billing_cycle,
+                'source' => $user->subscription_source,
+                'is_active' => ($user->subscription_status ?? 'inactive') === 'active'
+                    && in_array($user->subscription_tier, ['standard', 'premium']),
             ];
         }
 
@@ -210,6 +224,30 @@ class SubscriptionController extends Controller
             'data' => $plans,
             'payment_configured' => $this->payMongoService->isConfigured(),
             'current_subscription' => $currentSubscription,
+        ]);
+    }
+
+    /**
+     * Get current subscription state for the authenticated user.
+     */
+    public function getCurrentSubscription(Request $request)
+    {
+        $user = $request->user();
+
+        $isActive = ($user->subscription_status ?? 'inactive') === 'active'
+            && in_array($user->subscription_tier, ['standard', 'premium']);
+
+        return response()->json([
+            'success' => true,
+            'data' => [
+                'tier' => $user->subscription_tier ?? 'free',
+                'status' => $user->subscription_status ?? 'inactive',
+                'source' => $user->subscription_source,
+                'billing_cycle' => $user->subscription_billing_cycle,
+                'started_at' => $user->subscription_started_at,
+                'expires_at' => $user->subscription_expires_at,
+                'is_active' => $isActive,
+            ],
         ]);
     }
 

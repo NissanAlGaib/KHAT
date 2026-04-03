@@ -6,6 +6,7 @@ use App\Models\BreedingContract;
 use App\Models\Payment;
 use App\Models\Pet;
 use App\Services\ActivityNotificationService;
+use App\Services\AnalyticsService;
 use App\Services\PayMongoService;
 use App\Services\PoolService;
 use Illuminate\Http\Request;
@@ -129,6 +130,13 @@ class PaymentController extends Controller
                 'payment_type' => $validated['payment_type'],
             ],
         ]);
+
+        AnalyticsService::track('contract_checkout_initiated', [
+            'payment_type' => $validated['payment_type'],
+            'contract_id' => $contract->id,
+            'amount' => (float) $validated['amount'],
+            'currency' => 'PHP',
+        ], $user->id, $payment->id);
 
         return response()->json([
             'success' => true,
@@ -452,7 +460,7 @@ class PaymentController extends Controller
     private function updateUserSubscription(Payment $payment): void
     {
         $user = $payment->user;
-        if (!$user) {
+        if (! $user) {
             Log::warning('User not found for subscription payment', ['payment_id' => $payment->id]);
             return;
         }
@@ -460,7 +468,7 @@ class PaymentController extends Controller
         // Get the plan_id from payment metadata
         $planId = $payment->metadata['plan_id'] ?? null;
 
-        if (!$planId || !in_array($planId, ['standard', 'premium'])) {
+        if (! $planId || ! in_array($planId, ['standard', 'premium'])) {
             Log::warning('Invalid plan_id in subscription payment metadata', [
                 'payment_id' => $payment->id,
                 'plan_id' => $planId,
@@ -468,8 +476,24 @@ class PaymentController extends Controller
             return;
         }
 
-        // Update user's subscription tier
-        $user->update(['subscription_tier' => $planId]);
+        $billingCycle = $payment->metadata['billing_cycle'] ?? 'monthly';
+        $source = $payment->metadata['source'] ?? 'paymongo';
+        $subscriptionStartsAt = now();
+        $subscriptionExpiresAt = $billingCycle === 'yearly'
+            ? $subscriptionStartsAt->copy()->addYear()
+            : $subscriptionStartsAt->copy()->addMonth();
+
+        // Update user subscription lifecycle data.
+        $user->update([
+            'subscription_tier' => $planId,
+            'subscription_status' => 'active',
+            'subscription_source' => $source,
+            'subscription_billing_cycle' => $billingCycle,
+            'subscription_started_at' => $subscriptionStartsAt,
+            'subscription_expires_at' => $subscriptionExpiresAt,
+            'subscription_canceled_at' => null,
+            'subscription_latest_payment_id' => $payment->id,
+        ]);
 
         // Notify user about subscription activation
         $planLabel = ucfirst($planId);
@@ -480,11 +504,21 @@ class PaymentController extends Controller
             ['plan_id' => $planId, 'payment_id' => $payment->id]
         );
 
+        AnalyticsService::track('subscription_upgraded', [
+            'plan_id' => $planId,
+            'billing_cycle' => $billingCycle,
+            'source' => $source,
+            'amount' => (float) $payment->amount,
+            'currency' => $payment->currency,
+            'expires_at' => $subscriptionExpiresAt->toISOString(),
+        ], $user->id, $payment->id);
+
         Log::info('User subscription tier updated', [
             'user_id' => $user->id,
             'payment_id' => $payment->id,
             'subscription_tier' => $planId,
-            'billing_cycle' => $payment->metadata['billing_cycle'] ?? 'unknown',
+            'billing_cycle' => $billingCycle,
+            'subscription_expires_at' => $subscriptionExpiresAt->toDateTimeString(),
         ]);
     }
 

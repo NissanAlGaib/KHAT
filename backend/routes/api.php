@@ -202,6 +202,7 @@ Route::middleware(['auth:sanctum'])
 
         // Subscription routes
         Route::get('/subscriptions/plans', [SubscriptionController::class, 'getPlans']);
+        Route::get('/subscriptions/current', [SubscriptionController::class, 'getCurrentSubscription']);
         Route::post('/subscriptions/checkout', [SubscriptionController::class, 'createCheckout']);
 
         // Search routes
