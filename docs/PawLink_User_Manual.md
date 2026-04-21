@@ -1,7 +1,7 @@
 # PawLink Mobile App — User Manual
 
-**Version:** 1.5.0  
-**Last Updated:** March 1, 2026  
+**Version:** 1.7.0  
+**Last Updated:** March 11, 2026  
 **Platform:** Android (via Expo / EAS)
 
 ---
@@ -27,6 +27,7 @@
    - 5.3 [Managing Vaccinations](#53-managing-vaccinations)
    - 5.4 [Importing Vaccination History](#54-importing-vaccination-history)
    - 5.5 [Viewing Litters & Breeding History](#55-viewing-litters--breeding-history)
+   - 5.6 [Active Pet Selector & Quick Switching](#56-active-pet-selector--quick-switching)
 6. [Finding Breeding Matches](#6-finding-breeding-matches)
    - 6.1 [The Home Screen (Breeder)](#61-the-home-screen-breeder)
    - 6.2 [Swiping Through Matches](#62-swiping-through-matches)
@@ -75,13 +76,15 @@
 
 ### Key Features
 
-- **Smart Matching** — Swipe-based interface to discover compatible breeding partners with compatibility scores.
-- **AI-Powered Tools** — Breed identification from photos, offspring appearance prediction, and OCR document scanning.
-- **Breeding Contracts** — In-app contract creation and management for breeding arrangements.
-- **Secure Payments** — Integrated PayMongo payment system with money pool escrow for collateral and compensation.
+- **Smart Matching** — Full-screen swipe cards with compatibility scoring, distance labels, and breed filtering.
+- **Active Pet Selector** — Center floating pet button to switch your active pet (tap, swipe, or long-press quick select).
+- **Advanced Search & Discovery** — Explore pet grid, quick filters, advanced breed/age filters, map view, and unified search for pets/breeders/shooters.
+- **Ratings & Reviews** — Category-based reviews for breeders and shooters after completed contracts.
+- **Breeding Contracts** — In-app contract creation and full lifecycle management.
+- **Secure Payments** — PayMongo checkout plus in-app money pool tracking and disputes.
 - **Real-Time Chat** — Direct messaging between matched breeders with read receipts.
 - **Verification System** — Identity and document verification to ensure trust and safety.
-- **Vaccination Tracking** — Comprehensive health record management for your pets.
+- **Vaccination Tracking** — Comprehensive health record and protocol management for your pets.
 
 ---
 
@@ -94,7 +97,7 @@
 3. Open the downloaded APK file and tap **Install**.
 4. Once installed, tap **Open** to launch PawLink.
 
-> **Note:** PawLink receives over-the-air (OTA) updates automatically. When an update is available, you will be prompted to restart the app.
+> **Note:** PawLink receives over-the-air (OTA) updates automatically. After restarting on a new release, a **What's New** modal may appear to show the latest changes.
 
 ### 2.2 Creating an Account
 
@@ -208,15 +211,17 @@ If a document is rejected, tap **Resubmit** to upload a new version with correct
 
 ### 4.1 Bottom Navigation Tabs
 
-PawLink uses a bottom navigation bar with 5 tabs:
+PawLink uses a curved bottom navigation with role-aware controls:
 
-| Tab                | Icon | Description                                                                               |
-| ------------------ | ---- | ----------------------------------------------------------------------------------------- |
-| **Home**           | 🏠   | Your main dashboard — browse top matches, nearby pets, and shooters.                      |
-| **Matches**        | ❤️   | Manage match requests (incoming/outgoing), view active matches, and review match history. |
-| **Match** (center) | 🐾   | Full-screen swipe interface for discovering pet matches.                                  |
-| **Activity**       | 🔔   | Notification center — verification updates, match alerts, messages, and system notices.   |
-| **Profile**        | 👤   | Your profile dashboard, pet list, and settings.                                           |
+| Tab / Control                        | Icon | Description                                                                                              |
+| ------------------------------------ | ---- | -------------------------------------------------------------------------------------------------------- |
+| **Home**                             | 🏠   | Main breeder dashboard with Top Matches swipe cards, header actions, and shooter discovery prompts.     |
+| **Matches**                          | ❤️   | Manage incoming/outgoing requests, active matches, and history.                                         |
+| **Activity**                         | 🔔   | Unified notification center (verification, matches, messages, shooter, subscription, and system alerts). |
+| **Profile**                          | 👤   | Profile dashboard, pet list, and the unified settings hub.                                               |
+| **Center Pet Selector** (Breeder mode) | 🐾   | Floating button for active pet switching: tap to open selector, swipe left/right to cycle pets, long-press for quick select. |
+
+> **Note:** In **Shooter mode**, the center pet selector is hidden.
 
 ### 4.2 Switching Roles (Breeder / Shooter)
 
@@ -337,6 +342,22 @@ You can also access this later from your pet's Health tab.
    - **Offspring** — Individual offspring cards with allocation status (Assigned, Transferred, Unassigned).
    - **Health** — Health records for the litter.
 
+### 5.6 Active Pet Selector & Quick Switching
+
+In Breeder mode, the center floating button in the bottom bar controls your **active pet**.
+
+1. **Tap** the center pet button to open the pet selector modal.
+2. In the modal, you can:
+   - Search pets by name.
+   - See status badges (**Available**, **Cooldown**, **Pending**).
+   - Pin up to 3 pets for quick access.
+   - Use **Browse All** (no active pet selection).
+   - Tap **Add New Pet**.
+3. **Swipe left/right** on the center button to cycle through available pets without opening the modal.
+4. **Long-press** the center button to open a radial quick selector for pinned pets.
+
+> Only active pets that are not on cooldown are selectable as the active pet.
+
 ---
 
 ## 6. Finding Breeding Matches
@@ -345,23 +366,24 @@ You can also access this later from your pet's Health tab.
 
 When in Breeder mode, the Home screen displays:
 
-- **Greeting Header** — A personalized greeting with a search icon and subscription badge.
-- **Top Matches** — A swipeable card stack showing the best-matched pets based on your pet's profile and preferences. Each card displays:
-  - Pet photo
-  - Pet name and breed
-  - Compatibility percentage score
-- **Nearby Pets** — A horizontally scrollable list of pets in your area.
-- **Shooters** — A horizontally scrollable list of available shooters.
-- **Browse Tabs** — Toggle between a full "Pets" list and "Shooters" list.
+- **Header Actions** — Search, subscription access, and a breed filter button (with active filter count).
+- **Top Matches Card Stack** — Full-screen swipeable cards based on your selected pet and compatibility.
+- **Rich Match Card Data** — Pet image, name, age, breed, sex badge, compatibility score, and distance label.
+- **Side Action Buttons** — Half-floating **Pass** and **Like** buttons on screen edges for one-tap actions.
+- **Shooter Promo Banner** — Dismissible banner that links to Shooter discovery.
 
 ### 6.2 Swiping Through Matches
 
-On both the Home screen and the dedicated **Match** tab (center navigation button):
+On the Home screen card stack:
 
 - **Swipe Right** or tap the **♥ (Heart)** button to **send a match request** to this pet.
 - **Swipe Left** or tap the **✕ (X)** button to **pass** on this pet. Passed pets will not be shown again.
 
+Visual indicators (**LIKE** / **PASS**) appear on-card during swipe gestures.
+
 > **Important:** Only pets of the same species and opposite sex will be shown. Your own pets are excluded from results.
+>
+> Pets already passed or with active requests are also filtered out to reduce duplicate actions.
 
 ### 6.3 Viewing a Pet's Public Profile
 
@@ -393,22 +415,28 @@ On a pet's public profile, switch to the **Compatibility** tab to see:
    - Size estimate
    - Temperament predictions
 
-> **Note:** The number of AI generations per day is limited based on your subscription tier (1/day for Free, more for paid plans).
+> **Note:** AI generations/day are tier-based: **Free: 1**, **Standard: 5**, **Premium: 20**.
 
 ### 6.6 Searching for Pets, Breeders & Shooters
 
 1. Tap the **search icon** on the Home screen, or navigate to the **Search** screen.
-2. Type your search query in the search bar (results appear after a brief delay).
-3. Filter by category: **All**, **Pets**, **Breeders**, or **Shooters**.
-4. For Pets, further filter by:
-   - **Species**: Dog or Cat
-   - **Sex**: Male or Female
-5. Tap on a result to navigate to the respective profile:
+2. In default Explore mode (no query), browse a 2-column pet grid with quick chips:
+   - **All**, **Dogs**, **Cats**, **Male**, **Female**
+3. Tap **sliders** to open advanced filters:
+   - **Breed** (searchable breed list)
+   - **Age Range** (**Under 1 yr**, **1-3 yrs**, **3-5 yrs**, **5+ yrs**)
+4. Tap **map** to switch to map-based discovery.
+5. Type a query to run global search across pets, breeders, and shooters (unified list).
+6. Tap on a result to navigate to the respective profile:
    - **Pet** → Pet public profile
    - **Breeder** → Breeder profile (shows their stats, pets, verification status)
    - **Shooter** → Shooter profile (shows their experience, stats, credentials)
 
-Your recent searches are saved and can be cleared.
+Additional search notes:
+
+- Recent searches are saved and can be removed individually or cleared.
+- Featured Shooters appear as a horizontal carousel in Explore mode.
+- Pet cards can show cooldown badges and distance labels.
 
 ---
 
@@ -418,7 +446,7 @@ Your recent searches are saved and can be cleared.
 
 There are several ways to send a match request:
 
-- **Swipe right** on a match card on the Home or Match screen.
+- **Swipe right** on a Home Top Matches card.
 - Tap the **♥ (Heart)** button on a match card.
 - Tap **"Send Match Request"** on a pet's public profile.
 
@@ -637,23 +665,25 @@ Once confirmed:
 
 PawLink offers the following plans:
 
-| Feature                          | Free | Standard         | Premium          |
-| -------------------------------- | ---- | ---------------- | ---------------- |
-| **Registered Pets**              | 1    | More             | Unlimited        |
-| **Matches per Month**            | 3    | More             | Unlimited        |
-| **AI Offspring Predictions/Day** | 1    | More             | Unlimited        |
-| **Billing**                      | —    | Monthly / Yearly | Monthly / Yearly |
+| Feature                          | Free | Standard | Premium |
+| -------------------------------- | ---- | -------- | ------- |
+| **Registered Pets**              | 1    | Up to 5  | Unlimited |
+| **Matches per Month**            | 3    | 20       | Unlimited |
+| **AI Offspring Predictions/Day** | 1    | 5        | 20 |
+| **Monthly Price**                | —    | ₱199     | ₱499 |
+| **Yearly Price**                 | —    | ₱1,990   | ₱4,990 |
 
-> Paid plans are available with monthly and yearly billing cycles. Yearly plans include a savings discount.
+> Paid plans support monthly and yearly billing cycles. Yearly plans display savings in-app.
 
 ### 11.2 Upgrading Your Plan
 
-1. Go to **Profile > Settings > Subscription**, or tap the **subscription badge** on the Home screen.
+1. Tap the **subscription icon** in the Home header.
 2. Browse available plans displayed as carousel cards with gradient designs.
 3. Toggle between **Monthly** and **Yearly** billing to compare prices.
 4. Tap **Subscribe** on your chosen plan.
 5. You will be redirected to **PayMongo** to complete the payment.
-6. After payment:
+6. Return to PawLink and verify payment if prompted (**I've Paid** / **Verify**).
+7. After payment:
    - **Success** — You'll be redirected back to PawLink with a confirmation screen. Your new plan is active immediately.
    - **Cancelled** — You'll see a cancellation notice and return to the app.
 
@@ -661,23 +691,26 @@ PawLink offers the following plans:
 
 Access via **Profile > Settings > My Payments**.
 
+The screen has two tabs: **Transactions** and **Disputes**.
+
 **Money Pool Balance:**
 
 PawLink uses a virtual escrow-style **Money Pool** to securely manage breeding contract finances. Your balance shows:
 
-| Type                 | Description                                            |
-| -------------------- | ------------------------------------------------------ |
-| **Held**             | Funds currently held in escrow for active contracts.   |
-| **Frozen**           | Funds frozen due to a pending dispute or admin action. |
-| **Pending Deposits** | Collateral payments that are still processing.         |
-| **Total Released**   | Total amount released to you from completed contracts. |
+| Type             | Description                                                           |
+| ---------------- | --------------------------------------------------------------------- |
+| **Held**         | Funds currently held in escrow for active contracts.                  |
+| **Frozen**       | Funds frozen due to disputes or admin actions.                        |
+| **Pending**      | Deposits/collateral still processing.                                 |
+| **Released Out** | Released funds summary, with inbound release totals shown underneath. |
 
-**Transaction Tabs:**
+**Transaction Filters:**
 
+- **All**
 - **Deposits** — Your collateral payments and contributions to the pool.
-- **Releases** — Funds released to you upon contract completion.
+- **Releases** — Contract-related releases (incoming/outgoing).
 - **Refunds** — Refunded amounts from cancelled contracts.
-- **Fee Deductions** — Platform fees and cancellation charges.
+- **Fees** — Platform fees and deductions.
 
 Amounts are color-coded:
 
@@ -687,13 +720,12 @@ Amounts are color-coded:
 
 ### 11.4 Filing a Dispute
 
-If there is a disagreement regarding a contract payment:
+Disputes are tracked in **My Payments > Disputes**.
 
-1. Navigate to **My Payments > Disputes**.
-2. Tap **File Dispute**.
-3. Provide details about the issue.
-4. Submit for admin review.
-5. Track the status of your dispute in the Disputes tab.
+1. If a contract/payment flow shows a dispute action, submit your dispute reason there.
+2. Open the **Disputes** tab to view all dispute records related to your contracts.
+3. Check each dispute's status and any admin resolution notes.
+4. Continue monitoring updates in the same tab until resolution.
 
 ---
 
@@ -734,13 +766,22 @@ Go to the **Profile** tab to see:
 - **Profile header** — Your photo, name, and verification status badge.
 - **Role switcher** — Toggle between Breeder and Shooter (if both roles are active).
 - **Three sub-tabs**:
-  - **Dashboard** — Key statistics:
-    - Current Breeding arrangements
-    - Total Matches
-    - Success Rate
-    - Income (₱)
-  - **My Pets** — Grid of your registered pets with status badges. Tap the **"+"** button to add a new pet.
-  - **Settings** — Quick access to settings options.
+   - **Dashboard** — Key statistics:
+      - Current Breeding arrangements
+      - Total Matches
+      - Success Rate
+      - Income (₱)
+   - **My Pets** — Grid of your registered pets with status badges. Tap the **"+"** button to add a new pet.
+   - **Settings** — Unified settings hub with:
+      - Account
+      - Notifications
+      - Privacy & Security
+      - Location Settings
+      - My Payments
+      - My Favorites
+      - Breeding History
+
+> PawLink no longer uses a separate standalone Settings screen. The Profile tab is the primary settings hub.
 
 ### 13.2 Editing Your Profile
 
@@ -797,7 +838,7 @@ Go to **Profile > Settings > Privacy & Security** for:
 
 ### Q: I was charged but my subscription didn't activate.
 
-**A:** Return to the app and go to **Settings > Subscription**. The app checks for payment confirmation when you return. If the issue persists, contact support.
+**A:** Return to the app and open the **Subscription** screen from the Home header icon, then use **I've Paid** or **Verify** to re-check payment status. If the issue persists, contact support.
 
 ### Q: My match card says "Pending Shooter Request." What does this mean?
 
@@ -806,6 +847,10 @@ Go to **Profile > Settings > Privacy & Security** for:
 ### Q: I accidentally passed on a pet. Can I undo it?
 
 **A:** No, passed pets are not shown again. You may find the same pet using the Search feature and send a match request from their profile.
+
+### Q: I can't find the old center Match tab. Where did it go?
+
+**A:** In Breeder mode, the center control is now the **Active Pet Selector**. Use it to switch pets (tap/swipe/long-press). Swiping for matches now happens directly on the Home Top Matches card stack.
 
 ### Q: My account is suspended or banned. What can I do?
 
@@ -821,7 +866,7 @@ Go to **Profile > Settings > Privacy & Security** for:
 
 ### Q: How many pets can I register?
 
-**A:** Free plan: 1 pet. Paid plans allow more pets. Check the Subscription screen for plan details.
+**A:** Free: 1 pet, Standard: up to 5 pets, Premium: unlimited pets.
 
 ---
 
