@@ -5,6 +5,7 @@ use App\Models\Pet;
 use App\Models\MatchRequest;
 use App\Models\Conversation;
 use App\Models\Message;
+use App\Models\Payment;
 use App\Models\UserAuth;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 
@@ -12,8 +13,8 @@ uses(RefreshDatabase::class);
 
 beforeEach(function () {
     // Create two users with pets for testing
-    $this->user1 = User::factory()->create();
-    $this->user2 = User::factory()->create();
+    $this->user1 = User::factory()->create(['subscription_tier' => 'standard']);
+    $this->user2 = User::factory()->create(['subscription_tier' => 'standard']);
 
     $this->pet1 = Pet::create([
         'user_id' => $this->user1->id,
@@ -69,6 +70,50 @@ test('user can send match request', function () {
         'target_pet_id' => $this->pet2->pet_id,
         'status' => 'pending',
     ]);
+});
+
+test('free tier user is prompted to pay before match request', function () {
+    $this->user1->update(['subscription_tier' => 'free']);
+
+    $response = $this->actingAs($this->user1)->postJson('/api/match-requests', [
+        'requester_pet_id' => $this->pet1->pet_id,
+        'target_pet_id' => $this->pet2->pet_id,
+    ]);
+
+    $response->assertStatus(402)
+        ->assertJsonPath('success', false)
+        ->assertJsonPath('requires_payment', true)
+        ->assertJsonPath('requester_pet_id', $this->pet1->pet_id)
+        ->assertJsonPath('target_pet_id', $this->pet2->pet_id);
+
+    expect((float) $response->json('payment_amount'))->toBe(50.0);
+});
+
+test('free tier user can send match request with valid payment', function () {
+    $this->user1->update(['subscription_tier' => 'free']);
+
+    Payment::create([
+        'user_id' => $this->user1->id,
+        'contract_id' => null,
+        'payment_type' => Payment::TYPE_MATCH_REQUEST,
+        'amount' => 50,
+        'currency' => 'PHP',
+        'description' => 'Match Request Fee',
+        'status' => Payment::STATUS_PAID,
+        'paid_at' => now(),
+        'metadata' => [
+            'requester_pet_id' => $this->pet1->pet_id,
+            'target_pet_id' => $this->pet2->pet_id,
+        ],
+    ]);
+
+    $response = $this->actingAs($this->user1)->postJson('/api/match-requests', [
+        'requester_pet_id' => $this->pet1->pet_id,
+        'target_pet_id' => $this->pet2->pet_id,
+    ]);
+
+    $response->assertStatus(201)
+        ->assertJsonPath('success', true);
 });
 
 test('user cannot send match request from another users pet', function () {

@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Helpers\SubscriptionTierHelper;
 use App\Models\BreedingContract;
 use App\Models\Payment;
 use App\Models\Pet;
@@ -466,12 +467,14 @@ class PaymentController extends Controller
         }
 
         // Get the plan_id from payment metadata
-        $planId = $payment->metadata['plan_id'] ?? null;
+        $rawPlanId = $payment->metadata['plan_id'] ?? null;
+        $planId = $this->normalizeSubscriptionPlanId($rawPlanId);
 
         if (! $planId || ! in_array($planId, ['standard', 'premium'])) {
             Log::warning('Invalid plan_id in subscription payment metadata', [
                 'payment_id' => $payment->id,
-                'plan_id' => $planId,
+                'plan_id' => $rawPlanId,
+                'normalized_plan_id' => $planId,
             ]);
             return;
         }
@@ -520,6 +523,17 @@ class PaymentController extends Controller
             'billing_cycle' => $billingCycle,
             'subscription_expires_at' => $subscriptionExpiresAt->toDateTimeString(),
         ]);
+    }
+
+    private function normalizeSubscriptionPlanId($planId): ?string
+    {
+        if (! is_string($planId) || trim($planId) === '') {
+            return null;
+        }
+
+        $normalized = SubscriptionTierHelper::toLegacy($planId);
+
+        return $normalized !== '' ? $normalized : null;
     }
 
     /**

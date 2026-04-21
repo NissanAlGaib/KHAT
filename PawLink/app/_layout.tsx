@@ -8,7 +8,8 @@ import { useLoadFonts } from "@/hooks/useLoadFonts";
 import { useUpdateChecker } from "@/hooks/useUpdateChecker";
 import { useWhatsNew } from "@/hooks/useWhatsNew";
 import WhatsNewModal from "@/components/core/WhatsNewModal";
-import { useEffect, useMemo } from "react";
+import AnimatedLaunchSplash from "@/components/core/AnimatedLaunchSplash";
+import { useEffect, useMemo, useState } from "react";
 import { Text, View } from "react-native";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
 import {
@@ -88,6 +89,7 @@ function RootNavigator() {
 
 export default function RootLayout() {
   const fontsLoaded = useLoadFonts();
+  const [showLaunchSplash, setShowLaunchSplash] = useState(true);
 
   // Check for OTA updates
   useUpdateChecker();
@@ -97,16 +99,30 @@ export default function RootLayout() {
 
   useEffect(() => {
     console.log("RootLayout - fontsLoaded:", fontsLoaded);
-    if (fontsLoaded) {
-      SplashScreen.hideAsync().catch((err) => {
-        console.warn("SplashScreen.hideAsync error:", err);
-      });
+    if (!fontsLoaded) {
+      return;
     }
+
+    SplashScreen.hideAsync().catch((err) => {
+      console.warn("SplashScreen.hideAsync error:", err);
+    });
+
+    const splashTimeout = setTimeout(() => {
+      setShowLaunchSplash(false);
+    }, 2200);
+
+    return () => {
+      clearTimeout(splashTimeout);
+    };
   }, [fontsLoaded]);
 
   if (!fontsLoaded) {
     console.log("Waiting for fonts to load...");
     return null;
+  }
+
+  if (showLaunchSplash) {
+    return <AnimatedLaunchSplash />;
   }
 
   try {

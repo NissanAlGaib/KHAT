@@ -11,6 +11,7 @@
     "newArchEnabled": true,
     "ios": {
       "supportsTablet": true,
+      "icon": "./assets/images/icon.png",
       "bundleIdentifier": "com.khat.pawlink",
       "infoPlist": {
         "ITSAppUsesNonExemptEncryption": false
@@ -18,6 +19,7 @@
     },
     "android": {
       "softwareKeyboardLayoutMode": "pan",
+      "icon": "./assets/images/icon.png",
       "adaptiveIcon": {
         "backgroundColor": "#E6F4FE",
         "foregroundImage": "./assets/images/android-icon-foreground.png",
@@ -38,12 +40,13 @@
       [
         "expo-splash-screen",
         {
-          "image": "./assets/images/splash-icon.png",
-          "imageWidth": 200,
+          "image": "./assets/images/splash-brand.jpg",
+          "imageWidth": 220,
           "resizeMode": "contain",
-          "backgroundColor": "#ffffff",
+          "backgroundColor": "#EB4F33",
           "dark": {
-            "backgroundColor": "#000000"
+            "image": "./assets/images/splash-brand.jpg",
+            "backgroundColor": "#EB4F33"
           }
         }
       ],

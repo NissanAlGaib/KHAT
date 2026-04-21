@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Helpers\SubscriptionTierHelper;
 use App\Models\Pet;
 use App\Models\UserAuth;
 use App\Models\Vaccination;
@@ -87,6 +88,21 @@ class PetController extends Controller
                 'message' => 'You must complete identity verification before adding a pet',
                 'requires_verification' => true,
             ], 403);
+        }
+
+        $maxPets = SubscriptionTierHelper::getFeatureLimit($user->subscription_tier, 'max_pets');
+        if (is_numeric($maxPets) && (int) $maxPets > 0) {
+            $petCount = Pet::where('user_id', $user->id)->count();
+
+            if ($petCount >= (int) $maxPets) {
+                return response()->json([
+                    'success' => false,
+                    'message' => "You have reached your pet profile limit ({$maxPets}) for your current subscription tier.",
+                    'requires_upgrade' => true,
+                    'pet_limit' => (int) $maxPets,
+                    'current_pet_count' => $petCount,
+                ], 403);
+            }
         }
 
         $minimumBirthdate = $this->getMinimumBirthdateBySpecies($request->input('species'));

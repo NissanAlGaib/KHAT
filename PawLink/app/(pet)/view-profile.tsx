@@ -27,18 +27,16 @@ import {
 } from "@/services/petService";
 import {
   sendMatchRequest,
-  createMatchPayment,
   getConversations,
 } from "@/services/matchRequestService";
-import { verifyPayment } from "@/services/paymentService";
 import {
   addFavorite,
   removeFavorite,
   checkFavorite,
 } from "@/services/favoriteService";
-import { API_BASE_URL } from "@/config/env";
 import { usePet } from "@/context/PetContext";
 import { getStorageUrl } from "@/utils/imageUrl";
+import MatchPaymentPromptModal from "@/components/pet/MatchPaymentPromptModal";
 import dayjs from "dayjs";
 
 type TabKey = "overview" | "health" | "breeding" | "gallery";
@@ -55,10 +53,11 @@ export default function ViewPetProfileScreen() {
   const [loading, setLoading] = useState(true);
   const [sendingRequest, setSendingRequest] = useState(false);
   const [activeTab, setActiveTab] = useState<TabKey>("overview");
-  const [pendingPaymentId, setPendingPaymentId] = useState<number | null>(null);
+  const [showMatchPaymentModal, setShowMatchPaymentModal] = useState(false);
   const [pendingMatchData, setPendingMatchData] = useState<{
     requesterPetId: number;
     targetPetId: number;
+    paymentAmount: number;
   } | null>(null);
   const [compatData, setCompatData] = useState<CompatibilityResult | null>(
     null,
@@ -329,82 +328,32 @@ export default function ViewPetProfileScreen() {
     router.push(`/(chat)/conversation?id=${conversationId}`);
   };
 
-  const initiateMatchPayment = async (
-    requesterPetId: number,
-    targetPetId: number,
-  ) => {
-    try {
-      const successUrl = `${API_BASE_URL}/payment/redirect?status=success`;
-      const cancelUrl = `${API_BASE_URL}/payment/redirect?status=cancel`;
-
-      const paymentResult = await createMatchPayment(
-        requesterPetId,
-        targetPetId,
-        successUrl,
-        cancelUrl,
-      );
-
-      if (paymentResult.success && paymentResult.data?.checkout_url) {
-        const checkoutUrl = paymentResult.data.checkout_url;
-        setPendingPaymentId(paymentResult.data.payment_id);
-        setPendingMatchData({ requesterPetId, targetPetId });
-
-        showAlert({
-          title: "Payment Required",
-          message:
-            "Complete the payment in your browser, then tap Verify Payment.",
-          type: "info",
-          buttons: [
-            {
-              text: "Open Payment",
-              onPress: async () => {
-                const { Linking } = await import("react-native");
-                await Linking.openURL(checkoutUrl);
-              },
-            },
-            {
-              text: "Verify Payment",
-              onPress: () => verifyMatchPayment(),
-            },
-            {
-              text: "Cancel",
-              onPress: () => {
-                setPendingPaymentId(null);
-                setPendingMatchData(null);
-              },
-            },
-          ],
-        });
-      } else {
-        showAlert({
-          title: "Payment Error",
-          message: paymentResult.message || "Failed to create payment session.",
-          type: "error",
-        });
-      }
-    } catch {
-      showAlert({
-        title: "Error",
-        message: "Failed to initiate payment.",
-        type: "error",
-      });
-    }
+  const closeMatchPaymentModal = () => {
+    setShowMatchPaymentModal(false);
+    setPendingMatchData(null);
   };
 
-  const verifyMatchPayment = async (retryCount = 0) => {
-    if (!pendingPaymentId || !pendingMatchData) return;
+  const handleMatchPaymentSuccess = async () => {
+    if (!pendingMatchData) {
+      closeMatchPaymentModal();
+      return;
+    }
 
+    setSendingRequest(true);
     try {
-      const verifyResult = await verifyPayment(pendingPaymentId);
+      const matchResult = await sendMatchRequest(
+        pendingMatchData.requesterPetId,
+        pendingMatchData.targetPetId,
+      );
 
-      if (verifyResult.success && verifyResult.data?.status === "paid") {
-        const matchResult = await sendMatchRequest(
-          pendingMatchData.requesterPetId,
-          pendingMatchData.targetPetId,
-        );
-        setPendingPaymentId(null);
-        setPendingMatchData(null);
-
+      if (matchResult.requires_payment) {
+        showAlert({
+          title: "Payment Processing",
+          message:
+            "Your payment was received, but confirmation is still processing. Please try sending the request again in a moment.",
+          type: "info",
+        });
+      } else {
         showAlert({
           title: matchResult.success ? "Request Sent" : "Request Failed",
           message: matchResult.success
@@ -412,39 +361,16 @@ export default function ViewPetProfileScreen() {
             : matchResult.message,
           type: matchResult.success ? "success" : "error",
         });
-      } else if (verifyResult.data?.status === "expired") {
-        setPendingPaymentId(null);
-        setPendingMatchData(null);
-        showAlert({
-          title: "Payment Expired",
-          message: "The payment session has expired.",
-          type: "error",
-        });
-      } else if (retryCount < 3) {
-        setTimeout(() => verifyMatchPayment(retryCount + 1), 2000);
-      } else {
-        showAlert({
-          title: "Payment Pending",
-          message: "Payment is still processing. Please try again shortly.",
-          type: "info",
-          buttons: [
-            { text: "Check Again", onPress: () => verifyMatchPayment(0) },
-            {
-              text: "Cancel",
-              onPress: () => {
-                setPendingPaymentId(null);
-                setPendingMatchData(null);
-              },
-            },
-          ],
-        });
       }
     } catch {
       showAlert({
         title: "Error",
-        message: "Failed to verify payment.",
+        message: "Payment was received, but sending the match request failed.",
         type: "error",
       });
+    } finally {
+      closeMatchPaymentModal();
+      setSendingRequest(false);
     }
   };
 
@@ -467,10 +393,12 @@ export default function ViewPetProfileScreen() {
         parseInt(petId, 10),
       );
       if (result.requires_payment && result.payment_amount) {
-        await initiateMatchPayment(
-          result.requester_pet_id!,
-          result.target_pet_id!,
-        );
+        setPendingMatchData({
+          requesterPetId: result.requester_pet_id ?? selectedPet.pet_id,
+          targetPetId: result.target_pet_id ?? parseInt(petId, 10),
+          paymentAmount: result.payment_amount,
+        });
+        setShowMatchPaymentModal(true);
       } else {
         showAlert({
           title: result.success ? "Request Sent" : "Request Failed",
@@ -1161,6 +1089,17 @@ export default function ViewPetProfileScreen() {
           </ScrollView>
         </SafeAreaView>
       </Modal>
+
+      {pendingMatchData ? (
+        <MatchPaymentPromptModal
+          visible={showMatchPaymentModal}
+          requesterPetId={pendingMatchData.requesterPetId}
+          targetPetId={pendingMatchData.targetPetId}
+          amount={pendingMatchData.paymentAmount}
+          onSuccess={handleMatchPaymentSuccess}
+          onDismiss={closeMatchPaymentModal}
+        />
+      ) : null}
 
       <AlertModal {...{ visible, ...alertOptions, onClose: hideAlert }} />
 

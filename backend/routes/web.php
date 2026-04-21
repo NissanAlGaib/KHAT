@@ -13,6 +13,9 @@ Route::get('/', function () {
     return redirect()->route('admin.login');
 });
 
+// Public account deletion instructions page for Google Play compliance
+Route::view('/account-deletion', 'account-deletion')->name('account-deletion');
+
 // Payment redirect routes — PayMongo redirects here after checkout,
 // then we bounce the user back into the mobile app via the pawlink:// scheme
 Route::get('/payment/redirect', function (\Illuminate\Http\Request $request) {

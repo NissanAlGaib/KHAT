@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Helpers\SubscriptionTierHelper;
 use App\Models\AiGenerationLog;
 use App\Models\Pet;
 use App\Models\PetPhoto;
@@ -45,7 +46,14 @@ class AiOffspringController extends Controller
 
         // --- Rate limit check based on subscription tier ---
         $tier = $user->subscription_tier ?? 'free';
-        $maxGenerations = config("subscription.tiers.{$tier}.features.max_ai_generations_per_day", 1);
+        $normalizedTier = SubscriptionTierHelper::normalize($tier);
+        $displayTier = SubscriptionTierHelper::toLegacy($tier);
+        $maxGenerations = SubscriptionTierHelper::getFeatureLimit(
+            $tier,
+            'max_ai_generations_per_day',
+            1
+        );
+        $maxGenerations = is_numeric($maxGenerations) ? (int) $maxGenerations : 1;
 
         $todayCount = DB::table('ai_generation_logs')
             ->where('user_id', $user->id)
@@ -55,8 +63,9 @@ class AiOffspringController extends Controller
         if ($todayCount >= $maxGenerations) {
             return response()->json([
                 'success' => false,
-                'message' => "Daily AI generation limit reached ({$maxGenerations} per day for {$tier} tier).",
+                'message' => "Daily AI generation limit reached ({$maxGenerations} per day for {$displayTier} tier).",
                 'remaining_generations' => 0,
+                'subscription_tier' => $normalizedTier,
             ], 429);
         }
 
@@ -192,7 +201,7 @@ class AiOffspringController extends Controller
             ->paginate($perPage);
 
         $data = collect($logs->items())
-            ->map(fn (AiGenerationLog $item) => $this->transformHistoryItem($item))
+            ->map(fn(AiGenerationLog $item) => $this->transformHistoryItem($item))
             ->values()
             ->all();
 
@@ -278,7 +287,7 @@ class AiOffspringController extends Controller
         }
 
         $first = $photos
-            ->sortBy(fn (PetPhoto $photo) => (int) $photo->id)
+            ->sortBy(fn(PetPhoto $photo) => (int) $photo->id)
             ->first();
 
         return $first ? collect([$first]) : collect();
@@ -309,7 +318,7 @@ class AiOffspringController extends Controller
 
                 return $disk->url($path);
             })
-            ->filter(fn (?string $url) => ! empty($url))
+            ->filter(fn(?string $url) => ! empty($url))
             ->values()
             ->all();
     }

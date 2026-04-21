@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Helpers\SubscriptionTierHelper;
 use App\Models\Conversation;
 use App\Models\MatchRequest;
 use App\Models\Message;
@@ -45,10 +46,66 @@ class MatchRequestController extends Controller
      */
     private function requiresPayment($user): bool
     {
-        // Free tier or null subscription requires payment
-        $tier = $user->subscription_tier ?? 'free';
+        return SubscriptionTierHelper::isFreeTier($user->subscription_tier ?? 'free');
+    }
 
-        return $tier === 'free';
+    /**
+     * Get monthly match request limit for the user's subscription tier.
+     */
+    private function getMonthlyMatchLimit($user): ?int
+    {
+        $limit = SubscriptionTierHelper::getFeatureLimit(
+            $user->subscription_tier,
+            'max_matches_per_month'
+        );
+
+        if ($limit === null || ! is_numeric($limit)) {
+            return null;
+        }
+
+        return (int) $limit;
+    }
+
+    /**
+     * Count how many match requests the user has sent this month.
+     */
+    private function getCurrentMonthMatchCount(int $userId): int
+    {
+        $userPetIds = Pet::where('user_id', $userId)->pluck('pet_id');
+        if ($userPetIds->isEmpty()) {
+            return 0;
+        }
+
+        $monthStart = now()->startOfMonth();
+        $monthEnd = now()->endOfMonth();
+
+        return MatchRequest::whereIn('requester_pet_id', $userPetIds)
+            ->whereBetween('created_at', [$monthStart, $monthEnd])
+            ->count();
+    }
+
+    /**
+     * Enforce monthly match quota when a tier has a finite limit.
+     */
+    private function enforceMonthlyMatchLimit($user)
+    {
+        $monthlyLimit = $this->getMonthlyMatchLimit($user);
+        if ($monthlyLimit === null || $monthlyLimit <= 0) {
+            return null;
+        }
+
+        $usedMatches = $this->getCurrentMonthMatchCount($user->id);
+        if ($usedMatches < $monthlyLimit) {
+            return null;
+        }
+
+        return response()->json([
+            'success' => false,
+            'message' => 'You have reached your monthly match request limit for your current subscription tier.',
+            'requires_upgrade' => true,
+            'matches_used_this_month' => $usedMatches,
+            'matches_limit' => $monthlyLimit,
+        ], 403);
     }
 
     /**
@@ -167,6 +224,11 @@ class MatchRequestController extends Controller
             ], 400);
         }
 
+        $limitResponse = $this->enforceMonthlyMatchLimit($user);
+        if ($limitResponse) {
+            return $limitResponse;
+        }
+
         // Check if an active (pending/accepted) match request already exists between these pets
         // Completed or declined match requests should NOT block re-matching
         $pairQuery = function ($query) use ($validated) {
@@ -191,30 +253,29 @@ class MatchRequestController extends Controller
             ], 409);
         }
 
-        // TODO: Re-enable payment check after testing
-        // // Check if free tier user needs to pay
-        // if ($this->requiresPayment($user)) {
-        //     // Check if they have a valid payment for this match
-        //     $hasPayment = $this->hasValidMatchPayment($user->id, $validated['target_pet_id']);
+        // Check if free tier user needs to pay
+        if ($this->requiresPayment($user)) {
+            // Check if they have a valid payment for this match
+            $hasPayment = $this->hasValidMatchPayment($user->id, $validated['target_pet_id']);
 
-        //     Log::info('Match request payment check', [
-        //         'user_id' => $user->id,
-        //         'target_pet_id' => $validated['target_pet_id'],
-        //         'requires_payment' => true,
-        //         'has_valid_payment' => $hasPayment,
-        //     ]);
+            Log::info('Match request payment check', [
+                'user_id' => $user->id,
+                'target_pet_id' => $validated['target_pet_id'],
+                'requires_payment' => true,
+                'has_valid_payment' => $hasPayment,
+            ]);
 
-        //     if (!$hasPayment) {
-        //         return response()->json([
-        //             'success' => false,
-        //             'message' => 'Payment required for match request',
-        //             'requires_payment' => true,
-        //             'payment_amount' => $this->getMatchRequestFee(),
-        //             'target_pet_id' => $validated['target_pet_id'],
-        //             'requester_pet_id' => $validated['requester_pet_id'],
-        //         ], 402); // 402 Payment Required
-        //     }
-        // }
+            if (! $hasPayment) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Payment required for match request',
+                    'requires_payment' => true,
+                    'payment_amount' => $this->getMatchRequestFee(),
+                    'target_pet_id' => $validated['target_pet_id'],
+                    'requester_pet_id' => $validated['requester_pet_id'],
+                ], 402); // 402 Payment Required
+            }
+        }
 
         try {
             // Clean up old cancelled/declined requests between this pair so they
@@ -295,6 +356,11 @@ class MatchRequestController extends Controller
                 'success' => false,
                 'message' => 'Target pet not found',
             ], 404);
+        }
+
+        $limitResponse = $this->enforceMonthlyMatchLimit($user);
+        if ($limitResponse) {
+            return $limitResponse;
         }
 
         // Check if they already have a valid payment
@@ -968,7 +1034,7 @@ class MatchRequestController extends Controller
         $userPetIds = Pet::where('user_id', $user->id)->pluck('pet_id');
 
         // Debug logging
-        \Log::info('Getting conversations for user', [
+        Log::info('Getting conversations for user', [
             'user_id' => $user->id,
             'user_pet_ids' => $userPetIds->toArray(),
         ]);
@@ -999,7 +1065,7 @@ class MatchRequestController extends Controller
             ->get();
 
         // Debug logging
-        \Log::info('Found conversations', [
+        Log::info('Found conversations', [
             'count' => $conversations->count(),
             'conversation_ids' => $conversations->pluck('id')->toArray(),
             'shooter_conversations' => $conversations->filter(function ($conv) use ($user) {

@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Helpers\SubscriptionTierHelper;
 use App\Models\Payment;
 use App\Services\AnalyticsService;
 use App\Services\PayMongoService;
@@ -23,7 +24,7 @@ class SubscriptionController extends Controller
     public function createCheckout(Request $request)
     {
         $validated = $request->validate([
-            'plan_id' => 'required|string|in:standard,premium',
+            'plan_id' => 'required|string|in:basic,standard,premium',
             'billing_cycle' => 'required|string|in:monthly,yearly',
             'amount' => 'required|numeric|min:20',
             'success_url' => 'required|url',
@@ -31,9 +32,10 @@ class SubscriptionController extends Controller
         ]);
 
         $user = $request->user();
+        $planId = $this->normalizePlanId($validated['plan_id']);
 
         // Verify amount matches expected plan pricing
-        $expectedAmount = $this->getExpectedAmount($validated['plan_id'], $validated['billing_cycle']);
+        $expectedAmount = $this->getExpectedAmount($planId, $validated['billing_cycle']);
         if (abs($expectedAmount - $validated['amount']) > 0.01) {
             return response()->json([
                 'success' => false,
@@ -73,7 +75,7 @@ class SubscriptionController extends Controller
             }
 
             // Create description
-            $planName = ucfirst($validated['plan_id']);
+            $planName = ucfirst($planId);
             $cycleLabel = $validated['billing_cycle'] === 'monthly' ? 'Monthly' : 'Yearly';
             $description = "PawLink {$planName} Subscription - {$cycleLabel}";
 
@@ -85,10 +87,10 @@ class SubscriptionController extends Controller
                 'description' => $description,
                 'success_url' => $validated['success_url'],
                 'cancel_url' => $validated['cancel_url'],
-                'reference_number' => "SUB-{$user->id}-{$validated['plan_id']}-{$validated['billing_cycle']}",
+                'reference_number' => "SUB-{$user->id}-{$planId}-{$validated['billing_cycle']}",
                 'metadata' => [
                     'user_id' => $user->id,
-                    'plan_id' => $validated['plan_id'],
+                    'plan_id' => $planId,
                     'billing_cycle' => $validated['billing_cycle'],
                     'source' => 'paymongo',
                     'type' => 'subscription',
@@ -120,14 +122,14 @@ class SubscriptionController extends Controller
                 'status' => Payment::STATUS_AWAITING_PAYMENT,
                 'expires_at' => $result['expires_at'] ? \Carbon\Carbon::parse($result['expires_at']) : now()->addHour(),
                 'metadata' => [
-                    'plan_id' => $validated['plan_id'],
+                    'plan_id' => $planId,
                     'billing_cycle' => $validated['billing_cycle'],
                     'source' => 'paymongo',
                 ],
             ]);
 
             AnalyticsService::track('subscription_checkout_initiated', [
-                'plan_id' => $validated['plan_id'],
+                'plan_id' => $planId,
                 'billing_cycle' => $validated['billing_cycle'],
                 'amount' => (float) $validated['amount'],
                 'currency' => 'PHP',
@@ -208,14 +210,16 @@ class SubscriptionController extends Controller
         // Include current subscription info if user is authenticated
         $currentSubscription = null;
         if ($user = $request->user()) {
+            $tier = $this->normalizePlanId($user->subscription_tier ?? 'free');
+
             $currentSubscription = [
-                'tier' => $user->subscription_tier ?? 'free',
+                'tier' => $tier,
                 'expires_at' => $user->subscription_expires_at ?? null,
                 'status' => $user->subscription_status ?? 'inactive',
                 'billing_cycle' => $user->subscription_billing_cycle,
                 'source' => $user->subscription_source,
                 'is_active' => ($user->subscription_status ?? 'inactive') === 'active'
-                    && in_array($user->subscription_tier, ['standard', 'premium']),
+                    && in_array($tier, ['standard', 'premium'], true),
             ];
         }
 
@@ -233,14 +237,15 @@ class SubscriptionController extends Controller
     public function getCurrentSubscription(Request $request)
     {
         $user = $request->user();
+        $tier = $this->normalizePlanId($user->subscription_tier ?? 'free');
 
         $isActive = ($user->subscription_status ?? 'inactive') === 'active'
-            && in_array($user->subscription_tier, ['standard', 'premium']);
+            && in_array($tier, ['standard', 'premium'], true);
 
         return response()->json([
             'success' => true,
             'data' => [
-                'tier' => $user->subscription_tier ?? 'free',
+                'tier' => $tier,
                 'status' => $user->subscription_status ?? 'inactive',
                 'source' => $user->subscription_source,
                 'billing_cycle' => $user->subscription_billing_cycle,
@@ -256,6 +261,8 @@ class SubscriptionController extends Controller
      */
     private function getExpectedAmount(string $planId, string $billingCycle): float
     {
+        $planId = $this->normalizePlanId($planId);
+
         $prices = [
             'standard' => [
                 'monthly' => 199,
@@ -268,5 +275,19 @@ class SubscriptionController extends Controller
         ];
 
         return (float) ($prices[$planId][$billingCycle] ?? 0);
+    }
+
+    /**
+     * Keep plan IDs backward-compatible while preserving the public API shape.
+     */
+    private function normalizePlanId(?string $planId): string
+    {
+        if ($planId === null) {
+            return 'free';
+        }
+
+        $normalized = SubscriptionTierHelper::toLegacy($planId);
+
+        return $normalized === '' ? 'free' : $normalized;
     }
 }

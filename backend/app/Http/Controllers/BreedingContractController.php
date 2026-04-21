@@ -129,7 +129,7 @@ class BreedingContractController extends Controller
                 'data' => $this->formatContract($contract, $user),
             ], 201);
         } catch (\Exception $e) {
-            \Log::error('Failed to create contract: ' . $e->getMessage());
+            Log::error('Failed to create contract: ' . $e->getMessage());
             return response()->json([
                 'success' => false,
                 'message' => 'Failed to create contract',
@@ -289,7 +289,7 @@ class BreedingContractController extends Controller
                 'data' => $this->formatContract($contract->fresh(), $user),
             ]);
         } catch (\Exception $e) {
-            \Log::error('Failed to update contract: ' . $e->getMessage());
+            Log::error('Failed to update contract: ' . $e->getMessage());
             return response()->json([
                 'success' => false,
                 'message' => 'Failed to update contract',
@@ -337,7 +337,7 @@ class BreedingContractController extends Controller
             // If contract has shooter payment, set shooter_status to pending
             // Cast to float to handle decimal string comparison properly
             $shooterPayment = (float) $contract->shooter_payment;
-            \Log::info('Contract accept - shooter payment check', [
+            Log::info('Contract accept - shooter payment check', [
                 'contract_id' => $contract->id,
                 'shooter_payment_raw' => $contract->shooter_payment,
                 'shooter_payment_float' => $shooterPayment,
@@ -346,7 +346,7 @@ class BreedingContractController extends Controller
 
             if ($shooterPayment > 0) {
                 $updateData['shooter_status'] = 'pending';
-                \Log::info('Setting shooter_status to pending for contract ' . $contract->id);
+                Log::info('Setting shooter_status to pending for contract ' . $contract->id);
             }
 
             $contract->update($updateData);
@@ -357,7 +357,7 @@ class BreedingContractController extends Controller
                 'data' => $this->formatContract($contract->fresh(), $user),
             ]);
         } catch (\Exception $e) {
-            \Log::error('Failed to accept contract: ' . $e->getMessage());
+            Log::error('Failed to accept contract: ' . $e->getMessage());
             return response()->json([
                 'success' => false,
                 'message' => 'Failed to accept contract',
@@ -414,7 +414,7 @@ class BreedingContractController extends Controller
                 'data' => $this->formatContract($contract->fresh(), $user),
             ]);
         } catch (\Exception $e) {
-            \Log::error('Failed to reject contract: ' . $e->getMessage());
+            Log::error('Failed to reject contract: ' . $e->getMessage());
             return response()->json([
                 'success' => false,
                 'message' => 'Failed to reject contract',
@@ -513,7 +513,7 @@ class BreedingContractController extends Controller
                 'data' => $this->formatContract($contract->fresh(), $user),
             ]);
         } catch (\Exception $e) {
-            \Log::error('Failed to accept shooter request: ' . $e->getMessage());
+            Log::error('Failed to accept shooter request: ' . $e->getMessage());
             return response()->json([
                 'success' => false,
                 'message' => 'Failed to accept shooter request',
@@ -568,7 +568,7 @@ class BreedingContractController extends Controller
                 'data' => $this->formatContract($contract->fresh(), $user),
             ]);
         } catch (\Exception $e) {
-            \Log::error('Failed to decline shooter request: ' . $e->getMessage());
+            Log::error('Failed to decline shooter request: ' . $e->getMessage());
             return response()->json([
                 'success' => false,
                 'message' => 'Failed to decline shooter request',
@@ -743,7 +743,7 @@ class BreedingContractController extends Controller
                 'data' => $this->formatContractForShooter($contract->fresh()),
             ]);
         } catch (\Exception $e) {
-            \Log::error('Failed to update shooter terms: ' . $e->getMessage());
+            Log::error('Failed to update shooter terms: ' . $e->getMessage());
             return response()->json([
                 'success' => false,
                 'message' => 'Failed to update shooter terms',
@@ -796,7 +796,7 @@ class BreedingContractController extends Controller
                 'data' => $this->formatContractForShooter($contract->fresh()),
             ]);
         } catch (\Exception $e) {
-            \Log::error('Failed to submit shooter collateral: ' . $e->getMessage());
+            Log::error('Failed to submit shooter collateral: ' . $e->getMessage());
             return response()->json([
                 'success' => false,
                 'message' => 'Failed to submit collateral',
@@ -1296,7 +1296,7 @@ class BreedingContractController extends Controller
                 'data' => $this->formatContract($contract->fresh(), $user),
             ]);
         } catch (\Exception $e) {
-            \Log::error('Failed to complete breeding: ' . $e->getMessage());
+            Log::error('Failed to complete breeding: ' . $e->getMessage());
             return response()->json([
                 'success' => false,
                 'message' => 'Failed to complete breeding',
@@ -1435,7 +1435,7 @@ class BreedingContractController extends Controller
                             $photoUrl = 'offspring/' . $filename;
                         }
                     } catch (\Exception $e) {
-                        \Log::error('Error uploading offspring photo: ' . $e->getMessage());
+                        Log::error('Error uploading offspring photo: ' . $e->getMessage());
                         // Continue without photo if upload fails
                     }
                 }
@@ -1488,7 +1488,7 @@ class BreedingContractController extends Controller
             ], 201);
         } catch (\Exception $e) {
             DB::rollBack();
-            \Log::error('Failed to store offspring: ' . $e->getMessage(), [
+            Log::error('Failed to store offspring: ' . $e->getMessage(), [
                 'exception' => $e,
                 'contract_id' => $contractId,
                 'user_id' => $user->id,
@@ -1695,7 +1695,7 @@ class BreedingContractController extends Controller
             ]);
         } catch (\Exception $e) {
             DB::rollBack();
-            \Log::error('Failed to allocate offspring: ' . $e->getMessage());
+            Log::error('Failed to allocate offspring: ' . $e->getMessage());
             return response()->json([
                 'success' => false,
                 'message' => 'Failed to allocate offspring',
@@ -1837,7 +1837,7 @@ class BreedingContractController extends Controller
             ]);
         } catch (\Exception $e) {
             DB::rollBack();
-            \Log::error('Failed to auto-allocate offspring: ' . $e->getMessage());
+            Log::error('Failed to auto-allocate offspring: ' . $e->getMessage());
             return response()->json([
                 'success' => false,
                 'message' => 'Failed to auto-allocate offspring',
@@ -2043,7 +2043,7 @@ class BreedingContractController extends Controller
             ]);
         } catch (\Exception $e) {
             DB::rollBack();
-            \Log::error('Failed to complete match: ' . $e->getMessage());
+            Log::error('Failed to complete match: ' . $e->getMessage());
             return response()->json([
                 'success' => false,
                 'message' => 'Failed to complete match',
@@ -2282,7 +2282,7 @@ class BreedingContractController extends Controller
                 'data' => $this->formatDailyReport($report),
             ], 201);
         } catch (\Exception $e) {
-            \Log::error('Failed to store daily report: ' . $e->getMessage());
+            Log::error('Failed to store daily report: ' . $e->getMessage());
             return response()->json([
                 'success' => false,
                 'message' => 'Failed to submit daily report',

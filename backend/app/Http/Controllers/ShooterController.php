@@ -195,7 +195,7 @@ class ShooterController extends Controller
 
             // Detailed debug logging
             $allAccepted = BreedingContract::where('status', 'accepted')->get();
-            \Log::info('Shooter offers query results', [
+            Log::info('Shooter offers query results', [
                 'count' => $offers->count(),
                 'user_id' => $user->id,
                 'total_accepted_contracts' => $allAccepted->count(),
@@ -212,7 +212,7 @@ class ShooterController extends Controller
 
             // Log relationship details for debugging
             foreach ($offers as $contract) {
-                \Log::info("Contract {$contract->id} relationships", [
+                Log::info("Contract {$contract->id} relationships", [
                     'has_conversation' => $contract->conversation ? 'yes' : 'no',
                     'has_match_request' => $contract->conversation?->matchRequest ? 'yes' : 'no',
                     'has_requester_pet' => $contract->conversation?->matchRequest?->requesterPet ? 'yes' : 'no',
@@ -232,7 +232,7 @@ class ShooterController extends Controller
                     && $contract->conversation->matchRequest->targetPet->owner;
 
                 if (!$hasAllRelationships) {
-                    \Log::warning("Contract {$contract->id} filtered out due to missing relationships");
+                    Log::warning("Contract {$contract->id} filtered out due to missing relationships");
                 }
 
                 return $hasAllRelationships;
@@ -281,7 +281,7 @@ class ShooterController extends Controller
                 ];
             })->values();
 
-            \Log::info('Returning shooter offers', [
+            Log::info('Returning shooter offers', [
                 'user_id' => $user->id,
                 'user_name' => $user->name,
                 'total_offers' => $formattedOffers->count(),
@@ -293,7 +293,7 @@ class ShooterController extends Controller
                 'data' => $formattedOffers
             ]);
         } catch (\Exception $e) {
-            \Log::error('Failed to get shooter offers: ' . $e->getMessage());
+            Log::error('Failed to get shooter offers: ' . $e->getMessage());
             return response()->json([
                 'success' => false,
                 'message' => 'Failed to get shooter offers'
@@ -420,7 +420,7 @@ class ShooterController extends Controller
                 ]
             ]);
         } catch (\Exception $e) {
-            \Log::error('Failed to get shooter offer details: ' . $e->getMessage());
+            Log::error('Failed to get shooter offer details: ' . $e->getMessage());
             return response()->json([
                 'success' => false,
                 'message' => 'Failed to get offer details'
@@ -514,7 +514,7 @@ class ShooterController extends Controller
                 ]
             ]);
         } catch (\Exception $e) {
-            \Log::error('Failed to accept shooter offer: ' . $e->getMessage());
+            Log::error('Failed to accept shooter offer: ' . $e->getMessage());
             return response()->json([
                 'success' => false,
                 'message' => 'Failed to accept offer'
@@ -619,7 +619,7 @@ class ShooterController extends Controller
                 'data' => $formattedOffers
             ]);
         } catch (\Exception $e) {
-            \Log::error('Failed to get shooter my offers: ' . $e->getMessage());
+            Log::error('Failed to get shooter my offers: ' . $e->getMessage());
             return response()->json([
                 'success' => false,
                 'message' => 'Failed to get your offers'
