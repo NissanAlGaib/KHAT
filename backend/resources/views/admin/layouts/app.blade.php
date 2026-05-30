@@ -179,9 +179,7 @@
         <!-- Logo Header -->
         <div class="h-14 flex items-center bg-gradient-to-r from-[#E75234] to-[#d14024] flex-shrink-0">
             <div class="w-[72px] flex items-center justify-center flex-shrink-0">
-                <svg class="w-7 h-7 text-white" viewBox="0 0 24 24" fill="currentColor">
-                    <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-1 15h-2v-2h2v2zm0-4h-2V7h2v6zm4 4h-2v-2h2v2zm0-4h-2V7h2v6z" opacity="0" /><text x="5" y="18" font-size="16" font-weight="800" fill="white" font-family="Inter,sans-serif">K</text>
-                </svg>
+                <img src="{{ asset('images/khat_logo.png') }}" alt="KHAT Logo" class="w-7 h-7 object-cover">
             </div>
             <div class="sidebar-label flex items-center gap-2 pr-3 flex-1 min-w-0">
                 <h1 class="text-lg font-bold text-white truncate">KHAT Admin</h1>
